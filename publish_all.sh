@@ -4,12 +4,13 @@
 
 #!/usr/bin/env bash
 # publish_all.sh — Pipeline completo
+# ./publish_all.sh --langs py --locales pt       
 set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # Valores padrão
-LANGS="py,cpp"
-LOCALES="pt,en"
+LANGS="py"
+LOCALES="pt"
 DRY_RUN=""
 SKIP_GIT=""
 
