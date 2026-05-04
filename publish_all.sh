@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# publish_all.sh — Pipeline completo: gerar → render → index → push
-# Uso: ./publish_all.sh [--langs py,cpp] [--locales pt,en] [--dry-run] [--skip-git] [--deploy]
+# publish_all.sh — Pipeline completo: gerar → render → index → deploy para docs/
+# Uso: ./publish_all.sh [--langs py,cpp] [--locales pt,en] [--dry-run] [--skip-git]
 
-#!/usr/bin/env bash
-# publish_all.sh — Pipeline completo
-# ./publish_all.sh --langs py --locales pt       
 set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -14,24 +11,26 @@ LOCALES="pt"
 DRY_RUN=""
 SKIP_GIT=""
 
-# Processa argumentos de forma mais robusta
+# Processa argumentos
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --langs)
-      LANGS="$2"
-      shift 2
+    --langs|--langs=*)
+      if [[ "$1" == "--langs" ]]; then
+        LANGS="$2"
+        shift 2
+      else
+        LANGS="${1#*=}"
+        shift
+      fi
       ;;
-    --langs=*)
-      LANGS="${1#*=}"
-      shift
-      ;;
-    --locales)
-      LOCALES="$2"
-      shift 2
-      ;;
-    --locales=*)
-      LOCALES="${1#*=}"
-      shift
+    --locales|--locales=*)
+      if [[ "$1" == "--locales" ]]; then
+        LOCALES="$2"
+        shift 2
+      else
+        LOCALES="${1#*=}"
+        shift
+      fi
       ;;
     --dry-run)
       DRY_RUN="--dry-run"
@@ -54,8 +53,9 @@ echo "  Langs: $LANGS | Locales: $LOCALES"
 echo "  $(date)"
 echo "=================================================="
 
-# Criar diretório gen/ se não existir
+# Criar diretórios necessários
 mkdir -p gen
+mkdir -p docs
 
 # ===================================================================
 # Passo 1: Gerar notebooks traduzidos
@@ -69,27 +69,12 @@ python dev.py --once --langs "$LANGS" --locales "$LOCALES" $DRY_RUN
 echo "      ✓ Notebooks em gen/"
 
 # ===================================================================
-# Passo 2: Copiar assets estáticos (se existirem)
+# Passo 2: Renderizar HTML e PDF com Quarto
 # ===================================================================
 echo ""
-echo "[2/5] Copiando assets estáticos..."
-if [ -d "assets" ]; then
-  cp -r assets/* gen/ 2>/dev/null || true
-  echo "      ✓ Assets copiados"
-else
-  echo "      ℹ Nenhum asset encontrado"
-fi
-
-# ===================================================================
-# Passo 3: Renderizar HTML e PDF com Quarto
-# ===================================================================
-echo ""
-echo "[3/5] Renderizando com Quarto..."
+echo "[2/5] Renderizando com Quarto..."
 IFS=',' read -ra LANG_LIST <<< "$LANGS"
 IFS=',' read -ra LOCALE_LIST <<< "$LOCALES"
-
-RENDER_SUCCESS=0
-RENDER_FAILED=0
 
 for lang in "${LANG_LIST[@]}"; do
   for locale in "${LOCALE_LIST[@]}"; do
@@ -102,86 +87,73 @@ for lang in "${LANG_LIST[@]}"; do
       
       # HTML
       echo "        → HTML..."
-      if (cd "$qdir" && quarto render --to html > /dev/null 2>&1); then
-        echo "          ✓ HTML gerado"
-      else
-        echo "          ⚠ Falha no HTML"
-        ((RENDER_FAILED++))
-      fi
+      (cd "$qdir" && quarto render --to html > /dev/null 2>&1) && echo "          ✓ HTML gerado" || echo "          ⚠ Falha no HTML"
       
       # PDF
       echo "        → PDF..."
-      if (cd "$qdir" && quarto render --to pdf > /dev/null 2>&1); then
-        echo "          ✓ PDF gerado"
-        ((RENDER_SUCCESS++))
-      else
-        echo "          ⚠ Falha no PDF (pode ser problema de LaTeX)"
-        ((RENDER_FAILED++))
-      fi
+      (cd "$qdir" && quarto render --to pdf > /dev/null 2>&1) && echo "          ✓ PDF gerado" || echo "          ⚠ Falha no PDF"
     else
       echo "      ⚠ $qdir não encontrado (pulando)"
     fi
   done
 done
 
+# ===================================================================
+# Passo 2b: Gerar notebooks para alunos
+# ===================================================================
 echo ""
-echo "      Renderização: $RENDER_SUCCESS sucessos, $RENDER_FAILED falhas"
+echo "[2b/5] Gerando notebooks para alunos..."
+python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
+echo "      ✓ notebooks_alunos/"
 
 # ===================================================================
-# Passo 4: Gerar página principal (índice)
+# Passo 3: Gerar página principal (índice) dentro de gen/book/
 # ===================================================================
 echo ""
-echo "[4/5] Gerando página principal..."
+echo "[3/5] Gerando página principal..."
 if python -m pipeline.index_builder 2>/dev/null; then
-  echo "      ✓ gen/index.html"
+  echo "      ✓ gen/book/index.html gerado"
 else
-  echo "      ⚠ Falha ao gerar índice (index_builder pode não existir)"
-  # Criar índice mínimo
-  cat > gen/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>PDI+VC - Livro</title></head>
-<body>
-<h1>📖 Processamento Digital de Imagens e Visão Computacional</h1>
-<p>Pipeline em execução... aguarde a conclusão.</p>
-</body>
-</html>
-EOF
-  echo "      ✓ Índice mínimo criado"
+  echo "      ⚠ Falha ao gerar índice"
 fi
 
 # ===================================================================
-# Passo 5: Git e Deploy
+# Passo 4: Preparar pasta docs/ para GitHub Pages
 # ===================================================================
 echo ""
-echo "[5/5] Publicação..."
+echo "[4/5] Preparando docs/..."
+rm -rf docs
+cp -rL gen/book docs
+touch docs/.nojekyll
+echo "      ✓ docs/ pronta"
 
-# Git commit
+# ===================================================================
+# Passo 5: Git commit e push
+# ===================================================================
+echo ""
+echo "[5/5] Publicando no GitHub..."
+
 if [ -z "$SKIP_GIT" ]; then
   TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
-  echo "      📦 Git commit..."
-  git add .
+  
+  echo "      📦 Git add..."
+  git add gen/ docs/ .nojekyll 2>/dev/null
+  
+  echo "      📝 Git commit..."
   if git commit -m "publish: $TIMESTAMP (langs: $LANGS, locales: $LOCALES)" 2>/dev/null; then
     echo "        ✓ Commit realizado"
-    echo "      🚀 Git push..."
-    if git push origin main 2>/dev/null; then
-      echo "        ✓ Push realizado"
-    else
-      echo "        ⚠ Push falhou (branch ou remote?)"
-    fi
   else
     echo "        ℹ Nada novo para commitar"
   fi
+  
+  echo "      🚀 Git push..."
+  if git push origin master 2>/dev/null || git push origin main 2>/dev/null; then
+    echo "        ✓ Push realizado"
+  else
+    echo "        ⚠ Push falhou (verifique se o remote está configurado)"
+  fi
 else
   echo "      ⚠ Git skipado (--skip-git)"
-fi
-
-# Deploy (copiar para outra pasta)
-if [ -n "$DEPLOY" ]; then
-  echo "      📂 Deploy para: $DEPLOY_PATH"
-  mkdir -p "$DEPLOY_PATH"
-  rsync -av --delete gen/ "$DEPLOY_PATH/" --exclude='.git*' 2>/dev/null
-  echo "        ✓ Deploy realizado"
 fi
 
 # ===================================================================
@@ -192,7 +164,7 @@ echo "=================================================="
 echo "  ✅ Pipeline concluído!"
 echo ""
 echo "  📁 Saídas disponíveis:"
-echo "    📄 gen/index.html (portal principal)"
+echo "    📄 gen/book/index.html (portal principal)"
 for lang in "${LANG_LIST[@]}"; do
   for locale in "${LOCALE_LIST[@]}"; do
     combo="${lang}.${locale}"
@@ -202,18 +174,17 @@ for lang in "${LANG_LIST[@]}"; do
   done
 done
 echo ""
-echo "  🌐 Abrir localmente:"
-echo "    open gen/index.html"
+echo "  🌐 GitHub Pages (docs/):"
+echo "    https://fzampirolli.github.io/pdi-vc/"
 echo ""
-if [ -n "$DEPLOY" ]; then
-  echo "  🌍 Publicado em: $DEPLOY_PATH"
-fi
+echo "  📂 Local:"
+echo "    open docs/index.html"
 echo "=================================================="
 
 # Mostrar estatísticas finais
 echo ""
 echo "  📊 Estatísticas:"
 echo "    $(find gen -name "*.ipynb" 2>/dev/null | wc -l) notebooks traduzidos"
-echo "    $(find gen -name "*.html" 2>/dev/null | wc -l) arquivos HTML"
-echo "    $(find gen -name "*.pdf" 2>/dev/null | wc -l) arquivos PDF"
+echo "    $(find docs -name "*.html" 2>/dev/null | wc -l) arquivos HTML em docs/"
+echo "    $(find docs -name "*.pdf" 2>/dev/null | wc -l) arquivos PDF em docs/"
 echo "=================================================="

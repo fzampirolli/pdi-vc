@@ -2,7 +2,7 @@
 pipeline/index_builder.py
 =========================
 Gera página principal minimalista com links para cada versão.
-O index.html fica em gen/index.html (junto com as versões geradas).
+O index.html fica em gen/book/index.html (junto com as versões geradas).
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ class IndexBuilder:
         self.root = project_root.resolve()
         self.gen_dir = self.root / DIR_GEN
         self.book_dir = self.root / DIR_BOOK
-        self.index_path = self.gen_dir / 'index.html'  # Mudou para gen/index.html
+        # ALTERADO: index agora fica dentro de book/
+        self.index_path = self.book_dir / 'index.html'
     
     def scan_versions(self) -> List[Dict]:
         """Escaneia gen/book/ e retorna informações de cada versão."""
@@ -35,6 +36,10 @@ class IndexBuilder:
         
         for combo_dir in sorted(self.book_dir.iterdir()):
             if not combo_dir.is_dir():
+                continue
+            
+            # Pular o próprio index.html se existir
+            if combo_dir.name == 'index.html':
                 continue
             
             # Parse combo key: 'py.pt', 'cpp.en', etc.
@@ -59,9 +64,9 @@ class IndexBuilder:
             pdf_file = combo_dir / f'{combo_dir.name}.pdf'
             has_pdf = pdf_file.exists()
             
-            # Caminho relativo a partir de gen/
-            index_relative = Path('book') / combo_dir.name / 'index.html'
-            pdf_relative = Path('book') / combo_dir.name / f'{combo_dir.name}.pdf' if has_pdf else None
+            # ALTERADO: caminhos relativos a partir de book/
+            index_relative = f"{combo_dir.name}/index.html"
+            pdf_relative = f"{combo_dir.name}/{combo_dir.name}.pdf" if has_pdf else None
             
             versions.append({
                 'key': combo_dir.name,
@@ -347,7 +352,7 @@ class IndexBuilder:
 '''
             
             for version in versions_list:
-                # Link para o index.html da versão (relativo a partir de gen/)
+                # Link para o index.html da versão (relativo a partir de book/)
                 index_link = version['index_relative'] if version['has_index'] else '#'
                 
                 html += f'''
@@ -400,9 +405,9 @@ class IndexBuilder:
         return html
     
     def build(self) -> Path:
-        """Constrói a página index.html principal dentro de gen/."""
-        # Garante que o diretório gen/ existe
-        self.gen_dir.mkdir(parents=True, exist_ok=True)
+        """Constrói a página index.html principal dentro de gen/book/."""
+        # Garante que o diretório gen/book/ existe
+        self.book_dir.mkdir(parents=True, exist_ok=True)
         
         versions = self.scan_versions()
         

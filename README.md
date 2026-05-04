@@ -151,6 +151,15 @@ cd gen/quarto/cpp.en && quarto render --to html
 cd gen/quarto/py.pt  && quarto render --to pdf
 ```
 
+## Workflow B: Gerar Versão para Alunos (Jupyter/Colab)
+
+O script processa os notebooks de autor, resolve citações bibliográficas no formato ABNT e remove metadados do Quarto, gerando notebooks prontos para distribuição.
+
+```bash
+python gerar_notebooks_alunos.py --batch references.bib
+# Gera notebooks_alunos/capXX/capXX_aluno.ipynb
+```
+
 ---
 
 ## Comandos Make
