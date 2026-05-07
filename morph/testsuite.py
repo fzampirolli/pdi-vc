@@ -28,11 +28,11 @@ def normalizar_nome_ep(base):
     base_norm = f"EP{cap:02d}_{ex:02d}"
     return base_norm, f"{cap:02d}", f"{ex:02d}"
 
-def baixar_caso_github(nome_caso, cap_str):
+def baixar_caso_github(nome_caso, cap_str, ex_str):
     """
-    Baixa o arquivo .cases do GitHub:
-    https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap{cap_str}/casos/{nome_caso}
-    Salva em ./{LOCAL_CASES_DIR}/{nome_caso}
+    Tenta baixar do GitHub:
+    1. Caminho novo: all/cap{cap_str}/casos/{nome_caso} (ex: EP01_02.cases)
+    2. Caminho antigo: all/cap{cap_str}/cap1/EP{cap_int}_{ex_int}.cases
     """
     os.makedirs(LOCAL_CASES_DIR, exist_ok=True)
     local_path = os.path.join(LOCAL_CASES_DIR, nome_caso)
@@ -41,15 +41,30 @@ def baixar_caso_github(nome_caso, cap_str):
         print(f"✔️ {nome_caso} já existe em {LOCAL_CASES_DIR}/")
         return True
 
-    url = (f"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/"
-           f"cap{cap_str}/casos/{nome_caso}")
-    print(f"📥 Baixando {nome_caso} de:\n   {url}")
+    # 1. Tentativa: caminho novo (casos + nome padronizado)
+    url_novo = (f"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/"
+                f"cap{cap_str}/casos/{nome_caso}")
+    print(f"📥 Tentando novo caminho: {url_novo}")
     try:
-        urllib.request.urlretrieve(url, local_path)
-        print(f"   Salvo em: {local_path}")
+        urllib.request.urlretrieve(url_novo, local_path)
+        print(f"   ✅ Baixado (novo padrão)")
+        return True
+    except Exception:
+        pass  # Falhou, tentar antigo
+
+    # 2. Tentativa: caminho antigo (cap1 + nome sem zeros)
+    cap_int = int(cap_str)
+    ex_int = int(ex_str)
+    nome_antigo = f"EP{cap_int}_{ex_int}.cases"
+    url_antigo = (f"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/"
+                  f"cap{cap_str}/cap1/{nome_antigo}")
+    print(f"📥 Tentando caminho antigo: {url_antigo}")
+    try:
+        urllib.request.urlretrieve(url_antigo, local_path)
+        print(f"   ✅ Baixado (estrutura antiga, renomeado para {nome_caso})")
         return True
     except Exception as e:
-        print(f"❌ Falha no download: {e}")
+        print(f"❌ Falha também no caminho antigo: {e}")
         return False
 
 def carregar_casos(caminho):
@@ -195,34 +210,33 @@ def testar(linguagem, comando, arquivo, casos, compilar=None):
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python testsuite.py EP01_02")
-        print("Exemplo: python testsuite.py EP01_02")
-        print("         python testsuite.py EP1_2   (também funciona)")
+        print("Uso: python testsuite.py EP01_02[.ext]")
         return
 
-    nome_entrada = sys.argv[1]
-    base = nome_entrada.rsplit('.', 1)[0] if '.' in nome_entrada else nome_entrada
+    entrada = sys.argv[1]
+    base, ext_fornecida = os.path.splitext(entrada)
+    if ext_fornecida:
+        ext_fornecida = ext_fornecida.lower()
+    base_sem_ext = base
+    base_original = base_sem_ext
 
     # Normaliza o nome do EP (EP1_2 -> EP01_02)
-    base_norm, cap_str, ex_str = normalizar_nome_ep(base)
+    base_norm, cap_str, ex_str = normalizar_nome_ep(base_sem_ext)
     if not base_norm:
-        print("❌ Nome inválido. Use EP01_02 ou EP1_2 (ex: EP01_02)")
+        print("❌ Nome inválido. Use EP01_02 ou EP1_2")
         return
 
     nome_caso = f"{base_norm}.cases"
-
-    # Baixa o arquivo .cases se não existir localmente
-    if not baixar_caso_github(nome_caso, cap_str):
+    if not baixar_caso_github(nome_caso, cap_str, ex_str):
         print("❌ Abortando devido a falha no download.")
         return
 
     caminho_casos = os.path.join(LOCAL_CASES_DIR, nome_caso)
     casos = carregar_casos(caminho_casos)
     if not casos:
-        print("❌ Nenhum caso de teste carregado. Verifique o arquivo .cases.")
         return
 
-    # Mapeamento de extensões para comandos
+    # Mapeamento de extensões
     linguagens = {
         ".py": ("Python", ["python3", f"{base_norm}.py"], None),
         ".java": ("Java", ["java", base_norm], ["javac", f"{base_norm}.java"]),
@@ -232,25 +246,36 @@ def main():
         ".r":   ("R", ["Rscript", "--slave", f"{base_norm}.r"], None),
     }
 
-    # Procura arquivos fonte: primeiro com nome padronizado, depois com nome original
+    # Lista de arquivos a testar
     alvos = []
-    for ext in linguagens:
-        if os.path.exists(f"{base_norm}{ext}"):
-            alvos.append(f"{base_norm}{ext}")
-        elif os.path.exists(f"{base}{ext}"):
-            alvos.append(f"{base}{ext}")
+    if ext_fornecida and ext_fornecida in linguagens:
+        # Usuário especificou uma extensão: testa apenas ela (tenta primeiro normalizada)
+        candidato = f"{base_norm}{ext_fornecida}"
+        if os.path.exists(candidato):
+            alvos.append((candidato, ext_fornecida))
+        else:
+            # Fallback para nome não normalizado (ex: EP1_2.c)
+            candidato_original = f"{base_sem_ext}{ext_fornecida}"
+            if os.path.exists(candidato_original):
+                alvos.append((candidato_original, ext_fornecida))
+            else:
+                print(f"💥 Arquivo {candidato} não encontrado.")
+                return
+    else:
+        # Nenhuma extensão fornecida: testa todas que existirem
+        for ext in linguagens:
+            if os.path.exists(f"{base_norm}{ext}"):
+                alvos.append((f"{base_norm}{ext}", ext))
+            elif os.path.exists(f"{base_sem_ext}{ext}"):
+                alvos.append((f"{base_sem_ext}{ext}", ext))
 
     if not alvos:
-        print(f"💥 Nenhum arquivo fonte encontrado para {base_norm} ou {base}.")
-        print(f"   Esperava: {base_norm}.py ou {base}.py, etc.")
+        print(f"💥 Nenhum arquivo fonte encontrado para {base_norm}.")
         return
 
-    # Executa os testes para cada arquivo fonte encontrado
-    for arq in alvos:
-        ext = "." + arq.split(".")[-1]
-        if ext in linguagens:
-            lang, cmd, comp = linguagens[ext]
-            testar(lang, cmd, arq, casos, comp)
+    for arq, ext in alvos:
+        lang, cmd, comp = linguagens[ext]
+        testar(lang, cmd, arq, casos, comp)
 
 if __name__ == "__main__":
     main()
