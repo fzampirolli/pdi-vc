@@ -754,9 +754,11 @@ def convert_callouts(text: str, elem_map: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def _chapter_from_id(label_id: str) -> str:
-    """Extrai o numero do capitulo do id: fig-1-X -> '1', eq-2-3 -> '2', tbl-X -> ''"""
     m = re.match(r'(?:fig|tbl|eq|sec|lst)-(\d+)', label_id)
-    return m.group(1) if m else ""
+    if m:
+        chap_num = int(m.group(1))   # "01" -> 1
+        return str(chap_num)
+    return ""
 
 # No início do arquivo, após as definições, adicione uma função de reset
 def reset_section_numbering():
@@ -813,13 +815,9 @@ def build_element_map(notebook: dict, nb_path: Path = None) -> dict:
     elem_map = {}
 
     def make_num_str(kind: str, elem_id: str) -> str:
-        """Gera num_str incremental: '<capitulo>.<contador>'."""
         counters[kind] += 1
-        # Extrai número do capítulo do elem_id ou usa o atual
-        chap = _chapter_from_id(elem_id)
-        if not chap or chap == '':
-            chap = current_chapter
-        return f"{chap}.{counters[kind]}"
+        # IGNORA o capítulo do ID, usa sempre o current_chapter detectado pelo arquivo
+        return f"{current_chapter}.{counters[kind]}"
 
     prefixes = {
         "fig": "Figura",
