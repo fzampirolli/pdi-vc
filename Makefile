@@ -80,6 +80,10 @@ clean-gen:
 alunos:
 	python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
 
+.PHONY: alunos-no-numbering
+alunos-no-numbering:
+	python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos --no-numbering
+
 .PHONY: epub
 epub:
 	python gerar_notebooks_alunos.py --epub references.bib --out-dir notebooks_epub

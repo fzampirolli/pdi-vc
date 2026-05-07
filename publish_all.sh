@@ -69,7 +69,7 @@ python dev.py --once --langs "$LANGS" --locales "$LOCALES" $DRY_RUN
 echo "      ✓ Notebooks em gen/"
 
 # ===================================================================
-# Passo 2: Renderizar HTML e PDF com Quarto
+# Passo 2: Renderizar HTML com Quarto
 # ===================================================================
 echo ""
 echo "[2/5] Renderizando com Quarto..."
@@ -82,18 +82,13 @@ for lang in "${LANG_LIST[@]}"; do
     qdir="gen/quarto/${combo}"
     
     if [ -d "$qdir" ]; then
-      echo ""
       echo "      📖 Processando: $combo"
       
-      # HTML
-      echo "        → HTML..."
-      (cd "$qdir" && quarto render --to html > /dev/null 2>&1) && echo "          ✓ HTML gerado" || echo "          ⚠ Falha no HTML"
+      # Limpa cache do Quarto para forçar re-render
+      rm -rf "$qdir/_freeze"
       
-      # PDF
-      echo "        → PDF..."
-      (cd "$qdir" && quarto render --to pdf > /dev/null 2>&1) && echo "          ✓ PDF gerado" || echo "          ⚠ Falha no PDF"
-    else
-      echo "      ⚠ $qdir não encontrado (pulando)"
+      echo "        → HTML..."
+      (cd "$qdir" && quarto render --to html 2>&1) && echo "          ✓ HTML" || echo "          ⚠ Falha"
     fi
   done
 done
@@ -105,6 +100,9 @@ echo ""
 echo "[2b/5] Gerando notebooks para alunos..."
 python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
 echo "      ✓ notebooks_alunos/"
+
+echo "        → PDF..."
+(cd "$qdir" && quarto render --to pdf 2>&1) && echo "          ✓ PDF" || echo "          ⚠ Falha PDF"
 
 # ===================================================================
 # Passo 3: Gerar página principal (índice) dentro de gen/book/
@@ -118,12 +116,13 @@ else
 fi
 
 # ===================================================================
-# Passo 4: Preparar pasta docs/ para GitHub Pages
+# Passo 4: Preparar docs/ para GitHub Pages
 # ===================================================================
 echo ""
 echo "[4/5] Preparando docs/..."
 rm -rf docs
-cp -rL gen/book docs
+mkdir -p docs
+cp -rL gen/book/. docs/
 touch docs/.nojekyll
 echo "      ✓ docs/ pronta"
 
@@ -131,29 +130,16 @@ echo "      ✓ docs/ pronta"
 # Passo 5: Git commit e push
 # ===================================================================
 echo ""
-echo "[5/5] Publicando no GitHub..."
-
+echo "[5/5] Git push principal..."
 if [ -z "$SKIP_GIT" ]; then
   TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
-  
-  echo "      📦 Git add..."
-  git add gen/ docs/ .nojekyll 2>/dev/null
-  
-  echo "      📝 Git commit..."
-  if git commit -m "publish: $TIMESTAMP (langs: $LANGS, locales: $LOCALES)" 2>/dev/null; then
-    echo "        ✓ Commit realizado"
+  git add docs/ gen/ notebooks_alunos/
+  if git commit -m "publish: $TIMESTAMP (langs: $LANGS, locales: $LOCALES)"; then
+    git push origin master 2>/dev/null || git push origin main 2>/dev/null
+    echo "      ✓ Push realizado"
   else
-    echo "        ℹ Nada novo para commitar"
+    echo "      ℹ Nada novo para commitar"
   fi
-  
-  echo "      🚀 Git push..."
-  if git push origin master 2>/dev/null || git push origin main 2>/dev/null; then
-    echo "        ✓ Push realizado"
-  else
-    echo "        ⚠ Push falhou (verifique se o remote está configurado)"
-  fi
-else
-  echo "      ⚠ Git skipado (--skip-git)"
 fi
 
 # ===================================================================

@@ -3,11 +3,16 @@
 Copyright 2014 by Francisco de Assis Zampirolli from UFABC
 License MIT
 https://github.com/fzampirolli/morph
-25 January 2024
+Last update: May 2026
 """
 import matplotlib.pyplot as plt, numpy as np, cv2, requests, sys, subprocess
 from PIL import Image
 from skimage import io
+import requests
+import cv2
+import numpy as np
+
+
 class mm(object):
   """ A helper class for image processing tasks. """
   
@@ -27,27 +32,56 @@ class mm(object):
 
   #### IMAGE UTILITIES: CREATE, DRAW, CHECK ####
 
-  @staticmethod
   def read(file):
-    """ Reads an image from a local file path or URL.
-    input: <str> File path or URL (full or 'id=keyGoogleDrive').
-    output: the read image.
-    Examples:
-    img_local  = mm.read('image.png')
-    img_url    = mm.read('https://example.com/image.jpg')
-    img_gdrive = mm.read('id=keyGoogleDrive')"""
-    if file.startswith(('http', 'id=')):
-        url, pre = '', 'https://drive.google.com/file/d/'
-        if pre in file:
-            url = 'https://drive.google.com/uc?export=view&id='
-            url += file[len(pre):].split('/')[0]
-        elif file.startswith('id='):
-            url = 'https://drive.google.com/uc?export=view&id=' + file[3:]
-        else:
-            url = file
-        return io.imread(url)
-    else:
-        return cv2.imread(file)
+      """ Reads an image from a local file path or URL.
+      input: <str> File path or URL (full or 'id=keyGoogleDrive').
+      output: the read image (RGB format).
+
+      Examples:
+      img_local  = mm.read('image.png')
+      img_url    = mm.read('https://example.com/image.jpg')
+      img_gdrive = mm.read('id=keyGoogleDrive')
+      """
+      # --- Tratamento de URLs ---
+      if file.startswith(('http://', 'https://', 'id=')):
+          # 1. Caso especial Google Drive
+          if 'id=' in file or 'drive.google.com' in file:
+              # Extrai o ID do Google Drive
+              import re
+              match = re.search(r'id=([a-zA-Z0-9_-]+)', file)
+              if not match:
+                  # Se for uma URL longa do drive, tenta extrair o ID do path
+                  match = re.search(r'/d/([a-zA-Z0-9_-]+)', file)
+              if match:
+                  file_id = match.group(1)
+                  url = f"https://drive.google.com/uc?export=view&id={file_id}"
+              else:
+                  url = file
+          else:
+              url = file
+
+          # 2. Baixar a imagem com headers (User-Agent evita bloqueios)
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+          response = requests.get(url, headers=headers, timeout=10)
+          response.raise_for_status()  # levanta exceção se falhar
+
+          # 3. Converter bytes para array numpy e decodificar com OpenCV
+          img_array = np.frombuffer(response.content, np.uint8)
+          img_bgr = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+          if img_bgr is None:
+              raise ValueError(f"Não foi possível decodificar a imagem a partir de: {url}")
+          # 4. Converter BGR (OpenCV) para RGB (padrão do livro)
+          img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+          return img_rgb
+
+      # --- Arquivo local ---
+      else:
+          img_bgr = cv2.imread(file)
+          if img_bgr is None:
+              raise FileNotFoundError(f"Arquivo não encontrado: {file}")
+          return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+
 
   @staticmethod
   def color(img):
@@ -116,6 +150,48 @@ class mm(object):
       if not mm.IN_COLAB:
           plt.savefig('fig_' + str(mm.count_Images).zfill(4) + '.png')
           mm.count_Images += 1
+
+  @staticmethod
+  def show_multiple(images, titles=None, cols=3):
+      """
+      Exibe múltiplas imagens lado a lado.
+      
+      Args:
+          images: Lista de imagens para exibir
+          titles: Lista de títulos para cada imagem (opcional)
+          cols: Número de colunas na grade
+      """
+      n_images = len(images)
+      rows = (n_images + cols - 1) // cols
+      
+      fig, axes = plt.subplots(rows, cols, figsize=(5*cols, 5*rows))
+      
+      # Se apenas uma linha, axes não é uma lista 2D
+      if rows == 1:
+          axes = axes.reshape(1, -1)
+      
+      for i, img in enumerate(images):
+          row = i // cols
+          col = i % cols
+          
+          # Verificar se é RGB ou grayscale
+          if len(img.shape) == 3 and img.shape[2] == 3:
+              axes[row, col].imshow(img)
+          else:
+              axes[row, col].imshow(img, cmap='gray')
+          
+          if titles and i < len(titles):
+              axes[row, col].set_title(titles[i])
+          axes[row, col].axis('off')
+      
+      # Esconder subplots vazios
+      for i in range(n_images, rows * cols):
+          row = i // cols
+          col = i % cols
+          axes[row, col].axis('off')
+      
+      plt.tight_layout()
+      plt.show()
 
   @staticmethod
   def readImg(h, w):

@@ -42,6 +42,7 @@ import copy
 import re
 from pathlib import Path
 from typing import Optional
+import re   # no topo do arquivo
 
 try:
     import nbformat
@@ -52,6 +53,7 @@ from .config import BASE_LANG, BASE_LOCALE, Combo
 from .translators import TranslatorFactory
 from .bib import resolve_citations, resolve_bibliography
 
+from nbformat.v4 import new_markdown_cell
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -181,6 +183,62 @@ class NotebookProcessor:
         self._factory = factory
         self._bib = bib
 
+
+    def _filter_by_language_marker(self, cell, target_lang: str) -> bool:
+        src = _get_source(cell)
+        lines = src.splitlines(keepends=True)
+        # Procura em todas as linhas um marcador #[lang]#
+        lang_found = None
+        idx_to_remove = -1
+        pattern = re.compile(r'^[#\s`]*#\[\s*(\w+)\s*\]#`?\s*$', re.MULTILINE)
+        for i, line in enumerate(lines):
+            if pattern.search(line):
+                lang_found = pattern.search(line).group(1)
+                idx_to_remove = i
+                break
+
+        if lang_found is not None:
+            # Remove a linha inteira onde o marcador apareceu
+            lines.pop(idx_to_remove)
+            new_src = ''.join(lines)
+            _set_source(cell, new_src)
+            # Mantém a célula apenas se a linguagem for a desejada
+            return lang_found == target_lang
+        return True
+    
+    # --- Mesclagem do notebook de exercícios (EPs) ---
+    def _merge_ep_notebook(self, main_nb, nb_path: Path, combo: Combo):
+        ep_path = nb_path.parent / f"{nb_path.stem}.EPs.ipynb"
+        if not ep_path.exists():
+            return main_nb
+        print(f"  📘 EP encontrado: {ep_path.name} — mesclando...")
+        ep_nb = self.process(str(ep_path), combo)
+
+        # --- Rebaixar títulos nível 1 para nível 2 ---
+        def rebaixar_titulos(src: str) -> str:
+            lines = src.split('\n')
+            out = []
+            in_code = False
+            for line in lines:
+                if line.strip().startswith('```'):
+                    in_code = not in_code
+                if not in_code and line.startswith('# ') and not line.startswith('## '):
+                    line = '#' + line
+                out.append(line)
+            return '\n'.join(out)
+
+        for cell in ep_nb.cells:
+            if cell.cell_type == 'markdown':
+                src = _get_source(cell)
+                src = rebaixar_titulos(src)
+                _set_source(cell, src)
+
+        # --- Adicionar apenas separador visual sem título ---
+        separator = new_markdown_cell("---\n")
+        main_nb.cells.append(separator)
+        main_nb.cells.extend(ep_nb.cells)
+        return main_nb
+    
     def process(self, nb_path: str, combo: Combo,
                 for_ipynb: bool = True) -> nbformat.NotebookNode:
         with open(nb_path, encoding='utf-8') as f:
@@ -197,6 +255,13 @@ class NotebookProcessor:
             role = _cell_role(cell)
             src  = _get_source(cell)
 
+
+            # --- Filtro por marcador de linguagem ---
+            if not self._filter_by_language_marker(cell, combo.lang):
+                continue
+
+            src = _get_source(cell)  # ← adicionar esta linha
+            
             # ── Filtrar células base_only
             if role == 'base_only' and not combo.is_base():
                 continue
@@ -211,9 +276,7 @@ class NotebookProcessor:
                 _set_source(cell, translated)
 
             elif role in ('text', 'exercise') and cell.cell_type == 'markdown':
-                # 1. Traduzir idioma
                 translated = text_tr.translate(src)
-                # 2. Pós-processar só se NÃO for base (Quarto processa o base nativamente)
                 if not combo.is_base():
                     translated = postprocess_markdown(
                         translated, self._bib, used_keys, for_ipynb=for_ipynb
@@ -224,8 +287,12 @@ class NotebookProcessor:
 
             _clean_cell(cell, is_base=combo.is_base())
 
-            if _get_source(cell).strip():   # descartar células vazias
+            if _get_source(cell).strip():
                 out_cells.append(cell)
 
         nb.cells = out_cells
+
+        # --- Mesclagem do notebook de exercícios (EPs) ---
+        nb = self._merge_ep_notebook(nb, Path(nb_path), combo)
+
         return nb

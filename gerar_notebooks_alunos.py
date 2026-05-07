@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-quarto_ipynb_refs.py
+gerar_notebooks_alunos.py
 --------------------
 Pos-processa notebooks Quarto (.ipynb) para distribuicao no Colab/Jupyter.
 Resolve citacoes bibliograficas @key, referencias cruzadas de figuras @fig-*,
@@ -8,10 +8,10 @@ tabelas @tbl-* e equacoes @eq-*, injeta lista de referencias e copia imagens.
 Zero dependencias externas.
 
 --- MODO UNICO ---
-    python quarto_ipynb_refs.py <notebook.ipynb> <references.bib> [-o saida.ipynb]
+    python gerar_notebooks_alunos.py <notebook.ipynb> <references.bib> [-o saida.ipynb]
 
 --- MODO BATCH ---
-    python quarto_ipynb_refs.py --batch <references.bib> [--out-dir notebooks_alunos]
+    python gerar_notebooks_alunos.py --batch <references.bib> [--out-dir notebooks_alunos]
 
 Sintaxe Quarto suportada:
     Citacao direta:          @russell2004              -> Russell e Norvig (2004)
@@ -35,6 +35,87 @@ import argparse
 import glob
 from pathlib import Path
 
+def filter_language_marker(source: str, target_lang: str) -> tuple[bool, str]:
+    """
+    Procura #[lang]# (com ou sem heading/backticks) em qualquer linha.
+    Retorna (manter_celula, source_sem_marcador).
+    """
+    pattern = re.compile(r'^[#\s`]*#\[\s*(\w+)\s*\]#`?\s*$', re.MULTILINE)
+    m = pattern.search(source)
+    if m:
+        lang_found = m.group(1)
+        # Remove a linha inteira do marcador
+        source = pattern.sub('', source, count=1).lstrip('\n')
+        return lang_found == target_lang, source
+    return True, source
+
+# Adicione após os imports (por volta da linha 30)
+
+# ---------------------------------------------------------------------------
+# 1.5. Sistema de numeração de seções
+# ---------------------------------------------------------------------------
+
+class SectionNumbering:
+    """Gerencia a numeração de capítulos, seções e subseções."""
+    
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.numbers = {
+            'chapter': 0,
+            'section': 0,
+            'subsection': 0,
+            'subsubsection': 0
+        }
+    
+    def set_chapter(self, chapter: int):
+        """Define o número do capítulo diretamente sem incrementar."""
+        self.numbers['chapter'] = chapter
+        self.numbers['section'] = 0
+        self.numbers['subsection'] = 0
+        self.numbers['subsubsection'] = 0
+    
+    def inc_chapter(self) -> str:
+        # Se já está no capítulo correto (>=1), não incrementa na primeira vez
+        if self.numbers['chapter'] == 0:
+            self.numbers['chapter'] = 1
+        else:
+            self.numbers['chapter'] += 1
+        self.numbers['section'] = 0
+        self.numbers['subsection'] = 0
+        self.numbers['subsubsection'] = 0
+        return self.get_chapter()
+    
+    def inc_section(self) -> str:
+        self.numbers['section'] += 1
+        self.numbers['subsection'] = 0
+        self.numbers['subsubsection'] = 0
+        return self.get_section()
+    
+    def inc_subsection(self) -> str:
+        self.numbers['subsection'] += 1
+        self.numbers['subsubsection'] = 0
+        return self.get_subsection()
+    
+    def inc_subsubsection(self) -> str:
+        self.numbers['subsubsection'] += 1
+        return self.get_subsubsection()
+    
+    def get_chapter(self) -> str:
+        return str(self.numbers['chapter'])
+    
+    def get_section(self) -> str:
+        return f"{self.numbers['chapter']}.{self.numbers['section']}"
+    
+    def get_subsection(self) -> str:
+        return f"{self.numbers['chapter']}.{self.numbers['section']}.{self.numbers['subsection']}"
+    
+    def get_subsubsection(self) -> str:
+        return f"{self.numbers['chapter']}.{self.numbers['section']}.{self.numbers['subsection']}.{self.numbers['subsubsection']}"
+
+# Instância global para o processamento
+_section_numbering = SectionNumbering()
 
 # ---------------------------------------------------------------------------
 # 1. Parser BibTeX
@@ -677,19 +758,68 @@ def _chapter_from_id(label_id: str) -> str:
     m = re.match(r'(?:fig|tbl|eq|sec|lst)-(\d+)', label_id)
     return m.group(1) if m else ""
 
+# No início do arquivo, após as definições, adicione uma função de reset
+def reset_section_numbering():
+    """Reseta o contador de seções para um novo notebook."""
+    global _section_numbering
+    _section_numbering.reset()
 
-def build_element_map(notebook: dict) -> dict:
+def extract_chapter_number(notebook: dict, nb_path: Path = None) -> str:
+    """
+    Extrai o número do capítulo:
+    1. Marcador <!-- cap X --> no notebook
+    2. Nome do arquivo: cap01.ipynb, cap01.EPs.ipynb, cap02.xxx.ipynb → "1", "1", "2"
+    3. Padrão: "1"
+    """
+    # 1. Marcador explícito no notebook
+    for cell in notebook.get("cells", []):
+        if cell.get("cell_type") == "markdown":
+            source = source_to_str(cell.get("source", []))
+            m = re.search(r'<!--\s*cap\s+(\d+)\s*-->', source, re.IGNORECASE)
+            if m:
+                print(f"  📖 Marcador de capítulo encontrado: {m.group(1)}")
+                return m.group(1)
+            m = re.search(r'^#\s+Cap[ií]tulo\s+(\d+)', source, re.MULTILINE | re.IGNORECASE)
+            if m:
+                print(f"  📖 Capítulo detectado pelo título: {m.group(1)}")
+                return m.group(1)
+
+    # 2. Inferir pelo nome do arquivo: cap01.EPs.ipynb → "1"
+    if nb_path is not None:
+        m = re.match(r'cap(\d+)', nb_path.stem, re.IGNORECASE)
+        if m:
+            chap = str(int(m.group(1)))  # remove zero à esquerda
+            print(f"  📖 Capítulo inferido pelo nome do arquivo: {chap}")
+            return chap
+
+    print(f"  ⚠ Capítulo não detectado, usando padrão: 1")
+    return "1"
+
+def build_element_map(notebook: dict, nb_path: Path = None) -> dict:    
     """
     Varre o notebook e cria um mapa unificado de todos os elementos numerados.
-    A numeracao e SEMPRE incremental por tipo (fig, tbl, eq),
-    usando o numero do capitulo extraido do id como prefixo:
-        tbl-1-X  ->  "1.1", "1.2", "1.3" ...  (contador proprio por tipo)
-        fig-2-qualquer -> "2.1", "2.2" ...
-        eq-1-abc -> "1.1", "1.2" ...
-    Isso garante numeracao correta independente do sufixo do id.
     """
+    # 🔧 RESETA O CONTADOR GLOBAL no início
+    global _section_numbering
+    _section_numbering.reset()
+    
+    # 🔧 Extrai o número do capítulo do marcador
+    current_chapter = extract_chapter_number(notebook, nb_path)
+        
+    # Ajusta o contador para o capítulo correto (capítulo 1 = contador 1)
+    _section_numbering.set_chapter(int(current_chapter))
+
     counters = {"fig": 0, "tbl": 0, "eq": 0}
     elem_map = {}
+
+    def make_num_str(kind: str, elem_id: str) -> str:
+        """Gera num_str incremental: '<capitulo>.<contador>'."""
+        counters[kind] += 1
+        # Extrai número do capítulo do elem_id ou usa o atual
+        chap = _chapter_from_id(elem_id)
+        if not chap or chap == '':
+            chap = current_chapter
+        return f"{chap}.{counters[kind]}"
 
     prefixes = {
         "fig": "Figura",
@@ -697,39 +827,33 @@ def build_element_map(notebook: dict) -> dict:
         "eq":  "Equacao",
     }
 
-    def make_num_str(kind: str, elem_id: str) -> str:
-        """Gera num_str incremental: '<capitulo>.<contador>' ou '<contador>'."""
-        counters[kind] += 1
-        chap = _chapter_from_id(elem_id)
-        return f"{chap}.{counters[kind]}" if chap else str(counters[kind])
-
     for cell in notebook.get("cells", []):
         if cell.get("cell_type") != "markdown":
             if cell.get("cell_type") == "code":
                 src = source_to_str(cell.get("source", []))
-                label_m   = re.search(r'#\|\s*label:\s*((fig|tbl)-[\w-]+)', src)
+                label_m = re.search(r'#\|\s*label:\s*((fig|tbl)-[\w-]+)', src)
                 caption_m = re.search(r'#\|\s*(?:tbl-cap|fig-cap):\s*["\']([^"\']+)["\']', src)
                 if label_m:
                     elem_id = label_m.group(1)
-                    kind    = label_m.group(2)   # "fig" ou "tbl"
+                    kind = label_m.group(2)
                     caption = caption_m.group(1) if caption_m else ""
-                    prefix  = "Figura" if kind == "fig" else "Tabela"
                     if elem_id not in elem_map:
                         num_str = make_num_str(kind, elem_id)
                         elem_map[elem_id] = {
-                            "kind":    kind,
+                            "kind": kind,
                             "num_str": num_str,
-                            "label":   f"{prefix} {num_str}",
-                            "caption": caption,   # guardado para injetar legenda
-                            "from_code": True,    # sinaliza origem em célula de código
-                            "alt":     None,
-                            "path":    None,
+                            "label": f"{prefixes[kind]} {num_str}",
+                            "caption": caption,
+                            "from_code": True,
+                            "alt": None,
+                            "path": None,
                             "content": None,
                         }
             continue
+        
         source = source_to_str(cell.get("source", []))
-
-        # Detecção de blocos ::: {#fig-ID} PRIMEIRO para reservar o id antes do IMG_DEF_RE
+        
+        # Detecção de blocos ::: {#fig-ID}
         for m in re.finditer(r'^:::+\s*\{#((fig|tbl)-[\w-]+)[^}]*\}', source, re.MULTILINE):
             elem_id = m.group(1)
             kind = m.group(2)
@@ -758,58 +882,55 @@ def build_element_map(notebook: dict) -> dict:
                         "caption": "",
                         "from_group": True
                     }
-
-        # Figuras e tabelas-imagem: ![alt](path){#fig-* ou #tbl-*}
-        # Ignora imagens dentro de blocos ::: (já contadas acima)
+        
+        # Figuras e tabelas-imagem
         source_no_div = re.sub(r':::.*?:::', '', source, flags=re.DOTALL)
         for m in IMG_DEF_RE.finditer(source_no_div):
-            alt      = m.group(1)
-            path     = m.group(2)
-            elem_id  = m.group(3)             # ex: fig-1-1 ou tbl-2-X
-            kind     = m.group(4)             # "fig" ou "tbl"
+            alt = m.group(1)
+            path = m.group(2)
+            elem_id = m.group(3)
+            kind = m.group(4)
             if elem_id not in elem_map:
                 num_str = make_num_str(kind, elem_id)
                 elem_map[elem_id] = {
-                    "kind":    kind,
+                    "kind": kind,
                     "num_str": num_str,
-                    "label":   f"{prefixes[kind]} {num_str}",
-                    "alt":     alt,
-                    "path":    path,
+                    "label": f"{prefixes[kind]} {num_str}",
+                    "alt": alt,
+                    "path": path,
                     "content": None,
                 }
-
-        # Tabelas Markdown: | col | ... {#tbl-*}
+        
+        # Tabelas Markdown
         for m in TBL_MD_RE.finditer(source):
-            tbl_body    = m.group(1)
-            tbl_caption = (m.group(2) or "").strip() 
-            elem_id     = m.group(3) or m.group(4)
-            
-            if elem_id not in elem_map:
+            tbl_body = m.group(1)
+            tbl_caption = (m.group(2) or "").strip()
+            elem_id = m.group(3) or m.group(4)
+            if elem_id and elem_id not in elem_map:
                 num_str = make_num_str("tbl", elem_id)
-                # Separamos o prefixo da legenda (caption)
                 elem_map[elem_id] = {
-                    "kind":    "tbl",
+                    "kind": "tbl",
                     "num_str": num_str,
                     "label_prefix": f"Tabela {num_str}:",
-                    "caption": tbl_caption, 
+                    "caption": tbl_caption,
                     "content": tbl_body.rstrip(),
                 }
-
-        # Equacoes: $$ ... $$ {#eq-*}
+        
+        # Equações
         for m in EQ_DEF_RE.finditer(source):
             eq_body = m.group(1)
             elem_id = m.group(2)
             if elem_id not in elem_map:
                 num_str = make_num_str("eq", elem_id)
                 elem_map[elem_id] = {
-                    "kind":    "eq",
+                    "kind": "eq",
                     "num_str": num_str,
-                    "label":   f"Equacao {num_str}",
-                    "alt":     None,
-                    "path":    None,
+                    "label": f"Equacao {num_str}",
+                    "alt": None,
+                    "path": None,
                     "content": eq_body,
                 }
-
+    
     return elem_map
 
 
@@ -953,30 +1074,92 @@ def fix_textcolor_inline(text: str) -> str:
         
     return text
 
-def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict) -> list:
+def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict, numbering: bool = True) -> list:
     """
     Aplica em ordem:
-      1. Equacoes  $$ ... $$ {#eq-*}  -> HTML com numero
-      2. Tabelas Markdown {#tbl-*}    -> div com legenda
-      3. Imagens {#fig-*} e {#tbl-*} -> figure com legenda
-      4. Referencias cruzadas @fig-*, @tbl-*, @eq-*  -> links
-      5. Citacoes bibliograficas:
-         @key    -> direta:   Autor (ano)          ABNT NBR 10520
-         [@key]  -> indireta: (AUTOR, ano)
+      1. Numeração de seções (capítulos, seções, subseções) - se numbering=True
+      2. Equações
+      3. Tabelas
+      4. Imagens
+      5. Referências cruzadas
+      6. Citações bibliográficas
     """
     text = source_to_str(source)
 
+    # --- NUMERAÇÃO DE SEÇÕES (condicional) ---
+    if numbering:
+        lines = text.splitlines()
+        new_lines = []
+        in_code_block = False
+        
+        for line in lines:
+            # Detecta blocos de código
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                new_lines.append(line)
+                continue
+            
+            # Detecta headings Markdown
+            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            if heading_match:
+                level = len(heading_match.group(1))
+                title = heading_match.group(2).strip()
+                
+                # Ignora headings que já possuem {.unnumbered} ou estão dentro de callouts
+                if '{.unnumbered}' in title:
+                    new_lines.append(line)
+                    continue
+                
+                # Remove atributos Quarto do título para numeração limpa
+                title_clean = re.sub(r'\s*\{[^}]*\}\s*$', '', title)
+                if heading_match:
+                    level = len(heading_match.group(1))
+                    title = heading_match.group(2).strip()
+                    
+                    # Remove o marcador <!-- cap X --> se estiver na mesma linha
+                    title = re.sub(r'<!--\s*cap\s+\d+\s*-->', '', title)
+                    
+                    # Remove qualquer numeração existente
+                    title = re.sub(r'^\d+(?:\.\d+)*\s+', '', title)
+                    # Remove "Capítulo X" ou "Capítulo X -" ou "Capítulo X –"
+                    title = re.sub(r'^Cap[ií]tulo\s+\d+\s*[-–]?\s*', '', title, flags=re.IGNORECASE)
+                    
+                    # Adiciona numeração baseada no nível
+                    if level == 1:  # Capítulo — número já definido pelo marcador <!-- cap X -->
+                        num = _section_numbering.get_chapter()
+                        _section_numbering.numbers['section'] = 0
+                        _section_numbering.numbers['subsection'] = 0
+                        _section_numbering.numbers['subsubsection'] = 0
+                        numbered_title = f"{num} {title}"
+                    elif level == 2:  # Seção
+                        num = _section_numbering.inc_section()
+                        numbered_title = f"{num} {title}"
+                    elif level == 3:  # Subseção
+                        num = _section_numbering.inc_subsection()
+                        numbered_title = f"{num} {title}"
+                    elif level == 4:  # Subsubseção
+                        num = _section_numbering.inc_subsubsection()
+                        numbered_title = f"{num} {title}"
+                    else:
+                        numbered_title = title
+                    
+                    new_lines.append('#' * level + ' ' + numbered_title)
+                    continue
+            
+            new_lines.append(line)
+        
+        text = '\n'.join(new_lines)
+    
+    # Remove tags de pagebreak
     text = re.sub(r'\{\{<\s*pagebreak\s*>\}\}\n?', '', text)
 
     # 0. Converte callouts e divs Quarto (::: {.callout-*} ... :::)
     text = convert_callouts(text, elem_map)
 
-    # 0b. Remove atributos Quarto de titulos: ### Titulo {.unnumbered} -> ### Titulo
-
     # 0c. textcolor inline (fora de $$)
     text = fix_textcolor_inline(text)
 
-    # 0b. Remove APENAS atributos Quarto ({.class} ou {#id}), ignorando comandos LaTeX como \mathbf{...}
+    # 0b. Remove APENAS atributos Quarto ({.class} ou {#id}), ignorando comandos LaTeX
     text = re.sub(r'(#{1,6}[^\n]+?)\s*\{([.#][^}]*)\}', r'\1', text)
 
     # 1b. Converte \textcolor em \color em TODO bloco $$, numerado ou não
@@ -1019,7 +1202,7 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict) -> list:
         alt     = m.group(1)
         path    = m.group(2)
         elem_id = m.group(3)
-        kind    = m.group(4)             # "fig" ou "tbl"
+        kind    = m.group(4)  # "fig" ou "tbl"
         info = elem_map.get(elem_id)
         label = info["label"] if info else \
             ("Figura" if kind == "fig" else "Tabela") + \
@@ -1044,55 +1227,47 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict) -> list:
 
     def replace_crossref_bracket(m):
         """[-@id] -> numero so;  [Texto @id] -> Texto numero."""
-        inner   = m.group(1)           # conteudo dentro de [...]
-        # Extrai o id (fig|tbl|eq)-...
+        inner = m.group(1)
         id_m = re.search(r'@((fig|tbl|eq)-[\w-]+)', inner)
         if not id_m:
-            return m.group(0)          # nao e cross-ref, nao mexe
+            return m.group(0)
         elem_id = id_m.group(1)
-        num     = _num_str_for(elem_id)
-        # Parte antes do @  (ex: "Graf. " ou "-" ou vazio)
+        num = _num_str_for(elem_id)
         prefix_text = inner[:id_m.start()].strip().lstrip('-').strip()
         if prefix_text:
             label_curto = f"{prefix_text} {num}"
         else:
-            label_curto = num           # [-@id] -> apenas o numero
+            label_curto = num
         return f"[{label_curto}](#{elem_id})"
 
     def replace_crossref_bare(m):
         """@id isolado (fora de []) -> [Figura/Tabela/Equação X.Y](#id)."""
         elem_id = m.group(1)
         if CROSSREF_RE.match(elem_id):
-            # confirma que é cross-ref (fig|tbl|eq|sec...)
             num = _num_str_for(elem_id)
             prefix = _prefix_for(elem_id)
             return f"[{prefix} {num}](#{elem_id})"
         return m.group(0)
 
-    # Primeiro: colchetes com @  [texto @id]  ou  [-@id]
+    # Primeiro: colchetes com @
     text = re.sub(r'\[([^\]]*@(?:fig|tbl|eq)-[\w-]+[^\]]*)\]',
-                replace_crossref_bracket, text)
-    # Depois: @id isolado, nao precedido de [
+                  replace_crossref_bracket, text)
+    # Depois: @id isolado
     text = re.sub(r'(?<!\[)@((fig|tbl|eq)-[\w-]+)', replace_crossref_bare, text)
 
-
     # 5. Citacoes bibliograficas
-
     def _fmt_key(key: str, mode: str) -> str:
-        """Formata uma chave bib no modo 'direct' ou 'indirect'."""
         key = key.strip().lstrip("@")
         if key not in bib:
             return f"?{key}"
         if mode == "direct":
             return cite_direct(bib[key])
         else:
-            # Indireta sem parênteses externos (serão adicionados depois)
             return cite_indirect(bib[key])
 
     def replace_indirect(m):
-        """[@key] ou [@key1; @key2] -> (AUTOR1, ano; AUTOR2, ano)"""
         inner = m.group(1)
-        keys  = [k.strip() for k in re.split(r'[;,]', inner)]
+        keys = [k.strip() for k in re.split(r'[;,]', inner)]
         parts = []
         for k in keys:
             k = k.lstrip("@").strip()
@@ -1102,9 +1277,9 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict) -> list:
                 parts.append(f"?{k}")
                 continue
             fields = bib[k]
-            year     = fields.get("year", "s.d.")
+            year = fields.get("year", "s.d.")
             surnames = _last_names(fields.get("author", ""))
-            upper    = [s.upper() for s in surnames]
+            upper = [s.upper() for s in surnames]
             if not upper:
                 parts.append(f"({year})")
             elif len(upper) == 1:
@@ -1116,49 +1291,40 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict) -> list:
         return "(" + "; ".join(parts) + ")"
 
     def replace_direct(m):
-        """@key isolado (fora de colchetes) -> Autor (ano)"""
         key = m.group(1)
         if key.upper() in ["RELATION", "ATTRIBUTE", "DATA"]:
             return "@" + key
         if CROSSREF_RE.match(key):
-            return m.group(0)   # deixa para o passo 4 tratar
+            return m.group(0)
         return _fmt_key(key, "direct")
     
-    # Protege \@palavra (escape Quarto para @ literal) com placeholder
+    # Protege \@palavra
     ESCAPED_AT = "\x00ESCAPED_AT\x00"
     text = re.sub(r'\\@([\w:-]+)', lambda m: f'{ESCAPED_AT}{m.group(1)}', text)
 
-    # Indireta primeiro (evita que @key dentro de [] seja consumido pelo direto)
     text = re.sub(r'\[@([\w:;@\s,-]+)\]', replace_indirect, text)
-    # Direta: @key isolado, nao precedido de [
     text = re.sub(r'(?<!\[)@([\w:-]+)', replace_direct, text)
 
-    # --- Processamento de Footnotes ---
-    # 1. Captura as definições [^1]: Conteúdo
+    # Footnotes
     footnote_defs = {}
     def extract_fn(m):
         fn_id = m.group(1)
         content = m.group(2).strip()
-        # Converte links markdown dentro da nota para HTML para não quebrar
         content = md_inline_to_html(content)
         footnote_defs[fn_id] = content
-        return "" # Remove a definição do corpo do texto
+        return ""
 
-    # Regex para capturar definições multilinhas (com indentação)
     text = re.sub(r'^\[\^([^\]]+)\]:\s*(.*?)(?=\n\[\^|\n\n|\Z)', extract_fn, text, flags=re.MULTILINE | re.DOTALL)
 
-    # 2. Substitui as menções [^1] por um <sup> linkado
     def replace_fn_ref(m):
         fn_id = m.group(1)
         return f'<sup title="{fn_id}">[{fn_id}]</sup>'
     
     text = re.sub(r'\[\^([^\]]+)\]', replace_fn_ref, text)
 
-    # 3. Se houver notas, anexa um bloco formatado ao final do texto
     if footnote_defs:
         notes_html = '<hr><div style="font-size: 0.85em; color: #555;"><strong>Notas:</strong><br>\n'
         for fn_id, content in footnote_defs.items():
-            # Limpa quebras de linha extras e espaços
             content = content.replace('\n', ' ')
             notes_html += f'[{fn_id}] {content}<br>\n'
         notes_html += '</div>'
@@ -1229,8 +1395,8 @@ def clean_notebook(notebook: dict) -> dict:
       - Remove metadados 'quarto' do notebook
       - Remove celulas raw YAML (--- ... ---)
       - Remove celulas de codigo vazias
-      - Remove celulas de secao de referencias antiga (substituida pela injetada)
-    Retorna o notebook modificado in-place.
+      - Remove celulas de secao de referencias antiga
+      - Remove marcadores <!-- cap X -->
     """
     # Remove metadados quarto
     meta = notebook.get("metadata", {})
@@ -1243,16 +1409,23 @@ def clean_notebook(notebook: dict) -> dict:
         "empty_code": 0,
         "ref_section": 0,
         "quarto_params": 0,
-        "html_only": 0,       # células dentro de ::: {.content-visible when-format="html"}
+        "html_only": 0,
+        "markers": 0,  # NOVO: conta marcadores removidos
     }
 
     # Rastreia se estamos dentro de um bloco html-only
-    # (delimitado por células markdown com ::: {.content-visible when-format="html"} e :::)
     inside_html_only = False
 
     for cell in notebook.get("cells", []):
         src = source_to_str(cell.get("source", []))
         kind = cell.get("cell_type", "")
+
+        # 🔧 NOVO: Remove células que contêm apenas o marcador <!-- cap X -->
+        if kind == "markdown":
+            stripped = src.strip()
+            if re.match(r'<!--\s*cap\s+\d+\s*-->', stripped):
+                removed["markers"] += 1
+                continue    
 
         # Detecta delimitadores ::: {.content-visible when-format="html"} e :::
         # As células markdown delimitadoras são removidas (não fazem sentido no Colab).
@@ -1412,10 +1585,20 @@ def process_notebook_epub(nb_path: Path, bib: dict, out_path: Path) -> list:
 # 12. Processa um unico notebook
 # ---------------------------------------------------------------------------
 
-def process_notebook(nb_path: Path, bib: dict, out_path: Path) -> list:
-    notebook    = json.loads(nb_path.read_text(encoding="utf-8"))
-    elem_map    = build_element_map(notebook)
-    citations   = extract_citations(notebook)
+def process_notebook(nb_path: Path, bib: dict, out_path: Path,
+                     numbering: bool = True, target_lang: str = "py") -> list:
+    """
+    Processa um notebook.
+    numbering: se True, adiciona numeração automática às seções
+    """
+    notebook = json.loads(nb_path.read_text(encoding="utf-8"))
+    
+    # EPs não têm numeração de seção — não faz sentido numerar exercícios
+    if '.EPs.' in nb_path.name:
+        numbering = False
+    
+    elem_map = build_element_map(notebook, nb_path)
+    citations = extract_citations(notebook)
     image_paths = extract_image_paths(notebook)
 
     # Log
@@ -1442,6 +1625,16 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path) -> list:
     ref_markdown, key_to_num = build_reference_list(citations, bib,
                                                     intro_paragraph=intro_resolved)
 
+    for cell in notebook.get("cells", []):
+        if cell.get("cell_type") == "markdown":
+            src = source_to_str(cell.get("source", []))
+            
+            # --- Filtro por marcador de linguagem ---
+            keep, src = filter_language_marker(src, target_lang)
+            if not keep:
+                continue
+            cell["source"] = str_to_source(src)  # já sem o marcador
+            
     # Remove atributo 'scoped' inválido no EPUB gerado pelo pandas
     for cell in notebook.get("cells", []):
         for output in cell.get("outputs", []):
@@ -1452,11 +1645,11 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path) -> list:
                 html = html.replace("<style scoped>", "<style>")
                 output["data"]["text/html"] = str_to_source(html)
 
-    # Processa celulas
+    # Processa celulas com numeração condicional
     for cell in notebook.get("cells", []):
         if cell.get("cell_type") == "markdown":
             cell["source"] = process_cell(
-                cell.get("source", []), key_to_num, elem_map, bib
+                cell.get("source", []), key_to_num, elem_map, bib, numbering=numbering
             )
 
     # Mapa fingerprint -> elem_id para células de código com #| label: fig-*/tbl-*
@@ -1718,33 +1911,43 @@ def run_batch_epub(bib_path: str, out_dir: str):
 # 14. Modo batch (alunos)
 # ---------------------------------------------------------------------------
 
-def run_batch(bib_path: str, out_dir: str):
-    bib      = parse_bib(bib_path)
+def run_batch(bib_path: str, out_dir: str,
+              numbering: bool = True, target_lang: str = "py"):
+    bib = parse_bib(bib_path)
     out_root = Path(out_dir)
-    EXCLUDE  = ("_dist", "_executado", "_fixed")
+    EXCLUDE = ("_dist", "_executado", "_fixed")
     notebooks = sorted([
         Path(p) for p in glob.glob("all/cap*/cap*.ipynb")
         if not any(s in Path(p).stem for s in EXCLUDE)
     ])
+    
     if not notebooks:
         print("Nenhum notebook encontrado com o padrao: all/cap*/cap*.ipynb")
         return
 
     print(f"Encontrados {len(notebooks)} notebooks:\n")
     total_imgs = 0
+    
     for nb_path in notebooks:
+        if numbering:
+            reset_section_numbering()
+        
         cap_name = nb_path.parent.name
-        out_cap  = out_root / cap_name
-        # Nome de saida: cap01_aluno.ipynb
+        out_cap = out_root / cap_name
         aluno_name = nb_path.stem + "_aluno.ipynb"
-        out_nb   = out_cap  / aluno_name
+        out_nb = out_cap / aluno_name
         print(f"[{cap_name}] {nb_path}")
-        image_paths = process_notebook(nb_path, bib, out_nb)
+        
+        # Passa numbering=False para EPs independente do flag global
+        nb_numbering = numbering and '.EPs.' not in nb_path.name
+        image_paths = process_notebook(nb_path, bib, out_nb,
+                                    numbering=nb_numbering, target_lang=target_lang)
+
         if image_paths:
             copy_images(nb_path.parent, out_cap, image_paths)
             total_imgs += len(image_paths)
         print()
-
+        
     # Gera README.md
     readme = out_root / "README.md"
     readme.write_text(
@@ -1790,25 +1993,33 @@ def main():
                         help="Processa todos all/cap*/cap*.ipynb para EPUB (refs por capitulo em texto)")
     parser.add_argument("--out-dir", default="notebooks_alunos",
                         help="Pasta de saida no modo batch/epub (padrao: notebooks_alunos)")
+    parser.add_argument("--no-numbering", action="store_true",
+                        help="Nao adiciona numeracao automatica de secoes")
     parser.add_argument("notebook", nargs="?",
                         help="Caminho para o .ipynb (modo unico)")
+    parser.add_argument("--lang", default="py",
+                    help="Linguagem alvo para filtro #[lang]# (padrão: py)")
+
     parser.add_argument("bib", help="Caminho para o references.bib")
     parser.add_argument("--output", "-o", help="Saida do .ipynb no modo unico")
     args = parser.parse_args()
 
+    # Define o valor de numbering
+    numbering = not args.no_numbering  # True por padrão, False se --no-numbering
+
     if args.epub:
-        run_batch_epub(args.bib, args.out_dir)
+        run_batch_epub(args.bib, args.out_dir, numbering=numbering)
     elif args.batch:
-        run_batch(args.bib, args.out_dir)
+        run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang)
     else:
         if not args.notebook:
             parser.error("Informe o notebook ou use --batch ou --epub")
-        nb_path  = Path(args.notebook)
+        nb_path = Path(args.notebook)
         out_path = Path(args.output) if args.output else \
                    nb_path.parent / (nb_path.stem + "_dist.ipynb")
         bib = parse_bib(args.bib)
         print(f"Processando: {nb_path}")
-        image_paths = process_notebook(nb_path, bib, out_path)
+        image_paths = process_notebook(nb_path, bib, out_path, numbering=numbering, target_lang=args.lang)
         if image_paths:
             copy_images(nb_path.parent, out_path.parent, image_paths)
 

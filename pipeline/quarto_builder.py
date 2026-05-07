@@ -6,6 +6,7 @@ Constrói uma pasta Quarto auto-suficiente para cada combo:
     gen/quarto/<combo>/
         _quarto.yml      ← gerado aqui
         index.qmd        ← gerado aqui (idioma correto)
+        prefacio.qmd     ← gerado aqui (prefácio do livro)
         capXX/           ← symlink → gen/<combo>/capXX/
         references.bib   ← symlink → ../../references.bib
         includes/        ← symlink → ../../includes/
@@ -48,6 +49,153 @@ def _index_qmd(combo: Combo) -> str:
         f'- **{part2}** — Segmentação, descritores, detecção, deep learning\n\n'
         '---\n'
     )
+
+
+def _prefacio_qmd(combo: Combo) -> str:
+    """
+    Lê o prefácio do arquivo includes/prefacio.qmd.
+    Se o arquivo não existir, gera um prefácio padrão com suporte a i18n.
+    """
+    prefacio_path = Path('includes/prefacio.qmd')
+    
+    if prefacio_path.exists():
+        # Lê o arquivo de prefácio externo
+        content = prefacio_path.read_text(encoding='utf-8')
+        print(f'  ✓ Prefácio lido de {prefacio_path}')
+        
+        # Substitui placeholders de localização se existirem
+        # Ex: {{lang_label}} será substituído pelo nome do idioma
+        lang_label = LANGUAGES[combo.lang].label
+        content = content.replace('{{lang_label}}', lang_label)
+        
+        # Substitui outros placeholders úteis
+        locale_label = LOCALES[combo.locale].label
+        content = content.replace('{{locale_label}}', locale_label)
+        
+        return content
+    else:
+        # Fallback: gera prefácio padrão
+        print(f'  ⚠ Arquivo {prefacio_path} não encontrado. Gerando prefácio padrão.')
+        return _generate_default_prefacio(combo)
+
+
+def _generate_default_prefacio(combo: Combo) -> str:
+    """Gera um prefácio padrão (fallback quando não há arquivo externo)."""
+    lang_label   = LANGUAGES[combo.lang].label
+    
+    prefacio_title = UI_STRINGS[combo.locale].get('preface_title', 'Prefácio')
+    projeto_titulo = UI_STRINGS[combo.locale].get('preface_project_title', 'Um livro vivo')
+    projeto_texto  = UI_STRINGS[combo.locale].get('preface_project_text',
+        'Este não é um livro estático. O conteúdo está em constante evolução: exemplos são refinados, '
+        'novas seções são adicionadas e abordagens pedagógicas são aprimoradas com base no feedback '
+        'de alunos e professores. Por isso, tratamos este material como um *projeto inicial* — '
+        'uma base sólida que continuará crescendo.')
+    
+    producao_titulo = UI_STRINGS[combo.locale].get('preface_production_title', 'Como este livro é produzido')
+    producao_texto  = UI_STRINGS[combo.locale].get('preface_production_text',
+        'Todo o conteúdo é escrito em **Quarto**, um sistema de publicação científica e técnica '
+        'que permite renderizar o mesmo código-fonte para múltiplos formatos.')
+    
+    # ... (resto da função com os mesmos textos da versão anterior)
+    # Mantenha o restante do conteúdo conforme a versão anterior
+    
+    return f'''# {prefacio_title} {{.unnumbered}}
+
+Este livro é um **projeto em construção** sobre **Processamento Digital de Imagens (PDI) e Visão Computacional (VC)**,
+concebido como material didático interativo para cursos de graduação e pós-graduação em Computação, Engenharias e áreas afins.
+
+## {projeto_titulo} {{.unnumbered}}
+
+{projeto_texto}
+
+## {producao_titulo} {{.unnumbered}}
+
+{producao_texto}
+
+| Formato | Descrição |
+|---------|-----------|
+| **HTML** — Versão web completa, com navegação interativa, disponível em [fzampirolli.github.io/pdi-vc](https://fzampirolli.github.io/pdi-vc/) |
+| **PDF** — Versão para impressão ou leitura offline |
+| **Notebooks para alunos** — Versão `.ipynb` processada por um filtro personalizado que resolve citações, numera figuras, tabelas e equações, e gera referências formatadas no estilo ABNT — ideal para uso no Jupyter e Google Colab |
+
+O filtro de pós-processamento (`quarto_ipynb_refs.py`) prepara os notebooks para distribuição aos alunos,
+garantindo que funcionem perfeitamente em ambientes interativos mesmo sem depender do Quarto instalado.
+
+## Sobre as linguagens de programação {{.unnumbered}}
+
+Nesta versão inicial, utilizamos **Python** como linguagem principal, com as bibliotecas
+`morph.py` (desenvolvida pelos autores), OpenCV, NumPy e Matplotlib. No entanto,
+a arquitetura do projeto é flexível: no futuro, exemplos e capítulos podem ser adaptados
+para outras linguagens como R, Julia ou C++, dependendo das demandas da comunidade.
+
+## Código aberto {{.unnumbered}}
+
+Este livro é um projeto de código aberto. Todo o conteúdo — texto, código-fonte,
+imagens e scripts de processamento — está disponível publicamente em:
+
+👉 **[github.com/fzampirolli/pdi-vc](https://github.com/fzampirolli/pdi-vc/)**
+
+Você pode:
+
+- 📖 **Ler e estudar** gratuitamente
+- 🐛 **Reportar erros** ou sugerir melhorias abrindo uma *issue*
+- 🤝 **Contribuir** com correções, novos exemplos ou traduções via *pull requests*
+- 🔧 **Adaptar** o material para suas próprias turmas
+
+## Como usar os notebooks {{.unnumbered}}
+
+Cada capítulo do livro está disponível como um *notebook* interativo.
+Se você nunca usou um notebook Jupyter ou Google Colab, veja a seção
+"Antes de começar: Notebooks em Python" a seguir para um guia rápido.
+
+## Agradecimentos {{.unnumbered}}
+
+Agradecemos aos alunos, colegas e colaboradores que testam, questionam e contribuem
+com este projeto. Este livro é feito para vocês e por vocês.
+
+---
+
+## Antes de começar: Notebooks em Python {{.unnumbered}}
+
+O que é este documento? Você já ouviu falar em ***Literate Programming*** (Programação Literária)?
+O conceito foi criado por Donald Knuth em 1984 [@knuth_literate_1984]
+— autor de *The Art of Computer Programming* [@knuth_art_1997]
+e criador do sistema de tipografia TeX, base sobre a qual Leslie Lamport desenvolveu
+posteriormente o LaTeX — e propõe que os programas sejam escritos como uma narrativa
+lógica, combinando código e documentação em uma única obra.
+
+Isto é um *notebook*: um documento que intercala textos explicativos — as **células de texto**
+no formato [Markdown](https://colab.research.google.com/notebooks/markdown_guide.ipynb) —
+com códigos de programas em [Python](https://www.python.org/) — as **células de código**.
+
+É fácil distinguir as células de código: elas são precedidas por `[ ]`.
+Para executar uma célula de código, basta selecioná-la e pressionar
+<kbd>Shift</kbd> + <kbd>Enter</kbd>. Antes de começar, algumas observações
+importantes sobre o ambiente:
+
+- **No computador:** no Colab ou Jupyter, você também pode executar uma célula
+  clicando no botão de ▶️ (*play*) que aparece ao passar o mouse sobre os colchetes `[ ]`.
+- **No celular:** no Colab, o atalho <kbd>Shift</kbd> + <kbd>Enter</kbd> pode não funcionar.
+  Nesse caso, toque no botão de ▶️ (*play*).
+- **Execução local:** você pode rodar este notebook no seu computador instalando o
+  [Jupyter Notebook](https://jupyter.org).
+- **Google Colab:** para executar no seu navegador, vá em **Arquivo → Salvar uma cópia no Drive**
+  e abra o arquivo **Cópia de aula01.ipynb**, que ficará na pasta **Colab Notebooks** do seu Drive.
+
+O resultado será exibido logo abaixo da célula executada.
+
+::: {{.callout-note}}
+### Nota sobre o formato {{.unnumbered}}
+
+Você pode estar acessando este conteúdo de diferentes maneiras. Se estiver executando
+este notebook no [Jupyter](https://jupyter.org/) ou no [Google Colab](https://colab.research.google.com/),
+as células de código são interativas: você pode executá-las pressionando
+<kbd>Shift</kbd> + <kbd>Enter</kbd> ou clicando no botão de *play*. Se estiver lendo
+a versão renderizada em HTML ou PDF, o código aparecerá como blocos estáticos,
+mas o conteúdo e as explicações permanecem os mesmos — a única diferença é que
+você não poderá executar o código diretamente no documento.
+:::
+'''
 
 
 def _refs_qmd(combo: Combo) -> str:
@@ -110,6 +258,7 @@ class QuartoBuilder:
 
         # Arquivos de texto
         (qdir / 'index.qmd').write_text(_index_qmd(combo), encoding='utf-8')
+        (qdir / 'prefacio.qmd').write_text(_prefacio_qmd(combo), encoding='utf-8')
         (qdir / 'referencias.qmd').write_text(_refs_qmd(combo), encoding='utf-8')
 
         # Symlinks para capítulos
@@ -242,9 +391,9 @@ pre {
         if not csl_path.exists():
             self._create_default_csl(csl_path)
 
-        html_inc = ('    include-in-header: includes/preamble.html\n'
+        html_inc = (f'    include-in-header: {(self.root / "includes" / "preamble.html").resolve()}\n'
                     if (self.root / 'includes' / 'preamble.html').exists() else '')
-        pdf_inc  = ('    include-in-header: includes/preamble.tex\n'
+        pdf_inc  = (f'    include-in-header: {(self.root / "includes" / "preamble.tex").resolve()}\n'
                     if (self.root / 'includes' / 'preamble.tex').exists() else '')
 
         return f'''# Gerado por gerar_livro.py — NÃO editar manualmente.
@@ -266,6 +415,7 @@ book:
 
   chapters:
     - index.qmd
+    - prefacio.qmd
 {chapters}
   appendices:
     - referencias.qmd
