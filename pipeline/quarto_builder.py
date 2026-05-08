@@ -426,6 +426,10 @@ csl: "{csl_path}"
 format:
   html:
     theme: cosmo
+    grid:
+      body-width: 1100px  # Aumenta a área de texto (padrão é ~800px)
+      sidebar-width: 250px
+      margin-width: 250px
     toc: true
     toc-depth: 3
     number-sections: true

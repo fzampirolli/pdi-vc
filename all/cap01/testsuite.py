@@ -34,7 +34,7 @@ class TestSuite:
     #  API pública                                                         #
     # ------------------------------------------------------------------ #
 
-    def rodar(self):
+    def run(self):
         """Baixa os casos e executa os testes. Chamada principal."""
         nome_caso     = f"{self.base_norm}.cases"
         caminho_casos = os.path.join(LOCAL_CASES_DIR, nome_caso)
@@ -217,4 +217,4 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python3 testsuite.py EP01_02[.ext]")
         sys.exit(1)
-    TestSuite(sys.argv[1]).rodar()
+    TestSuite(sys.argv[1]).run()
