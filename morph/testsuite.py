@@ -2,6 +2,8 @@
 # testsuite.py - Baixa casos de teste do GitHub e executa testes locais
 import subprocess, sys, os, warnings, urllib.request, re
 
+__version__ = "1.1.0"
+
 warnings.filterwarnings("ignore")
 
 RED    = '\033[0;31m'
