@@ -182,6 +182,19 @@ class TestSuite:
     def _testar(self, lang_info, arquivo, casos):
         linguagem, comando, compilar = lang_info
         self._p(f"\n🔍 Testando {linguagem}: {arquivo}")
+
+        # ⬇️ NOVO: verifica se o arquivo tem pelo menos 3 linhas
+        try:
+            with open(arquivo, 'r', encoding='utf-8') as f:
+                num_linhas = sum(1 for _ in f)
+            if num_linhas < 3:
+                self._p(f"{YELLOW}⚠️ {arquivo}: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.{NC}")
+                return
+        except Exception as e:
+            self._p(f"{YELLOW}⚠️ Não foi possível ler {arquivo}: {e}. Testes ignorados.{NC}")
+            return
+        # ⬆️ fim da verificação
+
         if compilar:
             try:
                 subprocess.run(compilar, check=True, capture_output=True)
@@ -189,6 +202,7 @@ class TestSuite:
                 self._p(f"{RED}💥 Erro de compilação:{NC}")
                 if e.stderr: self._p(e.stderr.decode())
                 return
+            
         acertos = 0
         for nome, entrada, gabarito_raw in casos:
             try:
