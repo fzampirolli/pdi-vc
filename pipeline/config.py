@@ -127,6 +127,10 @@ class Combo:
     def key(self) -> str:
         return f'{self.lang}.{self.locale}'
 
+    @property  
+    def file_key(self) -> str:          # ← NOVO: ordem locale.lang para o nome do arquivo
+        return f'{self.locale}.{self.lang}'
+
     @property
     def lang_obj(self) -> Language:
         return LANGUAGES[self.lang]

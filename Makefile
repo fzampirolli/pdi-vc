@@ -13,6 +13,10 @@ LOCALES ?= pt
 
 PY      = python dev.py
 
+# TinyTeX na frente do PATH para garantir lualatex correto
+TINYTEX = $(HOME)/Library/TinyTeX/bin/universal-darwin
+export PATH := $(TINYTEX):$(PATH)
+
 # ── Watch (modo desenvolvimento) ──────────────────────────────────────────────
 .PHONY: html
 html:

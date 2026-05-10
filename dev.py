@@ -124,7 +124,7 @@ def run_build(sources: list[Path], combos: list[Combo],
         quarto_dirs[combo.key] = qdir
 
         if render_fmt:
-            render_quarto(qdir, render_fmt, verbose=verbose)
+            render_quarto(qdir, render_fmt, all_root=DIR_ALL, verbose=verbose)
 
     return quarto_dirs
 
@@ -144,7 +144,7 @@ def run_incremental(dirty: list[Path], combos: list[Combo],
             print(f'  ✓ {out}')
 
         if render_fmt and combo.key in quarto_dirs:
-            render_quarto(quarto_dirs[combo.key], render_fmt, verbose=verbose)
+            render_quarto(quarto_dirs[combo.key], render_fmt, all_root=DIR_ALL, verbose=verbose)
 
     print(f'[{_ts()}] Pronto. Aguardando mudanças…')
 

@@ -201,7 +201,7 @@ def main():
 
         if args.render and combo.key in quarto_dirs:
             render_quarto(quarto_dirs[combo.key], args.render,
-                          verbose=args.verbose)
+                          all_root=Path('all'), verbose=args.verbose)
         print()
 
     # ── Salvar cache ──────────────────────────────────────────────────────────

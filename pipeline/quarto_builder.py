@@ -370,6 +370,7 @@ pre {
                 )
         return '\n'.join(blocks) if blocks else '    - index.qmd'
 
+
     def _quarto_yml(self, combo: Combo, nb_root: Path) -> str:
         lang_obj    = LANGUAGES[combo.lang]
         locale_obj  = LOCALES[combo.locale]
@@ -380,24 +381,17 @@ pre {
                     .format(lang_label=lang_label))
         chapters = self._chapter_blocks(combo, nb_root)
 
-        # output-dir absoluto
-        output_dir = str((self.root / 'gen' / 'book' / combo.key).resolve())
+        output_dir   = str((self.root / 'gen' / 'book' / combo.key).resolve())
+        bib_path     = (self.root / 'references.bib').resolve()
+        csl_path     = (self.root / 'includes' / 'abnt.csl').resolve()
+        emoji_filter = (self.root / 'includes' / 'emoji-filter.lua').resolve()  # ← absoluto
 
-        # Caminhos absolutos para bib e csl (evita problemas)
-        bib_path = (self.root / 'references.bib').resolve()
-        csl_path = (self.root / 'includes' / 'abnt.csl').resolve()
-        
-        # Verifica se CSL existe, se não, cria um básico
         if not csl_path.exists():
             self._create_default_csl(csl_path)
 
-        html_inc = (f'    include-in-header: {(self.root / "includes" / "preamble.html").resolve()}\n'
-                    if (self.root / 'includes' / 'preamble.html').exists() else '')
-        pdf_inc  = (f'    include-in-header: {(self.root / "includes" / "preamble.tex").resolve()}\n'
-                    if (self.root / 'includes' / 'preamble.tex').exists() else '')
+        custom_filename = f"livro.{combo.file_key}"
 
         return f'''# Gerado por gerar_livro.py — NÃO editar manualmente.
-# Render: cd gen/quarto/{combo.key} && quarto render --to html
 
 project:
   type: book
@@ -423,11 +417,14 @@ book:
 bibliography: "{bib_path}"
 csl: "{csl_path}"
 
+filters:
+  - "{emoji_filter}"
+
 format:
   html:
     theme: cosmo
     grid:
-      body-width: 1100px  # Aumenta a área de texto (padrão é ~800px)
+      body-width: 1100px
       sidebar-width: 250px
       margin-width: 250px
     toc: true
@@ -438,28 +435,56 @@ format:
     code-copy: true
     highlight-style: github
     lang: {quarto_lang}
-{html_inc}
+    include-in-header:
+      text: |
+        <style>
+        code {{ font-size: 0.9em; }}
+        pre {{ background-color: #f5f5f5; padding: 1em; border-radius: 4px; }}
+        </style>
+
   pdf:
     documentclass: book
     classoption: [openany, oneside, 12pt, a4paper]
+    geometry:
+      - left=2cm
+      - right=2cm
+      - top=2.5cm
+      - bottom=2.5cm
     lang: {quarto_lang}
     toc: true
     number-sections: true
     colorlinks: true
     linkcolor: blue
     urlcolor: blue
-    pdf-engine: pdflatex
-    cite-method: biblatex
-    biblio-style: abnt
-    biblatexoptions:
-      - backend=biber
-      - style=abnt
-      - citestyle=abnt
-{pdf_inc}
+    pdf-engine: lualatex
+    latex-auto-install: false
+    latex-max-runs: 3
+    keep-tex: true
+    cite-method: citeproc
+    include-in-header:
+      text: |
+        \\usepackage{{url}}
+        \\def\\UrlBreaks{{\\do\\/\\do-}}
+        \\usepackage{{adjustbox}}
+        \\def\\pandocbounded#1{{\\adjustbox{{max width=\\linewidth, keepaspectratio}}{{#1}}}}
+        \\usepackage{{microtype}}
+        \\usepackage{{amsmath,amssymb}}
+        \\usepackage{{booktabs}}
+        \\usepackage{{longtable}}
+        \\usepackage{{array}}
+        \\usepackage{{float}}
+        \\usepackage{{subcaption}}
+        \\usepackage{{xcolor}}
+        \\usepackage{{fancyvrb}}
+        \\usepackage{{csquotes}}
+        \\usepackage{{emoji}}
+        \\setemojifont{{TwemojiMozilla}}
+        \\definecolor{{pdi-blue}}{{RGB}}{{21,101,192}}
+        \\definecolor{{pdi-green}}{{RGB}}{{46,125,50}}
 
 execute:
-  freeze: auto
-  cache: true
+  freeze: false
+  cache: false
   echo: true
   warning: false
   error: false
@@ -537,42 +562,293 @@ execute:
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_quarto(qdir: Path, fmt: str, verbose: bool = False):
-    """cd qdir && quarto render --to <fmt>"""
+# Em render_quarto — corrigir onde procura o PDF:
+
+
+import subprocess
+import os
+from pathlib import Path
+
+def _get_quarto_latex_path() -> str | None:
+    """Descobre o path do LaTeX que o Quarto usa (TinyTeX)."""
+    try:
+        r = subprocess.run(
+            ['quarto', 'run', '--help'],  # qualquer chamada quarto
+            capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        return None
+    
+    # TinyTeX fica em ~/Library/TinyTeX em macOS e Linux
+    candidates = [
+        Path.home() / 'Library' / 'TinyTeX' / 'bin' / 'universal-darwin',
+        Path.home() / '.TinyTeX' / 'bin' / 'x86_64-linux',
+        Path.home() / '.TinyTeX' / 'bin' / 'aarch64-linux',
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return None
+
+def _screenshot_html_cells(qdir: Path, all_root: Path):
+    """Lê notebooks ORIGINAIS de all/ para gerar screenshots."""
+    import nbformat
+    import re
+    from playwright.sync_api import sync_playwright
+
+    # Descobre os caps disponíveis em qdir
+    for cap_link in qdir.iterdir():
+        if not re.match(r'cap\d+', cap_link.name):
+            continue
+        cap = cap_link.name
+        img_dir = all_root / cap / 'imagens'
+        img_dir.mkdir(parents=True, exist_ok=True)
+
+        # Lê notebooks ORIGINAIS de all/capXX/
+        for nb_path in (all_root / cap).glob('*.ipynb'):
+            nb = nbformat.read(nb_path, as_version=4)
+
+            for cell in nb.cells:
+                if cell.cell_type != 'code':
+                    continue
+                if 'HTML("""' not in cell.source and "HTML('''" not in cell.source:
+                    continue
+
+                # Extrai label
+                label = None
+                for line in cell.source.splitlines():
+                    m = re.match(r'#\|\s*label:\s*(\S+)', line)
+                    if m:
+                        label = m.group(1)
+                        break
+                if not label:
+                    continue
+
+                png_path = img_dir / f'{label}.png'
+                if png_path.exists():
+                    print(f'  ✓ Screenshot já existe: {png_path.name}')
+                    continue
+
+                # Extrai HTML
+                m = re.search(r'HTML\("""(.*?)"""\)', cell.source, re.DOTALL)
+                if not m:
+                    m = re.search(r"HTML\('''(.*?)'''\)", cell.source, re.DOTALL)
+                if not m:
+                    continue
+
+                html_content = m.group(1)
+                tmp_html = qdir / f'_tmp_{label}.html'
+                tmp_html.write_text(f'''<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>body {{ margin: 0; background: white; }}</style>
+</head><body>{html_content}</body></html>''', encoding='utf-8')
+
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        page = browser.new_page(viewport={'width': 900, 'height': 600})
+                        page.goto(f'file://{tmp_html.resolve()}')
+                        page.wait_for_timeout(1500)
+                        page.screenshot(path=str(png_path), full_page=False)
+                        browser.close()
+                    print(f'  📸 Screenshot: {png_path.name}')
+                except Exception as e:
+                    print(f'  ⚠ Falha screenshot {label}: {e}')
+                finally:
+                    tmp_html.unlink(missing_ok=True)
+
+
+def _fix_html_outputs_for_pdf(nb_root: Path):
+    """Remove 'text/plain: <IPython.core.display.HTML object>' de todos os outputs."""
+    import nbformat
+    import os
+
+    for root, dirs, files in os.walk(nb_root, followlinks=True):
+        for fname in files:
+            if not fname.endswith('.ipynb'):
+                continue
+            nb_path = Path(root) / fname
+            nb = nbformat.read(nb_path, as_version=4)
+            modified = False
+
+            for cell in nb.cells:
+                if cell.cell_type != 'code':
+                    continue
+                for output in cell.outputs:
+                    data = output.get('data', {})
+                    if data.get('text/plain', '') == '<IPython.core.display.HTML object>':
+                        del output['data']['text/html']
+                        data['text/plain'] = ''
+                        modified = True
+
+            if modified:
+                nbformat.write(nb, nb_path)
+                print(f'  ✓ HTML outputs limpos: {fname}')
+
+def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
+    import nbformat
+    import re
+
+    nb_root = qdir.parent.parent / qdir.name  # gen/py.pt
+
+    for nb_path in nb_root.rglob('*.ipynb'):
+        real_path = nb_path.resolve()
+        nb = nbformat.read(real_path, as_version=4)
+        modified = False
+        new_cells = []
+
+        for cell in nb.cells:
+            if cell.cell_type != 'code' or (
+                'HTML("""' not in cell.source and "HTML('''" not in cell.source
+            ):
+                new_cells.append(cell)
+                continue
+
+            # Extrai label e fig-cap dos metadados da célula
+            label = None
+            fig_cap = None
+            for line in cell.source.splitlines():
+                m = re.match(r'#\|\s*label:\s*(\S+)', line)
+                if m:
+                    label = m.group(1)
+                m = re.match(r'#\|\s*fig-cap:\s*["\']?(.*?)["\']?\s*$', line)
+                if m:
+                    fig_cap = m.group(1).strip('"\'')
+
+            if not label:
+                # Limpa output salvo (Quarto re-executa no HTML)
+                cell.outputs = []
+                cell.execution_count = None
+                # Célula de código original (sem alteração)
+                new_cells.append(cell)
+                continue
+
+            # Descobre o cap pelo caminho do notebook
+            cap = None
+            for part in nb_path.parts:
+                if re.match(r'cap\d+', part):
+                    cap = part
+                    break
+
+            # Caminho relativo da imagem a partir do notebook
+            png_rel = f'imagens/{label}.png'
+            png_abs = all_root / cap / png_rel if cap else None
+            png_exists = png_abs and png_abs.exists()
+
+            if png_exists:
+                # Célula markdown: abre bloco html-only
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    '::: {.content-visible when-format="html"}'
+                ))
+
+                # Célula de código original (sem alteração)
+                cell.outputs = []
+                cell.execution_count = None
+                new_cells.append(cell)
+
+                # Célula markdown: fecha html-only, abre pdf-only com imagem
+                cap_str = fig_cap or label
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    f':::\n\n'
+                    f'::: {{.content-visible when-format="pdf"}}\n'
+                    f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
+                    f':::'
+                ))
+                modified = True
+                print(f'  ✓ Patch condicional: {label}')
+            else:
+                # Sem PNG: só esconde no PDF
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    '::: {.content-visible when-format="html"}'
+                ))
+                new_cells.append(cell)
+                new_cells.append(nbformat.v4.new_markdown_cell(':::'))
+                modified = True
+                print(f'  ⚠ Patch sem imagem: {label}')
+
+        if modified:
+            nb.cells = new_cells
+            # Salva diretamente no arquivo real (gen/py.pt/capXX/)
+            nbformat.write(nb, nb_path)
+            print(f'  ✓ Notebook patcheado: {nb_path.name}')
+
+
+def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
+    
     fmts = ['html', 'pdf'] if fmt == 'all' else [fmt]
+    
+    combo_name = qdir.name          # ← adicionar: ex: "py.pt"
+    parts = combo_name.split('.')
+    file_key = f'{parts[1]}.{parts[0]}'  # ← adicionar: ex: "pt.py"
+
+    env = os.environ.copy()
+    tinytex_path = _get_quarto_latex_path()
+    if tinytex_path:
+        env['PATH'] = tinytex_path + ':' + env['PATH']
+
     for f in fmts:
+
+        if f == 'pdf':
+            nb_root = qdir.parent.parent / qdir.name  # gen/py.pt
+            _screenshot_html_cells(qdir, all_root)
+            _fix_html_outputs_for_pdf(nb_root)
+            _patch_html_cells_for_pdf(qdir, all_root)
+            env['QUARTO_FMT'] = 'pdf'
+            
         print(f'  $ cd {qdir.name} && quarto render --to {f}')
         try:
             r = subprocess.run(
-                ['quarto', 'render', '--to', f],
-                cwd=qdir, capture_output=not verbose,
-                text=True, timeout=600
+                ['quarto', 'render', '--to', f] +
+                (['--pdf-engine', 'lualatex'] if f == 'pdf' else []),
+                cwd=qdir,
+                capture_output=not verbose,
+                text=True,
+                timeout=600,
+                env=env,
             )
             if r.returncode != 0:
                 print(f'  ⚠ Erro ao renderizar {f}:')
-                # Mostra as últimas linhas do erro
-                error_lines = r.stderr.split('\n')[-10:] if r.stderr else []
-                for line in error_lines:
+                for line in (r.stderr or '').split('\n')[-10:]:
                     if line.strip():
                         print(f'      {line}')
             else:
-                # Verifica se o PDF foi gerado
                 if f == 'pdf':
-                    pdf_path = qdir / f'{qdir.name}.pdf'
-                    if pdf_path.exists():
-                        print(f'  ✓ PDF gerado: {pdf_path}')
-                    else:
-                        # Procura por index.pdf
-                        index_pdf = qdir / 'index.pdf'
-                        if index_pdf.exists():
-                            # Renomeia para o nome do combo
-                            shutil.move(str(index_pdf), str(pdf_path))
-                            print(f'  ✓ PDF gerado: {pdf_path}')
-                        else:
-                            print(f'  ⚠ PDF não encontrado em {qdir}')
+                    _rename_pdf(qdir, combo_name, file_key)
                 else:
-                    print(f'  ✓ {f} → gen/book/{qdir.name}/')
+                    print(f'  ✓ html → gen/book/{combo_name}/')
+
         except FileNotFoundError:
             print('  ⚠ quarto não encontrado no PATH')
         except subprocess.TimeoutExpired:
             print('  ⚠ Timeout ao renderizar (mais de 600 segundos)')
+
+
+def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
+    """
+    Quarto Book gera o PDF no output-dir com nome imprevisível.
+    Procura qualquer .pdf gerado e renomeia para livro.<file_key>.pdf
+    """
+    output_dir = qdir.parent.parent / 'book' / combo_name  # ← era .parent.parent.parent
+    target = output_dir / f'livro.{file_key}.pdf'
+
+    if not output_dir.exists():
+        print(f'  ⚠ output-dir não encontrado: {output_dir}')
+        return
+
+    # Quarto pode gerar "index.pdf" ou slug do título
+    candidates = sorted(output_dir.glob('*.pdf'))
+    
+    if not candidates:
+        print(f'  ⚠ Nenhum PDF encontrado em {output_dir}')
+        print(f'    Conteúdo: {[p.name for p in output_dir.iterdir()]}')
+        return
+
+    # Se já existe com o nome certo, ok
+    if target in candidates:
+        print(f'  ✓ PDF: {target}')
+        return
+
+    # Renomeia o primeiro PDF encontrado
+    generated = candidates[0]
+    shutil.move(str(generated), str(target))
+    print(f'  ✓ PDF renomeado: {generated.name} → {target.name}')
