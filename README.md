@@ -1,94 +1,227 @@
-# PDI+VC Livro — Guia do Autor
+# PDI+VC — Processamento Digital de Imagens e Visão Computacional
 
-**Processamento Digital de Imagens e Visão Computacional**
+**Material didático interativo para cursos de graduação e pós-graduação**
 
----
-
-## Princípio fundamental
-
-> **Escreva UMA VEZ em Python + Português. O pipeline traduz o resto.**
-
-O notebook-fonte em `all/cap01/cap01.ipynb` é **canônico**: Python puro, Português puro.
-O script `gerar_livro.py` chama a API Anthropic para gerar automaticamente as versões
-em C++, Java, Inglês, Francês, etc. As traduções ficam em cache (`.cache/`) e só são
-rechamadas quando o conteúdo muda.
+> Escreva **uma vez** em Python + Português. O pipeline traduz o resto.
 
 ---
 
-## Estrutura
+## Para o Aluno
+
+### Onde encontrar o material
+
+| Formato | Link |
+|---------|------|
+| **HTML** | [fzampirolli.github.io/pdi-vc](https://fzampirolli.github.io/pdi-vc/) — navegação interativa, simuladores |
+| **PDF** | Disponível na página HTML (botão *Download PDF*) — para impressão e leitura offline |
+| **Notebooks Jupyter/Colab** | Pasta `notebooks_alunos/capXX/` — prontos para execução, sem dependências do Quarto |
+
+### Como usar os notebooks
+
+1. Acesse [Google Colab](https://colab.research.google.com/) ou instale o [Jupyter](https://jupyter.org/)
+2. Faça upload do notebook `capXX_aluno.ipynb` ou abra diretamente pelo GitHub
+3. Execute as células com **Shift+Enter** ou pelo botão ▶️
+4. Os notebooks de EPs (`capXX.EPs_aluno.ipynb`) contêm os exercícios práticos com validação automática via `TestSuite`
+
+### Estrutura dos notebooks de EP
+
+Cada EP segue o padrão:
+
+```
+EP01_01 — Descrição do problema
+  ├── Enunciado
+  ├── Simulador interativo (HTML — apenas na versão web)
+  ├── Código-template para completar
+  └── TestSuite("EP01_01.py").run()  ← valida sua solução
+```
+
+---
+
+## Para o Professor / Desenvolvedor
+
+### Princípio fundamental
+
+O notebook-fonte em `all/capXX/capXX.ipynb` é **canônico**: Python puro, Português puro.
+O pipeline gera automaticamente versões em outras linguagens (C++, Java…) e idiomas (Inglês, Francês…)
+via API Anthropic. As traduções ficam em cache (`.cache/`) e só são rechamadas quando o conteúdo muda.
+
+### Estrutura do projeto
 
 ```
 pdi-vc/
 │
-├── all/                      ← ✏️  FONTES — editar APENAS aqui
+├── all/                          ← ✏️  FONTES — editar APENAS aqui
 │   └── capXX/
-│       ├── capXX.ipynb       ← Python + Português (canônico)
-│       ├── capXX.ex.ipynb    ← Exercícios (Python + Português)
+│       ├── capXX.ipynb           ← conteúdo principal (Python + Português)
+│       ├── capXX.EPs.ipynb       ← exercícios práticos com TestSuite
+│       ├── imagens/              ← figuras estáticas + screenshots de simuladores
+│       │   ├── fig-XX-nome.png   ← gerado automaticamente pelo Playwright
+│       │   └── ...
+│       └── casos/                ← casos de teste para o TestSuite
+│           ├── EP01_01.cases
+│           └── ...
+│
+├── gen/                          ← 🤖  GERADO — não editar manualmente
+│   ├── py.pt/capXX/              ← Python + Português (passthrough)
+│   ├── py.en/capXX/              ← Python + English  (texto traduzido)
+│   ├── cpp.pt/capXX/             ← C++ + Português   (código traduzido)
+│   ├── quarto/                   ← pasta Quarto auto-suficiente por versão
+│   │   └── py.pt/
+│   │       ├── _quarto.yml       ← gerado pelo pipeline
+│   │       ├── capXX -> gen/py.pt/capXX  (symlink)
+│   │       └── includes -> includes/     (symlink)
+│   └── book/                     ← saída final
+│       └── py.pt/
+│           ├── livro.pt.py.pdf
+│           └── *.html
+│
+├── notebooks_alunos/             ← 📦  distribuição para alunos
+│   └── capXX/
+│       ├── capXX_aluno.ipynb
+│       ├── capXX.EPs_aluno.ipynb
 │       ├── imagens/
-│       └── dados/
+│       └── casos/
 │
-├── gen/                      ← 🤖  GERADO — não editar
-│   ├── py.pt/capXX/          ← Python + Português  (passthrough)
-│   ├── py.en/capXX/          ← Python + English    (texto traduzido)
-│   ├── cpp.pt/capXX/         ← C++ + Português     (código traduzido)
-│   ├── cpp.en/capXX/         ← C++ + English       (ambos traduzidos)
-│   ├── quarto/               ← _quarto.yml por versão (render de dentro)
-│   │   ├── py.pt/
-│   │   ├── py.en/
-│   │   ├── cpp.pt/
-│   │   └── cpp.en/
-│   └── book/                 ← HTML + PDF finais
+├── pipeline/                     ← motor de geração
+│   ├── config.py                 ← registro de langs/locales
+│   ├── cache.py                  ← cache de traduções em disco
+│   ├── translators.py            ← CodeTranslator + TextTranslator (via API)
+│   ├── notebook_processor.py     ← lê fonte, traduz, emite notebook filtrado
+│   ├── quarto_builder.py         ← monta pasta Quarto + geração de PDF
+│   ├── bib.py                    ← parser BibTeX + formatação ABNT
+│   └── index_builder.py          ← gera gen/book/index.html
 │
-├── pipeline/                 ← Motor de geração
-│   ├── config.py             ← Registro de langs/locales (extensível)
-│   ├── cache.py              ← Cache de traduções em disco
-│   ├── translators.py        ← Strategy: CodeTranslator + TextTranslator
-│   ├── notebook_processor.py ← Lê fonte, traduz, emite notebook filtrado
-│   ├── quarto_builder.py     ← Monta pasta Quarto auto-suficiente
-│   └── bib.py                ← Parser BibTeX + formatação ABNT
+├── includes/                     ← assets compartilhados
+│   ├── preamble.tex              ← pacotes LaTeX para PDF (emoji, fontes…)
+│   ├── abnt.csl                  ← estilo de citação ABNT
+│   ├── emoji-filter.lua          ← filtro Pandoc: converte emojis → \emoji{}
+│   └── prefacio.qmd              ← prefácio do livro (suporta placeholders)
 │
-├── morph/                    ← Biblioteca morph.py (Python)
-├── testes/                   ← Casos de teste VPL/MCTest
-├── includes/                 ← preamble.tex, preamble.html, abnt.csl
+├── morph/
+│   ├── morph.py                  ← biblioteca de PDI desenvolvida pelos autores
+│   └── testsuite.py              ← validador automático de EPs
 │
-├── gerar_livro.py            ← 🔑  CLI principal
-├── publish_all.sh            ← Pipeline completo
-├── limpar.sh                 ← Limpeza de caches
-├── references.bib            ← Referências (ABNT)
-├── requirements.txt          ← Dependências Python
-└── .cache/translations.json  ← Cache de traduções LLM
+├── dev.py                        ← 🔑  CLI principal (watch + build)
+├── gerar_livro.py                ← CLI alternativo (batch)
+├── gerar_notebooks_alunos.py     ← gera notebooks_alunos/
+├── run.sh                        ← build rápido de PDF (limpa cache + make pdf)
+├── Makefile                      ← atalhos de desenvolvimento
+├── references.bib                ← referências bibliográficas (ABNT)
+└── requirements.txt              ← dependências Python
 ```
 
----
+### Metadados das células
 
-## Como escrever um notebook-fonte
+Cada célula do notebook-fonte pode ter metadados `pdi.role`:
 
-Cada célula tem metadados `pdi.role`:
-
-| Papel (`role`) | Tipo de célula | O que acontece |
-|----------------|----------------|----------------|
+| `role` | Tipo | Comportamento |
+|--------|------|---------------|
 | `"code"` (padrão) | código | traduzido py→cpp pelo LLM |
 | `"text"` (padrão) | markdown | traduzido pt→en pelo LLM |
-| `"common"` | qualquer | mantido sem alteração |
-| `"base_only"` | qualquer | só aparece na versão py.pt |
+| `"common"` | qualquer | mantido sem alteração em todas as versões |
+| `"base_only"` | qualquer | aparece apenas na versão py.pt |
 | `"exercise"` | markdown | traduzido como texto |
 
-Exemplo mínimo de célula de código:
+Exemplo:
 ```json
 {
   "cell_type": "code",
-  "metadata": {"pdi": {"role": "code"}},
-  "source": ["img = mm.read('lena.jpg')\nmm.show(img)"]
-}
-```
-
-Célula common (aparece em todas as versões sem tradução):
-```json
-{
-  "cell_type": "markdown",
   "metadata": {"pdi": {"role": "common"}},
   "source": ["$$E = mc^2$$"]
 }
+```
+
+### Simuladores interativos
+
+Células com `HTML("""...""")` são simuladores interativos. O pipeline trata automaticamente:
+
+- **HTML**: exibe o simulador normalmente
+- **PDF**: substitui por screenshot PNG gerado via Playwright (salvo em `all/capXX/imagens/`)
+
+Os PNGs são gerados na primeira execução e reutilizados nas seguintes.
+Para regenerar, apague o PNG correspondente em `all/capXX/imagens/`.
+
+Padrão de label obrigatório para simuladores:
+```python
+#| label: fig-XX-nome-do-simulador
+#| fig-cap: "Descrição para a legenda"
+#| echo: false
+from IPython.display import HTML
+HTML("""...""")
+```
+
+### Convenções de labels Quarto
+
+```markdown
+# Figura
+![](imagens/exemplo.png){#fig-1-exemplo width=70%}
+Citar: @fig-1-exemplo
+
+# Equação
+$$f(x) = g(x)$$ {#eq-1-nome}
+Citar: @eq-1-nome
+
+# Tabela
+| A | B |
+|---|---|
+: Legenda {#tbl-1-dados}
+```
+
+**Regra:** `{#prefixo-CAPITULO-nome}` — sempre com número do capítulo.
+
+---
+
+## Comandos
+
+### Desenvolvimento diário
+
+```bash
+# Build rápido: limpa cache LaTeX e gera PDF
+./run.sh
+
+# Watch: rebuild automático ao salvar arquivos em all/
+make pdf        # PDF
+make html       # HTML
+make all-formats  # ambos
+
+# Build único sem watch
+make build      # HTML
+make build-pdf  # PDF
+make build-all  # HTML + PDF
+```
+
+### Geração de versões
+
+```bash
+# Padrão: Python × Português
+python dev.py --once --langs py --locales pt --render pdf
+
+# Múltiplas versões
+python dev.py --once --langs py,cpp --locales pt,en --render html
+
+# Sem chamar API (modo seco para revisar estrutura)
+python dev.py --once --dry-run
+```
+
+### Notebooks para alunos
+
+```bash
+# Gera notebooks_alunos/ com referências ABNT resolvidas
+python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
+```
+
+### Publicação
+
+```bash
+make publish    # build + docs/ + git push
+```
+
+### Limpeza
+
+```bash
+make clean          # apaga gen/, docs/ e .cache/
+make clean-cache    # apaga só .cache/translations.json
+make clean-gen      # apaga só gen/ e docs/
 ```
 
 ---
@@ -100,13 +233,9 @@ Célula common (aparece em todas as versões sem tradução):
 LANGUAGES['java'] = Language('java', 'Java', '.java', base=False)
 ```
 
-**2.** (Opcional) Adicione prompt especializado em `pipeline/translators.py`
-se a linguagem precisar de instruções específicas — caso contrário o
-`LLMCodeTranslator` genérico já funciona.
-
-**3.** Gere:
+**2.** Gere:
 ```bash
-python gerar_livro.py --langs py,cpp,java --locales pt,en
+python dev.py --once --langs py,cpp,java --locales pt --render html
 ```
 
 ## Adicionar novo idioma
@@ -123,105 +252,8 @@ UI_STRINGS['de'] = {
 
 **2.** Gere:
 ```bash
-python gerar_livro.py --langs py --locales pt,en,de
+python dev.py --once --langs py --locales pt,en,de --render html
 ```
-
----
-
-## Comandos
-
-```bash
-# Gerar padrão: py × pt
-python gerar_livro.py
-
-# Sem chamar API (placeholders para revisão de estrutura)
-python gerar_livro.py --dry-run
-
-# Gerar + renderizar HTML
-python gerar_livro.py --render html
-
-# Publicação completa
-./publish_all.sh
-
-# Pipeline personalizado
-LANGS=py,cpp,java LOCALES=pt,en,fr ./publish_all.sh
-
-# Renderizar manualmente uma versão
-cd gen/quarto/cpp.en && quarto render --to html
-cd gen/quarto/py.pt  && quarto render --to pdf
-```
-
-## Workflow B: Gerar Versão para Alunos (Jupyter/Colab)
-
-O script processa os notebooks de autor, resolve citações bibliográficas no formato ABNT e remove metadados do Quarto, gerando notebooks prontos para distribuição.
-
-```bash
-python gerar_notebooks_alunos.py --batch references.bib
-# Gera notebooks_alunos/capXX/capXX_aluno.ipynb
-```
-
----
-
-## Comandos Make
-
-```bash
-# Build único py×pt + HTML (recomendado para desenvolvimento)
-make build
-
-# Watch py×pt + render HTML ao salvar (Ctrl+C para sair)
-make html
-
-# Watch py×pt + render PDF ao salvar
-make pdf
-
-# Build sem chamar a API (placeholders para revisar estrutura)
-make build-dry
-
-# Capítulo específico
-make cap CAP=all/cap01/cap01.ipynb
-
-# Todas as linguagens × pt + HTML
-make all-langs
-
-# py × todos os idiomas + HTML
-make all-locales
-
-# Tudo × tudo + HTML + PDF
-make full
-
-# Limpeza
-make clean        # apaga gen/ e .cache/
-make clean-cache  # apaga só o cache de traduções
-make clean-gen    # apaga só gen/
-
-# Overrides
-make build LANGS=cpp LOCALES=en
-```
-
----
-
-## Padronização Quarto (labels, figuras, equações)
-
-```markdown
-# Figura
-::: {#fig-1-exemplo}
-![](imagens/exemplo.png){width=70% fig-align="center"}
-Legenda da figura.
-:::
-Citar: @fig-1-exemplo → Figura 1.1
-
-# Equação
-$$f(x,y) = g(x) \cdot h(y)$$ {#eq-1-separavel}
-Citar: @eq-1-separavel
-
-# Tabela
-| A | B |
-|---|---|
-| x | y |
-: Legenda {#tbl-1-dados}
-```
-
-**Regra de ouro para labels:** `{#prefixo-CAPITULO-nome}` — sempre com número do capítulo.
 
 ---
 
@@ -229,12 +261,22 @@ Citar: @eq-1-separavel
 
 ```bash
 pip install -r requirements.txt
-# Sistema: quarto, texlive-full (PDF)
+pip install playwright
+playwright install chromium   # para screenshots de simuladores
+
+# Sistema
+# quarto   — https://quarto.org/docs/get-started/
+# TinyTeX  — instalado automaticamente pelo Quarto (quarto install tinytex)
+```
+
+Pacotes LaTeX adicionais (instalar no TinyTeX):
+```bash
+~/Library/TinyTeX/bin/universal-darwin/tlmgr install emoji twemoji-colr luatexbase
 ```
 
 ---
 
 ## Licença
 
-© 2026 Francisco de Assis Zampirolli — UFABC.  
+© 2026 Francisco de Assis Zampirolli — UFABC.
 Creative Commons BY-NC-SA 4.0.
