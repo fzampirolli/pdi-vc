@@ -34,37 +34,25 @@ class mm:
         for p in packages:
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
-
-
     @staticmethod
-    def read(file, info=False):
-        """
-        Lê imagem de arquivo local ou URL.
-        info=False: retorna ndarray (RGB).
-        info=True: retorna objeto PIL.Image (preserva EXIF).
-        """
+    def read(file):
+        """Lê imagem de arquivo local ou URL (inclusive Google Drive). Retorna RGB."""
         import re, requests
-        from PIL import Image
-        from io import BytesIO
-
-        # Trata URL do Google Drive ou comum
         if file.startswith(('http://', 'https://', 'id=')):
-            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or re.search(r'/d/([a-zA-Z0-9_-]+)', file)
+            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or \
+                re.search(r'/d/([a-zA-Z0-9_-]+)', file)
             url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
-                if m and ('id=' in file or 'drive.google.com' in file) else file
+                  if m and ('id=' in file or 'drive.google.com' in file) else file
             r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
             r.raise_for_status()
-            source = BytesIO(r.content)
-        else:
-            source = file
-
-        # Retorno condicional
-        img_pil = Image.open(source)
-        if info:
-            return img_pil
-        
-        # Converte para NumPy/RGB (padrão mm)
-        return np.array(img_pil.convert("RGB"))
+            img = cv2.imdecode(np.frombuffer(r.content, np.uint8), cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError(f"Não foi possível decodificar: {url}")
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.imread(file)
+        if img is None:
+            raise FileNotFoundError(f"Arquivo não encontrado: {file}")
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     @staticmethod
     def color(img):
@@ -129,7 +117,7 @@ class mm:
         if isinstance(size_or_factor, (int, float)):
             return cv2.resize(img, (0,0), fx=size_or_factor, fy=size_or_factor, interpolation=m)
         return cv2.resize(img, size_or_factor, interpolation=m)
-    
+
     @staticmethod
     def show(*args, title=None, titles=None, cols=3):
         """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
