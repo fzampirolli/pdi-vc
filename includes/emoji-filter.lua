@@ -19,8 +19,8 @@ local emojis = {
   ["⚙️"]  = "\\S{}",
   ["☀"]   = "$\\odot$",
   ["☀️"]  = "$\\odot$",
-  ["⚠"]   = "\\textbf{[!]}",
-  ["⚠️"]  = "\\textbf{[!]}",
+  ["⚠"]   = "\\emoji{warning}",
+  ["⚠️"]  = "\\emoji{warning}",
   ["∞"]   = "$\\infty$",
   ["░"]   = "\\texttt{[~]}",
   ["▒"]   = "\\texttt{[=]}",
@@ -102,7 +102,7 @@ local emojis = {
   ["💾"] = "\\emoji{floppy-disk}",
   ["💿"] = "\\emoji{optical-disk}",
   ["📱"] = "\\emoji{mobile-phone}",
-  ["💻"] = "\\emoji{laptop}",
+  ["💻"] = "\\emoji{computer}",
   ["🖥️"] = "\\emoji{desktop-computer}",
   ["🖥"]  = "\\emoji{desktop-computer}",
   ["📷"] = "\\emoji{camera}",
@@ -257,5 +257,16 @@ function Str(el)
 
   if has_emoji then
     return result
+  end
+end
+
+ 
+function RawInline(el)
+  if el.format == "html" and el.text:match("<br") then
+    if FORMAT:match("latex") then
+      return pandoc.RawInline("latex", "\\newline{}")
+    else
+      return pandoc.LineBreak()
+    end
   end
 end

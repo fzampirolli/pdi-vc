@@ -277,6 +277,12 @@ class QuartoBuilder:
         # _quarto.yml
         yml = self._quarto_yml(combo, nb_root)
         (qdir / '_quarto.yml').write_text(yml, encoding='utf-8')
+        (qdir / 'fvextra.tex').write_text(
+            r'\usepackage{fvextra}' + '\n'
+            r'\DefineVerbatimEnvironment{Highlighting}{Verbatim}'
+            r'{breaklines=true,breaksymbolleft={},commandchars=\\\{\}}',
+            encoding='utf-8'
+        )
 
         print(f'  ✓ Quarto dir: {qdir.relative_to(self.root)}')
         print(f'    render  :  cd {qdir.relative_to(self.root)} && quarto render --to html')
@@ -306,6 +312,7 @@ class QuartoBuilder:
         includes_dir = self.root / 'includes'
         includes_dir.mkdir(exist_ok=True)
         
+
         # Cria preamble.tex para PDF
         preamble_tex = includes_dir / 'preamble.tex'
         if not preamble_tex.exists():
@@ -368,6 +375,7 @@ pre {
                     f'    - part: "{title}"\n      chapters:\n' +
                     '\n'.join(chaps)
                 )
+        blocks.append('    - referencias.qmd')
         return '\n'.join(blocks) if blocks else '    - index.qmd'
 
 
@@ -411,8 +419,7 @@ book:
     - index.qmd
     - prefacio.qmd
 {chapters}
-  appendices:
-    - referencias.qmd
+
 
 bibliography: "{bib_path}"
 csl: "{csl_path}"
@@ -446,10 +453,11 @@ format:
     documentclass: book
     classoption: [openany, oneside, 12pt, a4paper]
     geometry:
-      - left=2cm
-      - right=2cm
-      - top=2.5cm
-      - bottom=2.5cm
+      - left=1.5cm
+      - right=1.5cm
+      - top=2.0cm
+      - bottom=2.0cm
+      - headheight=14pt
     lang: {quarto_lang}
     toc: true
     number-sections: true
@@ -461,26 +469,65 @@ format:
     latex-max-runs: 3
     keep-tex: true
     cite-method: citeproc
+
     include-in-header:
-      text: |
-        \\usepackage{{url}}
-        \\def\\UrlBreaks{{\\do\\/\\do-}}
-        \\usepackage{{adjustbox}}
-        \\def\\pandocbounded#1{{\\adjustbox{{max width=\\linewidth, keepaspectratio}}{{#1}}}}
-        \\usepackage{{microtype}}
-        \\usepackage{{amsmath,amssymb}}
-        \\usepackage{{booktabs}}
-        \\usepackage{{longtable}}
-        \\usepackage{{array}}
-        \\usepackage{{float}}
-        \\usepackage{{subcaption}}
-        \\usepackage{{xcolor}}
-        \\usepackage{{fancyvrb}}
-        \\usepackage{{csquotes}}
-        \\usepackage{{emoji}}
-        \\setemojifont{{TwemojiMozilla}}
-        \\definecolor{{pdi-blue}}{{RGB}}{{21,101,192}}
-        \\definecolor{{pdi-green}}{{RGB}}{{46,125,50}}
+      - text: |
+          \\usepackage{{url}}
+          \\def\\UrlBreaks{{\\do\\/\\do-}}
+          \\usepackage{{adjustbox}}
+          \\def\\pandocbounded#1{{\\adjustbox{{max width=\\linewidth, keepaspectratio}}{{#1}}}}
+          \\usepackage{{microtype}}
+          \\usepackage{{amsmath,amssymb}}
+          \\usepackage{{booktabs}}
+          \\usepackage{{makecell}}
+          \\renewcommand{{\\cellalign}}{{tl}}
+          \\usepackage{{longtable}}
+          \\usepackage{{array}}
+          \\usepackage{{float}}
+          \\usepackage{{subcaption}}
+          \\usepackage{{xcolor}}
+          \\usepackage{{fancyvrb}}
+          \\usepackage{{csquotes}}
+          \\usepackage{{emoji}}
+          \\setemojifont{{TwemojiMozilla}}
+          \\definecolor{{pdi-blue}}{{RGB}}{{21,101,192}}
+          \\definecolor{{pdi-green}}{{RGB}}{{46,125,50}}
+          \\definecolor{{darkblue}}{{RGB}}{{0,51,102}}
+
+
+          \\usepackage{{fancyhdr}}
+          \\pagestyle{{fancy}}
+          \\fancyhf{{}}
+
+          \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{Processamento Digital de Imagens e Visão Computacional}}}}}}
+          \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
+          \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
+          \\fancyfoot[R]{{\\thepage}}
+          \\renewcommand{{\\headrulewidth}}{{0.4pt}}
+          \\renewcommand{{\\footrulewidth}}{{0.4pt}}
+          \\fancypagestyle{{plain}}{{
+            \\fancyhf{{}}
+            \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
+            \\fancyfoot[R]{{\\thepage}}
+            \\renewcommand{{\\headrulewidth}}{{0pt}}
+            \\renewcommand{{\\footrulewidth}}{{0.4pt}}
+          }}
+
+          \\usepackage{{titlesec}}
+          \\titleformat{{\\chapter}}[display]
+            {{\\normalfont\\huge\\bfseries\\color{{darkblue}}}}
+            {{\\filleft\\Large\\chaptertitlename\\ \\thechapter}}
+            {{1ex}}
+            {{\\titlerule\\vspace{{2ex}}\\Huge\\filleft}}
+            [{{\\vspace{{2ex}}}}]
+          \\titlespacing*{{\\chapter}}{{0pt}}{{5pt}}{{20pt}}
+          \\titleformat{{\\part}}[display]
+            {{\\normalfont\\Huge\\bfseries\\color{{darkblue}}\\centering}}
+            {{\\Large\\partname\\ \\thepart}}
+            {{1ex}}
+            {{\\titlerule[2pt]\\vspace{{2ex}}}}
+            [{{\\vspace{{2ex}}\\titlerule[2pt]}}]
+      - file: fvextra.tex
 
 execute:
   freeze: false
@@ -843,12 +890,13 @@ def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
         print(f'    Conteúdo: {[p.name for p in output_dir.iterdir()]}')
         return
 
-    # Se já existe com o nome certo, ok
-    if target in candidates:
-        print(f'  ✓ PDF: {target}')
+    # Remove o próprio target dos candidatos para não confundir com o PDF gerado
+    candidates = [c for c in candidates if c != target]
+    if not candidates:
+        print(f'  ✓ PDF já existe com nome correto: {target}')
         return
-
-    # Renomeia o primeiro PDF encontrado
-    generated = candidates[0]
+    
+    # Renomeia o mais recente (não o mais antigo)
+    generated = max(candidates, key=lambda p: p.stat().st_mtime)
     shutil.move(str(generated), str(target))
     print(f'  ✓ PDF renomeado: {generated.name} → {target.name}')
