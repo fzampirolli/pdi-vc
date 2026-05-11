@@ -460,6 +460,8 @@ format:
       - headheight=14pt
     lang: {quarto_lang}
     toc: true
+    lot: true      # list of tables
+    lof: true      # list of figures
     number-sections: true
     colorlinks: true
     linkcolor: blue

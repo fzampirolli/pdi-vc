@@ -154,17 +154,17 @@ HTML("""...""")
 
 ```markdown
 # Figura
-![](imagens/exemplo.png){#fig-1-exemplo width=70%}
-Citar: @fig-1-exemplo
+![](imagens/exemplo.png){#fig-01-exemplo width=70%}
+Citar: @fig-01-exemplo
 
 # Equação
-$$f(x) = g(x)$$ {#eq-1-nome}
-Citar: @eq-1-nome
+$$f(x) = g(x)$$ {#eq-01-nome}
+Citar: @eq-01-nome
 
 # Tabela
 | A | B |
 |---|---|
-: Legenda {#tbl-1-dados}
+: Legenda {#tbl-01-dados}
 ```
 
 **Regra:** `{#prefixo-CAPITULO-nome}` — sempre com número do capítulo.
