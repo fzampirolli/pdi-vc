@@ -36,7 +36,6 @@ class mm:
 
 
 
-    @staticmethod
     def read(file, info=False):
         """
         Lê imagem de arquivo local ou URL.
@@ -131,20 +130,41 @@ class mm:
         return cv2.resize(img, size_or_factor, interpolation=m)
     
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3):
+    def rotate(img, angle, center=None, scale=1.0, interp='bilinear'):
+        """Rotaciona uma imagem em torno de um ponto central."""
+        import cv2
+        flags = {'nearest': cv2.INTER_NEAREST,
+                'bilinear': cv2.INTER_LINEAR,
+                'bicubic': cv2.INTER_CUBIC}.get(interp, cv2.INTER_LINEAR)
+        h, w = img.shape[:2]
+        if center is None:
+            center = (w // 2, h // 2)
+        M = cv2.getRotationMatrix2D(center, angle, scale)
+        return cv2.warpAffine(img, M, (w, h), flags=flags)
+    
+    @staticmethod
+    def translate(img, tx, ty):
+        import cv2
+        import numpy as np
+        h, w = img.shape[:2]
+        M = np.float32([[1, 0, tx], [0, 1, ty]])
+        return cv2.warpAffine(img, M, (w, h))
+    
+    @staticmethod
+    def show(*args, title=None, titles=None, cols=3, figsize=None):
         """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
-        Modo simples:   mm.show(f1, f2, title='Exemplo')
-        Modo múltiplo:  mm.show([f1, f2, f3], titles=['t1','t2','t3'], cols=3)
+            Modo simples:   mm.show(f1, f2, title='Exemplo')
+            Modo múltiplo:  mm.show([f1, f2, f3], titles=['t1','t2','t3'], cols=3)
         """
         import matplotlib.pyplot as plt
         colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],
                 [0,255,255],[255,255,0],[255,50,50],[50,255,50]]
-
         if isinstance(args[0], list):  # modo múltiplo
             images = args[0]
             ts = titles or (title if isinstance(title, list) else [None]*len(images))
             rows = (len(images) + cols - 1) // cols
-            _, axes = plt.subplots(rows, cols, figsize=(5*cols, 5*rows))
+            size = figsize or (5*cols, 5*rows)
+            _, axes = plt.subplots(rows, cols, figsize=size)
             axes = axes.reshape(rows, -1)
             for i, (img, t) in enumerate(zip(images, ts)):
                 r, c = divmod(i, cols)
@@ -157,7 +177,6 @@ class mm:
             [f.__setitem__(args[i]>0, colors[i-1]) for i in range(1, min(len(args), len(colors)+1))]
             plt.imshow(f, "gray")
             if title: plt.title(title)
-
         plt.savefig(f'fig_{mm.count_Images:04d}.png') if not mm.IN_INTERACTIVE else plt.show()
         mm.count_Images += not mm.IN_INTERACTIVE
 
