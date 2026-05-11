@@ -150,6 +150,18 @@ class mm:
         M = np.float32([[1, 0, tx], [0, 1, ty]])
         return cv2.warpAffine(img, M, (w, h))
     
+
+    @staticmethod
+    def shear(img, shx=0.0, shy=0.0):
+        """Aplica cisalhamento afim: shx desloca horizontalmente, shy verticalmente."""
+        import cv2
+        import numpy as np
+        h, w = img.shape[:2]
+        M = np.float32([[1, shx, 0],
+                        [shy, 1, 0]])
+        return cv2.warpAffine(img, M, (w, h))
+
+    
     @staticmethod
     def show(*args, title=None, titles=None, cols=3, figsize=None):
         """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
