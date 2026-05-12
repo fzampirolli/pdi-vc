@@ -167,6 +167,8 @@ Citar: @eq-01-nome
 : Legenda {#tbl-01-dados}
 ```
 
+**Atenção:**  labels de figura no Quarto não podem ter maiúsculas.
+
 **Regra:** `{#prefixo-CAPITULO-nome}` — sempre com número do capítulo.
 
 ---
