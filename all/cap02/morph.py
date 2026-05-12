@@ -159,6 +159,30 @@ class mm:
                         [shy, 1, 0]])
         return cv2.warpAffine(img, M, (w, h))
 
+    @staticmethod
+    def perspective_transform(img, pts1, pts2, size=None):
+        """
+        Aplica transformação de perspectiva (homografia) em uma imagem.
+        
+        Parâmetros:
+            img: imagem de entrada (numpy array)
+            pts1: pontos de origem (4 pontos) no formato np.float32
+            pts2: pontos de destino (4 pontos) no formato np.float32
+            size: tupla (largura, altura) da imagem de saída. Se None, usa o tamanho original.
+        
+        Retorna:
+            imagem transformada
+        """
+        import cv2
+        import numpy as np
+        
+        if size is None:
+            h, w = img.shape[:2]
+            size = (w, h)
+        
+        M = cv2.getPerspectiveTransform(pts1, pts2)
+        dst = cv2.warpPerspective(img, M, size)
+        return dst
 
     @staticmethod
     def show(*args, title=None, titles=None, cols=3, figsize=None):
