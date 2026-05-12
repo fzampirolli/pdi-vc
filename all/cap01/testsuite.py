@@ -106,31 +106,51 @@ class TestSuite:
             conteudo = open(caminho, encoding="utf-8").read().strip()
         except Exception:
             return None
+        
         if "case=" not in conteudo:
             return []
+            
         casos = []
-        for bloco in conteudo.split("case=")[1:]:
-            linhas = bloco.strip().splitlines()
-            if not linhas:
+        # Divide pelos blocos de caso
+        blocos = re.split(r'case=', conteudo)
+        
+        for bloco in blocos:
+            if not bloco.strip():
                 continue
-            nome, entrada, saida_opcoes, saida_atual, modo = linhas[0].strip(), [], [], [], None
+            
+            linhas = bloco.strip().splitlines()
+            nome = linhas[0].strip()
+            entrada_acumulada = []
+            saida_acumulada = []
+            modo = None
+            
             for linha in linhas[1:]:
-                linha = linha.replace('\\n', '\n')
+                # Limpeza de resíduos de comentários ou separadores do arquivo de cases
+                if linha.startswith("####") or linha.strip() == "":
+                    continue
+                
                 if linha.startswith("input="):
-                    if modo == "output" and saida_atual:
-                        saida_opcoes.append("\n".join(saida_atual)); saida_atual = []
-                    entrada.append(linha[6:]); modo = "input"
+                    entrada_acumulada.append(linha[6:].replace('\\n', '\n'))
+                    modo = "input"
                 elif linha.startswith("output="):
-                    if modo == "output" and saida_atual:
-                        saida_opcoes.append("\n".join(saida_atual)); saida_atual = []
-                    saida_atual.append(linha[7:]); modo = "output"
+                    saida_acumulada.append(linha[7:].replace('\\n', '\n'))
+                    modo = "output"
                 else:
-                    (entrada if modo == "input" else saida_atual).append(linha)
-            if saida_atual:
-                saida_opcoes.append("\n".join(saida_atual))
-            opcoes_limpas = [op[1:-1] if len(op) >= 2 and op[0] == op[-1] and op[0] in "\"'" else op
-                             for op in saida_opcoes]
-            casos.append((nome, "\n".join(entrada), "\n<OU>\n".join(opcoes_limpas)))
+                    # Se não tem prefixo, pertence ao modo atual
+                    if modo == "input":
+                        entrada_acumulada.append(linha.replace('\\n', '\n'))
+                    elif modo == "output":
+                        saida_acumulada.append(linha.replace('\\n', '\n'))
+            
+            if entrada_acumulada and saida_acumulada:
+                entrada_final = "\n".join(entrada_acumulada).strip()
+                # Remove marcações de strings (aspas) se existirem no arquivo de casos
+                saida_final = "\n".join(saida_acumulada).strip()
+                if len(saida_final) >= 2 and saida_final[0] == saida_final[-1] and saida_final[0] in "\"'":
+                    saida_final = saida_final[1:-1]
+                
+                casos.append((nome, entrada_final, saida_final))
+        
         self._p(f"📋 {len(casos)} caso(s) carregado(s) de {caminho}")
         return casos
 
