@@ -88,6 +88,7 @@ class IndexBuilder:
         # Caminho relativo da imagem de capa a partir de gen/book/
         # A imagem fica em includes/capa_girassol1.png → relativo: ../../includes/capa_girassol1.png
         cover_img = '../../includes/capa_girassol1.png'
+        cover_img = 'https://raw.githubusercontent.com/fzampirolli/pdi-vc/main/includes/capa_girassol1.png'
 
         by_lang: dict = {}
         for v in versions:
