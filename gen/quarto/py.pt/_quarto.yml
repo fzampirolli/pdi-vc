@@ -6,6 +6,7 @@ project:
 
 book:
   title: "Processamento Digital de Imagens e Visão Computacional"
+  cover-image: "includes/capa_girassol.png"
   subtitle: "Abordagem Prática com Python"
   author:
     - name: "Francisco de Assis Zampirolli"
@@ -13,6 +14,7 @@ book:
   date: today
   language: pt
   downloads: [pdf]
+  output-file: "livro.pt.py"
 
   chapters:
     - index.qmd
@@ -34,6 +36,7 @@ filters:
 format:
   html:
     theme: cosmo
+    css: custom.css          # ← carregado após o tema, vence Bootstrap
     grid:
       body-width: 1100px
       sidebar-width: 250px
@@ -48,14 +51,20 @@ format:
     lang: pt
     include-in-header:
       text: |
-        <style>
-        code { font-size: 0.9em; }
-        pre { background-color: #f5f5f5; padding: 1em; border-radius: 4px; }
-        </style>
-
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          document.querySelectorAll('a[href="./"], a[href="."]').forEach(function(a) {
+            a.setAttribute('href', '../index.html');
+          });
+        });
+        </script>
   pdf:
     documentclass: book
     classoption: [openany, oneside, 12pt, a4paper]
+    title-page: false
+    output-file: "livro.pt.py.pdf"
     geometry:
       - left=1.5cm
       - right=1.5cm
@@ -64,8 +73,8 @@ format:
       - headheight=14pt
     lang: pt
     toc: true
-    lot: true      # list of tables
-    lof: true      # list of figures
+    lot: true
+    lof: true
     number-sections: true
     colorlinks: true
     linkcolor: blue
@@ -76,7 +85,14 @@ format:
     keep-tex: true
     cite-method: citeproc
 
+    # ── Capa: injetada ANTES do corpo, garantindo página 1 ───────────────────
+    # include-before-body é processado imediatamente após \begin{document},
+    # antes de qualquer conteúdo gerado pelo Pandoc — ao contrário de
+    # \AtBeginDocument (que chega tarde demais no fluxo do book).
+
+
     include-in-header:
+      - file: cover_hook.tex
       - text: |
           \usepackage{url}
           \def\UrlBreaks{\do\/\do-}
@@ -96,15 +112,24 @@ format:
           \usepackage{csquotes}
           \usepackage{emoji}
           \setemojifont{TwemojiMozilla}
+          \usepackage{graphicx}
+          \usepackage{geometry}
           \definecolor{pdi-blue}{RGB}{21,101,192}
           \definecolor{pdi-green}{RGB}{46,125,50}
           \definecolor{darkblue}{RGB}{0,51,102}
-
-
+          \definecolor{codebg}{RGB}{240,244,255}
+          \definecolor{codeborder}{RGB}{112,144,208}
+          \definecolor{outputbg}{RGB}{253,246,236}
+          \definecolor{outputborder}{RGB}{232,168,64}
+          \usepackage[skins,breakable]{tcolorbox}
+          \tcbset{pdicode/.style={enhanced,breakable,colback=codebg,colframe=codeborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\small\ttfamily}}
+          \tcbset{pdioutput/.style={enhanced,breakable,colback=outputbg,colframe=outputborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\small\ttfamily}}
+          \renewenvironment{Shaded}{\begin{tcolorbox}[pdicode]}{\end{tcolorbox}}
+          \usepackage{alltt}
+          \renewenvironment{verbatim}{\begin{tcolorbox}[pdioutput]\begin{alltt}}{\end{alltt}\end{tcolorbox}}
           \usepackage{fancyhdr}
           \pagestyle{fancy}
           \fancyhf{}
-
           \fancyhead[L]{\small\textcolor{darkblue}{\textit{Processamento Digital de Imagens e Visão Computacional}}}
           \fancyhead[R]{\small\href{https://github.com/fzampirolli/pdi-vc}{github.com/fzampirolli/pdi-vc}}
           \fancyfoot[L]{\small\textcolor{darkblue}{\textit{UFABC}}}
@@ -118,7 +143,6 @@ format:
             \renewcommand{\headrulewidth}{0pt}
             \renewcommand{\footrulewidth}{0.4pt}
           }
-
           \usepackage{titlesec}
           \titleformat{\chapter}[display]
             {\normalfont\huge\bfseries\color{darkblue}}
