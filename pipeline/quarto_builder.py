@@ -7,6 +7,7 @@ Constrói uma pasta Quarto auto-suficiente para cada combo:
         _quarto.yml      ← gerado aqui
         index.qmd        ← gerado aqui (idioma correto)
         prefacio.qmd     ← gerado aqui (prefácio do livro)
+        capa.tex         ← gerado aqui (capa do PDF, via include-before-body)
         capXX/           ← symlink → gen/<combo>/capXX/
         references.bib   ← symlink → ../../references.bib
         includes/        ← symlink → ../../includes/
@@ -57,24 +58,16 @@ def _prefacio_qmd(combo: Combo) -> str:
     Se o arquivo não existir, gera um prefácio padrão com suporte a i18n.
     """
     prefacio_path = Path('includes/prefacio.qmd')
-    
+
     if prefacio_path.exists():
-        # Lê o arquivo de prefácio externo
         content = prefacio_path.read_text(encoding='utf-8')
         print(f'  ✓ Prefácio lido de {prefacio_path}')
-        
-        # Substitui placeholders de localização se existirem
-        # Ex: {{lang_label}} será substituído pelo nome do idioma
         lang_label = LANGUAGES[combo.lang].label
         content = content.replace('{{lang_label}}', lang_label)
-        
-        # Substitui outros placeholders úteis
         locale_label = LOCALES[combo.locale].label
         content = content.replace('{{locale_label}}', locale_label)
-        
         return content
     else:
-        # Fallback: gera prefácio padrão
         print(f'  ⚠ Arquivo {prefacio_path} não encontrado. Gerando prefácio padrão.')
         return _generate_default_prefacio(combo)
 
@@ -82,7 +75,7 @@ def _prefacio_qmd(combo: Combo) -> str:
 def _generate_default_prefacio(combo: Combo) -> str:
     """Gera um prefácio padrão (fallback quando não há arquivo externo)."""
     lang_label   = LANGUAGES[combo.lang].label
-    
+
     prefacio_title = UI_STRINGS[combo.locale].get('preface_title', 'Prefácio')
     projeto_titulo = UI_STRINGS[combo.locale].get('preface_project_title', 'Um livro vivo')
     projeto_texto  = UI_STRINGS[combo.locale].get('preface_project_text',
@@ -90,15 +83,12 @@ def _generate_default_prefacio(combo: Combo) -> str:
         'novas seções são adicionadas e abordagens pedagógicas são aprimoradas com base no feedback '
         'de alunos e professores. Por isso, tratamos este material como um *projeto inicial* — '
         'uma base sólida que continuará crescendo.')
-    
+
     producao_titulo = UI_STRINGS[combo.locale].get('preface_production_title', 'Como este livro é produzido')
     producao_texto  = UI_STRINGS[combo.locale].get('preface_production_text',
         'Todo o conteúdo é escrito em **Quarto**, um sistema de publicação científica e técnica '
         'que permite renderizar o mesmo código-fonte para múltiplos formatos.')
-    
-    # ... (resto da função com os mesmos textos da versão anterior)
-    # Mantenha o restante do conteúdo conforme a versão anterior
-    
+
     return f'''# {prefacio_title} {{.unnumbered}}
 
 Este livro é um **projeto em construção** sobre **Processamento Digital de Imagens (PDI) e Visão Computacional (VC)**,
@@ -209,21 +199,17 @@ def _process_attachments(combo: Combo, nb_root: Path, qdir: Path, all_root: Path
     """
     attachments_dir = qdir / 'attachments'
     attachments_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Procura por anexos no diretório all/capXX/
+
     for cap in ['cap01', 'cap02', 'cap03', 'cap04', 'cap05', 'cap06', 'cap07', 'cap08']:
         cap_dir = all_root / cap
         if not cap_dir.exists():
             continue
-            
-        # Procura arquivos anexos (imagens, dados, etc)
+
         for attachment in cap_dir.glob('*'):
             if attachment.is_file() and attachment.suffix in ['.png', '.jpg', '.jpeg', '.gif', '.csv', '.txt', '.pdf']:
-                # Copia para attachments/capXX/
                 target_dir = attachments_dir / cap
                 target_dir.mkdir(exist_ok=True)
                 target_file = target_dir / attachment.name
-                
                 shutil.copy2(attachment, target_file)
                 print(f'  ✓ Anexo: {cap}/{attachment.name}')
 
@@ -245,36 +231,29 @@ class QuartoBuilder:
         self.root = project_root.resolve()
 
     def build(self, combo: Combo, nb_root: Optional[Path] = None, all_root: Optional[Path] = None) -> Path:
-        """
-        Constrói a pasta Quarto para o combo.
-        nb_root: pasta que contém capXX/ com os notebooks filtrados (gen/<combo>/)
-        all_root: pasta que contém os notebooks originais e anexos (all/)
-        Retorna o caminho da pasta criada.
-        """
         nb_root = nb_root or (self.root / DIR_GEN / combo.key)
-        all_root = all_root or (self.root / 'all')  # Diretório original
+        all_root = all_root or (self.root / 'all')
         qdir    = self.root / DIR_GEN / 'quarto' / combo.key
         qdir.mkdir(parents=True, exist_ok=True)
 
-        # Arquivos de texto
         (qdir / 'index.qmd').write_text(_index_qmd(combo), encoding='utf-8')
         (qdir / 'prefacio.qmd').write_text(_prefacio_qmd(combo), encoding='utf-8')
         (qdir / 'referencias.qmd').write_text(_refs_qmd(combo), encoding='utf-8')
 
-        # Symlinks para capítulos
+        self._write_custom_css(qdir)
+
         self._symlink_caps(combo, qdir, nb_root)
-        
-        # Processa anexos
         _process_attachments(combo, nb_root, qdir, all_root)
 
-        # Symlinks para assets partilhados
         self._symlink(qdir / 'references.bib', self.root / 'references.bib')
         self._symlink(qdir / 'includes',       self.root / 'includes')
 
-        # Cria arquivo de preâmbulo para PDF se não existir
         self._ensure_preamble_files()
 
-        # _quarto.yml
+        # ── Gera capa.tex para o PDF (include-before-body) ───────────────────
+        cover_abs = (self.root / 'includes' / 'capa_girassol.png').resolve()
+        self._write_cover_tex(qdir, cover_abs)
+
         yml = self._quarto_yml(combo, nb_root)
         (qdir / '_quarto.yml').write_text(yml, encoding='utf-8')
         (qdir / 'fvextra.tex').write_text(
@@ -301,19 +280,175 @@ class QuartoBuilder:
             cap_dir = nb_root / cap
             if cap_dir.exists():
                 self._symlink(qdir / cap, cap_dir)
-                # Symlink imagens: gen/py.pt/cap01/imagens → all/cap01/imagens
                 all_imagens = self.root / 'all' / cap / 'imagens'
                 gen_imagens = nb_root / cap / 'imagens'
                 if all_imagens.exists() and not gen_imagens.exists():
                     gen_imagens.symlink_to(all_imagens.resolve())
 
+    def _write_cover_tex(self, qdir: Path, cover_abs: Path):
+        """
+        Salva o path da capa para uso no pós-processamento do .tex.
+        O cover_hook.tex é um marcador vazio — a capa é injetada por _fix_tex_cover().
+        """
+        (qdir / 'cover_hook.tex').unlink(missing_ok=True)
+        (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
+
+        # Salva o path para uso posterior em _fix_tex_cover
+        (qdir / '.cover_abs').write_text(str(cover_abs), encoding='utf-8')
+        # cover_hook.tex vazio — só carrega etoolbox sem fazer nada
+        (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
+
+        print('  ✓ Gerado cover_hook.tex')
+        
+    def _write_custom_css(self, qdir: Path):
+        """
+        Gera custom.css no qdir. Carregado via 'css:' no _quarto.yml,
+        o que garante que ele vem DEPOIS do Bootstrap/Cosmo e vence
+        qualquer regra do tema sem precisar de !important em tudo.
+        """
+        css = """\
+/* ═══════════════════════════════════════════════════════════════
+PDI+VC — custom.css   (gerado automaticamente)
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Tipografia ─────────────────────────────────────────────── */
+body, .quarto-title {
+font-family: 'Source Serif 4', Georgia, serif;
+}
+code, pre, .sourceCode {
+font-family: 'JetBrains Mono', monospace;
+font-size: 0.875em;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+#quarto-sidebar {
+background: #2c3e55 !important;
+}
+#quarto-sidebar .sidebar-title a,
+#quarto-sidebar .sidebar-title {
+color: #fde8c0 !important;
+font-weight: 700;
+}
+#quarto-sidebar a,
+.sidebar-navigation .sidebar-item-text,
+.sidebar-navigation a {
+color: #c8ddf0 !important;
+}
+#quarto-sidebar a:hover,
+.sidebar-navigation a:hover,
+.sidebar-navigation .sidebar-item-text:hover {
+color: #ffe0a0 !important;
+background: rgba(255,255,255,0.09) !important;
+border-radius: 4px;
+}
+.sidebar-item.sidebar-item-section > .sidebar-item-text {
+color: #ffc97a !important;
+font-weight: 600;
+letter-spacing: 0.04em;
+}
+.sidebar-item .chapter-number {
+color: #90b8d8 !important;
+}
+
+/* ── Títulos ─────────────────────────────────────────────────── */
+h1, h2, h3 { color: #1a3a5c; }
+h1 { border-bottom: 3px solid #f0c060; padding-bottom: 0.3em; }
+
+/* ── Callouts ────────────────────────────────────────────────── */
+.callout { border-left-width: 5px; border-radius: 4px; }
+
+/* ── Código-fonte (input) ────────────────────────────────────── */
+div.sourceCode {
+  background: #f0f4ff !important;
+  border-radius: 8px !important;
+  border: 1px solid #c8d4f0 !important;
+  border-left: 4px solid #7090d0 !important;
+  box-shadow: none !important;
+}
+div.sourceCode pre,
+div.sourceCode pre code {
+  background: #f0f4ff !important;
+  color: #1a2050 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Outputs das células ─────────────────────────────────────── */
+/* stdout / texto — âmbar pastel, UMA única borda */
+.cell-output pre,
+.cell-output code,
+[class^="cell-output"] pre,
+[class*=" cell-output"] pre {
+  background:    #fdf6ec !important;
+  color:         #2e1e05 !important;
+  border:        1px solid #e8d8b8 !important;
+  border-left:   4px solid #e8a840 !important;
+  border-radius: 6px !important;
+  padding:       0.75em 1em !important;
+  font-family:   'JetBrains Mono', monospace !important;
+  font-size:     0.83em !important;
+  line-height:   1.55 !important;
+  white-space:   pre-wrap !important;
+}
+
+/* stderr — rosado */
+.cell-output-stderr pre,
+.cell-output-stderr code {
+  background:  #fff2f0 !important;
+  color:       #5a1a10 !important;
+  border:      1px solid #f0c8c0 !important;
+  border-left: 4px solid #e06050 !important;
+}
+
+/* display_data (imagens, DataFrames, HTML rico):
+   SEM borda própria — o pre interno já tem a borda âmbar acima.
+   Isso elimina a faixa dupla. */
+.cell-output-display {
+  background:    transparent !important;
+  border:        none !important;
+  border-radius: 0 !important;
+  padding:       0 !important;
+  margin-top:    0.3em !important;
+}
+/* reseta o pre dentro de display para não herdar borda do pai */
+.cell-output-display > pre,
+.cell-output-display pre {
+  background:  #fdf6ec !important;
+  color:       #2e1e05 !important;
+  border:      1px solid #e8d8b8 !important;
+  border-left: 4px solid #e8a840 !important;
+  border-radius: 6px !important;
+  padding:     0.75em 1em !important;
+}
+/* imagens ficam sem caixa */
+.cell-output-display img {
+  background:    transparent;
+  border-radius: 4px;
+  display:       block;
+}
+
+/* ── Tabelas ─────────────────────────────────────────────────── */
+table { border-collapse: collapse; width: 100%; }
+thead tr { background: #2c4a6a !important; color: #faf0e0 !important; }
+tbody tr:nth-child(even) { background: #f5f0e8; }
+td, th { padding: 0.5em 0.8em; border: 1px solid #d0c8b8; }
+
+/* ── Capa ────────────────────────────────────────────────────── */
+.quarto-cover-image {
+border-radius: 8px;
+box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+max-height: 480px;
+object-fit: cover;
+}
+"""
+        (qdir / 'custom.css').write_text(css, encoding='utf-8')
+        print('  ✓ Gerado custom.css')
+
     def _ensure_preamble_files(self):
         """Cria arquivos de preâmbulo se não existirem"""
         includes_dir = self.root / 'includes'
         includes_dir.mkdir(exist_ok=True)
-        
 
-        # Cria preamble.tex para PDF
         preamble_tex = includes_dir / 'preamble.tex'
         if not preamble_tex.exists():
             preamble_tex.write_text(r'''
@@ -328,19 +463,14 @@ class QuartoBuilder:
 \usepackage[backend=biber, style=abnt, citestyle=abnt, hyperref=true]{biblatex}
 \addbibresource{references.bib}
 
-% Redefine o comando de bibliografia
 \renewbibmacro*{finentry}{\finentry}
-
-% Comando seguro para bibliografia
 \renewcommand{\printbibliography}{\printbibliography[title=Referências]}
 
-% Ajustes para ABNT
 \usepackage[brazilian]{babel}
 \usepackage{csquotes}
 ''', encoding='utf-8')
             print('  ✓ Criado includes/preamble.tex')
-        
-        # Cria preamble.html para HTML
+
         preamble_html = includes_dir / 'preamble.html'
         if not preamble_html.exists():
             preamble_html.write_text('''
@@ -378,7 +508,6 @@ pre {
         blocks.append('    - referencias.qmd')
         return '\n'.join(blocks) if blocks else '    - index.qmd'
 
-
     def _quarto_yml(self, combo: Combo, nb_root: Path) -> str:
         lang_obj    = LANGUAGES[combo.lang]
         locale_obj  = LOCALES[combo.locale]
@@ -392,12 +521,19 @@ pre {
         output_dir   = str((self.root / 'gen' / 'book' / combo.key).resolve())
         bib_path     = (self.root / 'references.bib').resolve()
         csl_path     = (self.root / 'includes' / 'abnt.csl').resolve()
-        emoji_filter = (self.root / 'includes' / 'emoji-filter.lua').resolve()  # ← absoluto
+        emoji_filter = (self.root / 'includes' / 'emoji-filter.lua').resolve()
+        cover_abs    = (self.root / 'includes' / 'capa_girassol.png').resolve()
 
         if not csl_path.exists():
             self._create_default_csl(csl_path)
 
         custom_filename = f"livro.{combo.file_key}"
+
+        # NOTA: A capa do PDF é gerada via capa.tex (include-before-body).
+        # NÃO use \AtBeginDocument no include-in-header para isso — o Quarto/Pandoc
+        # insere conteúdo antes de \AtBeginDocument ser disparado, empurrando a capa
+        # para a página 2. O include-before-body injeta o conteúdo imediatamente
+        # após \begin{document}, garantindo que seja a primeira página.
 
         return f'''# Gerado por gerar_livro.py — NÃO editar manualmente.
 
@@ -407,6 +543,7 @@ project:
 
 book:
   title: "Processamento Digital de Imagens e Visão Computacional"
+  cover-image: "includes/capa_girassol.png"
   subtitle: "{subtitle}"
   author:
     - name: "Francisco de Assis Zampirolli"
@@ -414,6 +551,7 @@ book:
   date: today
   language: {quarto_lang}
   downloads: [pdf]
+  output-file: "livro.{combo.file_key}"
 
   chapters:
     - index.qmd
@@ -430,6 +568,7 @@ filters:
 format:
   html:
     theme: cosmo
+    css: custom.css          # ← carregado após o tema, vence Bootstrap
     grid:
       body-width: 1100px
       sidebar-width: 250px
@@ -444,14 +583,20 @@ format:
     lang: {quarto_lang}
     include-in-header:
       text: |
-        <style>
-        code {{ font-size: 0.9em; }}
-        pre {{ background-color: #f5f5f5; padding: 1em; border-radius: 4px; }}
-        </style>
-
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {{
+          document.querySelectorAll('a[href="./"], a[href="."]').forEach(function(a) {{
+            a.setAttribute('href', '../index.html');
+          }});
+        }});
+        </script>
   pdf:
     documentclass: book
     classoption: [openany, oneside, 12pt, a4paper]
+    title-page: false
+    output-file: "livro.{combo.file_key}.pdf"
     geometry:
       - left=1.5cm
       - right=1.5cm
@@ -460,8 +605,8 @@ format:
       - headheight=14pt
     lang: {quarto_lang}
     toc: true
-    lot: true      # list of tables
-    lof: true      # list of figures
+    lot: true
+    lof: true
     number-sections: true
     colorlinks: true
     linkcolor: blue
@@ -472,7 +617,14 @@ format:
     keep-tex: true
     cite-method: citeproc
 
+    # ── Capa: injetada ANTES do corpo, garantindo página 1 ───────────────────
+    # include-before-body é processado imediatamente após \\begin{{document}},
+    # antes de qualquer conteúdo gerado pelo Pandoc — ao contrário de
+    # \\AtBeginDocument (que chega tarde demais no fluxo do book).
+
+
     include-in-header:
+      - file: cover_hook.tex
       - text: |
           \\usepackage{{url}}
           \\def\\UrlBreaks{{\\do\\/\\do-}}
@@ -492,15 +644,24 @@ format:
           \\usepackage{{csquotes}}
           \\usepackage{{emoji}}
           \\setemojifont{{TwemojiMozilla}}
+          \\usepackage{{graphicx}}
+          \\usepackage{{geometry}}
           \\definecolor{{pdi-blue}}{{RGB}}{{21,101,192}}
           \\definecolor{{pdi-green}}{{RGB}}{{46,125,50}}
           \\definecolor{{darkblue}}{{RGB}}{{0,51,102}}
-
-
+          \\definecolor{{codebg}}{{RGB}}{{240,244,255}}
+          \\definecolor{{codeborder}}{{RGB}}{{112,144,208}}
+          \\definecolor{{outputbg}}{{RGB}}{{253,246,236}}
+          \\definecolor{{outputborder}}{{RGB}}{{232,168,64}}
+          \\usepackage[skins,breakable]{{tcolorbox}}
+          \\tcbset{{pdicode/.style={{enhanced,breakable,colback=codebg,colframe=codeborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\\small\\ttfamily}}}}
+          \\tcbset{{pdioutput/.style={{enhanced,breakable,colback=outputbg,colframe=outputborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\\small\\ttfamily}}}}
+          \\renewenvironment{{Shaded}}{{\\begin{{tcolorbox}}[pdicode]}}{{\\end{{tcolorbox}}}}
+          \\usepackage{{alltt}}
+          \\renewenvironment{{verbatim}}{{\\begin{{tcolorbox}}[pdioutput]\\begin{{alltt}}}}{{\\end{{alltt}}\\end{{tcolorbox}}}}
           \\usepackage{{fancyhdr}}
           \\pagestyle{{fancy}}
           \\fancyhf{{}}
-
           \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{Processamento Digital de Imagens e Visão Computacional}}}}}}
           \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
           \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
@@ -514,7 +675,6 @@ format:
             \\renewcommand{{\\headrulewidth}}{{0pt}}
             \\renewcommand{{\\footrulewidth}}{{0.4pt}}
           }}
-
           \\usepackage{{titlesec}}
           \\titleformat{{\\chapter}}[display]
             {{\\normalfont\\huge\\bfseries\\color{{darkblue}}}}
@@ -611,9 +771,6 @@ execute:
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Em render_quarto — corrigir onde procura o PDF:
-
-
 import subprocess
 import os
 from pathlib import Path
@@ -621,14 +778,10 @@ from pathlib import Path
 def _get_quarto_latex_path() -> str | None:
     """Descobre o path do LaTeX que o Quarto usa (TinyTeX)."""
     try:
-        r = subprocess.run(
-            ['quarto', 'run', '--help'],  # qualquer chamada quarto
-            capture_output=True, text=True
-        )
+        subprocess.run(['quarto', 'run', '--help'], capture_output=True, text=True)
     except FileNotFoundError:
         return None
-    
-    # TinyTeX fica em ~/Library/TinyTeX em macOS e Linux
+
     candidates = [
         Path.home() / 'Library' / 'TinyTeX' / 'bin' / 'universal-darwin',
         Path.home() / '.TinyTeX' / 'bin' / 'x86_64-linux',
@@ -645,7 +798,6 @@ def _screenshot_html_cells(qdir: Path, all_root: Path):
     import re
     from playwright.sync_api import sync_playwright
 
-    # Descobre os caps disponíveis em qdir
     for cap_link in qdir.iterdir():
         if not re.match(r'cap\d+', cap_link.name):
             continue
@@ -653,7 +805,6 @@ def _screenshot_html_cells(qdir: Path, all_root: Path):
         img_dir = all_root / cap / 'imagens'
         img_dir.mkdir(parents=True, exist_ok=True)
 
-        # Lê notebooks ORIGINAIS de all/capXX/
         for nb_path in (all_root / cap).glob('*.ipynb'):
             nb = nbformat.read(nb_path, as_version=4)
 
@@ -663,7 +814,6 @@ def _screenshot_html_cells(qdir: Path, all_root: Path):
                 if 'HTML("""' not in cell.source and "HTML('''" not in cell.source:
                     continue
 
-                # Extrai label
                 label = None
                 for line in cell.source.splitlines():
                     m = re.match(r'#\|\s*label:\s*(\S+)', line)
@@ -678,7 +828,6 @@ def _screenshot_html_cells(qdir: Path, all_root: Path):
                     print(f'  ✓ Screenshot já existe: {png_path.name}')
                     continue
 
-                # Extrai HTML
                 m = re.search(r'HTML\("""(.*?)"""\)', cell.source, re.DOTALL)
                 if not m:
                     m = re.search(r"HTML\('''(.*?)'''\)", cell.source, re.DOTALL)
@@ -738,7 +887,7 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
     import nbformat
     import re
 
-    nb_root = qdir.parent.parent / qdir.name  # gen/py.pt
+    nb_root = qdir.parent.parent / qdir.name
 
     for nb_path in nb_root.rglob('*.ipynb'):
         real_path = nb_path.resolve()
@@ -753,7 +902,6 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 new_cells.append(cell)
                 continue
 
-            # Extrai label e fig-cap dos metadados da célula
             label = None
             fig_cap = None
             for line in cell.source.splitlines():
@@ -765,37 +913,28 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                     fig_cap = m.group(1).strip('"\'')
 
             if not label:
-                # Limpa output salvo (Quarto re-executa no HTML)
                 cell.outputs = []
                 cell.execution_count = None
-                # Célula de código original (sem alteração)
                 new_cells.append(cell)
                 continue
 
-            # Descobre o cap pelo caminho do notebook
             cap = None
             for part in nb_path.parts:
                 if re.match(r'cap\d+', part):
                     cap = part
                     break
 
-            # Caminho relativo da imagem a partir do notebook
             png_rel = f'imagens/{label}.png'
             png_abs = all_root / cap / png_rel if cap else None
             png_exists = png_abs and png_abs.exists()
 
             if png_exists:
-                # Célula markdown: abre bloco html-only
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     '::: {.content-visible when-format="html"}'
                 ))
-
-                # Célula de código original (sem alteração)
                 cell.outputs = []
                 cell.execution_count = None
                 new_cells.append(cell)
-
-                # Célula markdown: fecha html-only, abre pdf-only com imagem
                 cap_str = fig_cap or label
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     f':::\n\n'
@@ -806,7 +945,6 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 modified = True
                 print(f'  ✓ Patch condicional: {label}')
             else:
-                # Sem PNG: só esconde no PDF
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     '::: {.content-visible when-format="html"}'
                 ))
@@ -817,18 +955,212 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
 
         if modified:
             nb.cells = new_cells
-            # Salva diretamente no arquivo real (gen/py.pt/capXX/)
             nbformat.write(nb, nb_path)
             print(f'  ✓ Notebook patcheado: {nb_path.name}')
 
+def _render_pdf_with_patched_tex(qdir: Path, env: dict):
+    """
+    1. Quarto render --to latex  → gera o .tex
+    2. _fix_tex_cover()          → patcha capa + maketitle
+    3. lualatex (3x)             → compila o PDF final
+    4. _rename_pdf()             → renomeia para livro.<file_key>.pdf
+    """
+    combo_name = qdir.name
+    parts = combo_name.split('.')
+    file_key = f'{parts[1]}.{parts[0]}'
+    output_dir = qdir.parent.parent / 'book' / combo_name
+
+    print(f'  $ cd {qdir.name} && quarto render --to latex')
+    r = subprocess.run(
+        ['quarto', 'render', '--to', 'latex'],
+        cwd=qdir,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        env=env,
+    )
+    if r.returncode != 0:
+        print('  ⚠ Erro ao gerar .tex:')
+        for line in (r.stderr or '').split('\n')[-10:]:
+            if line.strip():
+                print(f'      {line}')
+        return
+
+    _fix_tex_cover(qdir)
+
+    tex_files = [t for t in qdir.glob('*.tex')
+                 if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+    if not tex_files:
+        print('  ⚠ .tex não encontrado após patch')
+        return
+
+    tex_path = tex_files[0]
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f'  $ lualatex (3x) {tex_path.name}')
+    for run in range(3):
+        r = subprocess.run(
+            ['lualatex', '--interaction=nonstopmode',
+             f'--output-directory={output_dir}', str(tex_path)],
+            cwd=qdir,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=env,
+        )
+        if r.returncode != 0 and run == 2:
+            print('  ⚠ Erro no lualatex:')
+            for line in (r.stdout or '').split('\n')[-15:]:
+                if line.strip():
+                    print(f'      {line}')
+
+    _rename_pdf(qdir, combo_name, file_key)
+
+
+def _fix_tex_cover(qdir: Path):
+    """..."""
+    cover_abs_file = qdir / '.cover_abs'
+    if not cover_abs_file.exists():
+        print('  ⚠ .cover_abs não encontrado, pulando patch do .tex')
+        return
+    cover_abs = cover_abs_file.read_text(encoding='utf-8').strip()
+    tex_files = [t for t in qdir.glob('*.tex')
+                 if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+    if not tex_files:
+        print('  ⚠ Nenhum .tex encontrado para patch')
+        return
+    tex_path = tex_files[0]
+    content = tex_path.read_text(encoding='utf-8')
+    
+    # DEBUG: mostrar todas as ocorrências de titlepage e maketitle
+    import re
+    for i, line in enumerate(content.split('\n')):
+        if any(x in line for x in ['titlepage', 'maketitle', 'capa', 'cover', 'AfterEnd', 'begin{document']):
+            print(f'  DEBUG linha {i}: {line.strip()}')
+
+
+    cover_block = rf"""
+% ── Capa ─────────────────────────────────────────────────────────
+\begin{{titlepage}}%
+\thispagestyle{{empty}}%
+\newgeometry{{margin=0pt}}%
+\noindent%
+\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio=false]{{{cover_abs}}}%
+\begin{{picture}}(0,0)
+  \put(-10,180){{%
+    \begin{{minipage}}[b]{{0.92\paperwidth}}\centering
+      {{\fontsize{{26}}{{31}}\selectfont\bfseries\color{{white}}%
+        Processamento Digital de Imagens\\[0.35em]%
+        e Visão Computacional\par}}%
+      \vspace{{0.8em}}%
+      {{\large\color{{white}}%
+        Francisco de Assis Zampirolli\\[0.15em]%
+        Universidade Federal do ABC\par}}%
+    \end{{minipage}}%
+  }}
+\end{{picture}}
+\restoregeometry%
+\end{{titlepage}}%
+\maketitle
+\pagenumbering{{arabic}}
+"""
+    # Remove todas as capas já existentes (vindas do cover_hook.tex ou de runs anteriores)
+    import re
+    content = re.sub(
+        r'\\begin\{titlepage\}.*?\\end\{titlepage\}%?\s*',
+        '',
+        content,
+        flags=re.DOTALL
+    )
+    # Remove \maketitle soltos
+    content = content.replace(r'\maketitle', '')
+
+    # Insere capa + maketitle uma única vez após \begin{document}
+    content = content.replace(
+        r'\begin{document}',
+        r'\begin{document}' + '\n\\pagenumbering{gobble}\n' + cover_block,
+        1
+    )
+    tex_path.write_text(content, encoding='utf-8')
+    print(f'  ✓ .tex patcheado: {tex_path.name}')
+
+
+def _render_pdf_with_patched_tex(qdir: Path, env: dict):
+    """..."""
+    combo_name = qdir.name
+    parts = combo_name.split('.')
+    file_key = f'{parts[1]}.{parts[0]}'
+    output_dir = qdir.parent.parent / 'book' / combo_name
+
+    print(f'  $ cd {qdir.name} && quarto render --to latex')
+    r = subprocess.run(
+        ['quarto', 'render', '--to', 'latex'],
+        cwd=qdir,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        env=env,
+    )
+    if r.returncode != 0:
+        print('  ⚠ Erro ao gerar .tex:')
+        for line in (r.stderr or '').split('\n')[-10:]:
+            if line.strip():
+                print(f'      {line}')
+        return
+
+    _fix_tex_cover(qdir)
+
+    tex_files = [t for t in qdir.glob('*.tex')
+                 if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+    if not tex_files:
+        print('  ⚠ .tex não encontrado após patch')
+        return
+
+    tex_path = tex_files[0]
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f'  $ lualatex (3x) {tex_path.name}')
+    for run in range(3):
+        r = subprocess.run(
+            ['lualatex', '--interaction=nonstopmode',
+             f'--output-directory={output_dir}', str(tex_path)],
+            cwd=qdir,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=env,
+        )
+        if r.returncode != 0 and run == 2:
+            print('  ⚠ Erro no lualatex:')
+            for line in (r.stdout or '').split('\n')[-15:]:
+                if line.strip():
+                    print(f'      {line}')
+
+    # Remove a primeira página em branco do PDF gerado
+    pdf_files = list(output_dir.glob('*.pdf'))
+    if pdf_files:
+        pdf_path = max(pdf_files, key=lambda p: p.stat().st_mtime)
+        try:
+            from pypdf import PdfReader, PdfWriter
+            reader = PdfReader(str(pdf_path))
+            writer = PdfWriter()
+            for page in reader.pages[1:]:  # pula página 0 (em branco)
+                writer.add_page(page)
+            with open(str(pdf_path), 'wb') as f:
+                writer.write(f)
+            print(f'  ✓ Página em branco removida: {pdf_path.name}')
+        except Exception as e:
+            print(f'  ⚠ Falha ao remover página em branco: {e}')
+
+    _rename_pdf(qdir, combo_name, file_key)
 
 def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
-    
+
     fmts = ['html', 'pdf'] if fmt == 'all' else [fmt]
-    
-    combo_name = qdir.name          # ← adicionar: ex: "py.pt"
+
+    combo_name = qdir.name
     parts = combo_name.split('.')
-    file_key = f'{parts[1]}.{parts[0]}'  # ← adicionar: ex: "pt.py"
+    file_key = f'{parts[1]}.{parts[0]}'
 
     env = os.environ.copy()
     tinytex_path = _get_quarto_latex_path()
@@ -838,12 +1170,17 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
     for f in fmts:
 
         if f == 'pdf':
-            nb_root = qdir.parent.parent / qdir.name  # gen/py.pt
+            nb_root = qdir.parent.parent / qdir.name
             _screenshot_html_cells(qdir, all_root)
             _fix_html_outputs_for_pdf(nb_root)
             _patch_html_cells_for_pdf(qdir, all_root)
             env['QUARTO_FMT'] = 'pdf'
-            
+            # Quarto gera o .tex com keep-tex:true antes de compilar;
+            # rodamos quarto render --to latex primeiro para obter o .tex,
+            # patcheamos, depois compilamos manualmente com lualatex.
+            _render_pdf_with_patched_tex(qdir, env)
+            continue  # pula o subprocess.run genérico abaixo
+
         print(f'  $ cd {qdir.name} && quarto render --to {f}')
         try:
             r = subprocess.run(
@@ -873,32 +1210,25 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
 
 
 def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
-    """
-    Quarto Book gera o PDF no output-dir com nome imprevisível.
-    Procura qualquer .pdf gerado e renomeia para livro.<file_key>.pdf
-    """
-    output_dir = qdir.parent.parent / 'book' / combo_name  # ← era .parent.parent.parent
+    output_dir = qdir.parent.parent / 'book' / combo_name
     target = output_dir / f'livro.{file_key}.pdf'
 
     if not output_dir.exists():
         print(f'  ⚠ output-dir não encontrado: {output_dir}')
         return
 
-    # Quarto pode gerar "index.pdf" ou slug do título
     candidates = sorted(output_dir.glob('*.pdf'))
-    
+
     if not candidates:
         print(f'  ⚠ Nenhum PDF encontrado em {output_dir}')
         print(f'    Conteúdo: {[p.name for p in output_dir.iterdir()]}')
         return
 
-    # Remove o próprio target dos candidatos para não confundir com o PDF gerado
     candidates = [c for c in candidates if c != target]
     if not candidates:
         print(f'  ✓ PDF já existe com nome correto: {target}')
         return
-    
-    # Renomeia o mais recente (não o mais antigo)
+
     generated = max(candidates, key=lambda p: p.stat().st_mtime)
     shutil.move(str(generated), str(target))
     print(f'  ✓ PDF renomeado: {generated.name} → {target.name}')
