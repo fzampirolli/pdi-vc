@@ -32,14 +32,14 @@ from fractions import Fraction
 API_URL = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {"User-Agent": "NatureBrazilBot/1.0 (livro didático; contato@exemplo.com)"}
 
-CATEGORIAS_NATUREZA = [
+CATEGORIAS_NATUREZA = ["sudoku",
     "Flora of Brazil", "Fauna of Brazil", "Birds of Brazil",
     "Mammals of Brazil", "Reptiles of Brazil", "Amphibians of Brazil",
     "Insects of Brazil", "Amazon rainforest", "Cerrado",
     "Pantanal", "Atlantic Forest",
 ]
 
-BUSCA = CATEGORIAS_NATUREZA[-1]
+BUSCA = CATEGORIAS_NATUREZA[0]
 
 # A API retorna strings como "CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain"
 LICENCAS_LIVRO_KEYWORDS = {
