@@ -489,7 +489,7 @@ pre {
             print('  ✓ Criado includes/preamble.html')
 
     def _chapter_blocks(self, combo: Combo, nb_root: Path) -> str:
-        DEBUG_CAPS = []  # ← remova depois do teste; [] = todos
+        DEBUG_CAPS = ['cap03']  # ← remova depois do teste; [] = todos
 
         parts = [
             (UI_STRINGS[combo.locale]['part_1'], self.CAPS_PART1),
