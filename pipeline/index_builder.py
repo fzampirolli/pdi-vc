@@ -51,15 +51,15 @@ class IndexBuilder:
             index_file = combo_dir / 'index.html'
             has_index = index_file.exists()
 
-            # PDF no formato:
-            # livro.<locale>.<lang>.pdf
-            # exemplo: livro.pt.py.pdf
-
+            # Tenta o nome canônico primeiro; se não existir, pega qualquer .pdf na pasta
             pdf_file = combo_dir / f'livro.{locale_key}.{lang_key}.pdf'
+            if not pdf_file.exists():
+                found = sorted(combo_dir.glob('*.pdf'))
+                pdf_file = found[0] if found else pdf_file
+
             has_pdf = pdf_file.exists()
 
             index_relative = f"{combo_dir.name}/index.html"
-
             pdf_relative = (
                 f"{combo_dir.name}/{pdf_file.name}"
                 if has_pdf else None
@@ -85,10 +85,7 @@ class IndexBuilder:
     def generate_html(self, versions: List[Dict]) -> str:
         """Gera o HTML principal com design editorial refinado."""
         
-        # Caminho relativo da imagem de capa a partir de gen/book/
-        # A imagem fica em includes/capa_girassol1.png → relativo: ../../includes/capa_girassol1.png
-        cover_img = '../../includes/capa_girassol1.png'
-        cover_img = 'https://raw.githubusercontent.com/fzampirolli/pdi-vc/main/includes/capa_girassol1.png'
+        cover_img = 'capa_girassol1.png'
 
         by_lang: dict = {}
         for v in versions:
@@ -99,7 +96,6 @@ class IndexBuilder:
 
         lang_icons = {'py': '🐍', 'cpp': '⚙️', 'java': '☕', 'c': '🔧', 'rust': '🦀', 'go': '🏃'}
 
-        # ── Gera os cards de versão ───────────────────────────────────────────
         cards_html = ''
         for lang_key, vlist in sorted(by_lang.items()):
             icon = lang_icons.get(lang_key, '💻')
@@ -116,9 +112,9 @@ class IndexBuilder:
                 pdf_link   = v['pdf_relative'] or '#'
                 disabled   = 'disabled' if not v['has_index'] else ''
                 pdf_badge  = (
-                    f'<a class="badge badge-pdf" href="{pdf_link}" title="Baixar PDF">⬇ PDF</a>'
+                    f'<a class="badge badge-pdf" href="{pdf_link}" title="Baixar PDF">📄 PDF</a>'
                     if v['has_pdf'] else
-                    '<span class="badge badge-soon">PDF em breve</span>'
+                    '<span class="badge badge-soon">📄 Em breve</span>'
                 )
                 cards_html += f'''
           <div class="version-card {disabled}">
@@ -149,7 +145,6 @@ class IndexBuilder:
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
-    /* ── Reset & base ────────────────────────────────────────────────── */
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
     :root {{
@@ -185,7 +180,6 @@ class IndexBuilder:
       overflow: hidden;
     }}
 
-    /* Lado esquerdo: imagem de capa */
     .hero-cover {{
       position: relative;
       overflow: hidden;
@@ -194,10 +188,9 @@ class IndexBuilder:
       width: 100%;
       height: 100%;
       object-fit: cover;
-      object-position: center top;
+      object-position: center center;
       display: block;
     }}
-    /* overlay sutil para garantir legibilidade da faixa direita */
     .hero-cover::after {{
       content: '';
       position: absolute;
@@ -206,7 +199,6 @@ class IndexBuilder:
       pointer-events: none;
     }}
 
-    /* Lado direito: texto */
     .hero-text {{
       background: var(--navy);
       display: flex;
@@ -322,10 +314,7 @@ class IndexBuilder:
       background: var(--border);
     }}
 
-    /* ── Language group ──────────────────────────────────────────────── */
-    .lang-group {{
-      margin-bottom: 2.8rem;
-    }}
+    .lang-group {{ margin-bottom: 2.8rem; }}
     .lang-label {{
       display: flex;
       align-items: center;
@@ -338,9 +327,7 @@ class IndexBuilder:
       margin-bottom: 1rem;
       padding-left: 0.2rem;
     }}
-    .lang-icon {{
-      font-size: 1.1rem;
-    }}
+    .lang-icon {{ font-size: 1.1rem; }}
 
     .cards-row {{
       display: flex;
@@ -348,7 +335,6 @@ class IndexBuilder:
       gap: 1.2rem;
     }}
 
-    /* ── Version card ────────────────────────────────────────────────── */
     .version-card {{
       background: #fff;
       border: 1px solid var(--border);
@@ -362,10 +348,7 @@ class IndexBuilder:
       transform: translateY(-5px);
       box-shadow: 0 10px 32px rgba(26,22,18,0.18);
     }}
-    .version-card.disabled {{
-      opacity: 0.52;
-      cursor: not-allowed;
-    }}
+    .version-card.disabled {{ opacity: 0.52; cursor: not-allowed; }}
 
     .card-main {{
       display: block;
@@ -375,9 +358,7 @@ class IndexBuilder:
       color: #fff;
       transition: background 0.2s;
     }}
-    .version-card:not(.disabled) .card-main:hover {{
-      background: var(--navy-lt);
-    }}
+    .version-card:not(.disabled) .card-main:hover {{ background: var(--navy-lt); }}
 
     .card-locale {{
       font-family: 'Playfair Display', Georgia, serif;
@@ -392,10 +373,7 @@ class IndexBuilder:
       color: var(--gold-lt);
       margin-bottom: 1rem;
     }}
-    .card-cta {{
-      font-size: 0.8rem;
-      color: #a8c0d8;
-    }}
+    .card-cta {{ font-size: 0.8rem; color: #a8c0d8; }}
 
     .card-footer {{
       padding: 0.7rem 1.2rem;
@@ -425,7 +403,6 @@ class IndexBuilder:
       border: 1px solid var(--border);
     }}
 
-    /* ── Footer ──────────────────────────────────────────────────────── */
     footer {{
       background: var(--navy);
       color: #7898b0;
@@ -439,18 +416,47 @@ class IndexBuilder:
 
     /* ── Responsive ──────────────────────────────────────────────────── */
     @media (max-width: 820px) {{
-      .hero {{ grid-template-columns: 1fr; min-height: auto; }}
-      .hero-cover {{ height: 55vw; max-height: 380px; }}
-      .hero-cover::after {{ background: linear-gradient(to bottom, transparent 60%, var(--navy) 100%); }}
-      .hero-text {{ padding: 2.5rem 1.5rem; }}
+      .hero {{
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }}
+
+      /* Em mobile a imagem ocupa altura fixa como banner.
+         object-position: center center garante que o meio da imagem
+         fique visível, não só o topo. */
+      .hero-cover {{
+        height: 70vw;
+        max-height: 420px;
+      }}
+      .hero-cover img {{
+        object-position: center center;
+      }}
+
+      /* Overlay agora desce de baixo para cima (a seção de texto vem abaixo) */
+      .hero-cover::after {{
+        background: linear-gradient(to bottom, transparent 55%, var(--navy) 100%);
+      }}
+
+      .hero-text {{
+        padding: 2.5rem 1.5rem;
+      }}
+
       #versions {{ padding: 3rem 1rem 3rem; }}
       .version-card {{ width: 100%; max-width: 340px; }}
+    }}
+
+    /* Telas muito pequenas (< 400 px) — altura um pouco maior para
+       dar espaço à imagem sem cortar demais */
+    @media (max-width: 400px) {{
+      .hero-cover {{
+        height: 80vw;
+        max-height: 320px;
+      }}
     }}
   </style>
 </head>
 <body>
 
-<!-- ── Hero ──────────────────────────────────────────────────────────── -->
 <section class="hero">
   <div class="hero-cover">
     <img src="{cover_img}" alt="Capa do livro — girassol processado digitalmente">
@@ -487,7 +493,6 @@ class IndexBuilder:
   </div>
 </section>
 
-<!-- ── Versions ──────────────────────────────────────────────────────── -->
 <main id="versions">
   <div class="section-header">
     <h2 class="section-title">Versões disponíveis</h2>
@@ -496,7 +501,6 @@ class IndexBuilder:
 {cards_html}
 </main>
 
-<!-- ── Footer ────────────────────────────────────────────────────────── -->
 <footer>
   <p>© {datetime.now().year} <a href="https://github.com/fzampirolli/pdi-vc">Francisco de Assis Zampirolli</a> — UFABC</p>
   <p style="margin-top:0.4rem;">
@@ -521,6 +525,13 @@ class IndexBuilder:
             print('   Execute o pipeline primeiro: make build LANGS=py,cpp LOCALES=pt,en')
             return self.index_path
         
+        import shutil
+        cover_src = self.root / 'includes' / 'capa_girassol1.png'
+        cover_dst = self.book_dir / 'capa_girassol1.png'
+        if cover_src.exists():
+            shutil.copy2(cover_src, cover_dst)
+            print(f'  ✓ Capa copiada para {cover_dst}')
+
         html_content = self.generate_html(versions)
         self.index_path.write_text(html_content, encoding='utf-8')
         

@@ -69,29 +69,17 @@ python dev.py --once --langs "$LANGS" --locales "$LOCALES" $DRY_RUN
 echo "      ✓ Notebooks em gen/"
 
 # ===================================================================
-# Passo 2: Renderizar HTML com Quarto
+# Passo 2: Renderizar HTML e PDF via dev.py (mantém patch da capa)
 # ===================================================================
+# IMPORTANTE: NÃO chamar `quarto render` diretamente aqui.
+# O pipeline Python (render_quarto / _render_pdf_with_patched_tex)
+# aplica _fix_tex_cover() antes de compilar o PDF, injetando a capa
+# corretamente após \begin{document}. Chamar quarto render --to pdf
+# diretamente bypassa esse patch e o PDF fica sem capa.
 echo ""
-echo "[2/5] Renderizando com Quarto..."
-IFS=',' read -ra LANG_LIST <<< "$LANGS"
-IFS=',' read -ra LOCALE_LIST <<< "$LOCALES"
-
-for lang in "${LANG_LIST[@]}"; do
-  for locale in "${LOCALE_LIST[@]}"; do
-    combo="${lang}.${locale}"
-    qdir="gen/quarto/${combo}"
-    
-    if [ -d "$qdir" ]; then
-      echo "      📖 Processando: $combo"
-      
-      # Limpa cache do Quarto para forçar re-render
-      rm -rf "$qdir/_freeze"
-      
-      echo "        → HTML..."
-      (cd "$qdir" && quarto render --to html 2>&1) && echo "          ✓ HTML" || echo "          ⚠ Falha"
-    fi
-  done
-done
+echo "[2/5] Renderizando HTML + PDF via dev.py..."
+python dev.py --once --langs "$LANGS" --locales "$LOCALES" --render all $DRY_RUN
+echo "      ✓ HTML e PDF em gen/book/"
 
 # ===================================================================
 # Passo 2b: Gerar notebooks para alunos
@@ -101,8 +89,6 @@ echo "[2b/5] Gerando notebooks para alunos..."
 python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
 echo "      ✓ notebooks_alunos/"
 
-echo "        → PDF..."
-(cd "$qdir" && quarto render --to pdf 2>&1) && echo "          ✓ PDF" || echo "          ⚠ Falha PDF"
 
 # ===================================================================
 # Passo 3: Gerar página principal (índice) dentro de gen/book/
@@ -151,6 +137,9 @@ echo "  ✅ Pipeline concluído!"
 echo ""
 echo "  📁 Saídas disponíveis:"
 echo "    📄 gen/book/index.html (portal principal)"
+
+IFS=',' read -ra LANG_LIST <<< "$LANGS"
+IFS=',' read -ra LOCALE_LIST <<< "$LOCALES"
 for lang in "${LANG_LIST[@]}"; do
   for locale in "${LOCALE_LIST[@]}"; do
     combo="${lang}.${locale}"

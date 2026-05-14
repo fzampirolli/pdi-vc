@@ -1,6 +1,9 @@
 #!/bin/bash
 # run.sh — limpa cache e renderiza PDF
 
+make clean
+rm -rf gen
+
 QDIR="gen/quarto/py.pt"
 GENDIR="gen/py.pt"
 

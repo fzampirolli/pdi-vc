@@ -489,6 +489,8 @@ pre {
             print('  ✓ Criado includes/preamble.html')
 
     def _chapter_blocks(self, combo: Combo, nb_root: Path) -> str:
+        DEBUG_CAPS = []  # ← remova depois do teste; [] = todos
+
         parts = [
             (UI_STRINGS[combo.locale]['part_1'], self.CAPS_PART1),
             (UI_STRINGS[combo.locale]['part_2'], self.CAPS_PART2),
@@ -497,6 +499,8 @@ pre {
         for title, caps in parts:
             chaps = []
             for cap in caps:
+                if DEBUG_CAPS and cap not in DEBUG_CAPS:  # ← filtro
+                    continue
                 nb_name = f'{cap}.{combo.key}.ipynb'
                 if (nb_root / cap / nb_name).exists():
                     chaps.append(f'        - {cap}/{nb_name}')
@@ -594,7 +598,7 @@ format:
         </script>
   pdf:
     documentclass: book
-    classoption: [openany, oneside, 12pt, a4paper]
+    classoption: [openany, oneside, 11pt, a4paper]
     title-page: false
     output-file: "livro.{combo.file_key}.pdf"
     geometry:
@@ -656,9 +660,12 @@ format:
           \\usepackage[skins,breakable]{{tcolorbox}}
           \\tcbset{{pdicode/.style={{enhanced,breakable,colback=codebg,colframe=codeborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\\small\\ttfamily}}}}
           \\tcbset{{pdioutput/.style={{enhanced,breakable,colback=outputbg,colframe=outputborder,leftrule=4pt,rightrule=0.4pt,toprule=0.4pt,bottomrule=0.4pt,arc=4pt,boxsep=0pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fontupper=\\small\\ttfamily}}}}
-          \\renewenvironment{{Shaded}}{{\\begin{{tcolorbox}}[pdicode]}}{{\\end{{tcolorbox}}}}
           \\usepackage{{alltt}}
-          \\renewenvironment{{verbatim}}{{\\begin{{tcolorbox}}[pdioutput]\\begin{{alltt}}}}{{\\end{{alltt}}\\end{{tcolorbox}}}}
+
+          \\AtBeginDocument{{%
+            \\renewenvironment{{Shaded}}{{\\begin{{tcolorbox}}[pdicode]}}{{\\end{{tcolorbox}}}}%
+            \\renewenvironment{{verbatim}}{{\\begin{{tcolorbox}}[pdioutput]\\begin{{alltt}}}}{{\\end{{alltt}}\\end{{tcolorbox}}}}%
+          }}
           \\usepackage{{fancyhdr}}
           \\pagestyle{{fancy}}
           \\fancyhf{{}}
@@ -1016,77 +1023,457 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
 
     _rename_pdf(qdir, combo_name, file_key)
 
-
 def _fix_tex_cover(qdir: Path):
-    """..."""
     cover_abs_file = qdir / '.cover_abs'
     if not cover_abs_file.exists():
         print('  ⚠ .cover_abs não encontrado, pulando patch do .tex')
         return
     cover_abs = cover_abs_file.read_text(encoding='utf-8').strip()
-    tex_files = [t for t in qdir.glob('*.tex')
-                 if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+
+    combo_name = qdir.name
+    output_dir = qdir.parent.parent / 'book' / combo_name
+
+    def _find_tex(search_dir: Path):
+        return [t for t in search_dir.rglob('*.tex')
+                if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+
+    tex_files = _find_tex(qdir)
+    if not tex_files and output_dir.exists():
+        tex_files = _find_tex(output_dir)
     if not tex_files:
-        print('  ⚠ Nenhum .tex encontrado para patch')
+        print(f'  ⚠ Nenhum .tex encontrado para patch')
         return
+
     tex_path = tex_files[0]
     content = tex_path.read_text(encoding='utf-8')
-    
-    # DEBUG: mostrar todas as ocorrências de titlepage e maketitle
+
     import re
-    for i, line in enumerate(content.split('\n')):
-        if any(x in line for x in ['titlepage', 'maketitle', 'capa', 'cover', 'AfterEnd', 'begin{document']):
-            print(f'  DEBUG linha {i}: {line.strip()}')
 
+    # ── 1. Corrige classe e tamanho de página ────────────────────
+    content = content.replace('letterpaper,', 'a4paper,', 1)
+    content = re.sub(r'\]\{scrreprt\}', ',11pt,oneside]{book}', content, count=1)
+    print('  ✓ scrreprt → book, a4paper')
 
+    # Remove lixo do KOMA
+    content = re.sub(r'\\KOMAoptions\{.*?\}', '', content, flags=re.DOTALL)
+    content = re.sub(r'\\setkomafont\{.*?\}\{.*?\}', '', content)
+
+    # ── 2. Injeta preâmbulo customizado antes de \begin{document} ─
+    custom_header = r"""
+% ─────────────────────────────────────────────────────────────
+% Layout geral
+% ─────────────────────────────────────────────────────────────
+\usepackage{geometry}
+
+\geometry{
+  a4paper,
+  left=2.2cm,
+  right=2.2cm,
+  top=2.4cm,
+  bottom=2.5cm,
+  headheight=18pt,
+  headsep=0.7cm,
+  footskip=1.0cm
+}
+
+% ─────────────────────────────────────────────────────────────
+% Cores
+% ─────────────────────────────────────────────────────────────
+\usepackage{xcolor}
+
+\definecolor{darkblue}{RGB}{18,52,86}
+\definecolor{lightblue}{RGB}{90,125,170}
+
+\definecolor{codebg}{RGB}{240,244,255}
+\definecolor{codeborder}{RGB}{112,144,208}
+
+\definecolor{outputbg}{RGB}{253,246,236}
+\definecolor{outputborder}{RGB}{232,168,64}
+
+% ─────────────────────────────────────────────────────────────
+% Links
+% ─────────────────────────────────────────────────────────────
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=darkblue,
+  urlcolor=blue,
+  citecolor=darkblue
+}
+
+% ─────────────────────────────────────────────────────────────
+% Header / Footer elegante
+% ─────────────────────────────────────────────────────────────
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+% linhas mais suaves
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% cores das linhas
+\renewcommand{\headrule}{
+  \hbox to\headwidth{
+    \color{lightblue}\leaders\hrule height \headrulewidth\hfill
+  }
+}
+
+\renewcommand{\footrule}{
+  \hbox to\headwidth{
+    \color{lightblue}\leaders\hrule height \footrulewidth\hfill
+  }
+}
+
+% ── Cabeçalho ────────────────────────────────────────────────
+\fancyhead[L]{
+  \small
+  \textcolor{darkblue}{
+    \textsc{Processamento Digital de Imagens}
+  }
+}
+
+\fancyhead[R]{
+  \small
+  \textcolor{gray}{
+    \nouppercase{\leftmark}
+  }
+}
+
+% ── Rodapé ───────────────────────────────────────────────────
+\fancyfoot[L]{
+  \small
+  \textcolor{gray}{
+    Francisco de Assis Zampirolli
+  }
+}
+
+\fancyfoot[C]{
+  \small
+  \textcolor{lightblue}{
+    UFABC
+  }
+}
+
+\fancyfoot[R]{
+  \small
+  \textcolor{darkblue}{
+    \thepage
+  }
+}
+
+% ─────────────────────────────────────────────────────────────
+% Estilo das páginas "plain"
+% ─────────────────────────────────────────────────────────────
+\fancypagestyle{plain}{
+  \fancyhf{}
+
+  \fancyfoot[L]{
+    \small
+    \textcolor{gray}{
+      Francisco de Assis Zampirolli
+    }
+  }
+
+  \fancyfoot[C]{
+    \small
+    \textcolor{lightblue}{
+      UFABC
+    }
+  }
+
+  \fancyfoot[R]{
+    \small
+    \textcolor{darkblue}{
+      \thepage
+    }
+  }
+
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.3pt}
+}
+
+% ─────────────────────────────────────────────────────────────
+% Capítulos
+% ─────────────────────────────────────────────────────────────
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries}
+  {
+    \filleft
+    \Huge
+    \textcolor{lightblue}{\chaptertitlename}
+    \hspace{0.5em}
+    \textcolor{darkblue}{\thechapter}
+  }
+  {1ex}
+  {
+    \titlerule[1pt]
+    \vspace{1.5ex}
+    \Huge\color{darkblue}
+    \filleft
+  }
+  [
+    \vspace{1ex}
+    \titlerule
+  ]
+
+\titlespacing*{\chapter}
+  {0pt}
+  {0pt}
+  {28pt}
+
+% ─────────────────────────────────────────────────────────────
+% Seções
+% ─────────────────────────────────────────────────────────────
+\titleformat{\section}
+  {\Large\bfseries\color{darkblue}}
+  {\thesection}
+  {0.7em}
+  {}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{darkblue}}
+  {\thesubsection}
+  {0.6em}
+  {}
+
+% ─────────────────────────────────────────────────────────────
+% Código
+% ─────────────────────────────────────────────────────────────
+\usepackage[skins,breakable]{tcolorbox}
+
+\tcbset{
+  pdicode/.style={
+    enhanced,
+    breakable,
+    colback=codebg,
+    colframe=codeborder,
+    leftrule=4pt,
+    rightrule=0.4pt,
+    toprule=0.4pt,
+    bottomrule=0.4pt,
+    arc=4pt,
+    boxsep=0pt,
+    left=6pt,
+    right=6pt,
+    top=4pt,
+    bottom=4pt,
+    fontupper=\small\ttfamily
+  }
+}
+
+\tcbset{
+  pdioutput/.style={
+    enhanced,
+    breakable,
+    colback=outputbg,
+    colframe=outputborder,
+    leftrule=4pt,
+    rightrule=0.4pt,
+    toprule=0.4pt,
+    bottomrule=0.4pt,
+    arc=4pt,
+    boxsep=0pt,
+    left=6pt,
+    right=6pt,
+    top=4pt,
+    bottom=4pt,
+    fontupper=\small\ttfamily
+  }
+}
+
+% ─────────────────────────────────────────────────────────────
+% Idioma
+% ─────────────────────────────────────────────────────────────
+\usepackage[brazil]{babel}
+
+\renewcommand{\contentsname}{Sumário}
+\renewcommand{\listfigurename}{Lista de Figuras}
+\renewcommand{\listtablename}{Lista de Tabelas}
+
+\renewcommand{\figurename}{Figura}
+\renewcommand{\tablename}{Tabela}
+
+\renewcommand{\chaptername}{Capítulo}
+\renewcommand{\partname}{Parte}
+
+% ─────────────────────────────────────────────────────────────
+% Emojis
+% ─────────────────────────────────────────────────────────────
+\usepackage{emoji}
+\setemojifont{TwemojiMozilla}
+
+% ─────────────────────────────────────────────────────────────
+% Ambientes Pandoc
+% ─────────────────────────────────────────────────────────────
+\AtBeginDocument{
+
+  \renewenvironment{Shaded}
+    {\begin{tcolorbox}[pdicode]}
+    {\end{tcolorbox}}
+
+  \renewenvironment{verbatim}
+    {\begin{tcolorbox}[pdioutput]\begin{alltt}}
+    {\end{alltt}\end{tcolorbox}}
+
+}
+"""
+
+    content = content.replace(
+        r'\begin{document}',
+        custom_header + r'\begin{document}',
+        1
+    )
+    print('  ✓ Preâmbulo customizado injetado')
+
+    # ── 3. Remove tudo entre \begin{document} e \bookmarksetup ───
+    #       (pagenumbering, titlepage antigo, maketitle, TOC do Pandoc)
+    content = re.sub(
+        r'(\\begin\{document\})\s*.*?(?=\\bookmarksetup)',
+        r'\1\n',
+        content,
+        count=1,
+        flags=re.DOTALL
+    )
+
+    # ── 4. Injeta capa após \begin{document} ─────────────────────
     cover_block = rf"""
 % ── Capa ─────────────────────────────────────────────────────────
-\begin{{titlepage}}%
-\thispagestyle{{empty}}%
-\newgeometry{{margin=0pt}}%
-\noindent%
-\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio=false]{{{cover_abs}}}%
-\begin{{picture}}(0,0)
-  \put(-10,180){{%
-    \begin{{minipage}}[b]{{0.92\paperwidth}}\centering
-      {{\fontsize{{26}}{{31}}\selectfont\bfseries\color{{white}}%
-        Processamento Digital de Imagens\\[0.35em]%
-        e Visão Computacional\par}}%
-      \vspace{{0.8em}}%
-      {{\large\color{{white}}%
-        Francisco de Assis Zampirolli\\[0.15em]%
-        Universidade Federal do ABC\par}}%
-    \end{{minipage}}%
-  }}
-\end{{picture}}
-\restoregeometry%
-\end{{titlepage}}%
-\maketitle
+\begin{{titlepage}}
+\thispagestyle{{empty}}
+\newgeometry{{margin=0pt}}
+\noindent
+\includegraphics[
+  width=\paperwidth,
+  height=\paperheight
+]{{{cover_abs}}}
+\restoregeometry
+\end{{titlepage}}
+
+
+% ── Folha de rosto ──────────────────────────────────────────────
+\begin{{titlepage}}
+\thispagestyle{{empty}}
+
+\vspace*{{3cm}}
+
+\begin{{center}}
+
+{{\Huge\bfseries\color{{darkblue}}
+Processamento Digital de Imagens e Visão Computacional\par}}
+
+\vspace{{1.2cm}}
+
+{{\Large
+Livro interativo com Python\par}}
+
+\vspace{{3cm}}
+
+{{\Large
+Francisco de Assis Zampirolli\par}}
+
+\vfill
+
+{{\large
+Universidade Federal do ABC\par}}
+
+\vspace{{0.5cm}}
+
+{{\large
+\today\par}}
+
+\end{{center}}
+
+\end{{titlepage}}
+
+% ── Ajustes globais do TOC ──────────────────────────────────────
+\clearpage
+\pagestyle{{plain}}
 \pagenumbering{{arabic}}
+\makeatother
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
 """
-    # Remove todas as capas já existentes (vindas do cover_hook.tex ou de runs anteriores)
-    import re
+    
+
+
+    content = content.replace(
+        r'\begin{document}' + '\n',
+        r'\begin{document}' + '\n' + cover_block,
+        1
+    )
+
+    # ── 5. Remove \bookmarksetup e TOC restante do Pandoc ─────────
     content = re.sub(
-        r'\\begin\{titlepage\}.*?\\end\{titlepage\}%?\s*',
+        r'\\bookmarksetup\{startatroot\}\s*'
+        r'(?:\\renewcommand\*?\\contentsname.*?'
+        r'\\(?:tableofcontents|bookmarksetup).*?\n)?',
+        r'\\bookmarksetup{startatroot}\n',
+        content,
+        flags=re.DOTALL
+    )
+    content = re.sub(
+        r'\{\\hypersetup.*?\\tableofcontents\s*\}\s*',
         '',
         content,
         flags=re.DOTALL
     )
-    # Remove \maketitle soltos
-    content = content.replace(r'\maketitle', '')
 
-    # Insere capa + maketitle uma única vez após \begin{document}
-    content = content.replace(
-        r'\begin{document}',
-        r'\begin{document}' + '\n\\pagenumbering{gobble}\n' + cover_block,
-        1
+    # Substitui documentclass inteiro, removendo opções KOMA inválidas
+    content = re.sub(
+        r'\\documentclass\[.*?\]\{(?:scrreprt|scrbook|book)\}',
+        r'\\documentclass[a4paper,11pt,oneside,openany]{book}',
+        content,
+        count=1,
+        flags=re.DOTALL
     )
+
+
+    # Remove setemojifont duplicado
+    content = re.sub(r'(\\setemojifont\{TwemojiMozilla\}\s*){2,}', 
+                    r'\\setemojifont{TwemojiMozilla}\n', content)
+
+    # Substitui emoji Unicode literal ✅ por comando \emoji
+    # Lê mapeamento do lua para não duplicar
+    import re as _re
+    lua_path = qdir.parent.parent.parent / 'includes' / 'emoji-filter.lua'
+    emoji_map = {}
+    if lua_path.exists():
+        lua = lua_path.read_text(encoding='utf-8')
+        for m in _re.finditer(r'\["([^"]+)"\]\s*=\s*"(\\\\[^"]+)"', lua):
+            emoji_map[m.group(1)] = m.group(2).replace('\\\\', '\\')
+    for char, cmd in emoji_map.items():
+        content = content.replace(char, cmd)
+    print(f'  ✓ {len(emoji_map)} emojis substituídos')
+
+
+
+    # Sobrescreve nomes em inglês do Pandoc
+    content = re.sub(r'\\renewcommand\*?\\contentsname\{Table of contents\}',
+                    r'\\renewcommand*\\contentsname{Sumário}', content)
+    content = re.sub(r'\\renewcommand\*?\\listfigurename\{List of Figures\}',
+                    r'\\renewcommand*\\listfigurename{Lista de Figuras}', content)
+    content = re.sub(r'\\renewcommand\*?\\listtablename\{List of Tables\}',
+                    r'\\renewcommand*\\listtablename{Lista de Tabelas}', content)
+    content = re.sub(r'\\renewcommand\*?\\figurename\{Figure\}',
+                    r'\\renewcommand*\\figurename{Figura}', content)
+    content = re.sub(r'\\renewcommand\*?\\tablename\{Table\}',
+                    r'\\renewcommand*\\tablename{Tabela}', content)
+    print('  ✓ Nomes em português')
+
     tex_path.write_text(content, encoding='utf-8')
     print(f'  ✓ .tex patcheado: {tex_path.name}')
 
 
 def _render_pdf_with_patched_tex(qdir: Path, env: dict):
-    """..."""
     combo_name = qdir.name
     parts = combo_name.split('.')
     file_key = f'{parts[1]}.{parts[0]}'
@@ -1110,8 +1497,15 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
 
     _fix_tex_cover(qdir)
 
-    tex_files = [t for t in qdir.glob('*.tex')
-                 if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+    # Busca .tex em qdir E em output_dir
+    def _find_tex(search_dir: Path):
+        return [t for t in search_dir.rglob('*.tex')   # ← rglob em vez de glob
+                if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+
+    tex_files = _find_tex(qdir)
+    if not tex_files and output_dir.exists():
+        tex_files = _find_tex(output_dir)
+
     if not tex_files:
         print('  ⚠ .tex não encontrado após patch')
         return
@@ -1136,7 +1530,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
                 if line.strip():
                     print(f'      {line}')
 
-    # Remove a primeira página em branco do PDF gerado
+    # Remove primeiras páginas em branco do PDF gerado
     pdf_files = list(output_dir.glob('*.pdf'))
     if pdf_files:
         pdf_path = max(pdf_files, key=lambda p: p.stat().st_mtime)
@@ -1144,7 +1538,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             from pypdf import PdfReader, PdfWriter
             reader = PdfReader(str(pdf_path))
             writer = PdfWriter()
-            for page in reader.pages[1:]:  # pula página 0 (em branco)
+            for page in reader.pages[2:]:  # pula 2 páginas (em branco)
                 writer.add_page(page)
             with open(str(pdf_path), 'wb') as f:
                 writer.write(f)
