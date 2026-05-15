@@ -223,7 +223,29 @@ local emojis = {
   ["↩️"] = "\\emoji{right-arrow-curving-left}",
   ["↪️"] = "\\emoji{left-arrow-curving-right}",
   ["🔄"] = "\\emoji{counterclockwise-arrows-button}",
+
+  -- Garante emojis do TestSuite mesmo que não estejam no lua
+
+  ["✔️"] = "\\emoji{check-mark-button}",
+  ["📥"] =  "\\emoji{inbox-tray}",
+  ["📤"] =  "\\emoji{outbox-tray}",
+  ["🎉"] =  "\\emoji{party-popper}",
+  ["⏱️"] =  "\\emoji{stopwatch}",
+  ["💥"] =  "\\emoji{collision}",
+
+  ["✓"] = "\\emoji{check-mark}",
+  ["✔"] = "\\emoji{heavy-check-mark}",  
+  ["⚠"] = "\\emoji{warning}",
+  ["📸"] = "\\emoji{camera-with-flash}",
+  ["👉"] = "\\emoji{backhand-index-pointing-right}",
+  ["📖"] = "\\emoji{open-book}",
+  ["🐛"] = "\\emoji{bug}",
+  ["🤝"] = "\\emoji{handshake}",
+  ["🔧"] = "\\emoji{wrench}",
+  ["▶️"] = "\\emoji{play-button}",
+    
 }
+
 
 -- Função principal do filtro
 function Str(el)

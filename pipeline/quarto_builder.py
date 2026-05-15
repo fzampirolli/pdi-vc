@@ -67,125 +67,6 @@ def _prefacio_qmd(combo: Combo) -> str:
         locale_label = LOCALES[combo.locale].label
         content = content.replace('{{locale_label}}', locale_label)
         return content
-    else:
-        print(f'  ⚠ Arquivo {prefacio_path} não encontrado. Gerando prefácio padrão.')
-        return _generate_default_prefacio(combo)
-
-
-def _generate_default_prefacio(combo: Combo) -> str:
-    """Gera um prefácio padrão (fallback quando não há arquivo externo)."""
-    lang_label   = LANGUAGES[combo.lang].label
-
-    prefacio_title = UI_STRINGS[combo.locale].get('preface_title', 'Prefácio')
-    projeto_titulo = UI_STRINGS[combo.locale].get('preface_project_title', 'Um livro vivo')
-    projeto_texto  = UI_STRINGS[combo.locale].get('preface_project_text',
-        'Este não é um livro estático. O conteúdo está em constante evolução: exemplos são refinados, '
-        'novas seções são adicionadas e abordagens pedagógicas são aprimoradas com base no feedback '
-        'de alunos e professores. Por isso, tratamos este material como um *projeto inicial* — '
-        'uma base sólida que continuará crescendo.')
-
-    producao_titulo = UI_STRINGS[combo.locale].get('preface_production_title', 'Como este livro é produzido')
-    producao_texto  = UI_STRINGS[combo.locale].get('preface_production_text',
-        'Todo o conteúdo é escrito em **Quarto**, um sistema de publicação científica e técnica '
-        'que permite renderizar o mesmo código-fonte para múltiplos formatos.')
-
-    return f'''# {prefacio_title} {{.unnumbered}}
-
-Este livro é um **projeto em construção** sobre **Processamento Digital de Imagens (PDI) e Visão Computacional (VC)**,
-concebido como material didático interativo para cursos de graduação e pós-graduação em Computação, Engenharias e áreas afins.
-
-## {projeto_titulo} {{.unnumbered}}
-
-{projeto_texto}
-
-## {producao_titulo} {{.unnumbered}}
-
-{producao_texto}
-
-| Formato | Descrição |
-|---------|-----------|
-| **HTML** — Versão web completa, com navegação interativa, disponível em [fzampirolli.github.io/pdi-vc](https://fzampirolli.github.io/pdi-vc/) |
-| **PDF** — Versão para impressão ou leitura offline |
-| **Notebooks para alunos** — Versão `.ipynb` processada por um filtro personalizado que resolve citações, numera figuras, tabelas e equações, e gera referências formatadas no estilo ABNT — ideal para uso no Jupyter e Google Colab |
-
-O filtro de pós-processamento (`quarto_ipynb_refs.py`) prepara os notebooks para distribuição aos alunos,
-garantindo que funcionem perfeitamente em ambientes interativos mesmo sem depender do Quarto instalado.
-
-## Sobre as linguagens de programação {{.unnumbered}}
-
-Nesta versão inicial, utilizamos **Python** como linguagem principal, com as bibliotecas
-`morph.py` (desenvolvida pelos autores), OpenCV, NumPy e Matplotlib. No entanto,
-a arquitetura do projeto é flexível: no futuro, exemplos e capítulos podem ser adaptados
-para outras linguagens como R, Julia ou C++, dependendo das demandas da comunidade.
-
-## Código aberto {{.unnumbered}}
-
-Este livro é um projeto de código aberto. Todo o conteúdo — texto, código-fonte,
-imagens e scripts de processamento — está disponível publicamente em:
-
-👉 **[github.com/fzampirolli/pdi-vc](https://github.com/fzampirolli/pdi-vc/)**
-
-Você pode:
-
-- 📖 **Ler e estudar** gratuitamente
-- 🐛 **Reportar erros** ou sugerir melhorias abrindo uma *issue*
-- 🤝 **Contribuir** com correções, novos exemplos ou traduções via *pull requests*
-- 🔧 **Adaptar** o material para suas próprias turmas
-
-## Como usar os notebooks {{.unnumbered}}
-
-Cada capítulo do livro está disponível como um *notebook* interativo.
-Se você nunca usou um notebook Jupyter ou Google Colab, veja a seção
-"Antes de começar: Notebooks em Python" a seguir para um guia rápido.
-
-## Agradecimentos {{.unnumbered}}
-
-Agradecemos aos alunos, colegas e colaboradores que testam, questionam e contribuem
-com este projeto. Este livro é feito para vocês e por vocês.
-
----
-
-## Antes de começar: Notebooks em Python {{.unnumbered}}
-
-O que é este documento? Você já ouviu falar em ***Literate Programming*** (Programação Literária)?
-O conceito foi criado por Donald Knuth em 1984 [@knuth_literate_1984]
-— autor de *The Art of Computer Programming* [@knuth_art_1997]
-e criador do sistema de tipografia TeX, base sobre a qual Leslie Lamport desenvolveu
-posteriormente o LaTeX — e propõe que os programas sejam escritos como uma narrativa
-lógica, combinando código e documentação em uma única obra.
-
-Isto é um *notebook*: um documento que intercala textos explicativos — as **células de texto**
-no formato [Markdown](https://colab.research.google.com/notebooks/markdown_guide.ipynb) —
-com códigos de programas em [Python](https://www.python.org/) — as **células de código**.
-
-É fácil distinguir as células de código: elas são precedidas por `[ ]`.
-Para executar uma célula de código, basta selecioná-la e pressionar
-<kbd>Shift</kbd> + <kbd>Enter</kbd>. Antes de começar, algumas observações
-importantes sobre o ambiente:
-
-- **No computador:** no Colab ou Jupyter, você também pode executar uma célula
-  clicando no botão de ▶️ (*play*) que aparece ao passar o mouse sobre os colchetes `[ ]`.
-- **No celular:** no Colab, o atalho <kbd>Shift</kbd> + <kbd>Enter</kbd> pode não funcionar.
-  Nesse caso, toque no botão de ▶️ (*play*).
-- **Execução local:** você pode rodar este notebook no seu computador instalando o
-  [Jupyter Notebook](https://jupyter.org).
-- **Google Colab:** para executar no seu navegador, vá em **Arquivo → Salvar uma cópia no Drive**
-  e abra o arquivo **Cópia de aula01.ipynb**, que ficará na pasta **Colab Notebooks** do seu Drive.
-
-O resultado será exibido logo abaixo da célula executada.
-
-::: {{.callout-note}}
-### Nota sobre o formato {{.unnumbered}}
-
-Você pode estar acessando este conteúdo de diferentes maneiras. Se estiver executando
-este notebook no [Jupyter](https://jupyter.org/) ou no [Google Colab](https://colab.research.google.com/),
-as células de código são interativas: você pode executá-las pressionando
-<kbd>Shift</kbd> + <kbd>Enter</kbd> ou clicando no botão de *play*. Se estiver lendo
-a versão renderizada em HTML ou PDF, o código aparecerá como blocos estáticos,
-mas o conteúdo e as explicações permanecem os mesmos — a única diferença é que
-você não poderá executar o código diretamente no documento.
-:::
-'''
 
 
 def _refs_qmd(combo: Combo) -> str:
@@ -358,12 +239,29 @@ h1 { border-bottom: 3px solid #f0c060; padding-bottom: 0.3em; }
 .callout { border-left-width: 5px; border-radius: 4px; }
 
 /* ── Código-fonte (input) ────────────────────────────────────── */
+/* ── Código-fonte (input) e outputs — base compartilhada ─────── */
+div.sourceCode,
+.cell-output pre,
+.cell-output code,
+[class^="cell-output"] pre,
+[class*=" cell-output"] pre {
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;   /* sobrescrito abaixo */
+  border-left-width: 4px !important;
+  box-shadow: none !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.875em !important;
+  line-height: 1.55 !important;
+  padding: 0.75em 1em !important;
+  white-space: pre-wrap !important;
+}
+
+/* ── Código-fonte: azul ──────────────────────────────────────── */
 div.sourceCode {
   background: #f0f4ff !important;
-  border-radius: 8px !important;
-  border: 1px solid #c8d4f0 !important;
-  border-left: 4px solid #7090d0 !important;
-  box-shadow: none !important;
+  border-color: #c8d4f0 !important;
+  border-left-color: #7090d0 !important;
+  color: #1a2050 !important;
 }
 div.sourceCode pre,
 div.sourceCode pre code {
@@ -373,58 +271,46 @@ div.sourceCode pre code {
   box-shadow: none !important;
 }
 
-/* ── Outputs das células ─────────────────────────────────────── */
-/* stdout / texto — âmbar pastel, UMA única borda */
+/* ── Output (stdout): mesma estrutura, fundo âmbar ──────────── */
 .cell-output pre,
 .cell-output code,
 [class^="cell-output"] pre,
 [class*=" cell-output"] pre {
-  background:    #fdf6ec !important;
-  color:         #2e1e05 !important;
-  border:        1px solid #e8d8b8 !important;
-  border-left:   4px solid #e8a840 !important;
-  border-radius: 6px !important;
-  padding:       0.75em 1em !important;
-  font-family:   'JetBrains Mono', monospace !important;
-  font-size:     0.83em !important;
-  line-height:   1.55 !important;
-  white-space:   pre-wrap !important;
+  background: #fdf6ec !important;
+  border-color: #e8d8b8 !important;
+  border-left-color: #e8a840 !important;
+  color: #2e1e05 !important;
 }
 
-/* stderr — rosado */
+/* ── stderr: mesma estrutura, fundo rosado ───────────────────── */
 .cell-output-stderr pre,
 .cell-output-stderr code {
-  background:  #fff2f0 !important;
-  color:       #5a1a10 !important;
-  border:      1px solid #f0c8c0 !important;
-  border-left: 4px solid #e06050 !important;
+  background: #fff2f0 !important;
+  border-color: #f0c8c0 !important;
+  border-left-color: #e06050 !important;
+  color: #5a1a10 !important;
 }
 
-/* display_data (imagens, DataFrames, HTML rico):
-   SEM borda própria — o pre interno já tem a borda âmbar acima.
-   Isso elimina a faixa dupla. */
+/* ── display_data (imagens, HTML rico): sem caixa própria ─────── */
 .cell-output-display {
-  background:    transparent !important;
-  border:        none !important;
-  border-radius: 0 !important;
-  padding:       0 !important;
-  margin-top:    0.3em !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-top: 0.3em !important;
 }
-/* reseta o pre dentro de display para não herdar borda do pai */
 .cell-output-display > pre,
 .cell-output-display pre {
-  background:  #fdf6ec !important;
-  color:       #2e1e05 !important;
-  border:      1px solid #e8d8b8 !important;
+  background: #fdf6ec !important;
+  border: 1px solid #e8d8b8 !important;
   border-left: 4px solid #e8a840 !important;
-  border-radius: 6px !important;
-  padding:     0.75em 1em !important;
+  border-radius: 8px !important;
+  padding: 0.75em 1em !important;
+  color: #2e1e05 !important;
 }
-/* imagens ficam sem caixa */
 .cell-output-display img {
-  background:    transparent;
+  background: transparent;
   border-radius: 4px;
-  display:       block;
+  display: block;
 }
 
 /* ── Tabelas ─────────────────────────────────────────────────── */
@@ -489,7 +375,7 @@ pre {
             print('  ✓ Criado includes/preamble.html')
 
     def _chapter_blocks(self, combo: Combo, nb_root: Path) -> str:
-        DEBUG_CAPS = ['cap03']  # ← remova depois do teste; [] = todos
+        DEBUG_CAPS = []  # ← remova depois do teste; [] = todos
 
         parts = [
             (UI_STRINGS[combo.locale]['part_1'], self.CAPS_PART1),
@@ -669,7 +555,7 @@ format:
           \\usepackage{{fancyhdr}}
           \\pagestyle{{fancy}}
           \\fancyhf{{}}
-          \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{Processamento Digital de Imagens e Visão Computacional}}}}}}
+          \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{PDI \& VC}}}}}}
           \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
           \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
           \\fancyfoot[R]{{\\thepage}}
@@ -704,6 +590,8 @@ execute:
   echo: true
   warning: false
   error: false
+  env:
+    QUARTO_RENDER: "1"
 '''
 
     def _create_default_csl(self, csl_path: Path):
@@ -1067,15 +955,14 @@ def _fix_tex_cover(qdir: Path):
 
 \geometry{
   a4paper,
-  left=2.2cm,
-  right=2.2cm,
-  top=2.4cm,
-  bottom=2.5cm,
-  headheight=18pt,
+  left=1.5cm,
+  right=1.5cm,
+  top=2.0cm,
+  bottom=2.0cm,
+  headheight=14pt,
   headsep=0.7cm,
   footskip=1.0cm
 }
-
 % ─────────────────────────────────────────────────────────────
 % Cores
 % ─────────────────────────────────────────────────────────────
@@ -1131,7 +1018,7 @@ def _fix_tex_cover(qdir: Path):
 \fancyhead[L]{
   \small
   \textcolor{darkblue}{
-    \textsc{Processamento Digital de Imagens}
+    \textsc{PDI \& VC} - {lang_labels}
   }
 }
 
@@ -1170,6 +1057,20 @@ def _fix_tex_cover(qdir: Path):
 \fancypagestyle{plain}{
   \fancyhf{}
 
+  \fancyhead[L]{
+    \small
+    \textcolor{gray}{
+      \textsc{PDI \& VC}
+    }
+  }
+
+  \fancyhead[R]{
+    \small
+    \textcolor{gray}{
+      \nouppercase{\leftmark}
+    }
+  } 
+
   \fancyfoot[L]{
     \small
     \textcolor{gray}{
@@ -1191,7 +1092,7 @@ def _fix_tex_cover(qdir: Path):
     }
   }
 
-  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\headrulewidth}{0.3pt}
   \renewcommand{\footrulewidth}{0.3pt}
 }
 
@@ -1316,9 +1217,14 @@ def _fix_tex_cover(qdir: Path):
     {\begin{tcolorbox}[pdicode]}
     {\end{tcolorbox}}
 
-  \renewenvironment{verbatim}
-    {\begin{tcolorbox}[pdioutput]\begin{alltt}}
-    {\end{alltt}\end{tcolorbox}}
+\renewenvironment{verbatim}{%
+  \VerbatimEnvironment
+  \begin{tcolorbox}[pdioutput]
+  \begin{Verbatim}[breaklines=true,breaksymbol={}]
+}{%
+  \end{Verbatim}
+  \end{tcolorbox}
+}
 
 }
 """
@@ -1549,59 +1455,67 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
     _rename_pdf(qdir, combo_name, file_key)
 
 def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
+    # Cria arquivo sentinela para testsuite.py detectar ambiente Quarto
+    sentinela = qdir / '.quarto_render'
+    sentinela.write_text('1', encoding='utf-8')
+    
+    try:
+        
+          
+      fmts = ['html', 'pdf'] if fmt == 'all' else [fmt]
 
-    fmts = ['html', 'pdf'] if fmt == 'all' else [fmt]
+      combo_name = qdir.name
+      parts = combo_name.split('.')
+      file_key = f'{parts[1]}.{parts[0]}'
 
-    combo_name = qdir.name
-    parts = combo_name.split('.')
-    file_key = f'{parts[1]}.{parts[0]}'
+      env = os.environ.copy()
+      tinytex_path = _get_quarto_latex_path()
+      if tinytex_path:
+          env['PATH'] = tinytex_path + ':' + env['PATH']
 
-    env = os.environ.copy()
-    tinytex_path = _get_quarto_latex_path()
-    if tinytex_path:
-        env['PATH'] = tinytex_path + ':' + env['PATH']
+      for f in fmts:
+          env['QUARTO_FMT'] = f  
 
-    for f in fmts:
+          if f == 'pdf':
+              nb_root = qdir.parent.parent / qdir.name
+              _screenshot_html_cells(qdir, all_root)
+              _fix_html_outputs_for_pdf(nb_root)
+              _patch_html_cells_for_pdf(qdir, all_root)
+              env['QUARTO_FMT'] = 'pdf'
+              # Quarto gera o .tex com keep-tex:true antes de compilar;
+              # rodamos quarto render --to latex primeiro para obter o .tex,
+              # patcheamos, depois compilamos manualmente com lualatex.
+              _render_pdf_with_patched_tex(qdir, env)
+              continue  # pula o subprocess.run genérico abaixo
 
-        if f == 'pdf':
-            nb_root = qdir.parent.parent / qdir.name
-            _screenshot_html_cells(qdir, all_root)
-            _fix_html_outputs_for_pdf(nb_root)
-            _patch_html_cells_for_pdf(qdir, all_root)
-            env['QUARTO_FMT'] = 'pdf'
-            # Quarto gera o .tex com keep-tex:true antes de compilar;
-            # rodamos quarto render --to latex primeiro para obter o .tex,
-            # patcheamos, depois compilamos manualmente com lualatex.
-            _render_pdf_with_patched_tex(qdir, env)
-            continue  # pula o subprocess.run genérico abaixo
+          print(f'  $ cd {qdir.name} && quarto render --to {f}')
+          try:
+              r = subprocess.run(
+                  ['quarto', 'render', '--to', f] +
+                  (['--pdf-engine', 'lualatex'] if f == 'pdf' else []),
+                  cwd=qdir,
+                  capture_output=not verbose,
+                  text=True,
+                  timeout=600,
+                  env=env,
+              )
+              if r.returncode != 0:
+                  print(f'  ⚠ Erro ao renderizar {f}:')
+                  for line in (r.stderr or '').split('\n')[-10:]:
+                      if line.strip():
+                          print(f'      {line}')
+              else:
+                  if f == 'pdf':
+                      _rename_pdf(qdir, combo_name, file_key)
+                  else:
+                      print(f'  ✓ html → gen/book/{combo_name}/')
 
-        print(f'  $ cd {qdir.name} && quarto render --to {f}')
-        try:
-            r = subprocess.run(
-                ['quarto', 'render', '--to', f] +
-                (['--pdf-engine', 'lualatex'] if f == 'pdf' else []),
-                cwd=qdir,
-                capture_output=not verbose,
-                text=True,
-                timeout=600,
-                env=env,
-            )
-            if r.returncode != 0:
-                print(f'  ⚠ Erro ao renderizar {f}:')
-                for line in (r.stderr or '').split('\n')[-10:]:
-                    if line.strip():
-                        print(f'      {line}')
-            else:
-                if f == 'pdf':
-                    _rename_pdf(qdir, combo_name, file_key)
-                else:
-                    print(f'  ✓ html → gen/book/{combo_name}/')
-
-        except FileNotFoundError:
-            print('  ⚠ quarto não encontrado no PATH')
-        except subprocess.TimeoutExpired:
-            print('  ⚠ Timeout ao renderizar (mais de 600 segundos)')
-
+          except FileNotFoundError:
+              print('  ⚠ quarto não encontrado no PATH')
+          except subprocess.TimeoutExpired:
+              print('  ⚠ Timeout ao renderizar (mais de 600 segundos)')
+    finally:
+        sentinela.unlink(missing_ok=True)
 
 def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
     output_dir = qdir.parent.parent / 'book' / combo_name
