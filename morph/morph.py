@@ -344,17 +344,17 @@ class mm:
         return H, vet
     
     @staticmethod
-    def histImg(img, color="steelblue"):
+    def histImg(img, vmax=None, color="steelblue"):
         """Renderiza o histograma de img como array NumPy (para uso em mm.show)."""
         import io
         import matplotlib.pyplot as plt
         import numpy as np
         H = mm.hist(img)
+        vmax = vmax if vmax is not None else int(img.max())
         fig, ax = plt.subplots(figsize=(4, 3))
         ax.bar(range(len(H)), H, color=color, edgecolor="none", width=1)
-        ax.set_xlim(0, 255)
-        ax.set_xlabel("Intensidade")
-        ax.set_ylabel("Frequência")
+        ax.set_xlim(0, vmax)
+        ax.set_xticks([0, vmax//2, vmax])
         plt.tight_layout()
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=100)
