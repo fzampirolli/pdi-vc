@@ -423,6 +423,27 @@ class mm:
                 if 0 <= vy < H and 0 <= vx < W:
                     yield vy, vx, B[by, bx]
 
+    # implementações de correlação/convolução
+
+    @staticmethod
+    def conv(f, w):
+        """Correlação vetorizada via cv2.filter2D (eficiente)."""
+        return cv2.filter2D(f, -1, w.astype(np.float32))
+    
+    @staticmethod
+    def conv0(f, w):
+        """Correlação didática (laços explícitos) — bordas mantidas como original."""
+        f  = f.astype(np.float32)
+        a, b = w.shape[0]//2, w.shape[1]//2
+        H, W = f.shape
+        g = f.copy()                              # bordas ficam inalteradas
+        for y in range(a, H-a):
+            for x in range(b, W-b):
+                viz = f[y-a:y+a+1, x-b:x+b+1]   # vizinhança centrada em (y,x)
+                g[y,x] = (w * viz).sum()
+        return np.clip(g, 0, 255).astype(np.uint8)
+
+
     # ── EROSÃO / DILATAÇÃO ───────────────────────────────────────────────────
 
     @staticmethod
@@ -430,12 +451,6 @@ class mm:
         """Erosão (OpenCV ou com pesos)."""
         try:    return cv2.erode(f, Bc)
         except: return mm.ero1(f, Bc)
-
-    @staticmethod
-    def dil(f, Bc=np.zeros((3,3),dtype='uint8')):
-        """Dilatação (OpenCV ou com pesos)."""
-        try:    return cv2.dilate(f, Bc)
-        except: return mm.dil1(f, Bc)
 
     @staticmethod
     def ero0(f, Bc=np.zeros((3,3),dtype='uint8')):
@@ -446,17 +461,7 @@ class mm:
                 for vy,vx,bv in mm._viz(f,Bc,y,x):
                     if bv and g[y,x] > f[vy,vx]: g[y,x] = f[vy,vx]
         return g
-
-    @staticmethod
-    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
-        """Dilatação sem pesos."""
-        g = f.copy()
-        for y in range(f.shape[0]):
-            for x in range(f.shape[1]):
-                for vy,vx,bv in mm._viz(f,Bc,y,x):
-                    if bv and g[y,x] < f[vy,vx]: g[y,x] = f[vy,vx]
-        return g
-
+    
     @staticmethod
     def ero1(f, b=np.zeros((3,3),dtype='uint8')):
         """Erosão com pesos: mínimo de f[viz]-b."""
@@ -467,6 +472,22 @@ class mm:
                     if g[y,x] > f[vy,vx]-bv: g[y,x] = f[vy,vx]-bv
         return g
 
+    @staticmethod
+    def dil(f, Bc=np.zeros((3,3),dtype='uint8')):
+        """Dilatação (OpenCV ou com pesos)."""
+        try:    return cv2.dilate(f, Bc)
+        except: return mm.dil1(f, Bc)
+
+    @staticmethod
+    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
+        """Dilatação sem pesos."""
+        g = f.copy()
+        for y in range(f.shape[0]):
+            for x in range(f.shape[1]):
+                for vy,vx,bv in mm._viz(f,Bc,y,x):
+                    if bv and g[y,x] < f[vy,vx]: g[y,x] = f[vy,vx]
+        return g
+    
     @staticmethod
     def dil1(f, b=np.zeros((3,3),dtype='uint8')):
         """Dilatação com pesos: máximo de f[viz]+b."""
