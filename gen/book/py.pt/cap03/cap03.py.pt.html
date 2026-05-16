@@ -340,12 +340,13 @@ window.Quarto = {
 <h2 data-number="3.1" class="anchored" data-anchor-id="objetivos"><span class="header-section-number">3.1</span> Objetivos</h2>
 <p>Ao final deste capítulo, você será capaz de:</p>
 <ul>
-<li><strong>Manipular intensidade e pixels:</strong> Executar operações aritméticas e lógicas (como subtração de fundo e máscaras bit a bit) e aplicar técnicas de realce por processamento de histograma (equalização e especificação);</li>
-<li><strong>Compreender fundamentos espaciais:</strong> Entender os conceitos de vizinhança espacial, os mecanismos de convolução/correlação e o papel dos <em>kernels</em> (máscaras);</li>
-<li><strong>Aplicar filtragem espacial de suavização:</strong> Utilizar filtros lineares de média e Gaussiano para redução de ruído e atenuação de detalhes;</li>
-<li><strong>Aplicar filtragem espacial de realce:</strong> Dominar o uso de filtros de nitidez e bordas, como o Laplaciano, Sobel e a técnica de <em>Unsharp Masking</em>;</li>
-<li><strong>Utilizar filtros de ordem:</strong> Aplicar o filtro de mediana para a remoção eficaz de ruídos específicos, como o ruído do tipo sal e pimenta;</li>
-<li><strong>Resolver problemas práticos:</strong> Combinar essas técnicas de processamento e filtragem no pré-processamento de imagens para aplicações reais.</li>
+<li><strong>Manipular intensidade e pixels:</strong> Executar operações aritméticas saturadas (<code>mm.addm</code>, <code>mm.subm</code>) e lógicas bit a bit (<code>mm.band</code>, <code>mm.bor</code>, <code>mm.bnot</code>) para combinação e seleção de regiões de interesse (ROI), e aplicar <em>alpha blending</em> (<code>mm.blend</code>) para fusão ponderada de imagens;</li>
+<li><strong>Processar histogramas:</strong> Interpretar o histograma como diagnóstico tonal, aplicar equalização global (<code>mm.equalize</code>) e adaptativa (CLAHE), e realizar especificação de histograma para transferência de perfil tonal entre imagens;</li>
+<li><strong>Compreender fundamentos espaciais:</strong> Entender vizinhança, <em>padding</em> de borda, e a diferença entre correlação cruzada (<code>mm.conv</code>) e convolução — incluindo por que kernels assimétricos como Sobel produzem resultados distintos nas duas operações;</li>
+<li><strong>Aplicar filtragem de suavização:</strong> Utilizar o filtro de média (<code>mm.conv</code> com kernel uniforme) e o filtro Gaussiano (<code>cv2.GaussianBlur</code>) para redução de ruído, compreendendo a vantagem da ponderação radial e da separabilidade Gaussiana;</li>
+<li><strong>Aplicar filtragem de realce:</strong> Usar o Laplaciano (<span class="math inline">\(w_4\)</span> e <span class="math inline">\(w_8\)</span>) para realce isotrópico de bordas, o operador de Sobel para gradiente direcional (<span class="math inline">\(G_x\)</span>, <span class="math inline">\(G_y\)</span>, magnitude e direção), e o <em>Unsharp Masking</em> para amplificação controlada de alta frequência pelo parâmetro <span class="math inline">\(k\)</span>;</li>
+<li><strong>Utilizar filtros de ordem:</strong> Aplicar o filtro da mediana (<code>cv2.medianBlur</code>) para remoção eficaz de ruído sal e pimenta, compreendendo por que sua natureza não linear e robustez a outliers o tornam superior aos filtros lineares nesse cenário;</li>
+<li><strong>Resolver problemas práticos:</strong> Encadear técnicas em pipelines de pré-processamento (ex.: CLAHE → Gaussiano → Canny) e utilizar as funções da biblioteca <code>morph.py</code> (<code>mm.conv</code>, <code>mm.histImg</code>, <code>mm.equalize</code>, <code>mm.drawImageKernel</code>) para análise e visualização didática de cada etapa.</li>
 </ul>
 </section>
 <section id="operações-em-nível-de-intensidade" class="level2" data-number="3.2">
@@ -995,9 +996,9 @@ Kernel 3×3 de média:
 Correlação no pixel central [1,1]: 193.3  (original: 196)
 
 Tempos na imagem (512, 512) (Lena):
-  mm.conv0 (laços Python): 1.302 s
-  mm.conv  (cv2.filter2D): 0.00042 s
-  Aceleração:              3118× mais rápido
+  mm.conv0 (laços Python): 1.160 s
+  mm.conv  (cv2.filter2D): 0.00040 s
+  Aceleração:              2881× mais rápido
   Diferença máxima:        31 (bordas com padding diferente)</code></pre>
 </div>
 <div class="cell-output cell-output-display">
@@ -1347,37 +1348,53 @@ G_y = \begin{bmatrix} -1 &amp; -2 &amp; -1 \\ 0 &amp; 0 &amp; 0 \\ 1 &amp; 2 &am
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Gx no pixel [1,1]: coluna direita - coluna esquerda (ponderada)</span></span>
 <span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>gx <span class="op">=</span> (p[<span class="dv">0</span>,<span class="dv">2</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">1</span>,<span class="dv">2</span>] <span class="op">+</span> p[<span class="dv">2</span>,<span class="dv">2</span>]) <span class="op">-</span> (p[<span class="dv">0</span>,<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">1</span>,<span class="dv">0</span>] <span class="op">+</span> p[<span class="dv">2</span>,<span class="dv">0</span>])</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Gy no pixel [1,1]: linha inferior - linha superior (ponderada)</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>gy <span class="op">=</span> (p[<span class="dv">2</span>,<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">2</span>,<span class="dv">1</span>] <span class="op">+</span> p[<span class="dv">2</span>,<span class="dv">2</span>]) <span class="op">-</span> (p[<span class="dv">0</span>,<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">0</span>,<span class="dv">1</span>] <span class="op">+</span> p[<span class="dv">0</span>,<span class="dv">2</span>])</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>mag   <span class="op">=</span> np.sqrt(gx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> gy<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> np.degrees(np.arctan2(gy, gx))</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch 5×5:"</span>)</span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Gx em [1,1]: (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss"> + 2×</span><span class="sc">{</span>p[<span class="dv">1</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) - (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2×</span><span class="sc">{</span>p[<span class="dv">1</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss">) = </span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Gy em [1,1]: (</span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2×</span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) - (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2×</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) = </span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"|∇f| = √(</span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">² + </span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">²) = </span><span class="sc">{</span>mag<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"θ    = arctan(</span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">/</span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">) = </span><span class="sc">{</span>theta<span class="sc">:.1f}</span><span class="ss">°"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Gy no pixel [1,1]: linha inferior - linha superior (ponderada)</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>gy <span class="op">=</span> (p[<span class="dv">2</span>,<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">2</span>,<span class="dv">1</span>] <span class="op">+</span> p[<span class="dv">2</span>,<span class="dv">2</span>]) <span class="op">-</span> (p[<span class="dv">0</span>,<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span><span class="op">*</span>p[<span class="dv">0</span>,<span class="dv">1</span>] <span class="op">+</span> p[<span class="dv">0</span>,<span class="dv">2</span>])</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>mag   <span class="op">=</span> np.sqrt(gx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> gy<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> np.degrees(np.arctan2(gy, gx))</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch 5x5:"</span>)</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Gx em [1,1]: (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss"> + 2*</span><span class="sc">{</span>p[<span class="dv">1</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) - (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2*</span><span class="sc">{</span>p[<span class="dv">1</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss">) = </span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Gy em [1,1]: (</span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2*</span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">2</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) - (</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">0</span>]<span class="sc">:.0f}</span><span class="ss"> + 2*</span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss"> + </span><span class="sc">{</span>p[<span class="dv">0</span>,<span class="dv">2</span>]<span class="sc">:.0f}</span><span class="ss">) = </span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Substituído o | pelo prefixo mag para não quebrar o interpretador de tabelas do Quarto</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"mag(Grad f)  = sqrt(</span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">^2 + </span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">^2) = </span><span class="sc">{</span>mag<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Theta        = arctan(</span><span class="sc">{</span>gy<span class="sc">:.1f}</span><span class="ss">/</span><span class="sc">{</span>gx<span class="sc">:.1f}</span><span class="ss">) = </span><span class="sc">{</span>theta<span class="sc">:.1f}</span><span class="ss"> graus"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Patch 5x5:
+187 189 192 197 195 
+190 196 197 199 193 
+193 197 199 192 158 
+199 199 189 149 108 
+201 183 130 100  98 
+
+Gx em [1,1]: (192 + 2*197 + 199) - (187 + 2*190 + 193) = 25.0
+Gy em [1,1]: (193 + 2*197 + 199) - (187 + 2*189 + 192) = 29.0
+mag(Grad f)  = sqrt(25.0^2 + 29.0^2) = 38.3
+Theta        = arctan(29.0/25.0) = 49.2 graus</code></pre>
+</div>
 </div>
 <p>O valor pequeno de <span class="math inline">\(|{\nabla f}|\)</span> nesse patch confirma que a região é quase uniforme — o gradiente é alto apenas nas bordas reais da imagem. A <a href="#fig-03-sobel" class="quarto-xref">Figura&nbsp;<span>3.16</span></a> aplica o operador à Lena completa, mostrando <span class="math inline">\(G_x\)</span>, <span class="math inline">\(G_y\)</span> e a magnitude:</p>
 <div id="cell-fig-03-sobel" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> norm255(img):</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    mn, mx <span class="op">=</span> img.<span class="bu">min</span>(), img.<span class="bu">max</span>()</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((img <span class="op">-</span> mn) <span class="op">/</span> (mx <span class="op">-</span> mn <span class="op">+</span> <span class="fl">1e-9</span>) <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>sobelx    <span class="op">=</span> cv2.Sobel(img_gray, cv2.CV_64F, <span class="dv">1</span>, <span class="dv">0</span>, ksize<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>sobely    <span class="op">=</span> cv2.Sobel(img_gray, cv2.CV_64F, <span class="dv">0</span>, <span class="dv">1</span>, ksize<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>magnitude <span class="op">=</span> np.sqrt(sobelx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> sobely<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>direcao   <span class="op">=</span> np.degrees(np.arctan2(sobely, sobelx))</span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    [img_gray, norm255(np.<span class="bu">abs</span>(sobelx)), norm255(np.<span class="bu">abs</span>(sobely)),</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>     norm255(magnitude), norm255(direcao <span class="op">%</span> <span class="dv">180</span>)],</span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Gx (bordas vert.)"</span>, <span class="st">"Gy (bordas horiz.)"</span>,</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Magnitude |∇f|"</span>, <span class="st">"Direção θ (mod 180°)"</span>],</span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span></span>
-<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> norm255(img):</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    mn, mx <span class="op">=</span> img.<span class="bu">min</span>(), img.<span class="bu">max</span>()</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((img <span class="op">-</span> mn) <span class="op">/</span> (mx <span class="op">-</span> mn <span class="op">+</span> <span class="fl">1e-9</span>) <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>sobelx    <span class="op">=</span> cv2.Sobel(img_gray, cv2.CV_64F, <span class="dv">1</span>, <span class="dv">0</span>, ksize<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>sobely    <span class="op">=</span> cv2.Sobel(img_gray, cv2.CV_64F, <span class="dv">0</span>, <span class="dv">1</span>, ksize<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>magnitude <span class="op">=</span> np.sqrt(sobelx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> sobely<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>direcao   <span class="op">=</span> np.degrees(np.arctan2(sobely, sobelx))</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    [img_gray, norm255(np.<span class="bu">abs</span>(sobelx)), norm255(np.<span class="bu">abs</span>(sobely)),</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>     norm255(magnitude), norm255(direcao <span class="op">%</span> <span class="dv">180</span>)],</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Gx (bordas vert.)"</span>, <span class="st">"Gy (bordas horiz.)"</span>,</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Magnitude |∇f|"</span>, <span class="st">"Direção θ (mod 180°)"</span>],</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-sobel" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1460,44 +1477,84 @@ g = f + k\,(f - f*G_\sigma) = (1+k)\,f - k\,(f*G_\sigma)
 </div>
 <p>Para ilustrar as três etapas numericamente, aplicamos o USM ao patch 5×5 com <span class="math inline">\(\sigma=1\)</span> e <span class="math inline">\(k=1\)</span>:</p>
 <div id="d8330cb4" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>patch  <span class="op">=</span> img_gray[<span class="dv">250</span>:<span class="dv">255</span>, <span class="dv">250</span>:<span class="dv">255</span>]</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>p      <span class="op">=</span> patch.astype(np.float32)</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>sigma, k <span class="op">=</span> <span class="fl">1.0</span>, <span class="fl">1.0</span></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 1: suavização Gaussiana</span></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>ksize   <span class="op">=</span> <span class="bu">int</span>(<span class="dv">6</span> <span class="op">*</span> sigma <span class="op">+</span> <span class="dv">1</span>) <span class="op">|</span> <span class="dv">1</span></span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>p_suave <span class="op">=</span> cv2.GaussianBlur(p, (ksize, ksize), sigma)</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 2: máscara de alta frequência</span></span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>mascara <span class="op">=</span> p <span class="op">-</span> p_suave</span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 3: realce</span></span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>p_usm   <span class="op">=</span> np.clip(p <span class="op">+</span> k <span class="op">*</span> mascara, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch original:"</span>)</span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
-<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch suavizado (Gaussiana σ=1):"</span>)</span>
-<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(p_suave.astype(np.uint8)))</span>
-<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Máscara (f - f_suave), componentes de alta frequência:"</span>)</span>
-<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.clip(mascara <span class="op">+</span> <span class="dv">128</span>, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)))  <span class="co"># centraliza em 128</span></span>
-<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch realçado (USM k=1):"</span>)</span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(p_usm))</span>
-<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Pixel central [1,1]: original=</span><span class="sc">{</span><span class="bu">int</span>(p[<span class="dv">1</span>,<span class="dv">1</span>])<span class="sc">}</span><span class="ss">  suave=</span><span class="sc">{</span>p_suave[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">:.1f}</span><span class="ss">"</span></span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"  máscara=</span><span class="sc">{</span>mascara[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">:.1f}</span><span class="ss">  realçado=</span><span class="sc">{</span>p_usm[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>patch  <span class="op">=</span> img_gray[<span class="dv">250</span>:<span class="dv">255</span>, <span class="dv">250</span>:<span class="dv">255</span>]</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>p      <span class="op">=</span> patch.astype(np.float32)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>sigma, k <span class="op">=</span> <span class="fl">1.0</span>, <span class="fl">1.0</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 1: suavização Gaussiana</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>ksize   <span class="op">=</span> <span class="bu">int</span>(<span class="dv">6</span> <span class="op">*</span> sigma <span class="op">+</span> <span class="dv">1</span>) <span class="op">|</span> <span class="dv">1</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>p_suave <span class="op">=</span> cv2.GaussianBlur(p, (ksize, ksize), sigma)</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 2: máscara de alta frequência</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>mascara <span class="op">=</span> p <span class="op">-</span> p_suave</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 3: realce</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>p_usm   <span class="op">=</span> np.clip(p <span class="op">+</span> k <span class="op">*</span> mascara, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch original:"</span>)</span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Trocado 'σ' por 'sigma' para evitar quebra de codificação no Pandoc</span></span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch suavizado (Gaussiana sigma=1):"</span>)</span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(p_suave.astype(np.uint8)))</span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Mascara (f - f_suave), componentes de alta frequencia:"</span>)</span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.clip(mascara <span class="op">+</span> <span class="dv">128</span>, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)))  <span class="co"># centraliza em 128</span></span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch realcado (USM k=1):"</span>)</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(p_usm))</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Pixel central [1,1]: original=</span><span class="sc">{</span><span class="bu">int</span>(p[<span class="dv">1</span>,<span class="dv">1</span>])<span class="sc">}</span><span class="ss"> suave=</span><span class="sc">{</span>p_suave[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">:.1f}</span><span class="ss">"</span></span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f" mascara=</span><span class="sc">{</span>mascara[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">:.1f}</span><span class="ss"> realcado=</span><span class="sc">{</span>p_usm[<span class="dv">1</span>,<span class="dv">1</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Patch original:
+187 189 192 197 195 
+190 196 197 199 193 
+193 197 199 192 158 
+199 199 189 149 108 
+201 183 130 100  98 
+
+
+Patch suavizado (Gaussiana sigma=1):
+191 192 194 194 193 
+193 193 193 190 188 
+194 193 187 176 169 
+193 188 173 153 142 
+191 184 163 139 128 
+
+
+Mascara (f - f_suave), componentes de alta frequencia:
+123 124 125 130 129 
+124 130 131 136 132 
+126 131 139 143 116 
+133 138 143 123  93 
+137 126  94  88  97 
+
+
+Patch realcado (USM k=1):
+182 185 189 199 196 
+186 198 200 207 197 
+191 200 210 207 146 
+204 209 204 144  73 
+210 181  96  60  67 
+
+
+Pixel central [1,1]: original=196 suave=193.8 mascara=2.2 realcado=198</code></pre>
+</div>
 </div>
 <p>A <a href="#fig-03-usm" class="quarto-xref">Figura&nbsp;<span>3.17</span></a> aplica o USM à imagem Lena completa com diferentes valores de <span class="math inline">\(k\)</span>, evidenciando a progressão do realce:</p>
 <div id="cell-fig-03-usm" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> usm(img, sigma<span class="op">=</span><span class="fl">1.0</span>, k<span class="op">=</span><span class="fl">1.0</span>):</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    ksize  <span class="op">=</span> <span class="bu">int</span>(<span class="dv">6</span> <span class="op">*</span> sigma <span class="op">+</span> <span class="dv">1</span>) <span class="op">|</span> <span class="dv">1</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    suave  <span class="op">=</span> cv2.GaussianBlur(img.astype(np.float32), (ksize, ksize), sigma)</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.clip(img.astype(np.float32) <span class="op">+</span> k <span class="op">*</span> (img.astype(np.float32) <span class="op">-</span> suave),</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>                   <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>ks     <span class="op">=</span> [<span class="fl">0.5</span>, <span class="fl">1.0</span>, <span class="fl">2.0</span>, <span class="fl">3.0</span>]</span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>imgs   <span class="op">=</span> [img_gray] <span class="op">+</span> [usm(img_gray, sigma<span class="op">=</span><span class="fl">1.0</span>, k<span class="op">=</span>k) <span class="cf">for</span> k <span class="kw">in</span> ks]</span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>titles <span class="op">=</span> [<span class="st">"Original"</span>] <span class="op">+</span> [<span class="ss">f"USM k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> k <span class="kw">in</span> ks]</span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>mm.show(imgs, titles<span class="op">=</span>titles, cols<span class="op">=</span><span class="dv">5</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> usm(img, sigma<span class="op">=</span><span class="fl">1.0</span>, k<span class="op">=</span><span class="fl">1.0</span>):</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    ksize  <span class="op">=</span> <span class="bu">int</span>(<span class="dv">6</span> <span class="op">*</span> sigma <span class="op">+</span> <span class="dv">1</span>) <span class="op">|</span> <span class="dv">1</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    suave  <span class="op">=</span> cv2.GaussianBlur(img.astype(np.float32), (ksize, ksize), sigma)</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.clip(img.astype(np.float32) <span class="op">+</span> k <span class="op">*</span> (img.astype(np.float32) <span class="op">-</span> suave),</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>                   <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>ks     <span class="op">=</span> [<span class="fl">0.5</span>, <span class="fl">1.0</span>, <span class="fl">2.0</span>, <span class="fl">3.0</span>]</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>imgs   <span class="op">=</span> [img_gray] <span class="op">+</span> [usm(img_gray, sigma<span class="op">=</span><span class="fl">1.0</span>, k<span class="op">=</span>k) <span class="cf">for</span> k <span class="kw">in</span> ks]</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>titles <span class="op">=</span> [<span class="st">"Original"</span>] <span class="op">+</span> [<span class="ss">f"USM k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> k <span class="kw">in</span> ks]</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>mm.show(imgs, titles<span class="op">=</span>titles, cols<span class="op">=</span><span class="dv">5</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-usm" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1568,32 +1625,38 @@ Tabela&nbsp;3.4: Média vs.&nbsp;mediana com um pixel corrompido. A mediana igno
 </div>
 <p>O experimento na <a href="#fig-03-ruido" class="quarto-xref">Figura&nbsp;<span>3.18</span></a> ilustra a adição de ruído com diferentes densidades e a degradação progressiva da imagem:</p>
 <div id="98f344f6" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exemplo numérico: média vs. mediana com pixel corrompido</span></span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>vizinhanca <span class="op">=</span> np.array([<span class="dv">102</span>, <span class="dv">98</span>, <span class="dv">105</span>, <span class="dv">100</span>, <span class="dv">255</span>, <span class="dv">97</span>, <span class="dv">103</span>, <span class="dv">99</span>, <span class="dv">101</span>])</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Vizinhança:      </span><span class="sc">{</span><span class="bu">sorted</span>(vizinhanca)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Média:           </span><span class="sc">{</span>vizinhanca<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">  (deslocada pelo outlier 255)"</span>)</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana:         </span><span class="sc">{</span><span class="bu">int</span>(np.median(vizinhanca))<span class="sc">}</span><span class="ss">    (ignora o outlier)"</span>)</span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valor original:  ~100"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exemplo numérico: média vs. mediana com pixel corrompido</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>vizinhanca <span class="op">=</span> np.array([<span class="dv">102</span>, <span class="dv">98</span>, <span class="dv">105</span>, <span class="dv">100</span>, <span class="dv">255</span>, <span class="dv">97</span>, <span class="dv">103</span>, <span class="dv">99</span>, <span class="dv">101</span>])</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Vizinhança:      </span><span class="sc">{</span><span class="bu">sorted</span>(vizinhanca)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Média:           </span><span class="sc">{</span>vizinhanca<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">  (deslocada pelo outlier 255)"</span>)</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana:         </span><span class="sc">{</span><span class="bu">int</span>(np.median(vizinhanca))<span class="sc">}</span><span class="ss">    (ignora o outlier)"</span>)</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valor original:  ~100"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Vizinhança:      [np.int64(97), np.int64(98), np.int64(99), np.int64(100), np.int64(101), np.int64(102), np.int64(103), np.int64(105), np.int64(255)]
+Média:           117.8  (deslocada pelo outlier 255)
+Mediana:         101    (ignora o outlier)
+Valor original:  ~100</code></pre>
+</div>
 </div>
 <div id="cell-fig-03-ruido" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_salt_pepper(img, prob<span class="op">=</span><span class="fl">0.05</span>, seed<span class="op">=</span><span class="dv">42</span>):</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Adiciona ruído sal e pimenta com probabilidade total prob."""</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    noisy <span class="op">=</span> img.copy()</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    rnd   <span class="op">=</span> np.random.default_rng(seed).random(img.shape)</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    noisy[rnd <span class="op">&lt;</span> prob <span class="op">/</span> <span class="dv">2</span>]     <span class="op">=</span> <span class="dv">0</span>    <span class="co"># pimenta</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    noisy[rnd <span class="op">&gt;</span> <span class="dv">1</span> <span class="op">-</span> prob <span class="op">/</span> <span class="dv">2</span>] <span class="op">=</span> <span class="dv">255</span>  <span class="co"># sal</span></span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    n_corrompidos <span class="op">=</span> <span class="bu">int</span>((rnd <span class="op">&lt;</span> prob<span class="op">/</span><span class="dv">2</span>).<span class="bu">sum</span>() <span class="op">+</span> (rnd <span class="op">&gt;</span> <span class="dv">1</span><span class="op">-</span>prob<span class="op">/</span><span class="dv">2</span>).<span class="bu">sum</span>())</span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> noisy, n_corrompidos</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> [<span class="fl">0.02</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>]</span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>imgs_noise, titles_noise <span class="op">=</span> [img_gray], [<span class="st">"Original"</span>]</span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> p <span class="kw">in</span> probs:</span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>    noisy, n <span class="op">=</span> add_salt_pepper(img_gray, p)</span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>    imgs_noise.append(noisy)</span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>    titles_noise.append(<span class="ss">f"Ruído </span><span class="sc">{</span><span class="bu">int</span>(p<span class="op">*</span><span class="dv">100</span>)<span class="sc">}</span><span class="ss">%</span><span class="ch">\n</span><span class="ss">(</span><span class="sc">{</span>n<span class="sc">:,}</span><span class="ss"> pixels)"</span>)</span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_noise, titles<span class="op">=</span>titles_noise, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_salt_pepper(img, prob<span class="op">=</span><span class="fl">0.05</span>, seed<span class="op">=</span><span class="dv">42</span>):</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Adiciona ruído sal e pimenta com probabilidade total prob."""</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    noisy <span class="op">=</span> img.copy()</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    rnd   <span class="op">=</span> np.random.default_rng(seed).random(img.shape)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    noisy[rnd <span class="op">&lt;</span> prob <span class="op">/</span> <span class="dv">2</span>]     <span class="op">=</span> <span class="dv">0</span>    <span class="co"># pimenta</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    noisy[rnd <span class="op">&gt;</span> <span class="dv">1</span> <span class="op">-</span> prob <span class="op">/</span> <span class="dv">2</span>] <span class="op">=</span> <span class="dv">255</span>  <span class="co"># sal</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    n_corrompidos <span class="op">=</span> <span class="bu">int</span>((rnd <span class="op">&lt;</span> prob<span class="op">/</span><span class="dv">2</span>).<span class="bu">sum</span>() <span class="op">+</span> (rnd <span class="op">&gt;</span> <span class="dv">1</span><span class="op">-</span>prob<span class="op">/</span><span class="dv">2</span>).<span class="bu">sum</span>())</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> noisy, n_corrompidos</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> [<span class="fl">0.02</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>]</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>imgs_noise, titles_noise <span class="op">=</span> [img_gray], [<span class="st">"Original"</span>]</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> p <span class="kw">in</span> probs:</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>    noisy, n <span class="op">=</span> add_salt_pepper(img_gray, p)</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>    imgs_noise.append(noisy)</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    titles_noise.append(<span class="ss">f"Ruído </span><span class="sc">{</span><span class="bu">int</span>(p<span class="op">*</span><span class="dv">100</span>)<span class="sc">}</span><span class="ss">%</span><span class="ch">\n</span><span class="ss">(</span><span class="sc">{</span>n<span class="sc">:,}</span><span class="ss"> pixels)"</span>)</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_noise, titles<span class="op">=</span>titles_noise, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-ruido" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1617,23 +1680,47 @@ g(x,y) = \text{med}_{(s,t) \in \mathcal{V}_{n}} \{f(x+s, y+t)\}
 <p>O valor mediano é aquele que ocupa a posição central quando os <span class="math inline">\(n^2\)</span> valores da vizinhança são ordenados. Para uma janela <span class="math inline">\(3\times3\)</span> (<span class="math inline">\(n^2=9\)</span> pixels), a mediana é o 5º valor da sequência ordenada.</p>
 <p>Para ilustrar, considere o mesmo patch 5×5 com um pixel corrompido artificialmente em <span class="math inline">\([1,1]\)</span>:</p>
 <div id="9a653f32" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>patch    <span class="op">=</span> img_gray[<span class="dv">250</span>:<span class="dv">255</span>, <span class="dv">250</span>:<span class="dv">255</span>].copy()</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>corrompido <span class="op">=</span> patch.copy()</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>corrompido[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">=</span> <span class="dv">255</span>   <span class="co"># injeta pixel sal no centro</span></span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Vizinhança 3×3 centrada em [1,1]</span></span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>viz_orig <span class="op">=</span> <span class="bu">sorted</span>(patch[<span class="dv">0</span>:<span class="dv">3</span>, <span class="dv">0</span>:<span class="dv">3</span>].ravel().tolist())</span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>viz_corr <span class="op">=</span> <span class="bu">sorted</span>(corrompido[<span class="dv">0</span>:<span class="dv">3</span>, <span class="dv">0</span>:<span class="dv">3</span>].ravel().tolist())</span>
-<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch original:"</span>)</span>
-<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
-<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch com pixel corrompido [1,1]=255:"</span>)</span>
-<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(corrompido))</span>
-<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Vizinhança 3×3 original (ordenada):   </span><span class="sc">{</span>viz_orig<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana original:                       </span><span class="sc">{</span>viz_orig[<span class="dv">4</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Vizinhança 3×3 corrompida (ordenada): </span><span class="sc">{</span>viz_corr<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana corrompida:                     </span><span class="sc">{</span>viz_corr[<span class="dv">4</span>]<span class="sc">}</span><span class="ss">  ← ignora o 255"</span>)</span>
-<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Média  corrompida:                      </span><span class="sc">{</span>np<span class="sc">.</span>mean(viz_corr)<span class="sc">:.1f}</span><span class="ss">  ← distorcida pelo 255"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>patch    <span class="op">=</span> img_gray[<span class="dv">250</span>:<span class="dv">255</span>, <span class="dv">250</span>:<span class="dv">255</span>].copy()</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>corrompido <span class="op">=</span> patch.copy()</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>corrompido[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">=</span> <span class="dv">255</span>   <span class="co"># injeta pixel sal no centro</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Vizinhança 3×3 centrada em [1,1]</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>viz_orig <span class="op">=</span> <span class="bu">sorted</span>(patch[<span class="dv">0</span>:<span class="dv">3</span>, <span class="dv">0</span>:<span class="dv">3</span>].ravel().tolist())</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>viz_corr <span class="op">=</span> <span class="bu">sorted</span>(corrompido[<span class="dv">0</span>:<span class="dv">3</span>, <span class="dv">0</span>:<span class="dv">3</span>].ravel().tolist())</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Patch original:"</span>)</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(patch))</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Patch com pixel corrompido [1,1]=255:"</span>)</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(corrompido))</span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Vizinhança 3×3 original (ordenada):   </span><span class="sc">{</span>viz_orig<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana original:                       </span><span class="sc">{</span>viz_orig[<span class="dv">4</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Vizinhança 3×3 corrompida (ordenada): </span><span class="sc">{</span>viz_corr<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mediana corrompida:                     </span><span class="sc">{</span>viz_corr[<span class="dv">4</span>]<span class="sc">}</span><span class="ss">  ← ignora o 255"</span>)</span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Média  corrompida:                      </span><span class="sc">{</span>np<span class="sc">.</span>mean(viz_corr)<span class="sc">:.1f}</span><span class="ss">  ← distorcida pelo 255"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Patch original:
+187 189 192 197 195 
+190 196 197 199 193 
+193 197 199 192 158 
+199 199 189 149 108 
+201 183 130 100  98 
+
+
+Patch com pixel corrompido [1,1]=255:
+187 189 192 197 195 
+190 255 197 199 193 
+193 197 199 192 158 
+199 199 189 149 108 
+201 183 130 100  98 
+
+
+Vizinhança 3×3 original (ordenada):   [187, 189, 190, 192, 193, 196, 197, 197, 199]
+Mediana original:                       193
+
+Vizinhança 3×3 corrompida (ordenada): [187, 189, 190, 192, 193, 197, 197, 199, 255]
+Mediana corrompida:                     193  ← ignora o 255
+Média  corrompida:                      199.9  ← distorcida pelo 255</code></pre>
+</div>
 </div>
 <p>O exemplo confirma: mesmo com o pixel corrompido a 255, a mediana retorna o valor central correto — o outlier ocupa a última posição na ordenação e é descartado naturalmente.</p>
 <p>Por ser baseada em ordenação e não em soma, a mediana possui três propriedades fundamentais que a diferenciam dos filtros lineares:</p>
@@ -1644,24 +1731,24 @@ g(x,y) = \text{med}_{(s,t) \in \mathcal{V}_{n}} \{f(x+s, y+t)\}
 </ul>
 <p>A <a href="#fig-03-mediana" class="quarto-xref">Figura&nbsp;<span>3.19</span></a> compara média e mediana aplicadas à imagem Lena com 5% de ruído sal e pimenta:</p>
 <div id="cell-fig-03-mediana" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>img_noise, _ <span class="op">=</span> add_salt_pepper(img_gray, prob<span class="op">=</span><span class="fl">0.05</span>)</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>w3          <span class="op">=</span> np.ones((<span class="dv">3</span>,<span class="dv">3</span>), dtype<span class="op">=</span>np.float32) <span class="op">/</span> <span class="fl">9.0</span></span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>img_media   <span class="op">=</span> mm.conv(img_noise, w3)</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>img_med3    <span class="op">=</span> cv2.medianBlur(img_noise, <span class="dv">3</span>)</span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>img_med5    <span class="op">=</span> cv2.medianBlur(img_noise, <span class="dv">5</span>)</span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Detalhe para evidenciar preservação de bordas</span></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>y0, y1, x0, x1 <span class="op">=</span> <span class="dv">200</span>, <span class="dv">350</span>, <span class="dv">150</span>, <span class="dv">350</span></span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> <span class="kw">lambda</span> img: img[y0:y1, x0:x1]</span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    [img_gray,        img_noise,        img_media,        img_med3,        img_med5,</span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>     crop(img_gray),  crop(img_noise),  crop(img_media),  crop(img_med3),  crop(img_med5)],</span>
-<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>,        <span class="st">"Ruído 5%"</span>,        <span class="st">"Média 3×3"</span>,        <span class="st">"Mediana 3×3"</span>,        <span class="st">"Mediana 5×5"</span>,</span>
-<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Detalhe: Orig."</span>,  <span class="st">"Detalhe: Ruído"</span>,  <span class="st">"Detalhe: Média"</span>,   <span class="st">"Detalhe: Med. 3×3"</span>,  <span class="st">"Detalhe: Med. 5×5"</span>],</span>
-<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    rows<span class="op">=</span><span class="dv">2</span>, cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">8</span>)</span>
-<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>img_noise, _ <span class="op">=</span> add_salt_pepper(img_gray, prob<span class="op">=</span><span class="fl">0.05</span>)</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>w3          <span class="op">=</span> np.ones((<span class="dv">3</span>,<span class="dv">3</span>), dtype<span class="op">=</span>np.float32) <span class="op">/</span> <span class="fl">9.0</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>img_media   <span class="op">=</span> mm.conv(img_noise, w3)</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>img_med3    <span class="op">=</span> cv2.medianBlur(img_noise, <span class="dv">3</span>)</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>img_med5    <span class="op">=</span> cv2.medianBlur(img_noise, <span class="dv">5</span>)</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Detalhe para evidenciar preservação de bordas</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>y0, y1, x0, x1 <span class="op">=</span> <span class="dv">200</span>, <span class="dv">350</span>, <span class="dv">150</span>, <span class="dv">350</span></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> <span class="kw">lambda</span> img: img[y0:y1, x0:x1]</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>    [img_gray,        img_noise,        img_media,        img_med3,        img_med5,</span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>     crop(img_gray),  crop(img_noise),  crop(img_media),  crop(img_med3),  crop(img_med5)],</span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>,        <span class="st">"Ruído 5%"</span>,        <span class="st">"Média 3×3"</span>,        <span class="st">"Mediana 3×3"</span>,        <span class="st">"Mediana 5×5"</span>,</span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Detalhe: Orig."</span>,  <span class="st">"Detalhe: Ruído"</span>,  <span class="st">"Detalhe: Média"</span>,   <span class="st">"Detalhe: Med. 3×3"</span>,  <span class="st">"Detalhe: Med. 5×5"</span>],</span>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>    rows<span class="op">=</span><span class="dv">2</span>, cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">8</span>)</span>
+<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-mediana" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1698,53 +1785,64 @@ Figura&nbsp;3.19: Remoção de ruído sal e pimenta (5%): filtro de média 3×3 
 <p>A ordem das operações afeta o resultado final. Em geral: <strong>(1) normalização de intensidade → (2) redução de ruído → (3) realce/segmentação</strong>. Inverter a ordem pode amplificar ruído ou perder bordas antes de detectá-las.</p>
 </div>
 </div>
-<div id="fig-03-pipeline" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<div id="cell-fig-03-pipeline" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 1: CLAHE</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>clahe <span class="op">=</span> cv2.createCLAHE(clipLimit<span class="op">=</span><span class="fl">2.0</span>, tileGridSize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>img_clahe <span class="op">=</span> clahe.<span class="bu">apply</span>(img_gray)</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 2: Gaussiano</span></span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>img_gauss <span class="op">=</span> cv2.GaussianBlur(img_clahe, (<span class="dv">5</span>, <span class="dv">5</span>), <span class="dv">0</span>)</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 3: Canny</span></span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> cv2.Canny(img_gauss, <span class="dv">50</span>, <span class="dv">150</span>)</span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Comparação: pipeline vs. Canny direto</span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>edges_direct <span class="op">=</span> cv2.Canny(img_gray, <span class="dv">50</span>, <span class="dv">150</span>)</span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_clahe, img_gauss, edges, edges_direct],</span>
+<span id="cb38-16"><a href="#cb38-16" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"1. CLAHE"</span>, <span class="st">"2. Gaussiano"</span>, <span class="st">"3. Canny (pipeline)"</span>, <span class="st">"Canny (direto)"</span>],</span>
+<span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span></span>
+<span id="cb38-18"><a href="#cb38-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-03-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-03-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 1: CLAHE</span></span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>clahe <span class="op">=</span> cv2.createCLAHE(clipLimit<span class="op">=</span><span class="fl">2.0</span>, tileGridSize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>img_clahe <span class="op">=</span> clahe.<span class="bu">apply</span>(img_gray)</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 2: Gaussiano</span></span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>img_gauss <span class="op">=</span> cv2.GaussianBlur(img_clahe, (<span class="dv">5</span>, <span class="dv">5</span>), <span class="dv">0</span>)</span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Etapa 3: Canny</span></span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> cv2.Canny(img_gauss, <span class="dv">50</span>, <span class="dv">150</span>)</span>
-<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Comparação: pipeline vs. Canny direto</span></span>
-<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>edges_direct <span class="op">=</span> cv2.Canny(img_gray, <span class="dv">50</span>, <span class="dv">150</span>)</span>
-<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_clahe, img_gauss, edges, edges_direct],</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"1. CLAHE"</span>, <span class="st">"2. Gaussiano"</span>, <span class="st">"3. Canny (pipeline)"</span>, <span class="st">"Canny (direto)"</span>],</span>
-<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span></span>
-<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<img src="cap03.py.pt_files/figure-html/fig-03-pipeline-output-1.png" class="img-fluid figure-img">
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-03-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;3.20
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;3.20: Pipeline de pré-processamento: CLAHE → Gaussiano → Canny. Cada etapa prepara a imagem para a seguinte, resultando em bordas limpas e bem definidas.
 </figcaption>
 </figure>
+</div>
+</div>
 </div>
 </section>
 <section id="resumo" class="level2" data-number="3.9">
 <h2 data-number="3.9" class="anchored" data-anchor-id="resumo"><span class="header-section-number">3.9</span> Resumo</h2>
-<p>Neste capítulo foram apresentadas as principais técnicas de processamento no domínio espacial:</p>
+<p>Neste capítulo foram apresentadas as principais técnicas de processamento no domínio espacial, da manipulação direta de pixels até a filtragem por vizinhança:</p>
 <ul>
-<li><strong>Operações de ponto:</strong> transformações aritméticas (adição, subtração, blending) e lógicas (AND, OR, NOT) para manipulação direta de pixels.</li>
-<li><strong>Histograma:</strong> ferramenta diagnóstica que descreve a distribuição de intensidades; base para equalização global e CLAHE (adaptativa).</li>
-<li><strong>Especificação de histograma:</strong> transferência do perfil tonal de uma distribuição alvo usando o mapeamento pela CDF.</li>
-<li><strong>Convolução e correlação:</strong> mecanismo de janela deslizante que implementa filtros lineares; diferenciados pela rotação do <em>kernel</em>.</li>
-<li><strong>Filtros de suavização:</strong> média (uniforme) e Gaussiano (ponderado); o Gaussiano preserva melhor as bordas.</li>
-<li><strong>Filtros de realce:</strong> Laplaciano (segunda derivada), Sobel (gradiente direcional) e <em>Unsharp Masking</em> (amplificação de alta frequência).</li>
-<li><strong>Filtro da mediana:</strong> estimador robusto, não linear, eficiente contra ruído sal e pimenta com preservação de bordas.</li>
-<li><strong>Pipeline prático:</strong> encadeamento de técnicas (CLAHE → Gaussiano → Canny) como estratégia de pré-processamento para aplicações reais.</li>
+<li><strong>Operações de ponto:</strong> aritméticas saturadas (<code>mm.addm</code>, <code>mm.subm</code>) e lógicas bit a bit (<code>mm.band</code>, <code>mm.bor</code>, <code>mm.bnot</code>) para recorte de ROI e combinação de imagens; <em>alpha blending</em> (<code>mm.blend</code>) para fusão ponderada com peso <span class="math inline">\(\alpha \in [0,1]\)</span>.</li>
+<li><strong>Histograma:</strong> função discreta de distribuição de intensidades; visualizado com <code>mm.histImg</code> e calculado com <code>mm.hist</code>; base para diagnóstico tonal e para as técnicas de equalização e especificação.</li>
+<li><strong>Equalização:</strong> redistribuição automática das intensidades pela CDF (<code>mm.equalize</code>), com variante adaptativa CLAHE para controle local do contraste.</li>
+<li><strong>Especificação de histograma:</strong> transferência do perfil tonal de uma imagem de referência via mapeamento inverso da CDF — generalização da equalização para distribuições arbitrárias.</li>
+<li><strong>Correlação e convolução:</strong> mecanismo de janela deslizante implementado em <code>mm.conv</code> (<code>cv2.filter2D</code>); diferenciados pela rotação de 180° do kernel — relevante apenas para kernels assimétricos.</li>
+<li><strong>Filtros de suavização:</strong> média (kernel uniforme, borra bordas proporcionalmente ao tamanho) e Gaussiano (ponderação radial, separável, sem <em>ringing</em>, preserva melhor as bordas).</li>
+<li><strong>Filtros de realce:</strong> Laplaciano (<span class="math inline">\(w_4\)</span>/<span class="math inline">\(w_8\)</span>, segunda derivada isotrópica), Sobel (gradiente direcional de primeira ordem, com magnitude <span class="math inline">\(|\nabla f|\)</span> e direção <span class="math inline">\(\theta\)</span>) e <em>Unsharp Masking</em> (amplificação das altas frequências com parâmetro <span class="math inline">\(k\)</span>).</li>
+<li><strong>Filtro da mediana:</strong> não linear, robusto a outliers, preserva bordas — superior aos filtros lineares para ruído sal e pimenta.</li>
+<li><strong>Pipeline prático:</strong> encadeamento CLAHE → Gaussiano → Canny como estratégia de pré-processamento; <code>mm.drawImageKernel</code> para visualização didática da janela deslizante.</li>
 </ul>
-<p>O Capítulo 4 abordará o <strong>processamento no domínio da frequência</strong> (Transformada de Fourier) e a <strong>morfologia matemática</strong> (erosão, dilatação, abertura, fechamento).</p>
+<p>O Capítulo 4 abordará o <strong>processamento no domínio da frequência</strong> (Transformada de Fourier) e a <strong>morfologia matemática</strong> (erosão, dilatação, abertura, fechamento) — onde as funções <code>mm.ero</code> e <code>mm.dil</code> da biblioteca <code>morph.py</code> serão exploradas em profundidade.</p>
 </section>
 <section id="uso-do-notebooklm-como-tutor-complementar" class="level2" data-number="3.10">
 <h2 data-number="3.10" class="anchored" data-anchor-id="uso-do-notebooklm-como-tutor-complementar"><span class="header-section-number">3.10</span> 🤖 Uso do NotebookLM como Tutor Complementar</h2>
-<p>Nesta edição, incentivamos o uso do <strong>NotebookLM</strong> como ferramenta complementar de aprendizagem. Essa ferramenta de IA utiliza exclusivamente os documentos fornecidos pelo autor como base de conhecimento, garantindo respostas coerentes com o conteúdo do livro.</p>
-<p>Para cada capítulo, preparamos um projeto específico na plataforma. Para uma experiência de estudo ampliada, utilize o acesso abaixo:</p>
+<p>Nesta edição, incentivamos o uso do <strong>NotebookLM</strong> como ferramenta complementar de aprendizagem. Essa ferramenta de IA utiliza exclusivamente os documentos fornecidos pelo autor como base de conhecimento, garantindo respostas coerentes com o conteúdo do livro — incluindo as funções da biblioteca <code>morph.py</code> e os experimentos realizados neste capítulo.</p>
+<p>Para cada capítulo, preparamos um projeto específico na plataforma com o PDF do capítulo, os notebooks e materiais auxiliares. Sugerimos explorar especialmente:</p>
+<ul>
+<li><strong>Guia de Estudo:</strong> resumo estruturado dos conceitos, ideal para revisão antes de provas;</li>
+<li><strong>Conversa:</strong> tire dúvidas sobre equalização, convolução, filtros e pipelines diretamente com o tutor;</li>
+<li><strong>Perguntas frequentes:</strong> questões típicas sobre a diferença entre média e mediana, USM, Laplaciano vs.&nbsp;Sobel.</li>
+</ul>
 <div class="callout callout-style-default callout-important no-icon callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -1763,13 +1861,13 @@ Figura&nbsp;3.20
 <section id="lista-de-exercícios" class="level2" data-number="3.11">
 <h2 data-number="3.11" class="anchored" data-anchor-id="lista-de-exercícios"><span class="header-section-number">3.11</span> Lista de Exercícios</h2>
 <ol type="1">
-<li><p><strong>(10%)</strong> Explique a diferença entre <strong>convolução</strong> e <strong>correlação cruzada</strong>. Para quais tipos de <em>kernel</em> os resultados são idênticos? Dê um exemplo de <em>kernel</em> onde as operações diferem.</p></li>
-<li><p><strong>(15%)</strong> Considere uma imagem com histograma fortemente concentrado entre os níveis 50 e 150. Descreva matematicamente o mapeamento que a equalização de histograma aplicaria. Calcule os novos níveis para <span class="math inline">\(r = 50\)</span>, <span class="math inline">\(r = 100\)</span> e <span class="math inline">\(r = 150\)</span>, assumindo que os pixels estão uniformemente distribuídos nesse intervalo.</p></li>
-<li><p><strong>(15%)</strong> Usando o código do laboratório, aplique o filtro de média com kernels de tamanho 3×3, 9×9 e 21×21. Compare quantitativamente os resultados calculando o <strong>PSNR</strong> (<em>Peak Signal-to-Noise Ratio</em>) entre a imagem original e cada versão filtrada. O que a queda do PSNR indica?</p></li>
-<li><p><strong>(15%)</strong> Adicione ruído sal e pimenta com densidade de 5% e aplique: (a) filtro de média 3×3, (b) filtro Gaussiano <span class="math inline">\(\sigma=1\)</span>, (c) mediana 3×3 e (d) mediana 5×5. Compare visualmente e explique por que a mediana supera os filtros lineares nesse cenário.</p></li>
-<li><p><strong>(15%)</strong> Implemente manualmente (sem <code>cv2.filter2D</code>) a correlação cruzada de um <em>kernel</em> de média 3×3 em uma imagem de escala de cinza utilizando apenas operações NumPy vetorizadas (sem laços Python). Compare o resultado e o tempo de execução com a versão <code>cv2.filter2D</code>.</p></li>
-<li><p><strong>(15%)</strong> Aplique o <em>Unsharp Masking</em> com <span class="math inline">\(\sigma = 1\)</span> e <span class="math inline">\(k = \{0.5, 1.0, 2.0, 4.0\}\)</span>. Para cada valor, calcule a diferença absoluta em relação à imagem original e exiba os histogramas dessas diferenças. O que acontece com os artefatos quando <span class="math inline">\(k\)</span> é muito alto?</p></li>
-<li><p><strong>(15%)</strong> Projete um pipeline de pré-processamento para uma imagem médica (raio-X, por exemplo) com objetivo de realçar estruturas internas. Justifique cada etapa escolhida com base nos conceitos do capítulo e demonstre o resultado.</p></li>
+<li><p><strong>(10%)</strong> Explique a diferença entre <strong>convolução</strong> e <strong>correlação cruzada</strong>. Para quais tipos de <em>kernel</em> os resultados são idênticos? Dê um exemplo de <em>kernel</em> assimétrico (como Sobel <span class="math inline">\(G_x\)</span>) e mostre numericamente que os resultados diferem aplicando-o ao patch 5×5 do capítulo das duas formas.</p></li>
+<li><p><strong>(15%)</strong> Considere uma imagem 5×5 com intensidades concentradas entre os níveis 3 e 5 (baixo contraste, 3 bits). Aplique manualmente o algoritmo de equalização da <a href="#tbl-03-equalizacao" class="quarto-xref">Tabela&nbsp;<span>3.1</span></a>, preenchendo todas as colunas da tabela (<span class="math inline">\(k\)</span>, <span class="math inline">\(h[k]\)</span>, <span class="math inline">\(p[k]\)</span>, <span class="math inline">\(\text{cdf}[k]\)</span>, <span class="math inline">\(\text{lut}[k]\)</span>). Verifique o resultado com <code>mm.equalize</code> e compare com a <span class="quarto-unresolved-ref">?tbl-03-lut</span> do capítulo.</p></li>
+<li><p><strong>(15%)</strong> Usando <code>mm.conv</code>, aplique o filtro de média com kernels de tamanho 3×3, 9×9 e 21×21 à imagem Lena. Para cada versão, calcule o <strong>PSNR</strong> (<em>Peak Signal-to-Noise Ratio</em>) em relação à original: <span class="math display">\[\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right), \quad \text{MSE} = \frac{1}{MN}\sum_{i,j}(f-g)^2\]</span> Plote o PSNR em função do tamanho do kernel e explique o que a queda progressiva indica sobre a relação entre suavização e perda de informação.</p></li>
+<li><p><strong>(15%)</strong> Usando <code>add_salt_pepper</code> com densidade de 5%, aplique e compare: (a) <code>mm.conv</code> com média 3×3, (b) <code>cv2.GaussianBlur</code> com <span class="math inline">\(\sigma=1\)</span>, (c) <code>cv2.medianBlur</code> com janela 3×3 e (d) <code>cv2.medianBlur</code> com janela 5×5. Exiba as imagens com <code>mm.show</code> em grade 2×4 (linha 1: imagens, linha 2: histogramas via <code>mm.histImg</code>). Explique por que a mediana supera os filtros lineares usando o argumento da <a href="#tbl-03-mediana" class="quarto-xref">Tabela&nbsp;<span>3.4</span></a>.</p></li>
+<li><p><strong>(15%)</strong> Implemente <code>mm.conv0</code> usando apenas operações NumPy vetorizadas — sem laços Python e sem <code>cv2.filter2D</code> — com o operador de <em>stride tricks</em> (<code>np.lib.stride_tricks.sliding_window_view</code>). Compare o resultado e o tempo de execução com <code>mm.conv0</code> (laços) e <code>mm.conv</code> (cv2) para kernels 3×3 e 15×15 na imagem Lena.</p></li>
+<li><p><strong>(15%)</strong> Aplique o <em>Unsharp Masking</em> com <span class="math inline">\(\sigma=1\)</span> e <span class="math inline">\(k \in \{0.5, 1.0, 2.0, 4.0\}\)</span> usando a função <code>usm</code> do capítulo. Para cada valor de <span class="math inline">\(k\)</span>: (a) calcule a diferença absoluta <span class="math inline">\(|g - f|\)</span>, (b) exiba as imagens e as diferenças com <code>mm.show</code>, e (c) plote o histograma das diferenças com <code>mm.histImg</code>. Identifique a partir de qual <span class="math inline">\(k\)</span> os artefatos (halos e amplificação de ruído) tornam-se visualmente inaceitáveis.</p></li>
+<li><p><strong>(15%)</strong> Escolha uma imagem de raio-X ou tomografia disponível publicamente (ex.: via <code>mm.read</code> de URL) e projete um pipeline de pré-processamento com pelo menos 4 etapas sequenciais, justificando cada escolha com base nos conceitos do capítulo. Exiba com <code>mm.show</code> em grade: imagem original, cada etapa intermediária e o resultado final com seus histogramas (<code>mm.histImg</code>).</p></li>
 </ol>
 </section>
 <section id="referências-do-capítulo" class="level2 unnumbered">
@@ -1792,21 +1890,21 @@ Figura&nbsp;3.20
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
-<div id="59db3428" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="71c118a7" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>✅ Ambiente pronto. Morph: 1.1.0 | TestSuite: 1.1.0</code></pre>
 </div>
@@ -2069,44 +2167,44 @@ Figura&nbsp;3.21: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 </figure>
 </div>
 </div>
-<div id="9d6a4367" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>x1,y1,x2,y2 <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>())</span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo das diferenças</span></span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>dx <span class="op">=</span> <span class="bu">abs</span>(x2 <span class="op">-</span> x1)</span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>dy <span class="op">=</span> <span class="bu">abs</span>(y2 <span class="op">-</span> y1)</span>
-<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Distância Euclidiana (L2)</span></span>
-<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>dist_euclidiana <span class="op">=</span> (dx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> dy<span class="op">**</span><span class="dv">2</span>)<span class="op">**</span><span class="fl">0.5</span></span>
-<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Distância City-block / Manhattan (L1)</span></span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>dist_city_block <span class="op">=</span> dx <span class="op">+</span> dy</span>
-<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Distância Chessboard / Chebyshev (Linf)</span></span>
-<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>dist_chessboard <span class="op">=</span> <span class="bu">max</span>(dx, dy)</span>
-<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Saída formatada conforme os casos de teste</span></span>
-<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_euclidiana<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_city_block<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_chessboard<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="e0a6130f" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>x1,y1,x2,y2 <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>())</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo das diferenças</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>dx <span class="op">=</span> <span class="bu">abs</span>(x2 <span class="op">-</span> x1)</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>dy <span class="op">=</span> <span class="bu">abs</span>(y2 <span class="op">-</span> y1)</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Distância Euclidiana (L2)</span></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>dist_euclidiana <span class="op">=</span> (dx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> dy<span class="op">**</span><span class="dv">2</span>)<span class="op">**</span><span class="fl">0.5</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Distância City-block / Manhattan (L1)</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>dist_city_block <span class="op">=</span> dx <span class="op">+</span> dy</span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Distância Chessboard / Chebyshev (Linf)</span></span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>dist_chessboard <span class="op">=</span> <span class="bu">max</span>(dx, dy)</span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Saída formatada conforme os casos de teste</span></span>
+<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_euclidiana<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_city_block<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_chessboard<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_01.py</code></pre>
 </div>
 </div>
-<div id="5d52cc6c" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(linewidth<span class="op">=</span><span class="dv">100</span>, edgeitems<span class="op">=</span><span class="dv">3</span>, threshold<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="06f1bdba" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(linewidth<span class="op">=</span><span class="dv">100</span>, edgeitems<span class="op">=</span><span class="dv">3</span>, threshold<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="8adf63f8" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Substitui emoji Unicode literal ✅ por comando"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="fa22ae15" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Substitui emoji Unicode literal ✅ por comando"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Substitui emoji Unicode literal ✅ por comando</code></pre>
 </div>
 </div>
-<div id="1ffad5f7" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.zeros((<span class="dv">5</span>, <span class="dv">5</span>))))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="d22cc69f" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.zeros((<span class="dv">5</span>, <span class="dv">5</span>))))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  0   0   0   0   0 
   0   0   0   0   0 
@@ -2116,8 +2214,8 @@ Figura&nbsp;3.21: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 </code></pre>
 </div>
 </div>
-<div id="da1142fd" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="87486c73" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases já existe em casos/
 📋 8 caso(s) carregado(s) de casos/EP02_01.cases
@@ -2225,9 +2323,9 @@ Figura&nbsp;3.21: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 📊 Resultado: 0/8 (0.0%)</pre>
 </div>
 </div>
-<div id="905d979a" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, HTML</span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>display(HTML(<span class="st">"&lt;h1&gt;oi&lt;/h1&gt;"</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="e1a18279" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, HTML</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>display(HTML(<span class="st">"&lt;h1&gt;oi&lt;/h1&gt;"</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <h1>oi</h1>
 </div>
