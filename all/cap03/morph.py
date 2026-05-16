@@ -192,12 +192,13 @@ class mm:
         M = cv2.getPerspectiveTransform(pts1, pts2)
         dst = cv2.warpPerspective(img, M, size)
         return dst
-    
+
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3, figsize=None):
+    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None):
         """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
             Modo simples:   mm.show(f1, f2, title='Exemplo')
             Modo múltiplo:  mm.show([f1, f2, f3], titles=['t1','t2','t3'], cols=3)
+                            mm.show([f1, f2, f3], titles=['t1','t2','t3'], rows=1)
         """
         import matplotlib.pyplot as plt
         colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],
@@ -205,15 +206,22 @@ class mm:
         if isinstance(args[0], list):  # modo múltiplo
             images = args[0]
             ts = titles or (title if isinstance(title, list) else [None]*len(images))
-            rows = (len(images) + cols - 1) // cols
+            n = len(images)
+            if rows and not cols:
+                cols = (n + rows - 1) // rows
+            elif cols and not rows:
+                rows = (n + cols - 1) // cols
+            else:                      # ambos omitidos ou ambos fornecidos
+                cols = cols or 3
+                rows = rows or (n + cols - 1) // cols
             size = figsize or (5*cols, 5*rows)
             _, axes = plt.subplots(rows, cols, figsize=size)
-            axes = axes.reshape(rows, -1)
+            axes = np.array(axes).reshape(rows, cols)
             for i, (img, t) in enumerate(zip(images, ts)):
                 r, c = divmod(i, cols)
-                axes[r,c].imshow(img, cmap=None if img.ndim==3 else 'gray')
-                if t: axes[r,c].set_title(t)
-            [axes[*divmod(i,cols)].axis('off') for i in range(len(images), rows*cols)]
+                axes[r, c].imshow(img, cmap=None if img.ndim == 3 else 'gray')
+                if t: axes[r, c].set_title(t)
+            [axes[*divmod(i, cols)].axis('off') for i in range(n, rows*cols)]
             plt.tight_layout()
         else:                          # modo simples
             f = args[0].copy()
@@ -334,6 +342,24 @@ class mm:
             H[cor] += 1
             vet.setdefault(str(cor), []).append(i)
         return H, vet
+    
+    @staticmethod
+    def histImg(img, color="steelblue"):
+        """Renderiza o histograma de img como array NumPy (para uso em mm.show)."""
+        import io
+        import matplotlib.pyplot as plt
+        H = mm.hist(img)
+        fig, ax = plt.subplots(figsize=(4, 3))
+        ax.bar(range(len(H)), H, color=color, edgecolor="none", width=1)
+        ax.set_xlim(0, 255)
+        ax.set_xlabel("Intensidade")
+        ax.set_ylabel("Frequência")
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=100)
+        plt.close(fig)
+        buf.seek(0)
+        return np.array(plt.imread(buf))
 
     @staticmethod
     def equalizacao(image):
