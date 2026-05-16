@@ -34,8 +34,6 @@ class mm:
         for p in packages:
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
-
-
     def read(file, info=False):
         """
         Lê imagem de arquivo local ou URL.
@@ -43,57 +41,24 @@ class mm:
         info=True: retorna objeto PIL.Image (preserva EXIF).
         """
         import re, requests
+        import numpy as np  # Certifique-se de que o numpy está importado se usar fora do módulo
         from PIL import Image
         from io import BytesIO
 
         # Trata URL do Google Drive ou comum
-        import re
-        import time
-        import requests
-        from io import BytesIO
-
-        session = requests.Session()
-
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://commons.wikimedia.org/"
-        }
-
-        # Trata URL do Google Drive ou comum
-        if file.startswith(("http://", "https://", "id=")):
-
-            m = (
-                re.search(r"id=([a-zA-Z0-9_-]+)", file)
-                or re.search(r"/d/([a-zA-Z0-9_-]+)", file)
-            )
-
-            url = (
-                f"https://drive.google.com/uc?export=view&id={m.group(1)}"
-                if m and ("id=" in file or "drive.google.com" in file)
-                else file
-            )
-
-            # Retry simples
-            for tentativa in range(3):
-
-                r = session.get(
-                    url,
-                    headers=headers,
-                    timeout=20,
-                    stream=True
-                )
-
-                if r.status_code == 429:
-                    time.sleep(2 * (tentativa + 1))
-                    continue
-
-                r.raise_for_status()
-                source = BytesIO(r.content)
-                break
-
-            else:
-                raise RuntimeError(f"Falha ao baixar imagem: {url}")
-
+        if file.startswith(('http://', 'https://', 'id=')):
+            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or re.search(r'/d/([a-zA-Z0-9_-]+)', file)
+            url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
+                if m and ('id=' in file or 'drive.google.com' in file) else file
+            
+            # DEFINA UM USER-AGENT IDENTIFICÁVEL PARA O WIKIMEDIA
+            headers = {
+                "User-Agent": "MeuLivroQuartoBot/1.0 (contato@seu-email.com; ferramenta de fins didáticos)"
+            }
+            
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            source = BytesIO(r.content)
         else:
             source = file
 

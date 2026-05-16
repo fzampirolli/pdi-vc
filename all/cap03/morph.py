@@ -35,7 +35,7 @@ class mm:
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
 
-
+    @staticmethod
     def read(file, info=False):
         """
         Lê imagem de arquivo local ou URL.
@@ -43,6 +43,7 @@ class mm:
         info=True: retorna objeto PIL.Image (preserva EXIF).
         """
         import re, requests
+        import numpy as np  # Certifique-se de que o numpy está importado se usar fora do módulo
         from PIL import Image
         from io import BytesIO
 
@@ -51,7 +52,13 @@ class mm:
             m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or re.search(r'/d/([a-zA-Z0-9_-]+)', file)
             url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
                 if m and ('id=' in file or 'drive.google.com' in file) else file
-            r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+            
+            # DEFINA UM USER-AGENT IDENTIFICÁVEL PARA O WIKIMEDIA
+            headers = {
+                "User-Agent": "MeuLivroQuartoBot/1.0 (contato@seu-email.com; ferramenta de fins didáticos)"
+            }
+            
+            r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             source = BytesIO(r.content)
         else:

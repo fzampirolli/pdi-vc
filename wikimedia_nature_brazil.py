@@ -32,7 +32,7 @@ from fractions import Fraction
 API_URL = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {"User-Agent": "NatureBrazilBot/1.0 (livro didático; contato@exemplo.com)"}
 
-CATEGORIAS_NATUREZA = ["sudoku",
+CATEGORIAS_NATUREZA = ["Panthera pardus", "elefante", "sudoku",
     "Flora of Brazil", "Fauna of Brazil", "Birds of Brazil",
     "Mammals of Brazil", "Reptiles of Brazil", "Amphibians of Brazil",
     "Insects of Brazil", "Amazon rainforest", "Cerrado",
