@@ -244,7 +244,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../cap03/cap03.py.pt.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Filtragem, Convolução e Detecção de Bordas</span></span></a>
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Intensidade, Histograma e Filtragem</span></span></a>
   </div>
 </li>
       </ul>
@@ -472,56 +472,44 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"✅ Ambiente pronto"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>✅ Ambiente pronto</code></pre>
-</div>
 </div>
 <div id="b5558dc9" class="cell" data-quarto-raw="true">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar imagem de exemplo (Lena)</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>url_lena <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png"</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>img_color <span class="op">=</span> mm.read(url_lena)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>img_gray <span class="op">=</span> mm.gray(img_color)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Imagem original: </span><span class="sc">{</span>img_color<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo da imagem: </span><span class="sc">{</span><span class="bu">type</span>(img_color)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Imagem original: (512, 512, 3)
-Tipo da imagem: &lt;class 'numpy.ndarray'&gt;</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar imagem de exemplo (Lena)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>url_lena <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>img_color <span class="op">=</span> mm.read(url_lena)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>img_gray <span class="op">=</span> mm.gray(img_color)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Imagem original: </span><span class="sc">{</span>img_color<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo da imagem: </span><span class="sc">{</span><span class="bu">type</span>(img_color)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O experimento apresentado na <a href="#fig-02-subamostragem" class="quarto-xref">Figura&nbsp;<span>2.3</span></a> ilustra o compromisso entre a <strong>resolução espacial</strong> e o <strong>custo de armazenamento</strong> em memória. O código utiliza a técnica de subamostragem por fatiamento (<em>slicing</em>) para reduzir a matriz original de pixels conforme um fator <span class="math inline">\(f\)</span>, resultando em uma economia drástica de memória — por exemplo, um fator <span class="math inline">\(f=8\)</span> reduz o tamanho do dado em 64 vezes (<span class="math inline">\(8^2\)</span>). Para fins de comparação visual, as imagens reduzidas são restauradas às dimensões originais (<span class="math inline">\(512 \times 512\)</span>) através da interpolação por <strong>vizinho mais próximo</strong> (<code>nearest</code>). Este processo não recupera a informação perdida, mas torna evidente o efeito de <strong>aliasing</strong> e a estrutura de blocos (pixelização) gerada pela baixa densidade de dados da matriz amostrada.</p>
-<div id="cell-fig-02-subamostragem" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> subsample_simple(image, f):</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Subamostragem via fatiamento (slicing)</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    reduced <span class="op">=</span> image[::f, ::f]</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Cálculo de memória em KB</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    mem_kb <span class="op">=</span> reduced.nbytes <span class="op">/</span> <span class="dv">1024</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>reduced<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">x</span><span class="sc">{</span>reduced<span class="sc">.</span>shape[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span><span class="bu">int</span>(mem_kb)<span class="sc">}</span><span class="ss"> KB</span><span class="ch">\n</span><span class="ss">(Fator </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">)"</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Restaura o tamanho para visualização (H, W originais)</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> mm.resize(reduced, (image.shape[<span class="dv">1</span>], image.shape[<span class="dv">0</span>]), method<span class="op">=</span><span class="st">'nearest'</span>)</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> res, label</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>factors <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">12</span>]</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera os resultados e separa em listas para o mm.show</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> [subsample_simple(img_gray, f) <span class="cf">for</span> f <span class="kw">in</span> factors]</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>imgs_list <span class="op">=</span> [r[<span class="dv">0</span>] <span class="cf">for</span> r <span class="kw">in</span> results]</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>titles_list <span class="op">=</span> [r[<span class="dv">1</span>] <span class="cf">for</span> r <span class="kw">in</span> results]</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_list, titles<span class="op">=</span>titles_list, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-subamostragem" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-subamostragem" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-subamostragem-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-subamostragem-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> subsample_simple(image, f):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Subamostragem via fatiamento (slicing)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    reduced <span class="op">=</span> image[::f, ::f]</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Cálculo de memória em KB</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    mem_kb <span class="op">=</span> reduced.nbytes <span class="op">/</span> <span class="dv">1024</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>reduced<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">x</span><span class="sc">{</span>reduced<span class="sc">.</span>shape[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span><span class="bu">int</span>(mem_kb)<span class="sc">}</span><span class="ss"> KB</span><span class="ch">\n</span><span class="ss">(Fator </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">)"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Restaura o tamanho para visualização (H, W originais)</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> mm.resize(reduced, (image.shape[<span class="dv">1</span>], image.shape[<span class="dv">0</span>]), method<span class="op">=</span><span class="st">'nearest'</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> res, label</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>factors <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">12</span>]</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera os resultados e separa em listas para o mm.show</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> [subsample_simple(img_gray, f) <span class="cf">for</span> f <span class="kw">in</span> factors]</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>imgs_list <span class="op">=</span> [r[<span class="dv">0</span>] <span class="cf">for</span> r <span class="kw">in</span> results]</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>titles_list <span class="op">=</span> [r[<span class="dv">1</span>] <span class="cf">for</span> r <span class="kw">in</span> results]</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_list, titles<span class="op">=</span>titles_list, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-subamostragem-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.3: Efeito da subamostragem. Os títulos exibem as dimensões (W x H) e o tamanho da matriz em memória (KB).
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-subamostragem-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.3
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 <p>O experimento na <a href="#fig-02-quantizacao" class="quarto-xref">Figura&nbsp;<span>2.4</span></a> foca na <strong>quantização de intensidade</strong>, o processo de discretização da amplitude da função <span class="math inline">\(f(x,y)\)</span>. Enquanto a subamostragem afeta a grade espacial, a redução da profundidade de bits limita a quantidade de tons de cinza disponíveis para representar o brilho.</p>
 <p>Ao reduzir a profundidade de 8 bits (256 níveis) para valores menores, surge o efeito de <strong>posterização</strong>, onde os gradientes suaves de uma cena são substituídos por transições abruptas. No limite de 1 bit, a imagem torna-se estritamente binária, preservando apenas a silhueta e perdendo detalhes de textura e volume.</p>
@@ -533,56 +521,47 @@ Figura&nbsp;2.3: Efeito da subamostragem. Os títulos exibem as dimensões (W x 
 <li><strong>Constância de Memória</strong>: Observe nos títulos que o tamanho em KB não diminui. Isso ocorre porque o NumPy armazena cada pixel quantizado em um contêiner de 8 bits (<code>uint8</code>), independentemente de o valor real ser apenas 0 ou 1.</li>
 <li><strong>Percepção</strong>: A degradação visual torna-se crítica abaixo de 4 bits, onde o olho humano começa a perceber as “fronteiras” artificiais criadas pela falta de tons intermediários.</li>
 </ul>
-<div id="cell-fig-02-quantizacao" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> quantize_simple(image, bits):</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Reduz a profundidade de bits e calcula metadados de memória."""</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    levels <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> bits</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Normalização e quantização uniforme</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    quantized <span class="op">=</span> (np.floor(image <span class="op">/</span> <span class="dv">256</span> <span class="op">*</span> levels) <span class="op">/</span> levels <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Cálculo de memória em KB</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    mem_kb <span class="op">=</span> quantized.nbytes <span class="op">/</span> <span class="dv">1024</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bits<span class="sc">}</span><span class="ss"> bits (</span><span class="sc">{</span>levels<span class="sc">}</span><span class="ss"> níveis)</span><span class="ch">\n</span><span class="sc">{</span><span class="bu">int</span>(mem_kb)<span class="sc">}</span><span class="ss"> KB"</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> quantized, label</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Lista de bits para teste (8 é o padrão, 1 é o binário)</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>bits_test <span class="op">=</span> [<span class="dv">8</span>, <span class="dv">4</span>, <span class="dv">2</span>, <span class="dv">1</span>]</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera os resultados e separa em listas para o mm.show</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>results_q <span class="op">=</span> [quantize_simple(img_gray, b) <span class="cf">for</span> b <span class="kw">in</span> bits_test]</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>imgs_q <span class="op">=</span> [r[<span class="dv">0</span>] <span class="cf">for</span> r <span class="kw">in</span> results_q]</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>titles_q <span class="op">=</span> [r[<span class="dv">1</span>] <span class="cf">for</span> r <span class="kw">in</span> results_q]</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_q, titles<span class="op">=</span>titles_q, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-quantizacao" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-quantizacao" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-quantizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-quantizacao-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> quantize_simple(image, bits):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Reduz a profundidade de bits e calcula metadados de memória."""</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    levels <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> bits</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Normalização e quantização uniforme</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    quantized <span class="op">=</span> (np.floor(image <span class="op">/</span> <span class="dv">256</span> <span class="op">*</span> levels) <span class="op">/</span> levels <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Cálculo de memória em KB</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    mem_kb <span class="op">=</span> quantized.nbytes <span class="op">/</span> <span class="dv">1024</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bits<span class="sc">}</span><span class="ss"> bits (</span><span class="sc">{</span>levels<span class="sc">}</span><span class="ss"> níveis)</span><span class="ch">\n</span><span class="sc">{</span><span class="bu">int</span>(mem_kb)<span class="sc">}</span><span class="ss"> KB"</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> quantized, label</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Lista de bits para teste (8 é o padrão, 1 é o binário)</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>bits_test <span class="op">=</span> [<span class="dv">8</span>, <span class="dv">4</span>, <span class="dv">2</span>, <span class="dv">1</span>]</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera os resultados e separa em listas para o mm.show</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>results_q <span class="op">=</span> [quantize_simple(img_gray, b) <span class="cf">for</span> b <span class="kw">in</span> bits_test]</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>imgs_q <span class="op">=</span> [r[<span class="dv">0</span>] <span class="cf">for</span> r <span class="kw">in</span> results_q]</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>titles_q <span class="op">=</span> [r[<span class="dv">1</span>] <span class="cf">for</span> r <span class="kw">in</span> results_q]</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_q, titles<span class="op">=</span>titles_q, cols<span class="op">=</span><span class="dv">4</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-quantizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.4: Efeito da redução da profundidade de bits. Os títulos exibem a quantidade de bits, níveis e o tamanho em memória (KB).
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-quantizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.4
 </figcaption>
 </figure>
 </div>
-</div>
-</div>
 <div id="514c767f" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exemplo de compactação real para economia de memória</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Imagem binária em uint8 (512x512)</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>img_uint8 <span class="op">=</span> np.zeros((<span class="dv">512</span>, <span class="dv">512</span>), dtype<span class="op">=</span>np.uint8) </span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tamanho uint8: </span><span class="sc">{</span>img_uint8<span class="sc">.</span>nbytes <span class="op">/</span> <span class="dv">1024</span><span class="sc">}</span><span class="ss"> KB"</span>) <span class="co"># 256 KB</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Imagem compactada (Bit-packing)</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>img_packed <span class="op">=</span> np.packbits(img_uint8)</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tamanho Compactado: </span><span class="sc">{</span>img_packed<span class="sc">.</span>nbytes <span class="op">/</span> <span class="dv">1024</span><span class="sc">}</span><span class="ss"> KB"</span>) <span class="co"># 32 KB</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Tamanho uint8: 256.0 KB
-Tamanho Compactado: 32.0 KB</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exemplo de compactação real para economia de memória</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Imagem binária em uint8 (512x512)</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>img_uint8 <span class="op">=</span> np.zeros((<span class="dv">512</span>, <span class="dv">512</span>), dtype<span class="op">=</span>np.uint8) </span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tamanho uint8: </span><span class="sc">{</span>img_uint8<span class="sc">.</span>nbytes <span class="op">/</span> <span class="dv">1024</span><span class="sc">}</span><span class="ss"> KB"</span>) <span class="co"># 256 KB</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Imagem compactada (Bit-packing)</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>img_packed <span class="op">=</span> np.packbits(img_uint8)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tamanho Compactado: </span><span class="sc">{</span>img_packed<span class="sc">.</span>nbytes <span class="op">/</span> <span class="dv">1024</span><span class="sc">}</span><span class="ss"> KB"</span>) <span class="co"># 32 KB</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A limitação de tipos de dados menores que um byte no ecossistema Python/NumPy deve-se à arquitetura de hardware, que endereça a memória em blocos de 8 bits (Bytes). Para que se mantenha a compatibilidade com o OpenCV e se garanta a eficiência, mapeiam-se até mesmo elementos binários para contêineres de 1 byte (<code>uint8</code> ou <code>bool8</code>).</p>
 <p>Embora linguagens como ANSI C permitam a compactação de 8 pixels por byte (<em>bit-packing</em>), tal abordagem exige a descompactação constante para cálculos e impõe alta complexidade na manipulação de ponteiros. Conforme a <a href="#tbl-02-dados" class="quarto-xref">Tabela&nbsp;<span>2.1</span></a>, privilegia-se o uso de <code>uint8</code> pela facilidade no acesso a vizinhos e pela versatilidade em transformações geométricas. Além disso, métodos nativos do NumPy e OpenCV executam o processamento internamente em baixo nível (C/C++), o que torna operações vetorizadas mais rápidas do que implementações manuais com laços aninhados em Python.</p>
@@ -644,30 +623,25 @@ Tabela&nbsp;2.1: Comparativo entre estratégias de compactação e eficiência d
 <li><strong>Vizinhança-8</strong> (Moore): inclui todos os oito pixels adjacentes (acrescenta os quatro diagonais).</li>
 </ul>
 <p>A escolha da vizinhança influencia operações como detecção de bordas, cálculo de gradientes e conectividade.</p>
-<div id="cell-fig-02-vizinhanca" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Criação de uma matriz 3x3 para exemplo topológico</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>viz <span class="op">=</span> np.zeros((<span class="dv">3</span>, <span class="dv">3</span>), dtype<span class="op">=</span><span class="st">'uint8'</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Pixel central (p)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>viz[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">=</span> <span class="dv">150</span> </span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Definindo Vizinhança-4 (N4) com valor diferente para destaque</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>viz[<span class="dv">0</span>, <span class="dv">1</span>] <span class="op">=</span> viz[<span class="dv">2</span>, <span class="dv">1</span>] <span class="op">=</span> viz[<span class="dv">1</span>, <span class="dv">0</span>] <span class="op">=</span> viz[<span class="dv">1</span>, <span class="dv">2</span>] <span class="op">=</span> <span class="dv">255</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição da matriz para análise de coordenadas</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>mm.drawImagePlt(viz)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-vizinhanca" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-vizinhanca" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-vizinhanca-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-vizinhanca-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Criação de uma matriz 3x3 para exemplo topológico</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>viz <span class="op">=</span> np.zeros((<span class="dv">3</span>, <span class="dv">3</span>), dtype<span class="op">=</span><span class="st">'uint8'</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Pixel central (p)</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>viz[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">=</span> <span class="dv">150</span> </span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Definindo Vizinhança-4 (N4) com valor diferente para destaque</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>viz[<span class="dv">0</span>, <span class="dv">1</span>] <span class="op">=</span> viz[<span class="dv">2</span>, <span class="dv">1</span>] <span class="op">=</span> viz[<span class="dv">1</span>, <span class="dv">0</span>] <span class="op">=</span> viz[<span class="dv">1</span>, <span class="dv">2</span>] <span class="op">=</span> <span class="dv">255</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição da matriz para análise de coordenadas</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>mm.drawImagePlt(viz)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-vizinhanca-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.5: Ilustração de vizinhanças 4 em uma matriz 3x3. No centro (1,1), o pixel de interesse.
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-vizinhanca-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.5
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 <section id="adjacência-conectividade-e-caminhos" class="level3" data-number="2.6.2">
@@ -806,67 +780,53 @@ Tabela&nbsp;2.3: Principais formatos de armazenamento e suas aplicações em PDI
 <p>Diferente da matriz de pixels pura obtida pela leitura convencional — como na famosa imagem da <strong>Lena</strong> apresentada no início deste capítulo —, o uso do argumento <code>info=True</code> no método <code>mm.read()</code> altera a natureza do objeto retornado (ver <a href="#fig-01-natureza" class="quarto-xref">Figura&nbsp;<span>2.6</span></a>). Enquanto o <code>imread</code> do OpenCV retorna um <code>numpy.ndarray</code> (padrão utilizado quando <code>info=False</code>), a leitura com informações preservadas retorna um objeto especializado da biblioteca Pillow, capaz de interpretar o cabeçalho <strong>EXIF</strong>.</p>
 <p>O cabeçalho <strong>EXIF</strong> (<em>Exchangeable Image File Format</em>) funciona como um repositório técnico da captura, permitindo que o objeto Pillow interprete uma vasta gama de informações que vão muito além das coordenadas de GPS. Ao utilizar <code>info=True</code>, o sistema ganha acesso ao “DNA” da imagem, incluindo metadados de hardware (marca e modelo da câmera), configurações ópticas (abertura, distância focal e tempo de exposição) e parâmetros de iluminação (uso de flash e balanço de branco).</p>
 <p>Essa distinção é importante no PDI, pois transforma a matriz de amostragem em um conjunto de dados contextualizado, onde as características físicas do sensor e da lente podem ser utilizadas para normalizar brilhos ou corrigir distorções geométricas.</p>
-<div id="cell-fig-01-natureza" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>base <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons"</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>arquivo <span class="op">=</span> (</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Area_de_Prote%C3%A7%C3%A3o_Ambiental_"</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Quilombos_do_M%C3%A9dio_Ribeira_-_Thomas-"</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Fuhrmann_%282023-_02%29_Malacoptila_striata.jpg"</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base<span class="sc">}</span><span class="ss">/c/c5/</span><span class="sc">{</span>arquivo<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>img_obj <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(<span class="op">-</span>(dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span> </span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>                                    <span class="cf">else</span> (dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>))</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    maps_url <span class="op">=</span> <span class="ss">f"https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Formato correto para Google Maps Search API</span></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: </span><span class="sc">{</span>maps_url<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co"># No Pillow (Coordenadas): (x, y) -&gt; Ordem RGB</span></span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co"># No NumPy (Matriz): [linha, coluna] -&gt; Ordem RGB</span></span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>GPS Decimal: -24.587955, -48.629758
-Maps: https://www.google.com/maps/search/?api=1&amp;query=-24.587955,-48.629758333333335
-
-Tipo PIL: &lt;class 'PIL.JpegImagePlugin.JpegImageFile'&gt; | Dimensões (x,y): (2047, 3067)
-Pillow (0,0) (x,y): (58, 95, 2)
-Tipo NumPy: &lt;class 'numpy.ndarray'&gt; | Dimensões [y,x,c]: (3067, 2047, 3)
-NumPy [0,0] [y,x]: [58 95  2]</code></pre>
-</div>
-<div class="cell-output cell-output-display">
-<div id="fig-01-natureza" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-01-natureza" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-01-natureza-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-01-natureza-output-2.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>base <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons"</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>arquivo <span class="op">=</span> (</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Area_de_Prote%C3%A7%C3%A3o_Ambiental_"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Quilombos_do_M%C3%A9dio_Ribeira_-_Thomas-"</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Fuhrmann_%282023-_02%29_Malacoptila_striata.jpg"</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base<span class="sc">}</span><span class="ss">/c/c5/</span><span class="sc">{</span>arquivo<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>img_obj <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(<span class="op">-</span>(dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span> </span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>                                    <span class="cf">else</span> (dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>))</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    maps_url <span class="op">=</span> <span class="ss">f"https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Formato correto para Google Maps Search API</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: </span><span class="sc">{</span>maps_url<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="co"># No Pillow (Coordenadas): (x, y) -&gt; Ordem RGB</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="co"># No NumPy (Matriz): [linha, coluna] -&gt; Ordem RGB</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-01-natureza-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.6: APA Quilombos do Médio Ribeira - Barbudo-rajado (Malacoptila striata). Crédito: Thomas Fuhrmann (CC BY-SA 4.0).
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-01-natureza-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.6
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -930,24 +890,19 @@ Figura&nbsp;2.6: APA Quilombos do Médio Ribeira - Barbudo-rajado (Malacoptila s
 \tag{2.3}\]</span></span></p>
 <p>A terceira linha da matriz garante que a operação permaneça no espaço afim, permitindo que translação, rotação e escala sejam combinadas por simples multiplicação de matrizes. Na prática, <code>cv2.warpAffine</code> usa apenas as duas primeiras linhas (matriz <span class="math inline">\(2 \times 3\)</span>), pois a terceira é sempre <span class="math inline">\([0, 0, 1]\)</span>.</p>
 <p>Pixels deslocados para além da área original são descartados; áreas descobertas são preenchidas com 0 (preto). Ver um exemplo na <a href="#fig-02-translacao" class="quarto-xref">Figura&nbsp;<span>2.7</span></a>.</p>
-<div id="cell-fig-02-translacao" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>img_tx1 <span class="op">=</span> mm.translate(img_gray, <span class="dv">50</span>, <span class="dv">50</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>img_tx2 <span class="op">=</span> mm.translate(img_gray, <span class="dv">100</span>, <span class="dv">50</span>)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>mm.show([img_gray, img_tx1, img_tx2],</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>        titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Translação (50,50)"</span>, <span class="st">"Translação (100,50)"</span>],</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        cols<span class="op">=</span><span class="dv">3</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-translacao" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-translacao" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-translacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-translacao-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>img_tx1 <span class="op">=</span> mm.translate(img_gray, <span class="dv">50</span>, <span class="dv">50</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>img_tx2 <span class="op">=</span> mm.translate(img_gray, <span class="dv">100</span>, <span class="dv">50</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>mm.show([img_gray, img_tx1, img_tx2],</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>        titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Translação (50,50)"</span>, <span class="st">"Translação (100,50)"</span>],</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>        cols<span class="op">=</span><span class="dv">3</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-translacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.7: Exemplo de translação da imagem Lena com deslocamentos (50,50) e (100,50).
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-translacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.7
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 <section id="rotação" class="level3" data-number="2.8.2">
@@ -962,25 +917,20 @@ Figura&nbsp;2.7: Exemplo de translação da imagem Lena com deslocamentos (50,50
 \end{bmatrix}
 \tag{2.4}\]</span></span></p>
 <p>Na implementação, <code>cv2.getRotationMatrix2D</code> gera diretamente as duas primeiras linhas de <span class="math inline">\(\mathbf{T}_{\text{rot}}\)</span> (matriz <span class="math inline">\(2 \times 3\)</span> para <code>warpAffine</code>), aceitando também um fator de escala <span class="math inline">\(s\)</span> que multiplica <span class="math inline">\(\cos\theta\)</span> e <span class="math inline">\(\sin\theta\)</span>. Ver exemplo na <a href="#fig-02-rotacao" class="quarto-xref">Figura&nbsp;<span>2.8</span></a>.</p>
-<div id="cell-fig-02-rotacao" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>img_rot30 <span class="op">=</span> mm.rotate(img_gray, <span class="dv">30</span>, interp<span class="op">=</span><span class="st">'bilinear'</span>)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>img_rot45 <span class="op">=</span> mm.rotate(img_gray, <span class="dv">45</span>, interp<span class="op">=</span><span class="st">'bilinear'</span>)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>mm.show([img_gray, img_rot30, img_rot45],</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Rotação 30°"</span>, <span class="st">"Rotação 45°"</span>],</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        cols<span class="op">=</span><span class="dv">3</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-rotacao" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-rotacao" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-rotacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-rotacao-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>img_rot30 <span class="op">=</span> mm.rotate(img_gray, <span class="dv">30</span>, interp<span class="op">=</span><span class="st">'bilinear'</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>img_rot45 <span class="op">=</span> mm.rotate(img_gray, <span class="dv">45</span>, interp<span class="op">=</span><span class="st">'bilinear'</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>mm.show([img_gray, img_rot30, img_rot45],</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Rotação 30°"</span>, <span class="st">"Rotação 45°"</span>],</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        cols<span class="op">=</span><span class="dv">3</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-rotacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.8: Exemplo de rotação da imagem Lena em 30° e 45° usando interpolação bilinear.
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-rotacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.8
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 <section id="escala-redimensionamento" class="level3" data-number="2.8.3">
@@ -1035,37 +985,29 @@ Tabela&nbsp;2.4: Métodos de interpolação disponíveis em <code>mm.resize</cod
 </div>
 </figure>
 </div>
-<div id="cell-fig-02-escala-detalhe" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Recorte da região do olho — Lena 512×512</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>y, x, offset <span class="op">=</span> <span class="dv">265</span>, <span class="dv">265</span>, <span class="dv">30</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> img_gray[y<span class="op">-</span>offset:y<span class="op">+</span>offset, x<span class="op">-</span>offset:x<span class="op">+</span>offset]</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Imagem: </span><span class="sc">{</span>img_gray<span class="sc">.</span>shape<span class="sc">}</span><span class="ss"> | Crop: </span><span class="sc">{</span>crop<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Ampliar 4× com mm.resize</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>crop_nearest  <span class="op">=</span> mm.resize(crop, <span class="dv">4</span>, method<span class="op">=</span><span class="st">'nearest'</span>)</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>crop_bilinear <span class="op">=</span> mm.resize(crop, <span class="dv">4</span>, method<span class="op">=</span><span class="st">'bilinear'</span>)</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Exibição comparativa</span></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    [crop, crop_nearest, crop_bilinear],</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original (recorte)"</span>, <span class="st">"Vizinho mais próximo (4×)"</span>, <span class="st">"Bilinear (4×)"</span>],</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Imagem: (512, 512) | Crop: (60, 60)</code></pre>
-</div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-escala-detalhe" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-escala-detalhe" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-escala-detalhe-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-escala-detalhe-output-2.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Recorte da região do olho — Lena 512×512</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>y, x, offset <span class="op">=</span> <span class="dv">265</span>, <span class="dv">265</span>, <span class="dv">30</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> img_gray[y<span class="op">-</span>offset:y<span class="op">+</span>offset, x<span class="op">-</span>offset:x<span class="op">+</span>offset]</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Imagem: </span><span class="sc">{</span>img_gray<span class="sc">.</span>shape<span class="sc">}</span><span class="ss"> | Crop: </span><span class="sc">{</span>crop<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Ampliar 4× com mm.resize</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>crop_nearest  <span class="op">=</span> mm.resize(crop, <span class="dv">4</span>, method<span class="op">=</span><span class="st">'nearest'</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>crop_bilinear <span class="op">=</span> mm.resize(crop, <span class="dv">4</span>, method<span class="op">=</span><span class="st">'bilinear'</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Exibição comparativa</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    [crop, crop_nearest, crop_bilinear],</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original (recorte)"</span>, <span class="st">"Vizinho mais próximo (4×)"</span>, <span class="st">"Bilinear (4×)"</span>],</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-escala-detalhe-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.9: Comparação de interpolação com zoom no detalhe do olho (recorte 60×60, ampliado 4×). Note o efeito de blocos no vizinho mais próximo vs.&nbsp;a suavização na bilinear.
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-escala-detalhe-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.9
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 <section id="cisalhamento-shear" class="level3" data-number="2.8.4">
@@ -1080,28 +1022,23 @@ sh_y &amp; 1    &amp; 0 \\
 \end{bmatrix}
 \tag{2.6}\]</span></span></p>
 <p>Para <span class="math inline">\(sh_x \neq 0\)</span> e <span class="math inline">\(sh_y = 0\)</span>, cada linha é deslocada horizontalmente proporcionalmente à sua posição vertical — produzindo o efeito de “inclinação” característico. Ver exemplo na <a href="#fig-02-cisalhamento" class="quarto-xref">Figura&nbsp;<span>2.10</span></a>.</p>
-<div id="cell-fig-02-cisalhamento" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>img_shx <span class="op">=</span> mm.shear(img_gray, shx<span class="op">=</span><span class="fl">0.3</span>)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>img_shy <span class="op">=</span> mm.shear(img_gray, shy<span class="op">=</span><span class="fl">0.3</span>)</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>img_shc <span class="op">=</span> mm.shear(img_gray, shx<span class="op">=</span><span class="fl">0.2</span>, shy<span class="op">=</span><span class="fl">0.2</span>)</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_shx, img_shy, img_shc],</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Horiz. (shx=0.3)"</span>, <span class="st">"Vert. (shy=0.3)"</span>, <span class="st">"Combinado (0.2, 0.2)"</span>],</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display">
-<div id="fig-02-cisalhamento" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-02-cisalhamento" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-cisalhamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.py.pt_files/figure-html/fig-02-cisalhamento-output-1.png" class="img-fluid figure-img">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>img_shx <span class="op">=</span> mm.shear(img_gray, shx<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>img_shy <span class="op">=</span> mm.shear(img_gray, shy<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>img_shc <span class="op">=</span> mm.shear(img_gray, shx<span class="op">=</span><span class="fl">0.2</span>, shy<span class="op">=</span><span class="fl">0.2</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_shx, img_shy, img_shc],</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Horiz. (shx=0.3)"</span>, <span class="st">"Vert. (shy=0.3)"</span>, <span class="st">"Combinado (0.2, 0.2)"</span>],</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-cisalhamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;2.10: Exemplo de cisalhamento da imagem Lena: horizontal (shx=0.3), vertical (shy=0.3) e combinado (shx=0.2, shy=0.2).
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-02-cisalhamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2.10
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 </section>
@@ -1168,21 +1105,21 @@ Figura&nbsp;2.10: Exemplo de cisalhamento da imagem Lena: horizontal (shx=0.3), 
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
-<div id="3da5532b" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="011ee13b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>✅ Ambiente pronto. Morph: 1.1.0 | TestSuite: 1.1.0</code></pre>
 </div>
@@ -1407,15 +1344,15 @@ Figura&nbsp;2.11: Simulador: Ajuste de Brilho e Contraste
 </figure>
 </div>
 </div>
-<div id="8574c13f" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="0d239059" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_01.py</code></pre>
 </div>
 </div>
-<div id="cc2f3d09" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="6e771de3" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases já existe em casos/
 📋 8 caso(s) carregado(s) de casos/EP02_01.cases
@@ -1651,15 +1588,15 @@ Figura&nbsp;2.12: Simulador: Subamostragem
 </figure>
 </div>
 </div>
-<div id="3f8eb407" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_02.py</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="0dfc2229" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_02.py</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_02.py</code></pre>
 </div>
 </div>
-<div id="6420c37c" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="c919f133" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_02.cases já existe em casos/
 📋 5 caso(s) carregado(s) de casos/EP02_02.cases
@@ -1907,15 +1844,15 @@ Figura&nbsp;2.13: Simulador: Quantização
 </figure>
 </div>
 </div>
-<div id="0f1e5cf5" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_03.py</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="c398aa5c" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_03.py</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_03.py</code></pre>
 </div>
 </div>
-<div id="3b6bea9e" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="34476844" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_03.cases já existe em casos/
 📋 5 caso(s) carregado(s) de casos/EP02_03.cases
@@ -2220,15 +2157,15 @@ Figura&nbsp;2.14: Simulador: Ajuste de Brilho e Contraste
 </figure>
 </div>
 </div>
-<div id="56cfce0e" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_04.py</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="685ec6f3" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_04.py</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_04.py</code></pre>
 </div>
 </div>
-<div id="14127552" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="c6f5cf76" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_04.cases já existe em casos/
 📋 5 caso(s) carregado(s) de casos/EP02_04.cases
@@ -2452,15 +2389,15 @@ Figura&nbsp;2.15: Simulador: Translação (tx, ty)
 </figure>
 </div>
 </div>
-<div id="69853715" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_05.py</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="5f0713d5" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_05.py</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_05.py</code></pre>
 </div>
 </div>
-<div id="635866db" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="b0e2f519" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_05.cases já existe em casos/
 📋 7 caso(s) carregado(s) de casos/EP02_05.cases
@@ -2739,15 +2676,15 @@ Figura&nbsp;2.16: Simulador: Rotação (ângulo θ)
 </figure>
 </div>
 </div>
-<div id="fde42120" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_06.py</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="1800af7d" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_06.py</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_06.py</code></pre>
 </div>
 </div>
-<div id="693368a4" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_06.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="29236d1e" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_06.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_06.cases já existe em casos/
 📋 7 caso(s) carregado(s) de casos/EP02_06.cases
@@ -3050,15 +2987,15 @@ Figura&nbsp;2.17: Simulador: Redimensionamento (Nearest vs Bilinear)
 </figure>
 </div>
 </div>
-<div id="b1f099fe" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_07.py</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="2722287a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_07.py</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_07.py</code></pre>
 </div>
 </div>
-<div id="f5195b96" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_07.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="f092d277" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_07.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_07.cases já existe em casos/
 📋 7 caso(s) carregado(s) de casos/EP02_07.cases
@@ -3321,15 +3258,15 @@ Figura&nbsp;2.18: Simulador: Cisalhamento (shx, shy)
 </figure>
 </div>
 </div>
-<div id="0335e7d8" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_08.py</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="2dee0a29" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_08.py</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_08.py</code></pre>
 </div>
 </div>
-<div id="5ab959e6" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_08.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="4414d4e9" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_08.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_08.cases já existe em casos/
 📋 8 caso(s) carregado(s) de casos/EP02_08.cases
@@ -3641,15 +3578,15 @@ Figura&nbsp;2.19: Simulador: Transformação Afim (matriz 2×3)
 </figure>
 </div>
 </div>
-<div id="8eec19b8" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_09.py</span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="74359208" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_09.py</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_09.py</code></pre>
 </div>
 </div>
-<div id="46c46f86" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_09.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="e1495bd7" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_09.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_09.cases já existe em casos/
 📋 7 caso(s) carregado(s) de casos/EP02_09.cases
@@ -3942,9 +3879,9 @@ Figura&nbsp;2.20: Simulador: Correção de Perspectiva (Homografia)
 </figure>
 </div>
 </div>
-<div id="ea7b0e25" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_10.py</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="8580cf8a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_10.py</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_10.py</code></pre>
 </div>
@@ -4402,15 +4339,15 @@ Figura&nbsp;2.22: Simulador: correção de perspectiva do Sudoku.
 </figure>
 </div>
 </div>
-<div id="623b3027" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_11.py</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="f1cc7c9a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_11.py</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_11.py</code></pre>
 </div>
 </div>
-<div id="237c8ed8" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_11.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="2eae2285" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_11.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_11.cases já existe em casos/
 📋 7 caso(s) carregado(s) de casos/EP02_11.cases
@@ -4895,8 +4832,8 @@ SZELISKI, Richard. <strong>Computer Vision: Algorithms and Applications</strong>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../cap03/cap03.py.pt.html" class="pagination-link" aria-label="Operações Espaciais: Filtragem, Convolução e Detecção de Bordas">
-        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Filtragem, Convolução e Detecção de Bordas</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../cap03/cap03.py.pt.html" class="pagination-link" aria-label="Operações Espaciais: Intensidade, Histograma e Filtragem">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Intensidade, Histograma e Filtragem</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

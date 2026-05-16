@@ -14,7 +14,6 @@ local emojis = {
 
   -- ⚠ PROBLEMÁTICOS — LaTeX nativo (causam crash no luaotfload com AppleColorEmoji)
   ["▶"]   = "$\\triangleright$",
-  ["▶️"]  = "$\\triangleright$",
   ["⚙"]   = "\\S{}",
   ["⚙️"]  = "\\S{}",
   ["☀"]   = "$\\odot$",
@@ -216,13 +215,15 @@ local emojis = {
   ["🐛"] = "\\emoji{bug}",
 
   -- ➡️ SETAS
-  ["➡️"] = "\\emoji{right-arrow}",
+  ["➡️"] = "\\emoji{right-arrow}",                     -- Também mapeado antes como: "$\\rightarrow$"
   ["⬅️"] = "\\emoji{left-arrow}",
   ["⬆️"] = "\\emoji{up-arrow}",
   ["⬇️"] = "\\emoji{down-arrow}",
+  ["🔽"] = "\\emoji{down-arrow-button}",               -- Mudado para emoji (antigo: "$\\downarrow$")
   ["↩️"] = "\\emoji{right-arrow-curving-left}",
   ["↪️"] = "\\emoji{left-arrow-curving-right}",
   ["🔄"] = "\\emoji{counterclockwise-arrows-button}",
+  ["▶️"] = "\\emoji{play-button}",                     -- Também mapeado antes como: "$\\triangleright$"
 
   -- Garante emojis do TestSuite mesmo que não estejam no lua
 
@@ -242,7 +243,6 @@ local emojis = {
   ["🐛"] = "\\emoji{bug}",
   ["🤝"] = "\\emoji{handshake}",
   ["🔧"] = "\\emoji{wrench}",
-  ["▶️"] = "\\emoji{play-button}",
     
 }
 
