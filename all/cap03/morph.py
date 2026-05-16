@@ -348,6 +348,7 @@ class mm:
         """Renderiza o histograma de img como array NumPy (para uso em mm.show)."""
         import io
         import matplotlib.pyplot as plt
+        import numpy as np
         H = mm.hist(img)
         fig, ax = plt.subplots(figsize=(4, 3))
         ax.bar(range(len(H)), H, color=color, edgecolor="none", width=1)
@@ -362,7 +363,16 @@ class mm:
         return np.array(plt.imread(buf))
 
     @staticmethod
-    def equalizacao(image):
+    def equalize(image):
+        """Equalização de histograma pela CDF: s_k = (L-1) * CDF(r_k)."""
+        import numpy as np
+        h    = mm.hist(image)
+        cdf  = np.cumsum(h / h.sum())          # CDF normalizada
+        lut  = np.round(cdf * 255).astype(np.uint8)  # mapeamento para [0,255]
+        return lut[image]                      # aplica LUT pixel a pixel
+
+    @staticmethod
+    def equalizacao(image): # old
         """Equalização pelo valor máximo."""
         h = mm.hist(image)
         prob = h / h.sum()
