@@ -269,7 +269,8 @@ window.Quarto = {
   <li><a href="#operações-em-nível-de-intensidade" id="toc-operações-em-nível-de-intensidade" class="nav-link" data-scroll-target="#operações-em-nível-de-intensidade"><span class="header-section-number">3.2</span> Operações em Nível de Intensidade</a>
   <ul class="collapse">
   <li><a href="#operações-aritméticas" id="toc-operações-aritméticas" class="nav-link" data-scroll-target="#operações-aritméticas"><span class="header-section-number">3.2.1</span> Operações Aritméticas</a></li>
-  <li><a href="#operações-lógicas-e-máscaras-bit-a-bit" id="toc-operações-lógicas-e-máscaras-bit-a-bit" class="nav-link" data-scroll-target="#operações-lógicas-e-máscaras-bit-a-bit"><span class="header-section-number">3.2.2</span> Operações Lógicas e Máscaras Bit a Bit</a></li>
+  <li><a href="#mistura-ponderada-alpha-blending" id="toc-mistura-ponderada-alpha-blending" class="nav-link" data-scroll-target="#mistura-ponderada-alpha-blending"><span class="header-section-number">3.2.2</span> Mistura Ponderada (<em>Alpha Blending</em>)</a></li>
+  <li><a href="#operações-lógicas-e-máscaras-bit-a-bit" id="toc-operações-lógicas-e-máscaras-bit-a-bit" class="nav-link" data-scroll-target="#operações-lógicas-e-máscaras-bit-a-bit"><span class="header-section-number">3.2.3</span> Operações Lógicas e Máscaras Bit a Bit</a></li>
   </ul></li>
   <li><a href="#histograma-de-imagens" id="toc-histograma-de-imagens" class="nav-link" data-scroll-target="#histograma-de-imagens"><span class="header-section-number">3.3</span> Histograma de Imagens</a>
   <ul class="collapse">
@@ -393,11 +394,6 @@ Tipo da imagem: &lt;class 'numpy.ndarray'&gt;</code></pre>
 g(x,y) = f_1(x,y) - f_2(x,y)
 \tag{3.2}\]</span></span></p>
 <p>A <strong>adição saturada</strong> limita o resultado ao intervalo <span class="math inline">\([0, 255]\)</span>: valores acima de 255 são fixados em 255, evitando o <em>overflow</em> silencioso do tipo <code>uint8</code> (ex.: <span class="math inline">\(200 + 100 = 44\)</span> em vez de 300). A <strong>subtração saturada</strong> aplica o mesmo princípio pelo lado inferior: valores negativos são fixados em 0.</p>
-<p>A <strong>mistura ponderada</strong> (<em>alpha blending</em>) combina duas imagens com pesos complementares <span class="math inline">\(\alpha\)</span> e <span class="math inline">\((1-\alpha)\)</span>:</p>
-<p><span id="eq-03-blend"><span class="math display">\[
-g(x,y) = \alpha\,f_1(x,y) + (1-\alpha)\,f_2(x,y), \quad \alpha \in [0,1]
-\tag{3.3}\]</span></span></p>
-<p>Para <span class="math inline">\(\alpha = 1\)</span> obtém-se <span class="math inline">\(f_1\)</span> pura; para <span class="math inline">\(\alpha = 0\)</span>, <span class="math inline">\(f_2\)</span> pura. Valores intermediários produzem uma fusão proporcional — útil em sobreposição de camadas, marcas d’água e transições suaves entre cenas.</p>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -411,23 +407,18 @@ g(x,y) = \alpha\,f_1(x,y) + (1-\alpha)\,f_2(x,y), \quad \alpha \in [0,1]
 <p>Operações aritméticas em <code>uint8</code> sofrem <em>overflow</em> silencioso: <span class="math inline">\(200 + 100 = 44\)</span> (não 300). As funções <code>mm.addm</code> e <code>mm.subm</code> usam <code>cv2.add</code> e <code>cv2.subtract</code>, que realizam saturação automática. Para o <em>blending</em>, converta para <code>float32</code> antes de operar e aplique <code>np.clip(..., 0, 255).astype(np.uint8)</code> ao final, pois a operação envolve pesos fracionários.</p>
 </div>
 </div>
-<p>A <a href="#fig-03-aritmetica" class="quarto-xref">Figura&nbsp;<span>3.1</span></a> demonstra as três operações: adição de uma constante (clareamento), subtração de uma constante (escurecimento com saturação em 0) e <em>blending</em> com um fundo uniforme de valor 60.</p>
-<div id="acff3fac" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<p>A <a href="#fig-03-aritmetica" class="quarto-xref">Figura&nbsp;<span>3.1</span></a> demonstra adição de uma constante (clareamento) e subtração de uma constante (escurecimento com saturação em 0).</p>
 <div id="cell-fig-03-aritmetica" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fundo <span class="op">=</span> <span class="dv">60</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>img_add <span class="op">=</span> mm.addm(img_gray, fundo)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>img_sub <span class="op">=</span> mm.subm(img_gray, fundo)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_add, img_sub],</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"addm (+60)"</span>, <span class="st">"subm (−60)"</span>],</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fundo <span class="op">=</span> <span class="dv">60</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>img_add <span class="op">=</span> mm.addm(img_gray, fundo)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>img_sub <span class="op">=</span> mm.subm(img_gray, fundo)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_add, img_sub],</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"addm (+60)"</span>, <span class="st">"subm (−60)"</span>],</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-aritmetica" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -441,40 +432,49 @@ Figura&nbsp;3.1: Operações aritméticas saturadas: adição de constante (clar
 </div>
 </div>
 </div>
+</section>
+<section id="mistura-ponderada-alpha-blending" class="level3" data-number="3.2.2">
+<h3 data-number="3.2.2" class="anchored" data-anchor-id="mistura-ponderada-alpha-blending"><span class="header-section-number">3.2.2</span> Mistura Ponderada (<em>Alpha Blending</em>)</h3>
+<p>A <strong>mistura ponderada</strong> combina duas imagens com pesos complementares <span class="math inline">\(\alpha\)</span> e <span class="math inline">\((1-\alpha)\)</span>:</p>
+<p><span id="eq-03-blend"><span class="math display">\[
+g(x,y) = \alpha\,f_1(x,y) + (1-\alpha)\,f_2(x,y), \quad \alpha \in [0,1]
+\tag{3.3}\]</span></span></p>
+<p>Para <span class="math inline">\(\alpha = 1\)</span> obtém-se <span class="math inline">\(f_1\)</span> pura; para <span class="math inline">\(\alpha = 0\)</span>, <span class="math inline">\(f_2\)</span> pura. Valores intermediários produzem uma fusão proporcional — útil em sobreposição de camadas, marcas d’água e transições suaves entre cenas.</p>
+<p>Para que o <em>blending</em> seja visualmente coerente, é essencial alinhar as regiões de interesse das duas imagens antes de combiná-las. Na <a href="#fig-03-blend" class="quarto-xref">Figura&nbsp;<span>3.3</span></a>, recorta-se o rosto da Lena (<code>img_gray[100:-70, 220:-120]</code>) e a região dos olhos do leopardo de <a href="#fig-03-natureza" class="quarto-xref">Figura&nbsp;<span>3.2</span></a> (<code>img_numpy[250:-300, 100:-200]</code>), de forma que os olhares fiquem sobrepostos. O leopardo é então redimensionado para coincidir com o tamanho do recorte da Lena. A operação é realizada em <code>float32</code> para evitar <em>overflow</em>, com <em>clipping</em> final para <code>uint8</code>.</p>
 <div id="cell-fig-03-natureza" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>base <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons"</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>arquivo <span class="op">=</span> <span class="st">"Leopard_%28Panthera_pardus%29_portrait.jpg"</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base<span class="sc">}</span><span class="ss">/9/92/</span><span class="sc">{</span>arquivo<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>img_obj   <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span>(dms[<span class="dv">0</span>] <span class="op">+</span> dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span> <span class="op">+</span> dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span> (dms[<span class="dv">0</span>] <span class="op">+</span> dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span> <span class="op">+</span> dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>)</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>base <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons"</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>arquivo <span class="op">=</span> <span class="st">"Leopard_%28Panthera_pardus%29_portrait.jpg"</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base<span class="sc">}</span><span class="ss">/9/92/</span><span class="sc">{</span>arquivo<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>img_obj   <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span>(dms[<span class="dv">0</span>] <span class="op">+</span> dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span> <span class="op">+</span> dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span> (dms[<span class="dv">0</span>] <span class="op">+</span> dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span> <span class="op">+</span> dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>GPS Decimal: -19.140200, 23.814872
 Maps: https://www.google.com/maps/search/?api=1&amp;query=-19.1402,23.814872222222224
@@ -498,21 +498,20 @@ Figura&nbsp;3.2: Leopard (Panthera pardus) GPS: (-19.14020, 23.81487). Crédito:
 </div>
 </div>
 <div id="cell-fig-03-blend" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>img_leopardo <span class="op">=</span> mm.resize(mm.gray(img_numpy), (img_gray.shape[<span class="dv">1</span>], img_gray.shape[<span class="dv">0</span>]), method<span class="op">=</span><span class="st">'bilinear'</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">0.7</span>, <span class="fl">0.5</span>, <span class="fl">0.3</span>, <span class="fl">0.0</span>]</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>imgs_blend   <span class="op">=</span> []</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>titles_blend <span class="op">=</span> []</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> a <span class="kw">in</span> alphas:</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    blended <span class="op">=</span> np.clip(</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>        a <span class="op">*</span> img_gray.astype(np.float32) <span class="op">+</span> (<span class="dv">1</span> <span class="op">-</span> a) <span class="op">*</span> img_leopardo.astype(np.float32),</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>        <span class="dv">0</span>, <span class="dv">255</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    ).astype(np.uint8)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    imgs_blend.append(blended)</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    titles_blend.append(<span class="ss">f"α=</span><span class="sc">{</span>a<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_blend, titles<span class="op">=</span>titles_blend, cols<span class="op">=</span><span class="dv">5</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>leo <span class="op">=</span> mm.gray(img_numpy)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>leo <span class="op">=</span> leo[<span class="dv">250</span>:<span class="op">-</span><span class="dv">300</span>, <span class="dv">100</span>:<span class="op">-</span><span class="dv">200</span>]</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>lena <span class="op">=</span> img_gray[<span class="dv">100</span>:<span class="op">-</span><span class="dv">70</span>, <span class="dv">220</span>:<span class="op">-</span><span class="dv">120</span>]</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>img_leopardo <span class="op">=</span> mm.resize(leo, (lena.shape[<span class="dv">1</span>], lena.shape[<span class="dv">0</span>]), method<span class="op">=</span><span class="st">'bilinear'</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">0.8</span>, <span class="fl">0.6</span>, <span class="fl">0.4</span>, <span class="fl">0.2</span>, <span class="fl">0.0</span>]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>imgs_blend   <span class="op">=</span> []</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>titles_blend <span class="op">=</span> []</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> a <span class="kw">in</span> alphas:</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    imgs_blend.append(mm.blend(lena, img_leopardo, alpha<span class="op">=</span>a))</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    titles_blend.append(<span class="ss">f"α=</span><span class="sc">{</span>a<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_blend, titles<span class="op">=</span>titles_blend, cols<span class="op">=</span><span class="dv">6</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">16</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-03-blend" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -520,49 +519,55 @@ Figura&nbsp;3.2: Leopard (Panthera pardus) GPS: (-19.14020, 23.81487). Crédito:
 <img src="cap03.py.pt_files/figure-html/fig-03-blend-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-blend-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;3.3: Alpha blending entre a imagem Lena e um leopardo para diferentes valores de α. Em α=1 vê-se apenas Lena; em α=0, apenas o leopardo; valores intermediários fundem as duas imagens proporcionalmente.
+Figura&nbsp;3.3: <em>Alpha blending</em> entre recortes alinhados de Lena e do leopardo (<a href="#fig-03-natureza" class="quarto-xref">Figura&nbsp;<span>3.2</span></a>) para diferentes valores de α. Em α=1 vê-se apenas Lena; em α=0, apenas o leopardo; valores intermediários fundem os olhares das duas imagens proporcionalmente.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="operações-lógicas-e-máscaras-bit-a-bit" class="level3" data-number="3.2.2">
-<h3 data-number="3.2.2" class="anchored" data-anchor-id="operações-lógicas-e-máscaras-bit-a-bit"><span class="header-section-number">3.2.2</span> Operações Lógicas e Máscaras Bit a Bit</h3>
+<section id="operações-lógicas-e-máscaras-bit-a-bit" class="level3" data-number="3.2.3">
+<h3 data-number="3.2.3" class="anchored" data-anchor-id="operações-lógicas-e-máscaras-bit-a-bit"><span class="header-section-number">3.2.3</span> Operações Lógicas e Máscaras Bit a Bit</h3>
 <p>As operações lógicas bit a bit — AND, OR, XOR e NOT — operam nos bits de cada pixel e são amplamente usadas para criar e aplicar <strong>máscaras</strong> (<em>masks</em>). Uma máscara é uma imagem binária (0 ou 255) que seleciona regiões de interesse (ROI — <em>Region of Interest</em>).</p>
 <p>A operação mais comum é a aplicação de uma máscara circular para isolar um objeto:</p>
 <p><span id="eq-03-mascara"><span class="math display">\[
 g(x,y) = f(x,y) \;\text{AND}\; m(x,y)
 \tag{3.4}\]</span></span></p>
-<p>onde <span class="math inline">\(m(x,y)\)</span> é a máscara binária. O resultado preserva apenas os pixels onde <span class="math inline">\(m = 255\)</span>, zerando o restante. A <a href="#fig-03-logica" class="quarto-xref">Figura&nbsp;<span>3.4</span></a> ilustra a criação e aplicação de uma máscara circular e uma máscara retangular.</p>
-<div id="fig-03-logica" class="cell quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-03-logica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<p>onde <span class="math inline">\(m(x,y)\)</span> é a máscara binária. O resultado preserva apenas os pixels onde <span class="math inline">\(m = 255\)</span>, zerando o restante. O <strong>NOT</strong> inverte todas as intensidades bit a bit (<span class="math inline">\(g = 255 - f\)</span> para <code>uint8</code>), equivalendo a um negativo fotográfico. O <strong>OR</strong> com a máscara circular ilumina a região da máscara, fixando em 255 os pixels dentro do círculo e preservando os demais. A <a href="#fig-03-logica" class="quarto-xref">Figura&nbsp;<span>3.4</span></a> ilustra as três operações aplicadas à imagem Lena com uma máscara circular.</p>
+<div id="b487fc6b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-03-logica" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>h, w <span class="op">=</span> img_gray.shape</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Máscara circular</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Máscara circular centrada na imagem</span></span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>mask_circ <span class="op">=</span> np.zeros((h, w), dtype<span class="op">=</span>np.uint8)</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>cv2.circle(mask_circ, (w<span class="op">//</span><span class="dv">2</span>, h<span class="op">//</span><span class="dv">2</span>), <span class="bu">min</span>(h,w)<span class="op">//</span><span class="dv">2</span> <span class="op">-</span> <span class="dv">10</span>, <span class="dv">255</span>, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>cv2.circle(mask_circ, (w<span class="op">//</span><span class="dv">2</span>, h<span class="op">//</span><span class="dv">2</span>), <span class="bu">min</span>(h, w)<span class="op">//</span><span class="dv">3</span> <span class="op">-</span> <span class="dv">10</span>, <span class="dv">255</span>, <span class="op">-</span><span class="dv">1</span>)</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Máscara retangular</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>mask_rect <span class="op">=</span> np.zeros((h, w), dtype<span class="op">=</span>np.uint8)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>mask_rect[h<span class="op">//</span><span class="dv">4</span>:<span class="dv">3</span><span class="op">*</span>h<span class="op">//</span><span class="dv">4</span>, w<span class="op">//</span><span class="dv">4</span>:<span class="dv">3</span><span class="op">*</span>w<span class="op">//</span><span class="dv">4</span>] <span class="op">=</span> <span class="dv">255</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Operações</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>img_and  <span class="op">=</span> cv2.bitwise_and(img_gray, mask_circ)   <span class="co"># AND: aplica máscara circular</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>img_not  <span class="op">=</span> cv2.bitwise_not(img_gray)              <span class="co"># NOT: inversão de intensidade</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>img_or   <span class="op">=</span> cv2.bitwise_or(mask_circ, mask_rect)  <span class="co"># OR: união das máscaras</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_and, img_not, img_or],</span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"AND (máscara circ.)"</span>, <span class="st">"NOT (inversão)"</span>, <span class="st">"OR (máscaras)"</span>],</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Operações via morph</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>img_not <span class="op">=</span> mm.bnot(img_gray)                  <span class="co"># NOT: negativo fotográfico</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>img_and <span class="op">=</span> mm.band(img_gray, mask_circ)       <span class="co"># AND: preserva apenas a ROI circular</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>img_or  <span class="op">=</span> mm.bor(img_gray, mask_circ)        <span class="co"># OR:  ilumina a região da máscara</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_not, img_and, img_or],</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"NOT (negativo)"</span>, <span class="st">"AND (ROI circular)"</span>, <span class="st">"OR (ilumina ROI)"</span>],</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-03-logica" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-logica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap03.py.pt_files/figure-html/fig-03-logica-output-1.png" class="img-fluid figure-img">
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-03-logica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;3.4
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-logica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;3.4: Operações lógicas bit a bit com máscara circular: NOT (negativo), AND (isolamento da ROI) e OR (iluminação da ROI).
 </figcaption>
 </figure>
+</div>
+</div>
 </div>
 </section>
 </section>
@@ -1237,7 +1242,7 @@ Figura&nbsp;3.16
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
-<div id="26616cc3" class="cell">
+<div id="10a5a09b" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
@@ -1514,7 +1519,7 @@ Figura&nbsp;3.17: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 </figure>
 </div>
 </div>
-<div id="4b022d94" class="cell">
+<div id="6a94112c" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>x1,y1,x2,y2 <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>())</span>
@@ -1539,17 +1544,17 @@ Figura&nbsp;3.17: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 <pre><code>Writing EP02_01.py</code></pre>
 </div>
 </div>
-<div id="1ba2835e" class="cell">
+<div id="83895ed9" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(linewidth<span class="op">=</span><span class="dv">100</span>, edgeitems<span class="op">=</span><span class="dv">3</span>, threshold<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="6ecdc43c" class="cell">
+<div id="af3f9fe9" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Substitui emoji Unicode literal ✅ por comando"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Substitui emoji Unicode literal ✅ por comando</code></pre>
 </div>
 </div>
-<div id="38427008" class="cell">
+<div id="929fdd57" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.zeros((<span class="dv">5</span>, <span class="dv">5</span>))))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -1561,7 +1566,7 @@ Figura&nbsp;3.17: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 </code></pre>
 </div>
 </div>
-<div id="fd1986b7" class="cell">
+<div id="35159aa4" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases já existe em casos/
@@ -1670,7 +1675,7 @@ Figura&nbsp;3.17: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 📊 Resultado: 0/8 (0.0%)</pre>
 </div>
 </div>
-<div id="984e43a6" class="cell">
+<div id="1fec66c8" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, HTML</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>display(HTML(<span class="st">"&lt;h1&gt;oi&lt;/h1&gt;"</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">

@@ -293,6 +293,23 @@ class mm:
     def intersec(f1, f2): return np.minimum(f1, f2)
 
     @staticmethod
+    def blend(f, g, alpha=0.5):
+        """Mistura ponderada: alpha*f + (1-alpha)*g, com clipping para uint8."""
+        return np.clip(
+            alpha * f.astype(np.float32) + (1 - alpha) * g.astype(np.float32),
+            0, 255
+        ).astype(np.uint8)
+    
+    @staticmethod
+    def band(f, g):   return cv2.bitwise_and(f, g)
+    @staticmethod
+    def bor(f, g):    return cv2.bitwise_or(f, g)
+    @staticmethod
+    def bxor(f, g):   return cv2.bitwise_xor(f, g)
+    @staticmethod
+    def bnot(f):      return cv2.bitwise_not(f)
+
+    @staticmethod
     def threshold(img, limiar=0):
         """Limiarização binária. limiar=0 usa Otsu."""
         flags = cv2.THRESH_BINARY + (cv2.THRESH_OTSU if limiar == 0 else 0)
