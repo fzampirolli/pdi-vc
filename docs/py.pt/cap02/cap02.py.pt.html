@@ -244,7 +244,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../cap03/cap03.py.pt.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Transformações Geométricas, Convolução e Morfologia</span></span></a>
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Filtragem, Convolução e Detecção de Bordas</span></span></a>
   </div>
 </li>
       </ul>
@@ -810,33 +810,42 @@ Tabela&nbsp;2.3: Principais formatos de armazenamento e suas aplicações em PDI
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons/c/c5/Area_de_Prote%C3%A7%C3%A3o_Ambiental_Quilombos_do_M%C3%A9dio_Ribeira_-_Thomas-Fuhrmann_%282023-_02%29_Malacoptila_striata.jpg"</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>base <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons"</span></span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>img_obj <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(<span class="op">-</span>(dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span> <span class="cf">else</span> (dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>))</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    maps_url <span class="op">=</span> <span class="ss">f"https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Formato correto para Google Maps Search API</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: </span><span class="sc">{</span>maps_url<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co"># No Pillow (Coordenadas): (x, y) -&gt; Ordem RGB</span></span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="co"># No NumPy (Matriz): [linha, coluna] -&gt; Ordem RGB</span></span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>arquivo <span class="op">=</span> (</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Area_de_Prote%C3%A7%C3%A3o_Ambiental_"</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Quilombos_do_M%C3%A9dio_Ribeira_-_Thomas-"</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Fuhrmann_%282023-_02%29_Malacoptila_striata.jpg"</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base<span class="sc">}</span><span class="ss">/c/c5/</span><span class="sc">{</span>arquivo<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura com metadados (PIL) e conversão para matriz (NumPy)</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>img_obj <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>img_numpy <span class="op">=</span> np.array(img_obj)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Extração e conversão de GPS (Tag 34853)</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>exif <span class="op">=</span> img_obj._getexif()</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> exif <span class="kw">and</span> (gps <span class="op">:=</span> exif.get(<span class="dv">34853</span>)):</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    to_dec <span class="op">=</span> <span class="kw">lambda</span> dms, ref: <span class="bu">float</span>(<span class="op">-</span>(dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>) <span class="cf">if</span> ref <span class="kw">in</span> <span class="st">'SW'</span> </span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>                                    <span class="cf">else</span> (dms[<span class="dv">0</span>]<span class="op">+</span>dms[<span class="dv">1</span>]<span class="op">/</span><span class="dv">60</span><span class="op">+</span>dms[<span class="dv">2</span>]<span class="op">/</span><span class="dv">3600</span>))</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    lat, lon <span class="op">=</span> to_dec(gps[<span class="dv">2</span>], gps[<span class="dv">1</span>]), to_dec(gps[<span class="dv">4</span>], gps[<span class="dv">3</span>])</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"GPS Decimal: </span><span class="sc">{</span>lat<span class="sc">:.6f}</span><span class="ss">, </span><span class="sc">{</span>lon<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    maps_url <span class="op">=</span> <span class="ss">f"https://www.google.com/maps/search/?api=1&amp;query=</span><span class="sc">{</span>lat<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>lon<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Formato correto para Google Maps Search API</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Maps: </span><span class="sc">{</span>maps_url<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Diagnóstico de tipos, dimensões e acesso a pixels</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co"># No Pillow (Coordenadas): (x, y) -&gt; Ordem RGB</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Tipo PIL: </span><span class="sc">{</span><span class="bu">type</span>(img_obj)<span class="sc">}</span><span class="ss"> | Dimensões (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>size<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pillow (0,0) (x,y): </span><span class="sc">{</span>img_obj<span class="sc">.</span>getpixel((<span class="dv">0</span>, <span class="dv">0</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co"># No NumPy (Matriz): [linha, coluna] -&gt; Ordem RGB</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tipo NumPy: </span><span class="sc">{</span><span class="bu">type</span>(img_numpy)<span class="sc">}</span><span class="ss"> | Dimensões [y,x,c]: </span><span class="sc">{</span>img_numpy<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"NumPy [0,0] [y,x]: </span><span class="sc">{</span>img_numpy[<span class="dv">0</span>, <span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Exibição</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>GPS Decimal: -24.587955, -48.629758
 Maps: https://www.google.com/maps/search/?api=1&amp;query=-24.587955,-48.629758333333335
@@ -1159,7 +1168,7 @@ Figura&nbsp;2.10: Exemplo de cisalhamento da imagem Lena: horizontal (shx=0.3), 
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
-<div id="5cace8d7" class="cell">
+<div id="3da5532b" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
@@ -1398,14 +1407,14 @@ Figura&nbsp;2.11: Simulador: Ajuste de Brilho e Contraste
 </figure>
 </div>
 </div>
-<div id="bb1c9ac2" class="cell">
+<div id="8574c13f" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_01.py</code></pre>
 </div>
 </div>
-<div id="73a943f8" class="cell">
+<div id="cc2f3d09" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases já existe em casos/
@@ -1642,14 +1651,14 @@ Figura&nbsp;2.12: Simulador: Subamostragem
 </figure>
 </div>
 </div>
-<div id="9b683855" class="cell">
+<div id="3f8eb407" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_02.py</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_02.py</code></pre>
 </div>
 </div>
-<div id="46c0e32b" class="cell">
+<div id="6420c37c" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_02.cases já existe em casos/
@@ -1898,14 +1907,14 @@ Figura&nbsp;2.13: Simulador: Quantização
 </figure>
 </div>
 </div>
-<div id="b920a4c1" class="cell">
+<div id="0f1e5cf5" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_03.py</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_03.py</code></pre>
 </div>
 </div>
-<div id="cdd9233f" class="cell">
+<div id="3b6bea9e" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_03.cases já existe em casos/
@@ -2211,14 +2220,14 @@ Figura&nbsp;2.14: Simulador: Ajuste de Brilho e Contraste
 </figure>
 </div>
 </div>
-<div id="ef8f4035" class="cell">
+<div id="56cfce0e" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_04.py</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_04.py</code></pre>
 </div>
 </div>
-<div id="0fe957e6" class="cell">
+<div id="14127552" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_04.cases já existe em casos/
@@ -2443,14 +2452,14 @@ Figura&nbsp;2.15: Simulador: Translação (tx, ty)
 </figure>
 </div>
 </div>
-<div id="996a2f29" class="cell">
+<div id="69853715" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_05.py</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_05.py</code></pre>
 </div>
 </div>
-<div id="fb1323e0" class="cell">
+<div id="635866db" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_05.cases já existe em casos/
@@ -2730,14 +2739,14 @@ Figura&nbsp;2.16: Simulador: Rotação (ângulo θ)
 </figure>
 </div>
 </div>
-<div id="1f2c91ee" class="cell">
+<div id="fde42120" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_06.py</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_06.py</code></pre>
 </div>
 </div>
-<div id="46512c6c" class="cell">
+<div id="693368a4" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_06.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_06.cases já existe em casos/
@@ -3041,14 +3050,14 @@ Figura&nbsp;2.17: Simulador: Redimensionamento (Nearest vs Bilinear)
 </figure>
 </div>
 </div>
-<div id="61913bba" class="cell">
+<div id="b1f099fe" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_07.py</span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_07.py</code></pre>
 </div>
 </div>
-<div id="30865e51" class="cell">
+<div id="f5195b96" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_07.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_07.cases já existe em casos/
@@ -3312,14 +3321,14 @@ Figura&nbsp;2.18: Simulador: Cisalhamento (shx, shy)
 </figure>
 </div>
 </div>
-<div id="cc3bf062" class="cell">
+<div id="0335e7d8" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_08.py</span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_08.py</code></pre>
 </div>
 </div>
-<div id="c3e63207" class="cell">
+<div id="5ab959e6" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_08.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_08.cases já existe em casos/
@@ -3632,14 +3641,14 @@ Figura&nbsp;2.19: Simulador: Transformação Afim (matriz 2×3)
 </figure>
 </div>
 </div>
-<div id="51c51c7a" class="cell">
+<div id="8eec19b8" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_09.py</span>
 <span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_09.py</code></pre>
 </div>
 </div>
-<div id="7b410d5e" class="cell">
+<div id="46c46f86" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_09.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_09.cases já existe em casos/
@@ -3933,7 +3942,7 @@ Figura&nbsp;2.20: Simulador: Correção de Perspectiva (Homografia)
 </figure>
 </div>
 </div>
-<div id="c6b2d049" class="cell">
+<div id="ea7b0e25" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_10.py</span>
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -4393,14 +4402,14 @@ Figura&nbsp;2.22: Simulador: correção de perspectiva do Sudoku.
 </figure>
 </div>
 </div>
-<div id="b8b3fc46" class="cell">
+<div id="623b3027" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_11.py</span>
 <span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_11.py</code></pre>
 </div>
 </div>
-<div id="27218c43" class="cell">
+<div id="237c8ed8" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_11.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_11.cases já existe em casos/
@@ -4886,8 +4895,8 @@ SZELISKI, Richard. <strong>Computer Vision: Algorithms and Applications</strong>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../cap03/cap03.py.pt.html" class="pagination-link" aria-label="Operações Espaciais: Transformações Geométricas, Convolução e Morfologia">
-        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Transformações Geométricas, Convolução e Morfologia</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../cap03/cap03.py.pt.html" class="pagination-link" aria-label="Operações Espaciais: Filtragem, Convolução e Detecção de Bordas">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Filtragem, Convolução e Detecção de Bordas</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
