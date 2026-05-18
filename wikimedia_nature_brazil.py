@@ -32,14 +32,35 @@ from fractions import Fraction
 API_URL = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {"User-Agent": "NatureBrazilBot/1.0 (livro didático; contato@exemplo.com)"}
 
-CATEGORIAS_NATUREZA = ["Panthera pardus", "elefante", "sudoku",
-    "Flora of Brazil", "Fauna of Brazil", "Birds of Brazil",
-    "Mammals of Brazil", "Reptiles of Brazil", "Amphibians of Brazil",
-    "Insects of Brazil", "Amazon rainforest", "Cerrado",
-    "Pantanal", "Atlantic Forest",
+CATEGORIAS_NATUREZA = [
+    # --- Substitutos para Testes Históricos de PDI ---
+    "Mandrillus sphinx",           # O "Mandril" (substituto clássico da Lena para texturas/filtros)
+    "Cameraman (test image)",      # A famosa imagem de teste do homem com a câmera
+    "Standard test images",        # Imagens padrão de calibração e teste técnico
+    
+    # --- Para Segmentação por Cor e Contornos (Moedas/Objetos) ---
+    "coins",             # Moedas brasileiras (excelente substituto para a busca genérica 'coins')
+    "Dice",                        # Dados (perfeito para detecção de círculos/Hough e limiarização)
+    "bee",         # Categoria de imagens segmentadas (desafiadoras para PDI)
+    
+    # --- Felinos do Brasil (Corrigindo a busca por Panteras) ---
+    "Panthera onca",               # Onça-Pintada (Pantera das Américas)
+    "Puma concolor",               # Suçuarana / Puma
+    
+    # --- Biodiversidade Brasileira (Ótimas para Histogramas e Filtros) ---
+    "Fauna of Brazil",             # Categoria macro de fauna
+    "Flora of Brazil",             # Categoria macro de flora
+    "Birds of Brazil",             # Pássaros (geralmente fotos de alta nitidez com fundo desfocado)
+    "Ramphastidae",                # Tucanos (altíssimo contraste de cores para segmentação)
+    "Anura of Brazil",             # Sapos e anfíbios (excelentes texturas de pele)
+    
+    # --- Biomas com alta densidade de fotos geolocalizadas ---
+    "Pantanal",                    # Cenários abertos com ótimos gradientes de céu
+    "Amazon Rainforest",           # Desafio de PDI: filtragem de alta frequência (folhas)
+    "Fernando de Noronha",         # Alto contraste mar/céu/rochas
 ]
 
-BUSCA = CATEGORIAS_NATUREZA[0]
+BUSCA = CATEGORIAS_NATUREZA[3]
 
 # A API retorna strings como "CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain"
 LICENCAS_LIVRO_KEYWORDS = {
@@ -480,8 +501,8 @@ if __name__ == "__main__":
     # Opção A — por categoria (recomendado para natureza do Brasil)
     imagens = buscar_imagens(
         categoria=BUSCA,
-        limite=5,
-        apenas_com_gps=True,
+        limite=50,
+        apenas_com_gps=False,
         debug=False,
     )
 

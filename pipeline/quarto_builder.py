@@ -15,6 +15,37 @@ Constrói uma pasta Quarto auto-suficiente para cada combo:
 Render (sem --config):
     cd gen/quarto/py.pt && quarto render --to html
     cd gen/quarto/py.pt && quarto render --to pdf
+
+    
+Tamanho da fonte de código e de sua saída:
+
+HTML:
+# 1. Bloco geral de tipografia (topo do CSS):
+code, pre, .sourceCode {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.80em;          # ← aqui
+}
+
+# 2. Bloco de células e outputs (mais abaixo):
+div.sourceCode,
+.cell-output pre,
+...
+{
+    font-size: 0.80em !important;   # ← e aqui
+}
+
+PDF:
+\normalsizepadrão (11pt no seu caso)
+\small          um passo abaixo (~10pt)
+\footnotesize   dois passos abaixo (~9pt)
+\scriptsize     três passos abaixo (~8pt)  ← atual
+    
+\\tcbset{{pdicode/.style={{...fontupper=\\scriptsize\\ttfamily}}}}
+\\tcbset{{pdioutput/.style={{...fontupper=\\scriptsize\\ttfamily}}}}
+
+# _fix_tex_cover → custom_header:
+pdicode/.style={...fontupper=\scriptsize\ttfamily},
+pdioutput/.style={...fontupper=\scriptsize\ttfamily}
 """
 
 from __future__ import annotations
@@ -201,7 +232,7 @@ font-family: 'Source Serif 4', Georgia, serif;
 }
 code, pre, .sourceCode {
 font-family: 'JetBrains Mono', monospace;
-font-size: 0.875em;
+font-size: 0.75em;      /* tamanho menor para código, para caber melhor no PDF sem quebrar tanto */
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
@@ -253,7 +284,7 @@ div.sourceCode,
   border-left-width: 4px !important;
   box-shadow: none !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.875em !important;
+  font-size: 0.75em !important;       /* tamanho menor para código, para caber melhor no PDF sem quebrar tanto */
   line-height: 1.55 !important;
   padding: 0.75em 1em !important;
   white-space: pre-wrap !important;
@@ -1040,8 +1071,8 @@ def _fix_tex_cover(qdir: Path):
 
 \usepackage[skins,breakable]{tcolorbox}
 \tcbset{
-  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\small\ttfamily},
-  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\small\ttfamily}
+  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\scriptsize\ttfamily},
+  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\scriptsize\ttfamily}
 }
 
 % ─────────────────────────────────────────────────────────────
