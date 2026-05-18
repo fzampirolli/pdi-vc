@@ -253,16 +253,19 @@ class mm:
         mm._plot_grid(f)
 
     @staticmethod
-    def drawImageKernel(f, B, x, y):
-        """Exibe imagem com kernel B centrado em (x,y) destacado em amarelo."""
+    def drawImageKernel(f,B,x,y,scale=1):
+        """Exibe imagem com kernel B centrado em (x,y)."""
         import matplotlib.pyplot as plt
-        Bh, Bw = B.shape
-        Bcx, Bcy = Bw//3, Bh//3
-        plt.figure(figsize=(min(f.shape),)*2)
+        Bh,Bw=B.shape
+        Bcx,Bcy=Bw//2,Bh//2
+        h,w=f.shape[:2]
+        plt.figure(figsize=(w/100*scale,h/100*scale))
         mm._plot_grid(f)
+        plt.xticks(fontsize=8)
+        plt.yticks(fontsize=8)
         plt.title(f'Processando pixel (x,y)=({x},{y})')
-        [plt.plot([i+x-Bcx-.5]*2, [y-Bcy-.5, Bh+y-Bcy-.5], color='y', lw=5) for i in range(Bw+1)]
-        [plt.plot([x-Bcx-.5, x-Bcx+Bw-.5], [j+y-Bcy-.5]*2, color='y', lw=5) for j in range(Bh+1)]
+        [plt.plot([i+x-Bcx-.5]*2,[y-Bcy-.5,Bh+y-Bcy-.5],color='y',lw=2) for i in range(Bw+1)]
+        [plt.plot([x-Bcx-.5,x-Bcx+Bw-.5],[j+y-Bcy-.5]*2,color='y',lw=2) for j in range(Bh+1)]
 
     @staticmethod
     def lblshow(f, border=3):
