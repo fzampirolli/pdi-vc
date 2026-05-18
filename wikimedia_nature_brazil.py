@@ -60,7 +60,24 @@ CATEGORIAS_NATUREZA = [
     "Fernando de Noronha",         # Alto contraste mar/céu/rochas
 ]
 
+
 BUSCA = CATEGORIAS_NATUREZA[3]
+
+BUSCAS_TEXTO = [
+    "scanned text",
+    "historical manuscript",
+    "printed page",
+    "document scan",
+    "newspaper page",
+    "OCR test image",
+    "book page",
+    "typed text",
+    "handwritten text",
+    "license plate",
+    "street signs",
+]
+
+BUSCA = BUSCAS_TEXTO[0]
 
 # A API retorna strings como "CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain"
 LICENCAS_LIVRO_KEYWORDS = {

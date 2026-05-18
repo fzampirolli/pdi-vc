@@ -40,12 +40,12 @@ PDF:
 \footnotesize   dois passos abaixo (~9pt)
 \scriptsize     três passos abaixo (~8pt)  ← atual
     
-\\tcbset{{pdicode/.style={{...fontupper=\\scriptsize\\ttfamily}}}}
-\\tcbset{{pdioutput/.style={{...fontupper=\\scriptsize\\ttfamily}}}}
+\\tcbset{{pdicode/.style={{...fontupper=\\footnotesize\\ttfamily}}}}
+\\tcbset{{pdioutput/.style={{...fontupper=\\footnotesize\\ttfamily}}}}
 
 # _fix_tex_cover → custom_header:
-pdicode/.style={...fontupper=\scriptsize\ttfamily},
-pdioutput/.style={...fontupper=\scriptsize\ttfamily}
+pdicode/.style={...fontupper=\footnotesize\ttfamily},
+pdioutput/.style={...fontupper=\footnotesize\ttfamily}
 """
 
 from __future__ import annotations
@@ -1071,8 +1071,8 @@ def _fix_tex_cover(qdir: Path):
 
 \usepackage[skins,breakable]{tcolorbox}
 \tcbset{
-  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\scriptsize\ttfamily},
-  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\scriptsize\ttfamily}
+  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\footnotesize\ttfamily},
+  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\footnotesize\ttfamily}
 }
 
 % ─────────────────────────────────────────────────────────────
