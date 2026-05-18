@@ -194,28 +194,31 @@ class mm:
         return dst
 
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False):
+    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False, dpi=96):
         import matplotlib.pyplot as plt
-        colors=[[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
+        colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
         if isinstance(args[0], list):
-            images=args[0]
-            ts=titles or (title if isinstance(title,list) else [None]*len(images))
-            n=len(images)
-            cols=cols or ((n+rows-1)//rows if rows else 3)
-            rows=rows or ((n+cols-1)//cols)
-            _,axes=plt.subplots(rows,cols,figsize=figsize or (5*cols,5*rows))
-            axes=np.array(axes).reshape(rows,cols)
-            for i,(img,t) in enumerate(zip(images,ts)):
-                ax=axes[*divmod(i,cols)]
-                ax.imshow(img,cmap=None if img.ndim==3 else 'gray')
+            images = args[0]
+            ts     = titles or (title if isinstance(title, list) else [None]*len(images))
+            n      = len(images)
+            cols   = cols or ((n+rows-1)//rows if rows else 3)
+            rows   = rows or ((n+cols-1)//cols)
+            _, axes = plt.subplots(rows, cols,
+                                figsize=figsize or (5*cols, 5*rows),
+                                dpi=dpi)
+            axes = np.array(axes).reshape(rows, cols)
+            for i, (img, t) in enumerate(zip(images, ts)):
+                ax = axes[*divmod(i, cols)]
+                ax.imshow(img, cmap=None if img.ndim == 3 else 'gray')
                 if t: ax.set_title(t)
                 if not axis: ax.axis('off')
-            [axes[*divmod(i,cols)].axis('off') for i in range(n,rows*cols)]
+            [axes[*divmod(i, cols)].axis('off') for i in range(n, rows*cols)]
             plt.tight_layout()
         else:
-            f=args[0].copy()
-            [f.__setitem__(args[i]>0,colors[i-1]) for i in range(1,min(len(args),len(colors)+1))]
-            plt.imshow(f,"gray")
+            f = args[0].copy()
+            [f.__setitem__(args[i]>0, colors[i-1]) for i in range(1, min(len(args), len(colors)+1))]
+            plt.figure(dpi=dpi)
+            plt.imshow(f, "gray")
             if title: plt.title(title)
             if not axis: plt.axis('off')
         plt.savefig(f'fig_{mm.count_Images:04d}.png') if not mm.IN_INTERACTIVE else plt.show()
