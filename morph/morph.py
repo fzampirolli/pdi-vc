@@ -246,14 +246,15 @@ class mm:
         [plt.axhline(j+.5, 0, w, color='r') for j in range(h-1)]
 
     @staticmethod
-    def drawImagePlt(f):
+    def drawImagePlt(f, scale=40):
         """Exibe imagem com grade e rótulos via Matplotlib."""
         import matplotlib.pyplot as plt
-        plt.figure(figsize=(min(f.shape),)*2)
+        h,w=f.shape[:2]
+        plt.figure(figsize=(w/100*scale,h/100*scale))
         mm._plot_grid(f)
 
     @staticmethod
-    def drawImageKernel(f,B,x,y,scale=1):
+    def drawImageKernel(f,B,x,y,scale=40):
         """Exibe imagem com kernel B centrado em (x,y)."""
         import matplotlib.pyplot as plt
         Bh,Bw=B.shape

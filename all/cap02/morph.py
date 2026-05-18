@@ -35,7 +35,7 @@ class mm:
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
 
-
+    @staticmethod
     def read(file, info=False):
         """
         Lê imagem de arquivo local ou URL.
@@ -43,57 +43,24 @@ class mm:
         info=True: retorna objeto PIL.Image (preserva EXIF).
         """
         import re, requests
+        import numpy as np  # Certifique-se de que o numpy está importado se usar fora do módulo
         from PIL import Image
         from io import BytesIO
 
         # Trata URL do Google Drive ou comum
-        import re
-        import time
-        import requests
-        from io import BytesIO
-
-        session = requests.Session()
-
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://commons.wikimedia.org/"
-        }
-
-        # Trata URL do Google Drive ou comum
-        if file.startswith(("http://", "https://", "id=")):
-
-            m = (
-                re.search(r"id=([a-zA-Z0-9_-]+)", file)
-                or re.search(r"/d/([a-zA-Z0-9_-]+)", file)
-            )
-
-            url = (
-                f"https://drive.google.com/uc?export=view&id={m.group(1)}"
-                if m and ("id=" in file or "drive.google.com" in file)
-                else file
-            )
-
-            # Retry simples
-            for tentativa in range(3):
-
-                r = session.get(
-                    url,
-                    headers=headers,
-                    timeout=20,
-                    stream=True
-                )
-
-                if r.status_code == 429:
-                    time.sleep(2 * (tentativa + 1))
-                    continue
-
-                r.raise_for_status()
-                source = BytesIO(r.content)
-                break
-
-            else:
-                raise RuntimeError(f"Falha ao baixar imagem: {url}")
-
+        if file.startswith(('http://', 'https://', 'id=')):
+            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or re.search(r'/d/([a-zA-Z0-9_-]+)', file)
+            url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
+                if m and ('id=' in file or 'drive.google.com' in file) else file
+            
+            # DEFINA UM USER-AGENT IDENTIFICÁVEL PARA O WIKIMEDIA
+            headers = {
+                "User-Agent": "MeuLivroQuartoBot/1.0 (contato@seu-email.com; ferramenta de fins didáticos)"
+            }
+            
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            source = BytesIO(r.content)
         else:
             source = file
 
@@ -225,34 +192,32 @@ class mm:
         M = cv2.getPerspectiveTransform(pts1, pts2)
         dst = cv2.warpPerspective(img, M, size)
         return dst
-    
+
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3, figsize=None):
-        """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
-            Modo simples:   mm.show(f1, f2, title='Exemplo')
-            Modo múltiplo:  mm.show([f1, f2, f3], titles=['t1','t2','t3'], cols=3)
-        """
+    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False):
         import matplotlib.pyplot as plt
-        colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],
-                [0,255,255],[255,255,0],[255,50,50],[50,255,50]]
-        if isinstance(args[0], list):  # modo múltiplo
-            images = args[0]
-            ts = titles or (title if isinstance(title, list) else [None]*len(images))
-            rows = (len(images) + cols - 1) // cols
-            size = figsize or (5*cols, 5*rows)
-            _, axes = plt.subplots(rows, cols, figsize=size)
-            axes = axes.reshape(rows, -1)
-            for i, (img, t) in enumerate(zip(images, ts)):
-                r, c = divmod(i, cols)
-                axes[r,c].imshow(img, cmap=None if img.ndim==3 else 'gray')
-                if t: axes[r,c].set_title(t)
-            [axes[*divmod(i,cols)].axis('off') for i in range(len(images), rows*cols)]
+        colors=[[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
+        if isinstance(args[0], list):
+            images=args[0]
+            ts=titles or (title if isinstance(title,list) else [None]*len(images))
+            n=len(images)
+            cols=cols or ((n+rows-1)//rows if rows else 3)
+            rows=rows or ((n+cols-1)//cols)
+            _,axes=plt.subplots(rows,cols,figsize=figsize or (5*cols,5*rows))
+            axes=np.array(axes).reshape(rows,cols)
+            for i,(img,t) in enumerate(zip(images,ts)):
+                ax=axes[*divmod(i,cols)]
+                ax.imshow(img,cmap=None if img.ndim==3 else 'gray')
+                if t: ax.set_title(t)
+                if not axis: ax.axis('off')
+            [axes[*divmod(i,cols)].axis('off') for i in range(n,rows*cols)]
             plt.tight_layout()
-        else:                          # modo simples
-            f = args[0].copy()
-            [f.__setitem__(args[i]>0, colors[i-1]) for i in range(1, min(len(args), len(colors)+1))]
-            plt.imshow(f, "gray")
+        else:
+            f=args[0].copy()
+            [f.__setitem__(args[i]>0,colors[i-1]) for i in range(1,min(len(args),len(colors)+1))]
+            plt.imshow(f,"gray")
             if title: plt.title(title)
+            if not axis: plt.axis('off')
         plt.savefig(f'fig_{mm.count_Images:04d}.png') if not mm.IN_INTERACTIVE else plt.show()
         mm.count_Images += not mm.IN_INTERACTIVE
 
@@ -281,23 +246,27 @@ class mm:
         [plt.axhline(j+.5, 0, w, color='r') for j in range(h-1)]
 
     @staticmethod
-    def drawImagePlt(f):
+    def drawImagePlt(f, scale=40):
         """Exibe imagem com grade e rótulos via Matplotlib."""
         import matplotlib.pyplot as plt
-        plt.figure(figsize=(min(f.shape),)*2)
+        h,w=f.shape[:2]
+        plt.figure(figsize=(w/100*scale,h/100*scale))
         mm._plot_grid(f)
 
     @staticmethod
-    def drawImageKernel(f, B, x, y):
-        """Exibe imagem com kernel B centrado em (x,y) destacado em amarelo."""
+    def drawImageKernel(f,B,x,y,scale=40):
+        """Exibe imagem com kernel B centrado em (x,y)."""
         import matplotlib.pyplot as plt
-        Bh, Bw = B.shape
-        Bcx, Bcy = Bw//3, Bh//3
-        plt.figure(figsize=(min(f.shape),)*2)
+        Bh,Bw=B.shape
+        Bcx,Bcy=Bw//2,Bh//2
+        h,w=f.shape[:2]
+        plt.figure(figsize=(w/100*scale,h/100*scale))
         mm._plot_grid(f)
+        plt.xticks(fontsize=8)
+        plt.yticks(fontsize=8)
         plt.title(f'Processando pixel (x,y)=({x},{y})')
-        [plt.plot([i+x-Bcx-.5]*2, [y-Bcy-.5, Bh+y-Bcy-.5], color='y', lw=5) for i in range(Bw+1)]
-        [plt.plot([x-Bcx-.5, x-Bcx+Bw-.5], [j+y-Bcy-.5]*2, color='y', lw=5) for j in range(Bh+1)]
+        [plt.plot([i+x-Bcx-.5]*2,[y-Bcy-.5,Bh+y-Bcy-.5],color='y',lw=2) for i in range(Bw+1)]
+        [plt.plot([x-Bcx-.5,x-Bcx+Bw-.5],[j+y-Bcy-.5]*2,color='y',lw=2) for j in range(Bh+1)]
 
     @staticmethod
     def lblshow(f, border=3):
@@ -326,6 +295,23 @@ class mm:
     def intersec(f1, f2): return np.minimum(f1, f2)
 
     @staticmethod
+    def blend(f, g, alpha=0.5):
+        """Mistura ponderada: alpha*f + (1-alpha)*g, com clipping para uint8."""
+        return np.clip(
+            alpha * f.astype(np.float32) + (1 - alpha) * g.astype(np.float32),
+            0, 255
+        ).astype(np.uint8)
+    
+    @staticmethod
+    def band(f, g):   return cv2.bitwise_and(f, g)
+    @staticmethod
+    def bor(f, g):    return cv2.bitwise_or(f, g)
+    @staticmethod
+    def bxor(f, g):   return cv2.bitwise_xor(f, g)
+    @staticmethod
+    def bnot(f):      return cv2.bitwise_not(f)
+
+    @staticmethod
     def threshold(img, limiar=0):
         """Limiarização binária. limiar=0 usa Otsu."""
         flags = cv2.THRESH_BINARY + (cv2.THRESH_OTSU if limiar == 0 else 0)
@@ -350,9 +336,37 @@ class mm:
             H[cor] += 1
             vet.setdefault(str(cor), []).append(i)
         return H, vet
+    
+    @staticmethod
+    def histImg(img, vmax=None, color="steelblue"):
+        """Renderiza o histograma de img como array NumPy (para uso em mm.show)."""
+        import io
+        import matplotlib.pyplot as plt
+        import numpy as np
+        H = mm.hist(img)
+        vmax = vmax if vmax is not None else int(img.max())
+        fig, ax = plt.subplots(figsize=(4, 3))
+        ax.bar(range(len(H)), H, color=color, edgecolor="none", width=1)
+        ax.set_xlim(0, vmax)
+        ax.set_xticks([0, vmax//2, vmax])
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=100)
+        plt.close(fig)
+        buf.seek(0)
+        return np.array(plt.imread(buf))
 
     @staticmethod
-    def equalizacao(image):
+    def equalize(image):
+        """Equalização de histograma pela CDF: s_k = (L-1) * CDF(r_k)."""
+        import numpy as np
+        h    = mm.hist(image)
+        cdf  = np.cumsum(h / h.sum())          # CDF normalizada
+        lut  = np.round(cdf * 255).astype(np.uint8)  # mapeamento para [0,255]
+        return lut[image]                      # aplica LUT pixel a pixel
+
+    @staticmethod
+    def equalizacao(image): # old
         """Equalização pelo valor máximo."""
         h = mm.hist(image)
         prob = h / h.sum()
@@ -403,6 +417,27 @@ class mm:
                 if 0 <= vy < H and 0 <= vx < W:
                     yield vy, vx, B[by, bx]
 
+    # implementações de correlação/convolução
+
+    @staticmethod
+    def conv(f, w):
+        """Correlação vetorizada via cv2.filter2D (eficiente)."""
+        return cv2.filter2D(f, -1, w.astype(np.float32))
+    
+    @staticmethod
+    def conv0(f, w):
+        """Correlação didática (laços explícitos) — bordas mantidas como original."""
+        f  = f.astype(np.float32)
+        a, b = w.shape[0]//2, w.shape[1]//2
+        H, W = f.shape
+        g = f.copy()                              # bordas ficam inalteradas
+        for y in range(a, H-a):
+            for x in range(b, W-b):
+                viz = f[y-a:y+a+1, x-b:x+b+1]   # vizinhança centrada em (y,x)
+                g[y,x] = (w * viz).sum()
+        return np.clip(g, 0, 255).astype(np.uint8)
+
+
     # ── EROSÃO / DILATAÇÃO ───────────────────────────────────────────────────
 
     @staticmethod
@@ -410,12 +445,6 @@ class mm:
         """Erosão (OpenCV ou com pesos)."""
         try:    return cv2.erode(f, Bc)
         except: return mm.ero1(f, Bc)
-
-    @staticmethod
-    def dil(f, Bc=np.zeros((3,3),dtype='uint8')):
-        """Dilatação (OpenCV ou com pesos)."""
-        try:    return cv2.dilate(f, Bc)
-        except: return mm.dil1(f, Bc)
 
     @staticmethod
     def ero0(f, Bc=np.zeros((3,3),dtype='uint8')):
@@ -426,17 +455,7 @@ class mm:
                 for vy,vx,bv in mm._viz(f,Bc,y,x):
                     if bv and g[y,x] > f[vy,vx]: g[y,x] = f[vy,vx]
         return g
-
-    @staticmethod
-    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
-        """Dilatação sem pesos."""
-        g = f.copy()
-        for y in range(f.shape[0]):
-            for x in range(f.shape[1]):
-                for vy,vx,bv in mm._viz(f,Bc,y,x):
-                    if bv and g[y,x] < f[vy,vx]: g[y,x] = f[vy,vx]
-        return g
-
+    
     @staticmethod
     def ero1(f, b=np.zeros((3,3),dtype='uint8')):
         """Erosão com pesos: mínimo de f[viz]-b."""
@@ -447,6 +466,22 @@ class mm:
                     if g[y,x] > f[vy,vx]-bv: g[y,x] = f[vy,vx]-bv
         return g
 
+    @staticmethod
+    def dil(f, Bc=np.zeros((3,3),dtype='uint8')):
+        """Dilatação (OpenCV ou com pesos)."""
+        try:    return cv2.dilate(f, Bc)
+        except: return mm.dil1(f, Bc)
+
+    @staticmethod
+    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
+        """Dilatação sem pesos."""
+        g = f.copy()
+        for y in range(f.shape[0]):
+            for x in range(f.shape[1]):
+                for vy,vx,bv in mm._viz(f,Bc,y,x):
+                    if bv and g[y,x] < f[vy,vx]: g[y,x] = f[vy,vx]
+        return g
+    
     @staticmethod
     def dil1(f, b=np.zeros((3,3),dtype='uint8')):
         """Dilatação com pesos: máximo de f[viz]+b."""

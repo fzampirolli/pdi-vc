@@ -194,40 +194,30 @@ class mm:
         return dst
 
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None):
-        """Exibe imagens sobrepostas (modo simples) ou em grade (modo múltiplo).
-            Modo simples:   mm.show(f1, f2, title='Exemplo')
-            Modo múltiplo:  mm.show([f1, f2, f3], titles=['t1','t2','t3'], cols=3)
-                            mm.show([f1, f2, f3], titles=['t1','t2','t3'], rows=1)
-        """
+    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False):
         import matplotlib.pyplot as plt
-        colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],
-                [0,255,255],[255,255,0],[255,50,50],[50,255,50]]
-        if isinstance(args[0], list):  # modo múltiplo
-            images = args[0]
-            ts = titles or (title if isinstance(title, list) else [None]*len(images))
-            n = len(images)
-            if rows and not cols:
-                cols = (n + rows - 1) // rows
-            elif cols and not rows:
-                rows = (n + cols - 1) // cols
-            else:                      # ambos omitidos ou ambos fornecidos
-                cols = cols or 3
-                rows = rows or (n + cols - 1) // cols
-            size = figsize or (5*cols, 5*rows)
-            _, axes = plt.subplots(rows, cols, figsize=size)
-            axes = np.array(axes).reshape(rows, cols)
-            for i, (img, t) in enumerate(zip(images, ts)):
-                r, c = divmod(i, cols)
-                axes[r, c].imshow(img, cmap=None if img.ndim == 3 else 'gray')
-                if t: axes[r, c].set_title(t)
-            [axes[*divmod(i, cols)].axis('off') for i in range(n, rows*cols)]
+        colors=[[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
+        if isinstance(args[0], list):
+            images=args[0]
+            ts=titles or (title if isinstance(title,list) else [None]*len(images))
+            n=len(images)
+            cols=cols or ((n+rows-1)//rows if rows else 3)
+            rows=rows or ((n+cols-1)//cols)
+            _,axes=plt.subplots(rows,cols,figsize=figsize or (5*cols,5*rows))
+            axes=np.array(axes).reshape(rows,cols)
+            for i,(img,t) in enumerate(zip(images,ts)):
+                ax=axes[*divmod(i,cols)]
+                ax.imshow(img,cmap=None if img.ndim==3 else 'gray')
+                if t: ax.set_title(t)
+                if not axis: ax.axis('off')
+            [axes[*divmod(i,cols)].axis('off') for i in range(n,rows*cols)]
             plt.tight_layout()
-        else:                          # modo simples
-            f = args[0].copy()
-            [f.__setitem__(args[i]>0, colors[i-1]) for i in range(1, min(len(args), len(colors)+1))]
-            plt.imshow(f, "gray")
+        else:
+            f=args[0].copy()
+            [f.__setitem__(args[i]>0,colors[i-1]) for i in range(1,min(len(args),len(colors)+1))]
+            plt.imshow(f,"gray")
             if title: plt.title(title)
+            if not axis: plt.axis('off')
         plt.savefig(f'fig_{mm.count_Images:04d}.png') if not mm.IN_INTERACTIVE else plt.show()
         mm.count_Images += not mm.IN_INTERACTIVE
 
@@ -263,16 +253,19 @@ class mm:
         mm._plot_grid(f)
 
     @staticmethod
-    def drawImageKernel(f, B, x, y):
-        """Exibe imagem com kernel B centrado em (x,y) destacado em amarelo."""
+    def drawImageKernel(f,B,x,y,scale=1):
+        """Exibe imagem com kernel B centrado em (x,y)."""
         import matplotlib.pyplot as plt
-        Bh, Bw = B.shape
-        Bcx, Bcy = Bw//3, Bh//3
-        plt.figure(figsize=(min(f.shape),)*2)
+        Bh,Bw=B.shape
+        Bcx,Bcy=Bw//2,Bh//2
+        h,w=f.shape[:2]
+        plt.figure(figsize=(w/100*scale,h/100*scale))
         mm._plot_grid(f)
+        plt.xticks(fontsize=8)
+        plt.yticks(fontsize=8)
         plt.title(f'Processando pixel (x,y)=({x},{y})')
-        [plt.plot([i+x-Bcx-.5]*2, [y-Bcy-.5, Bh+y-Bcy-.5], color='y', lw=5) for i in range(Bw+1)]
-        [plt.plot([x-Bcx-.5, x-Bcx+Bw-.5], [j+y-Bcy-.5]*2, color='y', lw=5) for j in range(Bh+1)]
+        [plt.plot([i+x-Bcx-.5]*2,[y-Bcy-.5,Bh+y-Bcy-.5],color='y',lw=2) for i in range(Bw+1)]
+        [plt.plot([x-Bcx-.5,x-Bcx+Bw-.5],[j+y-Bcy-.5]*2,color='y',lw=2) for j in range(Bh+1)]
 
     @staticmethod
     def lblshow(f, border=3):
