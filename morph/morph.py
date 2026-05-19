@@ -476,13 +476,27 @@ class mm:
         except: return mm.dil1(f, Bc)
 
     @staticmethod
-    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
+    def dil0_old(f, Bc=np.zeros((3,3),dtype='uint8')):
         """Dilatação sem pesos."""
         g = f.copy()
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
                 for vy,vx,bv in mm._viz(f,Bc,y,x):
                     if bv and g[y,x] < f[vy,vx]: g[y,x] = f[vy,vx]
+        return g
+    
+    @staticmethod
+    def dil0(f, Bc=np.zeros((3,3),dtype='uint8')):
+        """Dilatação binária seguindo rigorosamente a teoria."""
+        g = f.copy()
+        Bc = np.flip(Bc)                    # reflexão explícita: B̂
+
+        for y in range(f.shape[0]):
+            for x in range(f.shape[1]):
+                for vy,vx,bv in mm._viz(f,Bc,y,x):
+                    if bv and g[y,x] < f[vy,vx]:
+                        g[y,x] = f[vy,vx]
+
         return g
     
     @staticmethod
