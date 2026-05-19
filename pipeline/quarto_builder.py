@@ -1071,8 +1071,8 @@ def _fix_tex_cover(qdir: Path):
 
 \usepackage[skins,breakable]{tcolorbox}
 \tcbset{
-  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\footnotesize\ttfamily},
-  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\footnotesize\ttfamily}
+  pdicode/.style={enhanced, breakable, colback=codebg, colframe=codeborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\small\ttfamily},
+  pdioutput/.style={enhanced, breakable, colback=outputbg, colframe=outputborder, leftrule=4pt, rightrule=0.4pt, toprule=0.4pt, bottomrule=0.4pt, arc=4pt, boxsep=0pt, left=6pt, right=6pt, top=4pt, bottom=4pt, fontupper=\small\ttfamily}
 }
 
 % ─────────────────────────────────────────────────────────────
