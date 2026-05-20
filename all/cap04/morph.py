@@ -611,6 +611,18 @@ class mm:
             return y
         return _ao(f, a)
 
+
+    @staticmethod
+    def tophat(f, b=np.zeros((3,3), dtype='uint8')):
+        """Top-hat: f - open(f, b). Realça detalhes brilhantes sobre fundo escuro."""
+        return mm.subm(f, mm.open(f, b))
+
+    @staticmethod
+    def blackhat(f, b=np.zeros((3,3), dtype='uint8')):
+        """Black-hat: close(f, b) - f. Realça detalhes escuros sobre fundo claro."""
+        return mm.subm(mm.close(f, b), f)
+
+
     # ── REGIÕES / RÓTULOS ─────────────────────────────────────────────────────
 
     @staticmethod
