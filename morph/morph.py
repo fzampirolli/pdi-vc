@@ -763,9 +763,17 @@ class mm:
     def edgeoff(f, b=np.ones((3,3),dtype='uint8')):
         return mm.subm(f, mm.infrec(mm.frame(f),f,b))
 
+    # @staticmethod
+    # def clohole(f, b=np.ones((3,3),dtype='uint8')):
+    #     return mm.neg(mm.infrec(mm.frame(f),mm.neg(f),b))
+
     @staticmethod
     def clohole(f, b=np.ones((3,3),dtype='uint8')):
-        return mm.neg(mm.infrec(mm.frame(f),mm.neg(f),b))
+        # CORREÇÃO: O marcador DEVE ser restrito ao fundo da imagem (mm.neg(f))
+        marcador = mm.frame(f, border=1) & mm.neg(f)
+        
+        # Realiza a reconstrução do fundo e inverte o resultado para obter os buracos cheios
+        return mm.neg(mm.infrec(marcador, mm.neg(f), b))
 
     def hmin(f, h, b=np.ones((3,3),dtype='uint8')):
         return mm.suprec(f, mm.addm(f,h), b)
