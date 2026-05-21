@@ -408,18 +408,30 @@ class mm:
 
     # ── VIZINHANÇA (helper interno) ───────────────────────────────────────────
 
+    # @staticmethod
+    # def _viz(f, B, y, x):
+    #     """Gera (vy, vx, b_val) para cada vizinho válido de (y,x)."""
+    #     H, W = f.shape
+    #     Bh, Bw = B.shape
+    #     for by in range(Bh):
+    #         for bx in range(Bw):
+    #             vy = int(y + by - Bh/2 + 0.5)
+    #             vx = int(x + bx - Bw/2 + 0.5)
+    #             if 0 <= vy < H and 0 <= vx < W:
+    #                 yield vy, vx, B[by, bx]
+
+
     @staticmethod
     def _viz(f, B, y, x):
         """Gera (vy, vx, b_val) para cada vizinho válido de (y,x)."""
         H, W = f.shape
         Bh, Bw = B.shape
-        for by in range(Bh):
-            for bx in range(Bw):
-                vy = int(y + by - Bh/2 + 0.5)
-                vx = int(x + bx - Bw/2 + 0.5)
-                if 0 <= vy < H and 0 <= vx < W:
-                    yield vy, vx, B[by, bx]
-
+        oh, ow = -Bh/2 + 0.5, -Bw/2 + 0.5  # offsets fixos
+        for by, bx in np.ndindex(Bh, Bw):
+            vy, vx = int(y + by + oh), int(x + bx + ow)
+            if 0 <= vy < H and 0 <= vx < W:
+                yield vy, vx, B[by, bx]
+                
     # implementações de correlação/convolução
 
     @staticmethod
@@ -760,8 +772,16 @@ class mm:
     def frame(f, border=5):
         g=np.ones_like(f)*255; g[border:-border,border:-border]=0; return g
 
+    # def edgeoff(f, b=np.ones((3,3),dtype='uint8')):
+    #     return mm.subm(f, mm.infrec(mm.frame(f),f,b))
+
+    @staticmethod
     def edgeoff(f, b=np.ones((3,3),dtype='uint8')):
-        return mm.subm(f, mm.infrec(mm.frame(f),f,b))
+        # CORREÇÃO 1: Garante borda de 1 pixel e restringe o marcador apenas aos objetos (f)
+        marcador = mm.frame(f, border=1) & f
+        
+        # CORREÇÃO 2: Reconstrói os objetos de borda e os subtrai da imagem original
+        return mm.subm(f, mm.infrec(marcador, f, b))
 
     # @staticmethod
     # def clohole(f, b=np.ones((3,3),dtype='uint8')):
