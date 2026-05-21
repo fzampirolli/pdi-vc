@@ -673,18 +673,7 @@ class mm:
     # ── WATERSHED ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def water0(f, b=np.zeros((3,3),dtype='uint8'), op='region'):
-        f = mm.label0(f, b); g = f.copy()
-        while g.min()==0:
-            for x in range(f.shape[0]):
-                for y in range(f.shape[1]):
-                    for vy,vx,_ in mm._viz(f,b,x,y):
-                        if g[x,y]==0 and g[x,y]<f[vy,vx]: g[x,y]=f[vy,vx]
-            f = g.copy()
-        return g if op=='region' else mm.gradm(g, mm.secross())
-
-    @staticmethod
-    def waterB(f, m, b=np.zeros((3,3),dtype='uint8'), op='region'):
+    def watershedB(f, m, b=np.zeros((3,3),dtype='uint8'), op='region'):
         m = mm.label0(m, b); h,w = m.shape; queue=[]
         for x in range(h):
             for y in range(w):
@@ -699,6 +688,17 @@ class mm:
                     m[vy,vx]=cor
                     queue.append([abs(int(f[x,y])-int(f[vy,vx])),vy,vx])
         return m if op=='region' else mm.gradm(m, mm.secross())
+    
+    @staticmethod
+    def watershed0(f, b=np.zeros((3,3),dtype='uint8'), op='region'):
+        f = mm.label0(f, b); g = f.copy()
+        while g.min()==0:
+            for x in range(f.shape[0]):
+                for y in range(f.shape[1]):
+                    for vy,vx,_ in mm._viz(f,b,x,y):
+                        if g[x,y]==0 and g[x,y]<f[vy,vx]: g[x,y]=f[vy,vx]
+            f = g.copy()
+        return g if op=='region' else mm.gradm(g, mm.secross())
 
     @staticmethod
     def watershed(f, mark, op='region'):
