@@ -33,6 +33,7 @@ API_URL = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {"User-Agent": "NatureBrazilBot/1.0 (livro didático; contato@exemplo.com)"}
 
 CATEGORIAS_NATUREZA = [
+    "Cameraman",
     # --- Substitutos para Testes Históricos de PDI ---
     "Mandrillus sphinx",           # O "Mandril" (substituto clássico da Lena para texturas/filtros)
     "Cameraman (test image)",      # A famosa imagem de teste do homem com a câmera
@@ -61,7 +62,7 @@ CATEGORIAS_NATUREZA = [
 ]
 
 
-BUSCA = CATEGORIAS_NATUREZA[3]
+BUSCA = CATEGORIAS_NATUREZA[0]
 
 BUSCAS_TEXTO = [
     "scanned text",
