@@ -194,7 +194,7 @@ class mm:
         return dst
 
     @staticmethod
-    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False, dpi=96):
+    def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False, dpi=96, scale=50):
         import matplotlib.pyplot as plt
         colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
         if isinstance(args[0], list):
@@ -217,7 +217,14 @@ class mm:
         else:
             f = args[0].copy()
             [f.__setitem__(args[i]>0, colors[i-1]) for i in range(1, min(len(args), len(colors)+1))]
-            plt.figure(dpi=dpi)
+            h, w = f.shape[:2]
+            if figsize is None:
+                max_inch = 10                          # limite máximo em polegadas
+                ratio    = h / w
+                fw       = min(w / dpi, max_inch)      # largura em polegadas, limitada
+                fh       = min(fw * ratio, max_inch)   # altura proporcional, limitada
+                figsize  = (fw, fh)
+            plt.figure(figsize=figsize, dpi=dpi)
             plt.imshow(f, "gray")
             if title: plt.title(title)
             if not axis: plt.axis('off')
@@ -225,6 +232,20 @@ class mm:
         mm.count_Images += not mm.IN_INTERACTIVE
 
 
+    @staticmethod
+    def write(img, path):
+        """Salva imagem em disco. Aceita numpy array (RGB ou cinza) ou PIL Image."""
+        import os
+        os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
+        if isinstance(img, np.ndarray):
+            # converte RGB → BGR para o OpenCV salvar corretamente
+            if img.ndim == 3 and img.shape[2] == 3:
+                cv2.imwrite(path, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            else:
+                cv2.imwrite(path, img)
+        else:
+            img.save(path)   # PIL Image
+            
     @staticmethod
     def drawImage(f):
         """Retorna string formatada da matriz para impressão."""
