@@ -139,8 +139,8 @@ class QuartoBuilder:
     O render NÃO usa --config: roda de dentro da pasta.
     """
 
-    CAPS_PART1 = [f'cap{i:02d}' for i in range(1, 5)]
-    CAPS_PART2 = [f'cap{i:02d}' for i in range(5, 9)]
+    CAPS_PART1 = [f'cap{i:02d}' for i in range(1, 6)]
+    CAPS_PART2 = [f'cap{i:02d}' for i in range(6, 11)]
 
     def __init__(self, project_root: Path = Path('.')):
         self.root = project_root.resolve()
