@@ -297,7 +297,8 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#connectedcomponentswithstats" id="toc-connectedcomponentswithstats" class="nav-link" data-scroll-target="#connectedcomponentswithstats"><span class="header-section-number">4.5.1</span> connectedComponentsWithStats</a></li>
   <li><a href="#descritores-de-forma" id="toc-descritores-de-forma" class="nav-link" data-scroll-target="#descritores-de-forma"><span class="header-section-number">4.5.2</span> Descritores de Forma</a></li>
-  <li><a href="#segmentação-por-k-means" id="toc-segmentação-por-k-means" class="nav-link" data-scroll-target="#segmentação-por-k-means"><span class="header-section-number">4.5.3</span> Segmentação por <em>K-Means</em></a></li>
+  <li><a href="#conexão-com-detecção-de-objetos-moderna" id="toc-conexão-com-detecção-de-objetos-moderna" class="nav-link" data-scroll-target="#conexão-com-detecção-de-objetos-moderna"><span class="header-section-number">4.5.3</span> Conexão com Detecção de Objetos Moderna</a></li>
+  <li><a href="#segmentação-por-k-means" id="toc-segmentação-por-k-means" class="nav-link" data-scroll-target="#segmentação-por-k-means"><span class="header-section-number">4.5.4</span> Segmentação por <em>K-Means</em></a></li>
   </ul></li>
   <li><a href="#aplicação-prática-pipeline-completo-de-contagem" id="toc-aplicação-prática-pipeline-completo-de-contagem" class="nav-link" data-scroll-target="#aplicação-prática-pipeline-completo-de-contagem"><span class="header-section-number">4.6</span> Aplicação Prática: Pipeline Completo de Contagem</a></li>
   <li><a href="#resumo" id="toc-resumo" class="nav-link" data-scroll-target="#resumo"><span class="header-section-number">4.7</span> Resumo</a></li>
@@ -417,20 +418,23 @@ T^* =
 <h3 data-number="4.2.1" class="anchored" data-anchor-id="imagem-de-moedas"><span class="header-section-number">4.2.1</span> Imagem de Moedas</h3>
 <p>A imagem utilizada para praticar a segmentação é uma fotografia de coleção de moedas de diferentes países e épocas (<a href="#fig-04-coins" class="quarto-xref">Figura&nbsp;<span>4.1</span></a>). Crédito: GAZI.MD.AHAD (CC BY-SA 4.0). Ela apresenta objetos circulares com bordas bem definidas, sendo ideal para demonstrar limiarização, operadores morfológicos, transformada de distância, <em>watershed</em> e descritores de forma.</p>
 <div id="cell-fig-04-coins" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> requests</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL <span class="im">import</span> Image</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL.ExifTags <span class="im">import</span> TAGS</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> io <span class="im">import</span> BytesIO</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>url     <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons/2/25/GAZI.MD.AHAD_11.jpg"</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>caminho <span class="op">=</span> <span class="st">"imagens/coins.jpg"</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons/2/25/GAZI.MD.AHAD_11.jpg"</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Fonte: https://commons.wikimedia.org/wiki/File:GAZI.MD.AHAD_11.jpg</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>img_obj <span class="op">=</span> mm.read(url, info<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>img_coins_color <span class="op">=</span> np.array(img_obj)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>img_coins_gray  <span class="op">=</span> mm.gray(img_coins_color)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(caminho):</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    os.makedirs(<span class="st">"imagens"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    img_obj <span class="op">=</span> mm.read(url, pil<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    mm.write(img_obj, caminho)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    img_obj <span class="op">=</span> mm.read(caminho, pil<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Dimensões [y,x,c]: </span><span class="sc">{</span>img_coins_color<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>mm.show(img_obj)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>img_coins_color <span class="op">=</span> np.array(img_obj)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>img_coins_gray  <span class="op">=</span> mm.gray(img_coins_color)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Dimensões [y,x,c]: </span><span class="sc">{</span>img_coins_color<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>mm.show(img_coins_color, scale<span class="op">=</span><span class="dv">30</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Dimensões [y,x,c]: (2560, 1920, 3)</code></pre>
 </div>
@@ -715,7 +719,7 @@ Figura&nbsp;4.3: Erosão e dilatação em imagem binária 10×10 com elemento es
 </div>
 </div>
 <div id="cell-fig-04-erosao" class="cell">
-<div id="fig-04-erosao" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="110">
+<div id="fig-04-erosao" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-04-erosao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -1183,14 +1187,15 @@ Tabela&nbsp;4.2: Sequências do filtro sequencial alternado <code>mm.asf</code>.
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>img_open  <span class="op">=</span> mm.<span class="bu">open</span>(img_bin, B_disk)             <span class="co"># erosão → dilatação</span></span>
 <span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>img_close <span class="op">=</span> mm.close(img_bin, B_disk)            <span class="co"># dilatação → erosão</span></span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>img_oc    <span class="op">=</span> mm.close(img_open, B_disk)           <span class="co"># abertura seguida de fechamento</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>img_asf   <span class="op">=</span> mm.asf(img_bin, <span class="st">'OC'</span>, mm.sedisk(<span class="dv">3</span>), n<span class="op">=</span><span class="dv">7</span>)  <span class="co"># ASF: disco base 3×3, cresce a cada iteração</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    [img_bin, img_open, img_close, img_oc, img_asf],</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Binarização Otsu (CLAHE)"</span>, <span class="st">"Abertura (A∘B)"</span>, <span class="st">"Fechamento (A∙B)"</span>,</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Abertura→Fechamento"</span>, <span class="st">"ASF-OC (n=7)"</span>],</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">15</span>, <span class="dv">12</span>)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>img_asf   <span class="op">=</span> mm.asf(img_bin, <span class="st">'OC'</span>, mm.sedisk(<span class="dv">3</span>), n<span class="op">=</span><span class="dv">7</span>)  </span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ASF: disco base 3×3, cresce a cada iteração</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    [img_bin, img_open, img_close, img_oc, img_asf],</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Binarização Otsu (CLAHE)"</span>, <span class="st">"Abertura (A∘B)"</span>, <span class="st">"Fechamento (A∙B)"</span>,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Abertura→Fechamento"</span>, <span class="st">"ASF-OC (n=7)"</span>],</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">15</span>, <span class="dv">12</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-04-open-close" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1666,7 +1671,7 @@ Tabela&nbsp;4.3: Taxonomia dos métodos de segmentação baseados em propriedade
 <p>O auxiliar <code>_viz</code> itera sobre a janela estruturante <code>b</code> centrada em <span class="math inline">\((i,j)\)</span>, gerando somente os vizinhos válidos dentro dos limites da imagem — a conectividade desejada é inteiramente determinada pela forma de <code>b</code> passada ao algoritmo.</p>
 <p><strong>Exemplo didático — efeito da conectividade:</strong></p>
 <div id="cell-fig-04-rotulacao" class="cell">
-<div id="fig-04-rotulacao" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="119">
+<div id="fig-04-rotulacao" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="14">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-04-rotulacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -2226,7 +2231,7 @@ D(x,y) = \min_{(x',y') \,:\, f(x',y')=0} \; d\bigl((x,y),\,(x',y')\bigr)
 <p>A <a href="#fig-04-distancia" class="quarto-xref">Figura&nbsp;<span>4.14</span></a> apresenta um simulador interativo da TD: dado um pixel do objeto, é possível mover o cursor sobre a imagem binária e observar, em tempo real, o valor da TD naquela posição — isto é, a TD ao pixel de fundo mais próximo. A <a href="#fig-04-distancia-didatico" class="quarto-xref">Figura&nbsp;<span>4.15</span></a> apresenta um exemplo prático em Python da TD.</p>
 <p><strong>Exemplo didático — TD iterativa vs.&nbsp;direta em imagem 10×10:</strong></p>
 <div id="cell-fig-04-distancia" class="cell">
-<div id="fig-04-distancia" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="121">
+<div id="fig-04-distancia" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="16">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-04-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -2935,7 +2940,7 @@ Tabela&nbsp;4.4: Pipeline morfológico típico do <em>watershed</em> baseado em 
 </div>
 <p>A <a href="#fig-04-watershed" class="quarto-xref">Figura&nbsp;<span>4.16</span></a> apresenta um simulador iterativo que ilustra essa dinâmica: os marcadores comportam-se como fontes de inundação que se expandem progressivamente pela máscara correspondente à região incerta. Quando duas bacias tentam ocupar simultaneamente o mesmo pixel, esse ponto passa a ser classificado como fronteira (<code>-1</code>). A <a href="#fig-04-watershed-didatico" class="quarto-xref">Figura&nbsp;<span>4.17</span></a> apresenta um exemplo completo do algoritmo <em>watershed</em> em Python utilizando <code>morph.py</code>, enquanto a <a href="#fig-04-watershed-moedas" class="quarto-xref">Figura&nbsp;<span>4.18</span></a> ilustra sua aplicação na separação de moedas adjacentes em uma imagem binária.</p>
 <div id="cell-fig-04-watershed" class="cell">
-<div id="fig-04-watershed" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="123">
+<div id="fig-04-watershed" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="18">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-04-watershed-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -3439,35 +3444,36 @@ Figura&nbsp;4.16: Simulador interativo do Algoritmo Watershed por propagação m
 <span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>dist_vis <span class="op">=</span> cv2.normalize(dist.astype(np.float32), <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>,</span>
 <span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>                         cv2.NORM_MINMAX).astype(np.uint8)</span>
 <span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co"># os marcadores são os picos mais altos da topografia da TD, representando o centro "seguro" de cada objeto</span></span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>_, fg   <span class="op">=</span> cv2.threshold(dist.astype(np.float32), <span class="fl">0.8</span> <span class="op">*</span> dist.<span class="bu">max</span>(), <span class="dv">255</span>, <span class="dv">0</span>)</span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>fg      <span class="op">=</span> fg.astype(np.uint8)</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>bg      <span class="op">=</span> cv2.dilate(f_sint, B8, iterations<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>unknown <span class="op">=</span> cv2.subtract(bg, fg)</span>
-<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>n_markers, markers <span class="op">=</span> cv2.connectedComponents(fg)</span>
-<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>markers <span class="op">=</span> markers <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>markers[unknown <span class="op">==</span> <span class="dv">255</span>] <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a><span class="co"># ── watershed (cv2) ───────────────────────────────────────────────────────────</span></span>
-<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>f_bgr      <span class="op">=</span> cv2.cvtColor(f_sint, cv2.COLOR_GRAY2BGR)</span>
-<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>markers_ws <span class="op">=</span> markers.copy()</span>
-<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>cv2.watershed(f_bgr, markers_ws)</span>
-<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>ws_region <span class="op">=</span> cv2.normalize(</span>
-<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>    np.where(markers_ws <span class="op">&gt;</span> <span class="dv">1</span>, markers_ws, <span class="dv">0</span>).astype(np.float32),</span>
-<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>    <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>ws_line <span class="op">=</span> np.where(markers_ws <span class="op">==</span> <span class="op">-</span><span class="dv">1</span>, <span class="dv">255</span>, <span class="dv">0</span>).astype(np.uint8)</span>
-<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a>    [f_sint, dist_vis, fg, ws_region, ws_line],</span>
-<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>        <span class="st">"f sintética"</span>, <span class="st">"mm.dist ($L_2$)"</span>, <span class="st">"Frente (marcadores)"</span>,</span>
-<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a>        <span class="st">"watershed (cv2)</span><span class="ch">\n</span><span class="st">op='region'"</span>,   <span class="st">"watershed (cv2)</span><span class="ch">\n</span><span class="st">op='line'"</span></span>
-<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
-<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co"># os marcadores são os picos mais altos da topografia da TD, </span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="co"># representando o centro "seguro" de cada objeto</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>_, fg   <span class="op">=</span> cv2.threshold(dist.astype(np.float32), <span class="fl">0.8</span> <span class="op">*</span> dist.<span class="bu">max</span>(), <span class="dv">255</span>, <span class="dv">0</span>)</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>fg      <span class="op">=</span> fg.astype(np.uint8)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>bg      <span class="op">=</span> cv2.dilate(f_sint, B8, iterations<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>unknown <span class="op">=</span> cv2.subtract(bg, fg)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>n_markers, markers <span class="op">=</span> cv2.connectedComponents(fg)</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>markers <span class="op">=</span> markers <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>markers[unknown <span class="op">==</span> <span class="dv">255</span>] <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a><span class="co"># ── watershed (cv2) ───────────────────────────────────────────────────────────</span></span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>f_bgr      <span class="op">=</span> cv2.cvtColor(f_sint, cv2.COLOR_GRAY2BGR)</span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>markers_ws <span class="op">=</span> markers.copy()</span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a>cv2.watershed(f_bgr, markers_ws)</span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>ws_region <span class="op">=</span> cv2.normalize(</span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>    np.where(markers_ws <span class="op">&gt;</span> <span class="dv">1</span>, markers_ws, <span class="dv">0</span>).astype(np.float32),</span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>    <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a>ws_line <span class="op">=</span> np.where(markers_ws <span class="op">==</span> <span class="op">-</span><span class="dv">1</span>, <span class="dv">255</span>, <span class="dv">0</span>).astype(np.uint8)</span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>    [f_sint, dist_vis, fg, ws_region, ws_line],</span>
+<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a>        <span class="st">"f sintética"</span>, <span class="st">"mm.dist ($L_2$)"</span>, <span class="st">"Frente (marcadores)"</span>,</span>
+<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a>        <span class="st">"watershed (cv2)</span><span class="ch">\n</span><span class="st">op='region'"</span>,   <span class="st">"watershed (cv2)</span><span class="ch">\n</span><span class="st">op='line'"</span></span>
+<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">5</span>, figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
+<span id="cb26-42"><a href="#cb26-42" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-04-watershed-didatico" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -3482,7 +3488,9 @@ Figura&nbsp;4.17: Pipeline watershed (cv2) em imagem binária 20×20 com dois di
 </div>
 </div>
 <p><strong>Aplicação em moedas sobrepostas:</strong></p>
-<div id="cell-fig-04-watershed-moedas" class="cell">
+<div id="fig-04-watershed-moedas" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-04-watershed-moedas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>img_base <span class="op">=</span> img_coins_gray</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Dilatar img_final para conectar moedas (simula sobreposição real)</span></span>
@@ -3540,21 +3548,28 @@ Figura&nbsp;4.17: Pipeline watershed (cv2) em imagem binária 20×20 com dois di
 <span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>, rows<span class="op">=</span><span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">8</span>)</span>
 <span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Objetos detectados: 12</code></pre>
+<div class="cell-output cell-output-error">
+<div class="ansi-escaped-output">
+<pre><span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[20]</span><span class="ansi-green-fg">, line 13</span>
+<span class="ansi-green-fg">      9</span> img_sobrepostas = mm.dil(img_final, mm.sebox(<span class="ansi-green-fg">40</span>))
+<span class="ansi-green-fg">     10</span> 
+<span class="ansi-green-fg">     11</span> <span style="font-style:italic;color:rgb(95,135,135)"># ── Etapas 1-2 ───────────────────────────────────────────────────────────────</span>
+<span class="ansi-green-fg">     12</span> kernel  = mm.sebox(<span class="ansi-green-fg">2</span>)
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">13</span> opening = mm.open(opening, kernel)
+<span class="ansi-green-fg">     14</span> 
+<span class="ansi-green-fg">     15</span> <span style="font-style:italic;color:rgb(95,135,135)"># ── Etapas 2-4 ───────────────────────────────────────────────────────────────</span>
+<span class="ansi-green-fg">     16</span> bg      = cv2.dilate(opening, kernel, iterations=<span class="ansi-green-fg">3</span>)
+
+<span class="ansi-red-fg">NameError</span>: name 'opening' is not defined</pre>
 </div>
-<div class="cell-output cell-output-display">
-<div id="fig-04-watershed-moedas" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-04-watershed-moedas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap04.py.pt_files/figure-html/fig-04-watershed-moedas-output-2.png" class="img-fluid figure-img">
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-watershed-moedas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;4.18: Pipeline Watershed para separação de moedas sobrepostas: da máscara binária dilatada até os contornos finais anotados sobre a imagem original.
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-04-watershed-moedas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;4.18
 </figcaption>
 </figure>
-</div>
-</div>
 </div>
 </section>
 </section>
@@ -3602,37 +3617,37 @@ Figura&nbsp;4.18: Pipeline Watershed para separação de moedas sobrepostas: da 
 <h3 data-number="4.5.1" class="anchored" data-anchor-id="connectedcomponentswithstats"><span class="header-section-number">4.5.1</span> connectedComponentsWithStats</h3>
 <p>A <a href="#fig-04-componentes" class="quarto-xref">Figura&nbsp;<span>4.19</span></a> demonstra a extração na imagem de moedas.</p>
 <div id="cell-fig-04-componentes" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Rotulagem e estatísticas</span></span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>n, labels, stats, centroids <span class="op">=</span> cv2.connectedComponentsWithStats(</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    img_final, connectivity<span class="op">=</span><span class="dv">8</span></span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Coloração dos componentes</span></span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">4</span>)</span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>colors    <span class="op">=</span> np.random.randint(<span class="dv">50</span>, <span class="dv">255</span>, (n, <span class="dv">3</span>), dtype<span class="op">=</span>np.uint8)</span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>colors[<span class="dv">0</span>] <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]                          <span class="co"># fundo preto</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>img_colored   <span class="op">=</span> colors[labels]</span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>img_annotated <span class="op">=</span> img_colored.copy()</span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Tabela de descritores</span></span>
-<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Componentes detectados (excluindo fundo): </span><span class="sc">{</span>n <span class="op">-</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'ID'</span><span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Área'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cx'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cy'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'w'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'h'</span><span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
-<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n):</span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>    area <span class="op">=</span> stats[i, cv2.CC_STAT_AREA]</span>
-<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>    cx, cy <span class="op">=</span> <span class="bu">int</span>(centroids[i, <span class="dv">0</span>]), <span class="bu">int</span>(centroids[i, <span class="dv">1</span>])</span>
-<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>    w, h   <span class="op">=</span> stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]</span>
-<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>i<span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span>area<span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span>cx<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>cy<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>w<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>h<span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
-<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> cor, esp <span class="kw">in</span> [((<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">10</span>), ((<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">5</span>)]:</span>
-<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>        cv2.putText(img_annotated, <span class="ss">f"</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>area<span class="sc">}</span><span class="ss">"</span>,</span>
-<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>                    (cx <span class="op">-</span> <span class="dv">150</span>, cy <span class="op">+</span> <span class="dv">18</span>),</span>
-<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>                    cv2.FONT_HERSHEY_SIMPLEX, <span class="fl">2.0</span>, cor, esp, cv2.LINE_AA)</span>
-<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>    [img_coins_gray, img_final, img_colored, img_annotated],</span>
-<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Segmentação Final"</span>, <span class="st">"Componentes Conexos"</span>, <span class="st">"Áreas Anotadas"</span>],</span>
-<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>)</span>
-<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Rotulagem e estatísticas</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>n, labels, stats, centroids <span class="op">=</span> cv2.connectedComponentsWithStats(</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    img_final, connectivity<span class="op">=</span><span class="dv">8</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Coloração dos componentes</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">4</span>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>colors    <span class="op">=</span> np.random.randint(<span class="dv">50</span>, <span class="dv">255</span>, (n, <span class="dv">3</span>), dtype<span class="op">=</span>np.uint8)</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>colors[<span class="dv">0</span>] <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]                          <span class="co"># fundo preto</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>img_colored   <span class="op">=</span> colors[labels]</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>img_annotated <span class="op">=</span> img_colored.copy()</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Tabela de descritores</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Componentes detectados (excluindo fundo): </span><span class="sc">{</span>n <span class="op">-</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'ID'</span><span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Área'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cx'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cy'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'w'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'h'</span><span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n):</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>    area <span class="op">=</span> stats[i, cv2.CC_STAT_AREA]</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>    cx, cy <span class="op">=</span> <span class="bu">int</span>(centroids[i, <span class="dv">0</span>]), <span class="bu">int</span>(centroids[i, <span class="dv">1</span>])</span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    w, h   <span class="op">=</span> stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>i<span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span>area<span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span>cx<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>cy<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>w<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>h<span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> cor, esp <span class="kw">in</span> [((<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">10</span>), ((<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">5</span>)]:</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>        cv2.putText(img_annotated, <span class="ss">f"</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>area<span class="sc">}</span><span class="ss">"</span>,</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>                    (cx <span class="op">-</span> <span class="dv">150</span>, cy <span class="op">+</span> <span class="dv">18</span>),</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>                    cv2.FONT_HERSHEY_SIMPLEX, <span class="fl">2.0</span>, cor, esp, cv2.LINE_AA)</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>    [img_coins_gray, img_final, img_colored, img_annotated],</span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Segmentação Final"</span>, <span class="st">"Componentes Conexos"</span>, <span class="st">"Áreas Anotadas"</span>],</span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>)</span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Componentes detectados (excluindo fundo): 12
 
@@ -3680,39 +3695,39 @@ Figura&nbsp;4.19: Componentes conexos extraídos após o pipeline CLAHE → Otsu
 </ul>
 <p>A <a href="#fig-04-contornos" class="quarto-xref">Figura&nbsp;<span>4.20</span></a> exibe os mesmos objetos com circularidade anotada.</p>
 <div id="cell-fig-04-contornos" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>contornos, hierarquia <span class="op">=</span> cv2.findContours(</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    img_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>img_contornos  <span class="op">=</span> cv2.cvtColor(img_coins_gray, cv2.COLOR_GRAY2BGR)</span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>img_circulares <span class="op">=</span> img_contornos.copy()</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Contornos detectados: </span><span class="sc">{</span><span class="bu">len</span>(contornos)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'ID'</span><span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Área'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Perímetro'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Circularidade'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, cnt <span class="kw">in</span> <span class="bu">enumerate</span>(contornos, start<span class="op">=</span><span class="dv">1</span>):</span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>    area  <span class="op">=</span> cv2.contourArea(cnt)</span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>    perim <span class="op">=</span> cv2.arcLength(cnt, closed<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>    circ  <span class="op">=</span> (<span class="dv">4</span> <span class="op">*</span> np.pi <span class="op">*</span> area <span class="op">/</span> perim<span class="op">**</span><span class="dv">2</span>) <span class="cf">if</span> perim <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>    M     <span class="op">=</span> cv2.moments(cnt)</span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>    cx    <span class="op">=</span> <span class="bu">int</span>(M[<span class="st">"m10"</span>] <span class="op">/</span> M[<span class="st">"m00"</span>]) <span class="cf">if</span> M[<span class="st">"m00"</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>    cy    <span class="op">=</span> <span class="bu">int</span>(M[<span class="st">"m01"</span>] <span class="op">/</span> M[<span class="st">"m00"</span>]) <span class="cf">if</span> M[<span class="st">"m00"</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>i<span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span>area<span class="sc">:&gt;8.0f}</span><span class="ss"> </span><span class="sc">{</span>perim<span class="sc">:&gt;10.1f}</span><span class="ss"> </span><span class="sc">{</span>circ<span class="sc">:&gt;14.3f}</span><span class="ss">"</span>)</span>
-<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>    cv2.drawContours(img_contornos,  [cnt], <span class="op">-</span><span class="dv">1</span>, (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">3</span>)</span>
-<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>    cv2.drawContours(img_circulares, [cnt], <span class="op">-</span><span class="dv">1</span>, (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">3</span>)</span>
-<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> cor, esp <span class="kw">in</span> [((<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">8</span>), ((<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">3</span>)]:</span>
-<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>        cv2.putText(img_circulares, <span class="ss">f"</span><span class="sc">{</span>circ<span class="sc">:.2f}</span><span class="ss">"</span>,</span>
-<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>                    (cx <span class="op">-</span> <span class="dv">80</span>, cy <span class="op">+</span> <span class="dv">15</span>),</span>
-<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>                    cv2.FONT_HERSHEY_SIMPLEX, <span class="fl">3.6</span>, cor, esp, cv2.LINE_AA)</span>
-<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb31-30"><a href="#cb31-30" aria-hidden="true" tabindex="-1"></a>    [img_final, img_contornos, img_circulares],</span>
-<span id="cb31-31"><a href="#cb31-31" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Segmentação Final"</span>, <span class="st">"Contornos"</span>, <span class="st">"Circularidade"</span>],</span>
-<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>)</span>
-<span id="cb31-33"><a href="#cb31-33" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>contornos, hierarquia <span class="op">=</span> cv2.findContours(</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    img_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>img_contornos  <span class="op">=</span> cv2.cvtColor(img_coins_gray, cv2.COLOR_GRAY2BGR)</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>img_circulares <span class="op">=</span> img_contornos.copy()</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Contornos detectados: </span><span class="sc">{</span><span class="bu">len</span>(contornos)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'ID'</span><span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Área'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Perímetro'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Circularidade'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, cnt <span class="kw">in</span> <span class="bu">enumerate</span>(contornos, start<span class="op">=</span><span class="dv">1</span>):</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>    area  <span class="op">=</span> cv2.contourArea(cnt)</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    perim <span class="op">=</span> cv2.arcLength(cnt, closed<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    circ  <span class="op">=</span> (<span class="dv">4</span> <span class="op">*</span> np.pi <span class="op">*</span> area <span class="op">/</span> perim<span class="op">**</span><span class="dv">2</span>) <span class="cf">if</span> perim <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>    M     <span class="op">=</span> cv2.moments(cnt)</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    cx    <span class="op">=</span> <span class="bu">int</span>(M[<span class="st">"m10"</span>] <span class="op">/</span> M[<span class="st">"m00"</span>]) <span class="cf">if</span> M[<span class="st">"m00"</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>    cy    <span class="op">=</span> <span class="bu">int</span>(M[<span class="st">"m01"</span>] <span class="op">/</span> M[<span class="st">"m00"</span>]) <span class="cf">if</span> M[<span class="st">"m00"</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>i<span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span>area<span class="sc">:&gt;8.0f}</span><span class="ss"> </span><span class="sc">{</span>perim<span class="sc">:&gt;10.1f}</span><span class="ss"> </span><span class="sc">{</span>circ<span class="sc">:&gt;14.3f}</span><span class="ss">"</span>)</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>    cv2.drawContours(img_contornos,  [cnt], <span class="op">-</span><span class="dv">1</span>, (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">3</span>)</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>    cv2.drawContours(img_circulares, [cnt], <span class="op">-</span><span class="dv">1</span>, (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">3</span>)</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> cor, esp <span class="kw">in</span> [((<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">8</span>), ((<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">3</span>)]:</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>        cv2.putText(img_circulares, <span class="ss">f"</span><span class="sc">{</span>circ<span class="sc">:.2f}</span><span class="ss">"</span>,</span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>                    (cx <span class="op">-</span> <span class="dv">80</span>, cy <span class="op">+</span> <span class="dv">15</span>),</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>                    cv2.FONT_HERSHEY_SIMPLEX, <span class="fl">3.6</span>, cor, esp, cv2.LINE_AA)</span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>    [img_final, img_contornos, img_circulares],</span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Segmentação Final"</span>, <span class="st">"Contornos"</span>, <span class="st">"Circularidade"</span>],</span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>)</span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Contornos detectados: 12
 
@@ -3745,35 +3760,112 @@ Figura&nbsp;4.20: Contornos extraídos com findContours. Cada moeda é anotada c
 </div>
 </div>
 </section>
-<section id="segmentação-por-k-means" class="level3" data-number="4.5.3">
-<h3 data-number="4.5.3" class="anchored" data-anchor-id="segmentação-por-k-means"><span class="header-section-number">4.5.3</span> Segmentação por <em>K-Means</em></h3>
+<section id="conexão-com-detecção-de-objetos-moderna" class="level3" data-number="4.5.3">
+<h3 data-number="4.5.3" class="anchored" data-anchor-id="conexão-com-detecção-de-objetos-moderna"><span class="header-section-number">4.5.3</span> Conexão com Detecção de Objetos Moderna</h3>
+<p>Os descritores extraídos acima — <strong><em>bounding box</em></strong>, <strong>centróide</strong>, <strong>área</strong> e <strong>circularidade</strong> — constituem a ponte entre a segmentação morfológica clássica e os modelos modernos de detecção de objetos.</p>
+<p>Detectores baseados em aprendizado profundo, como a família <strong>YOLO</strong> (<em>You Only Look Once</em>) <span class="citation" data-cites="redmon2016you">(<a href="../referencias.html#ref-redmon2016you" role="doc-biblioref">Redmon et al., 2016</a>)</span>, operam diretamente sobre imagens coloridas e produzem, para cada objeto detectado, uma <strong>caixa delimitadora</strong> (<em>bounding box</em>) com coordenadas <span class="math inline">\((x, y, w, h)\)</span> e uma <strong>pontuação de confiança</strong> — a mesma representação gerada por <code>connectedComponentsWithStats</code>. A diferença fundamental é que o YOLO aprende a detectar e classificar objetos simultaneamente, sem etapa de segmentação prévia, generalizando para categorias arbitrárias a partir de dados anotados.</p>
+<p>A <a href="#fig-04-bbox" class="quarto-xref">Figura&nbsp;<span>4.21</span></a> ilustra como as <em>bounding boxes</em> obtidas por morfologia podem ser exportadas no formato YOLO para treinar ou avaliar um detector:</p>
+<div id="cell-fig-04-bbox" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>H_img, W_img <span class="op">=</span> img_coins_gray.shape</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>img_bbox <span class="op">=</span> cv2.cvtColor(img_coins_gray, cv2.COLOR_GRAY2BGR)</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>CLASSE <span class="op">=</span> <span class="dv">0</span>   <span class="co"># 0 = moeda (única categoria neste exemplo)</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'cls'</span><span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cx_n'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'cy_n'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'w_n'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'h_n'</span><span class="sc">:&gt;8}</span><span class="ss">  ← formato YOLO"</span>)</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">54</span>)</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>yolo_linhas <span class="op">=</span> []</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n):</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>    x0 <span class="op">=</span> stats[i, cv2.CC_STAT_LEFT]</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>    y0 <span class="op">=</span> stats[i, cv2.CC_STAT_TOP]</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>    w  <span class="op">=</span> stats[i, cv2.CC_STAT_WIDTH]</span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>    h  <span class="op">=</span> stats[i, cv2.CC_STAT_HEIGHT]</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>    cx_n <span class="op">=</span> (x0 <span class="op">+</span> w <span class="op">/</span> <span class="dv">2</span>) <span class="op">/</span> W_img</span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>    cy_n <span class="op">=</span> (y0 <span class="op">+</span> h <span class="op">/</span> <span class="dv">2</span>) <span class="op">/</span> H_img</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>    w_n  <span class="op">=</span> w <span class="op">/</span> W_img</span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>    h_n  <span class="op">=</span> h <span class="op">/</span> H_img</span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>    yolo_linhas.append(<span class="ss">f"</span><span class="sc">{</span>CLASSE<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>cx_n<span class="sc">:.4f}</span><span class="ss"> </span><span class="sc">{</span>cy_n<span class="sc">:.4f}</span><span class="ss"> </span><span class="sc">{</span>w_n<span class="sc">:.4f}</span><span class="ss"> </span><span class="sc">{</span>h_n<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>CLASSE<span class="sc">:&gt;4}</span><span class="ss"> </span><span class="sc">{</span>cx_n<span class="sc">:&gt;8.4f}</span><span class="ss"> </span><span class="sc">{</span>cy_n<span class="sc">:&gt;8.4f}</span><span class="ss"> </span><span class="sc">{</span>w_n<span class="sc">:&gt;8.4f}</span><span class="ss"> </span><span class="sc">{</span>h_n<span class="sc">:&gt;8.4f}</span><span class="ss">"</span>)</span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a>    cv2.rectangle(img_bbox, (x0, y0), (x0 <span class="op">+</span> w, y0 <span class="op">+</span> h), (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">4</span>)</span>
+<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a>    cv2.putText(img_bbox, <span class="ss">f"moeda"</span>, (x0 <span class="op">+</span> <span class="dv">8</span>, y0 <span class="op">+</span> <span class="dv">60</span>),</span>
+<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a>                cv2.FONT_HERSHEY_SIMPLEX, <span class="fl">3.8</span>, (<span class="dv">255</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="dv">5</span>, cv2.LINE_AA)</span>
+<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Exportar arquivo de anotação no formato YOLO</span></span>
+<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"moedas.txt"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
+<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a>    f.write(<span class="st">"</span><span class="ch">\n</span><span class="st">"</span>.join(yolo_linhas))</span>
+<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Anotação salva em moedas.txt"</span>)</span>
+<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a>    [img_coins_gray, img_final, img_bbox],</span>
+<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Segmentação Final"</span>, <span class="st">"Bounding Boxes (formato YOLO)"</span>],</span>
+<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>)</span>
+<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> cls     cx_n     cy_n      w_n      h_n  ← formato YOLO
+------------------------------------------------------
+   0   0.7753   0.1102   0.2880   0.2117
+   0   0.4784   0.0984   0.2359   0.1828
+   0   0.1331   0.1225   0.2255   0.1637
+   0   0.4464   0.3217   0.2469   0.1816
+   0   0.7521   0.3471   0.2802   0.2074
+   0   0.1669   0.3797   0.2745   0.2047
+   0   0.4859   0.6104   0.3479   0.2598
+   0   0.8115   0.6154   0.2760   0.2012
+   0   0.1727   0.6023   0.2255   0.1711
+   0   0.1893   0.8258   0.2536   0.1922
+   0   0.7763   0.8652   0.2255   0.1734
+   0   0.4854   0.8953   0.2750   0.2039
+
+Anotação salva em moedas.txt</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-04-bbox" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-04-bbox-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap04.py.pt_files/figure-html/fig-04-bbox-output-2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-bbox-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;4.21: <em>Bounding boxes</em> derivadas dos componentes conexos sobrepostas à imagem original, no formato YOLO (classe cx cy w h normalizados).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>O formato YOLO armazena cada objeto em uma linha com cinco valores: <code>classe cx cy w h</code>, todos normalizados para <span class="math inline">\([0, 1]\)</span> em relação às dimensões da imagem. A <strong>classe</strong> é um inteiro que mapeia para um nome definido em <code>classes.txt</code> (p.&nbsp;ex., <code>0 → moeda</code>). Quando há múltiplas categorias — por exemplo, moeda de ouro (<code>0</code>), moeda de prata (<code>1</code>) e disco plástico (<code>2</code>) — basta atribuir o inteiro correspondente a cada componente antes de exportar, mantendo exatamente o mesmo formato de saída.</p>
+<p>O fluxo morfológico apresentado neste capítulo — segmentação → rotulação → extração de <em>bounding boxes</em> — corresponde exatamente à etapa de <strong>anotação</strong> (<em>labeling</em>) necessária para criar conjuntos de dados de treinamento para detectores como YOLO. Ferramentas como o <a href="https://labelstud.io"><strong>Label Studio</strong></a> e o <a href="https://roboflow.com"><strong>Roboflow</strong></a> automatizam esse processo para imagens complexas, mas a lógica subjacente é a mesma: associar a cada objeto uma caixa delimitadora e uma classe. Em cenários controlados (fundo uniforme, objetos bem separados), a abordagem morfológica pode substituir ou inicializar a anotação manual, reduzindo significativamente o esforço de rotulação.</p>
+</section>
+<section id="segmentação-por-k-means" class="level3" data-number="4.5.4">
+<h3 data-number="4.5.4" class="anchored" data-anchor-id="segmentação-por-k-means"><span class="header-section-number">4.5.4</span> Segmentação por <em>K-Means</em></h3>
 <p>O <strong><em>k-means</em></strong> agrupa pixels em <span class="math inline">\(k\)</span> <em>clusters</em> minimizando a inércia (soma das distâncias quadráticas intra-cluster):</p>
 <p><span id="eq-04-kmeans"><span class="math display">\[
 J = \sum_{i=1}^{k}\sum_{x \in C_i} \|x - \mu_i\|^2
 \tag{4.14}\]</span></span></p>
 <p>O algoritmo itera entre dois passos até que os centróides variem muito pouco ou seja atingido o número máximo de iterações: <strong>(1) atribuição</strong> — cada pixel ao centróide mais próximo; <strong>(2) atualização</strong> — cada centróide recalculado como média dos pixels atribuídos. A escolha de <span class="math inline">\(k\)</span> é auxiliada pelo <strong>método do cotovelo</strong>: plota-se <span class="math inline">\(J\)</span> em função de <span class="math inline">\(k\)</span> e identifica-se o ponto de inflexão (cotovelo), a partir do qual o aumento de <span class="math inline">\(k\)</span> traz reduções apenas marginais na inércia, evitando o sobreajuste (<em>overfitting</em>).</p>
-<p>A <a href="#fig-04-kmeans-cotovelo" class="quarto-xref">Figura&nbsp;<span>4.21</span></a> mostra o método do cotovelo e a <a href="#fig-04-kmeans" class="quarto-xref">Figura&nbsp;<span>4.22</span></a> a segmentação resultante:</p>
+<p>A <a href="#fig-04-kmeans-cotovelo" class="quarto-xref">Figura&nbsp;<span>4.22</span></a> mostra o método do cotovelo e a <a href="#fig-04-kmeans" class="quarto-xref">Figura&nbsp;<span>4.23</span></a> a segmentação resultante:</p>
 <div id="cell-fig-04-kmeans-cotovelo" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>pixels   <span class="op">=</span> img_coins_gray.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>).astype(np.float32)</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>inercias <span class="op">=</span> []</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>ks       <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">2</span>, <span class="dv">9</span>))</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>resultados <span class="op">=</span> []  <span class="co"># guarda (labels, centers) para reusar no mm.show</span></span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k <span class="kw">in</span> ks:</span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    criteria <span class="op">=</span> (cv2.TERM_CRITERIA_EPS <span class="op">+</span> cv2.TERM_CRITERIA_MAX_ITER, <span class="dv">100</span>, <span class="fl">0.2</span>)</span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>    _, labels, centers <span class="op">=</span> cv2.kmeans(pixels, k, <span class="va">None</span>, criteria, <span class="dv">5</span>, cv2.KMEANS_RANDOM_CENTERS)</span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># inércia: distância de cada pixel ao centróide atribuído</span></span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    dists <span class="op">=</span> (pixels <span class="op">-</span> centers[labels.flatten()])<span class="op">**</span><span class="dv">2</span></span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>    inercias.append(<span class="bu">float</span>(dists.<span class="bu">sum</span>()))</span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    resultados.append((labels, centers))</span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>imgs, titles <span class="op">=</span> [], []</span>
-<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k, inercia, (labels, centers) <span class="kw">in</span> <span class="bu">zip</span>(ks, inercias, resultados):</span>
-<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>    seg <span class="op">=</span> centers[labels.flatten()].reshape(img_coins_gray.shape).astype(np.uint8)</span>
-<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    imgs   <span class="op">+=</span> [seg]</span>
-<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>    titles <span class="op">+=</span> [<span class="ss">f"k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">  J=</span><span class="sc">{</span>inercia<span class="sc">:.2e}</span><span class="ss">"</span>]</span>
-<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>mm.show(imgs, titles<span class="op">=</span>titles, cols<span class="op">=</span><span class="dv">4</span>, rows<span class="op">=</span><span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">12</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>pixels   <span class="op">=</span> img_coins_gray.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>).astype(np.float32)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>inercias <span class="op">=</span> []</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>ks       <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">2</span>, <span class="dv">9</span>))</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>resultados <span class="op">=</span> []  <span class="co"># guarda (labels, centers) para reusar no mm.show</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k <span class="kw">in</span> ks:</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    criteria <span class="op">=</span> (cv2.TERM_CRITERIA_EPS <span class="op">+</span> cv2.TERM_CRITERIA_MAX_ITER, <span class="dv">100</span>, <span class="fl">0.2</span>)</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    _, labels, centers <span class="op">=</span> cv2.kmeans(pixels, k, <span class="va">None</span>, criteria, <span class="dv">5</span>, cv2.KMEANS_RANDOM_CENTERS)</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># inércia: distância de cada pixel ao centróide atribuído</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>    dists <span class="op">=</span> (pixels <span class="op">-</span> centers[labels.flatten()])<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>    inercias.append(<span class="bu">float</span>(dists.<span class="bu">sum</span>()))</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>    resultados.append((labels, centers))</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>imgs, titles <span class="op">=</span> [], []</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k, inercia, (labels, centers) <span class="kw">in</span> <span class="bu">zip</span>(ks, inercias, resultados):</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    seg <span class="op">=</span> centers[labels.flatten()].reshape(img_coins_gray.shape).astype(np.uint8)</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    imgs   <span class="op">+=</span> [seg]</span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>    titles <span class="op">+=</span> [<span class="ss">f"k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">  J=</span><span class="sc">{</span>inercia<span class="sc">:.2e}</span><span class="ss">"</span>]</span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>mm.show(imgs, titles<span class="op">=</span>titles, cols<span class="op">=</span><span class="dv">4</span>, rows<span class="op">=</span><span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">12</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-04-kmeans-cotovelo" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -3781,22 +3873,22 @@ J = \sum_{i=1}^{k}\sum_{x \in C_i} \|x - \mu_i\|^2
 <img src="cap04.py.pt_files/figure-html/fig-04-kmeans-cotovelo-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-kmeans-cotovelo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;4.21: Método do cotovelo: inércia J em função de k para a imagem de moedas. O ponto de inflexão sugere o k ótimo.
+Figura&nbsp;4.22: Método do cotovelo: inércia J em função de k para a imagem de moedas. O ponto de inflexão sugere o k ótimo.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 <div id="cell-fig-04-kmeans" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kmeans_seg(img, k):</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    pixels   <span class="op">=</span> img.reshape(<span class="op">-</span><span class="dv">1</span>,<span class="dv">1</span>).astype(np.float32)</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    criteria <span class="op">=</span> (cv2.TERM_CRITERIA_EPS <span class="op">+</span> cv2.TERM_CRITERIA_MAX_ITER, <span class="dv">100</span>, <span class="fl">0.2</span>)</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    _, labels, centers <span class="op">=</span> cv2.kmeans(pixels, k, <span class="va">None</span>, criteria, <span class="dv">5</span>, cv2.KMEANS_RANDOM_CENTERS)</span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> centers[labels.flatten()].reshape(img.shape).astype(np.uint8)</span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>imgs_km   <span class="op">=</span> [img_coins_gray] <span class="op">+</span> [kmeans_seg(img_coins_gray, k) <span class="cf">for</span> k <span class="kw">in</span> [<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>]]</span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>titles_km <span class="op">=</span> [<span class="st">"Original"</span>] <span class="op">+</span> [<span class="ss">f"k-means k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> k <span class="kw">in</span> [<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>]]</span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_km, titles<span class="op">=</span>titles_km, cols<span class="op">=</span><span class="dv">4</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kmeans_seg(img, k):</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    pixels   <span class="op">=</span> img.reshape(<span class="op">-</span><span class="dv">1</span>,<span class="dv">1</span>).astype(np.float32)</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    criteria <span class="op">=</span> (cv2.TERM_CRITERIA_EPS <span class="op">+</span> cv2.TERM_CRITERIA_MAX_ITER, <span class="dv">100</span>, <span class="fl">0.2</span>)</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    _, labels, centers <span class="op">=</span> cv2.kmeans(pixels, k, <span class="va">None</span>, criteria, <span class="dv">5</span>, cv2.KMEANS_RANDOM_CENTERS)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> centers[labels.flatten()].reshape(img.shape).astype(np.uint8)</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>imgs_km   <span class="op">=</span> [img_coins_gray] <span class="op">+</span> [kmeans_seg(img_coins_gray, k) <span class="cf">for</span> k <span class="kw">in</span> [<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>titles_km <span class="op">=</span> [<span class="st">"Original"</span>] <span class="op">+</span> [<span class="ss">f"k-means k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> k <span class="kw">in</span> [<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>mm.show(imgs_km, titles<span class="op">=</span>titles_km, cols<span class="op">=</span><span class="dv">4</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">6</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-04-kmeans" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -3804,7 +3896,7 @@ Figura&nbsp;4.21: Método do cotovelo: inércia J em função de k para a imagem
 <img src="cap04.py.pt_files/figure-html/fig-04-kmeans-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-kmeans-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;4.22: Segmentação * da imagem das moedas com k=2, 4 e 6 clusters. Cada região é preenchida com a intensidade média do seu centróide.
+Figura&nbsp;4.23: Segmentação * da imagem das moedas com k=2, 4 e 6 clusters. Cada região é preenchida com a intensidade média do seu centróide.
 </figcaption>
 </figure>
 </div>
@@ -3883,6 +3975,7 @@ Figura&nbsp;4.22: Segmentação * da imagem das moedas com k=2, 4 e 6 clusters. 
 <li><span class="citation" data-cites="matheron1975random">Matheron (<a href="../referencias.html#ref-matheron1975random" role="doc-biblioref">1975</a>)</span> e <span class="citation" data-cites="serra1982image">Serra (<a href="../referencias.html#ref-serra1982image" role="doc-biblioref">1982</a>)</span> para a fundamentação teórica original, formulação algébrica e desenvolvimento da Morfologia Matemática.</li>
 <li><span class="citation" data-cites="szeliski2022">Szeliski (<a href="../referencias.html#ref-szeliski2022" role="doc-biblioref">2022</a>)</span> para <em>watershed</em>, <em>k-means</em> aplicado a imagens e avaliação quantitativa com a métrica IoU.</li>
 <li><span class="citation" data-cites="bradski2008learning">Bradski; Kaehler (<a href="../referencias.html#ref-bradski2008learning" role="doc-biblioref">2008</a>)</span> para a implementação prática com a biblioteca OpenCV (<code>cv2.watershed</code>, <code>cv2.connectedComponentsWithStats</code>) e o pacote didático <code>morph.py</code>.</li>
+<li><span class="citation" data-cites="redmon2016you">Redmon et al. (<a href="../referencias.html#ref-redmon2016you" role="doc-biblioref">2016</a>)</span> para a introdução ao formato de anotação YOLO e sua conexão com os descritores de <em>bounding box</em> extraídos por morfologia.</li>
 </ul>
 <hr>
 <p><a href="https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/cap04/cap04.EPs_aluno.ipynb"><img src="imagens/colab-badge.png" class="img-fluid" style="width:16.0%"></a> <a href="https://github.com/fzampirolli/pdi-vc"><img src="imagens/github-badge.png" class="img-fluid" style="width:20.0%"></a></p>
@@ -3896,21 +3989,21 @@ Figura&nbsp;4.22: Segmentação * da imagem das moedas com k=2, 4 e 6 clusters. 
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
-<div id="e9392a98" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="a6be3bc9" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>✅ Ambiente pronto. Morph: 1.1.0 | TestSuite: 1.1.0</code></pre>
 </div>
@@ -4168,49 +4261,49 @@ Figura&nbsp;4.22: Segmentação * da imagem das moedas com k=2, 4 e 6 clusters. 
 
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-01-metricas-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;4.23: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>Chessboard</em>
+Figura&nbsp;4.24: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>Chessboard</em>
 </figcaption>
 </figure>
 </div>
 </div>
-<div id="852b7f75" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>x1,y1,x2,y2 <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>())</span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo das diferenças</span></span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>dx <span class="op">=</span> <span class="bu">abs</span>(x2 <span class="op">-</span> x1)</span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>dy <span class="op">=</span> <span class="bu">abs</span>(y2 <span class="op">-</span> y1)</span>
-<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Distância Euclidiana (L2)</span></span>
-<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>dist_euclidiana <span class="op">=</span> (dx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> dy<span class="op">**</span><span class="dv">2</span>)<span class="op">**</span><span class="fl">0.5</span></span>
-<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Distância City-block / Manhattan (L1)</span></span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>dist_city_block <span class="op">=</span> dx <span class="op">+</span> dy</span>
-<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Distância Chessboard / Chebyshev (Linf)</span></span>
-<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>dist_chessboard <span class="op">=</span> <span class="bu">max</span>(dx, dy)</span>
-<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Saída formatada conforme os casos de teste</span></span>
-<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_euclidiana<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_city_block<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_chessboard<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="731a2ed2" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.py</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>x1,y1,x2,y2 <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>()), <span class="bu">int</span>(<span class="bu">input</span>())</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo das diferenças</span></span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>dx <span class="op">=</span> <span class="bu">abs</span>(x2 <span class="op">-</span> x1)</span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>dy <span class="op">=</span> <span class="bu">abs</span>(y2 <span class="op">-</span> y1)</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Distância Euclidiana (L2)</span></span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>dist_euclidiana <span class="op">=</span> (dx<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> dy<span class="op">**</span><span class="dv">2</span>)<span class="op">**</span><span class="fl">0.5</span></span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Distância City-block / Manhattan (L1)</span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>dist_city_block <span class="op">=</span> dx <span class="op">+</span> dy</span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Distância Chessboard / Chebyshev (Linf)</span></span>
+<span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>dist_chessboard <span class="op">=</span> <span class="bu">max</span>(dx, dy)</span>
+<span id="cb38-16"><a href="#cb38-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Saída formatada conforme os casos de teste</span></span>
+<span id="cb38-18"><a href="#cb38-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_euclidiana<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb38-19"><a href="#cb38-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_city_block<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb38-20"><a href="#cb38-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>dist_chessboard<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP02_01.py</code></pre>
 </div>
 </div>
-<div id="3b89706f" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(linewidth<span class="op">=</span><span class="dv">100</span>, edgeitems<span class="op">=</span><span class="dv">3</span>, threshold<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="2fea47db" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(linewidth<span class="op">=</span><span class="dv">100</span>, edgeitems<span class="op">=</span><span class="dv">3</span>, threshold<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="d77eed28" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Substitui emoji Unicode literal ✅ por comando"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="e598139c" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Substitui emoji Unicode literal ✅ por comando"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Substitui emoji Unicode literal ✅ por comando</code></pre>
 </div>
 </div>
-<div id="bf4fa546" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.zeros((<span class="dv">5</span>, <span class="dv">5</span>))))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="ec31ba28" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImage(np.zeros((<span class="dv">5</span>, <span class="dv">5</span>))))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  0   0   0   0   0 
   0   0   0   0   0 
@@ -4220,8 +4313,8 @@ Figura&nbsp;4.23: Simulador: Distâncias Euclidiana, <em>City-block</em> e <em>C
 </code></pre>
 </div>
 </div>
-<div id="3a4acb5a" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="0732e8a4" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases já existe em casos/
 📋 8 caso(s) carregado(s) de casos/EP02_01.cases
@@ -4340,6 +4433,9 @@ GONZALEZ, R. C.; WOODS, R. E. <strong>Digital Image Processing</strong>. 4th. ed
 </div>
 <div id="ref-matheron1975random" class="csl-entry" role="listitem">
 MATHERON, Georges. <strong>Random Sets and Integral Geometry</strong>. New York: John Wiley &amp; Sons, 1975.
+</div>
+<div id="ref-redmon2016you" class="csl-entry" role="listitem">
+REDMON, Joseph <em>et al.</em> <a href="https://doi.org/10.1109/CVPR.2016.91">You Only Look Once: Unified, Real-Time Object Detection</a>. <em>Em</em>: 2016.
 </div>
 <div id="ref-serra1982image" class="csl-entry" role="listitem">
 SERRA, Jean. <strong>Image Analysis and Mathematical Morphology</strong>. London: Academic Press, 1982. v. 1
