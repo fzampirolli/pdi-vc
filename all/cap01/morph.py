@@ -36,40 +36,35 @@ class mm:
 
 
     @staticmethod
-    def read(file, info=False):
+    def read(file, info=False, pil=False):
         """
         Lê imagem de arquivo local ou URL.
-        info=False: retorna ndarray (RGB).
-        info=True: retorna objeto PIL.Image (preserva EXIF).
+        pil=True ou info=True : retorna PIL.Image (preserva EXIF e metadados).
+        padrão               : retorna ndarray RGB.
         """
         import re, requests
-        import numpy as np  # Certifique-se de que o numpy está importado se usar fora do módulo
         from PIL import Image
         from io import BytesIO
 
-        # Trata URL do Google Drive ou comum
         if file.startswith(('http://', 'https://', 'id=')):
-            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or re.search(r'/d/([a-zA-Z0-9_-]+)', file)
+            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or \
+                re.search(r'/d/([a-zA-Z0-9_-]+)', file)
             url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
                 if m and ('id=' in file or 'drive.google.com' in file) else file
-            
-            # DEFINA UM USER-AGENT IDENTIFICÁVEL PARA O WIKIMEDIA
-            headers = {
-                "User-Agent": "MeuLivroQuartoBot/1.0 (contato@seu-email.com; ferramenta de fins didáticos)"
-            }
-            
+
+            headers = {"User-Agent": "MeuLivroQuartoBot/1.0 (fins didáticos)"}
             r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             source = BytesIO(r.content)
         else:
             source = file
 
-        # Retorno condicional
         img_pil = Image.open(source)
-        if info:
+        img_pil.load()   # força leitura completa antes de fechar o BytesIO
+
+        if pil or info:
             return img_pil
-        
-        # Converte para NumPy/RGB (padrão mm)
+
         return np.array(img_pil.convert("RGB"))
 
     @staticmethod
@@ -237,13 +232,14 @@ class mm:
         import os
         os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
         if isinstance(img, np.ndarray):
-            # converte RGB → BGR para o OpenCV salvar corretamente
             if img.ndim == 3 and img.shape[2] == 3:
                 cv2.imwrite(path, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
             else:
                 cv2.imwrite(path, img)
         else:
-            img.save(path)   # PIL Image
+            # PIL Image — preserva EXIF se disponível
+            exif = img.info.get("exif", b"")
+            img.save(path, exif=exif) if exif else img.save(path)
             
     @staticmethod
     def drawImage(f):
