@@ -1,0 +1,253 @@
+
+<style>
+#sf_wrap { padding: 1rem 0; }
+.sf_legend { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 1rem; }
+.sf_leg_item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: var(--border-radius-md);
+  border: 1.5px solid; cursor: pointer; transition: opacity .15s;
+  background: var(--color-background-primary);
+}
+.sf_leg_item.sf_off { opacity: .35; }
+.sf_leg_swatch { width: 28px; min-width: 28px; height: 3px; margin-top: 7px; border-radius: 2px; }
+.sf_leg_text { display: flex; flex-direction: column; gap: 2px; }
+.sf_leg_name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.sf_leg_desc { font-size: 11px; color: var(--color-text-secondary); line-height: 1.4; }
+.sf_controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 1rem; }
+.sf_ctrl_lbl { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+.sf_ctrl_val { font-size: 13px; font-weight: 500; min-width: 28px; color: var(--color-text-primary); }
+.sf_radio_grp { display: flex; gap: 8px; }
+.sf_radio_grp label { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
+.sf_charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sf_card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.sf_card_lbl { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.sf_stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sf_pill { font-size: 11px; padding: 3px 9px; border-radius: var(--border-radius-md); background: var(--color-background-secondary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border-tertiary); }
+.sf_pill b { color: var(--color-text-primary); }
+</style>
+
+<div id="sf_wrap">
+  <div class="sf_legend" id="sf_legend"></div>
+
+  <div class="sf_controls">
+    <span class="sf_ctrl_lbl">Frequência de corte D₀</span>
+    <input type="range" id="sf_d0" min="5" max="100" value="30" step="1" style="flex:1; min-width:120px;">
+    <span class="sf_ctrl_val" id="sf_d0v">30</span>
+    <span class="sf_ctrl_lbl" style="margin-left:8px;">Tipo</span>
+    <div class="sf_radio_grp">
+      <label><input type="radio" name="sf_ft" value="lp" checked> passa-baixa</label>
+      <label><input type="radio" name="sf_ft" value="hp"> passa-alta</label>
+    </div>
+  </div>
+
+  <div class="sf_charts">
+    <div class="sf_card">
+      <div class="sf_card_lbl">Resposta em frequência H(D)</div>
+      <div style="position:relative;height:180px;"><canvas id="sf_c1" role="img" aria-label="Perfis de resposta radial dos filtros selecionados"></canvas></div>
+    </div>
+    <div class="sf_card">
+      <div class="sf_card_lbl">Espectro filtrado |F · H|</div>
+      <div style="position:relative;height:180px;"><canvas id="sf_c2" role="img" aria-label="Magnitude espectral resultante após filtragem"></canvas></div>
+    </div>
+    <div class="sf_card">
+      <div class="sf_card_lbl">Sinal 1D — original vs filtrado</div>
+      <div style="position:relative;height:180px;"><canvas id="sf_c3" role="img" aria-label="Comparação do sinal original com os sinais filtrados, mostrando ringing no filtro ideal"></canvas></div>
+    </div>
+    <div class="sf_card">
+      <div class="sf_card_lbl">Energia retida por banda (%)</div>
+      <div style="position:relative;height:180px;"><canvas id="sf_c4" role="img" aria-label="Porcentagem de energia espectral retida em cinco bandas de frequência"></canvas></div>
+    </div>
+  </div>
+
+  <div class="sf_stats" id="sf_stats"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function(){
+
+const SF_FILTERS = [
+  { key:'ideal', name:'Ideal',         desc:'Corte perfeito em D₀ — causa ringing (fenômeno de Gibbs)',         color:'#D85A30', borderColor:'#993C1D', dash:[]      },
+  { key:'gauss', name:'Gaussiano',     desc:'Transição suave — sem ringing, curva $e^{-D²/2D₀²}$',             color:'#1D9E75', borderColor:'#0F6E56', dash:[]      },
+  { key:'bw2',   name:'Butterworth n=2', desc:'Compromisso: suave com banda controlável, ordem 2',              color:'#534AB7', borderColor:'#3C3489', dash:[6,3]   },
+  { key:'bw5',   name:'Butterworth n=5', desc:'Aproxima o ideal com menos ringing, ordem 5',                   color:'#BA7517', borderColor:'#854F0B', dash:[3,3]   },
+];
+
+let sf_D0 = 30, sf_hp = false;
+const sf_active = { ideal:true, gauss:true, bw2:true, bw5:true };
+const sf_charts = {};
+
+function sf_H(D, key, d0, hp) {
+  let h;
+  if (key==='ideal') h = D<=d0 ? 1 : 0;
+  else if (key==='gauss') h = Math.exp(-D*D/(2*d0*d0));
+  else if (key==='bw2') h = 1/(1+Math.pow(D/d0,4));
+  else if (key==='bw5') h = 1/(1+Math.pow(D/d0,10));
+  return hp ? 1-h : h;
+}
+
+function sf_buildLegend() {
+  const el = document.getElementById('sf_legend');
+  el.innerHTML = '';
+  SF_FILTERS.forEach(f => {
+    const d = document.createElement('div');
+    d.className = 'sf_leg_item' + (sf_active[f.key] ? '' : ' sf_off');
+    d.style.borderColor = sf_active[f.key] ? f.color : 'var(--color-border-tertiary)';
+    d.innerHTML = `
+      <div class="sf_leg_swatch" style="background:${f.color};${f.dash.length?'background:repeating-linear-gradient(90deg,'+f.color+' 0 5px,transparent 5px 8px)':''}"></div>
+      <div class="sf_leg_text">
+        <span class="sf_leg_name" style="color:${sf_active[f.key] ? f.color.replace('f.color','') : 'var(--color-text-secondary)'}; color:${sf_active[f.key] ? f.color : 'var(--color-text-secondary)'}">${f.name}</span>
+        <span class="sf_leg_desc">${f.desc}</span>
+      </div>`;
+    d.addEventListener('click', () => {
+      sf_active[f.key] = !sf_active[f.key];
+      sf_buildLegend();
+      sf_update();
+    });
+    el.appendChild(d);
+  });
+}
+
+const sf_Ds = Array.from({length:200}, (_,i) => i*1.5);
+const sf_SPTS = 128;
+const sf_dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const sf_gc = sf_dark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+const sf_tc = sf_dark ? '#999' : '#666';
+
+function sf_activeFilters() { return SF_FILTERS.filter(f => sf_active[f.key]); }
+
+function sf_datasets_profile() {
+  return sf_activeFilters().map(f => ({
+    label: f.name,
+    data: sf_Ds.map(d => ({x:d, y:sf_H(d,f.key,sf_D0,sf_hp)})),
+    borderColor: f.color, backgroundColor: 'transparent',
+    borderWidth: 2, pointRadius: 0, tension: 0.3,
+    borderDash: f.dash,
+  }));
+}
+
+function sf_datasets_spectrum() {
+  return sf_activeFilters().map(f => ({
+    label: f.name,
+    data: sf_Ds.map(d => ({x:d, y: Math.max(0, Math.exp(-d*d/(2*80*80)) * sf_H(d,f.key,sf_D0,sf_hp))})),
+    borderColor: f.color, backgroundColor: f.color+'28',
+    borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true,
+    borderDash: f.dash,
+  }));
+}
+
+function sf_origSignal() {
+  return Array.from({length:sf_SPTS}, (_,t) => {
+    let s=0;
+    for(let fr=1;fr<60;fr++) s += Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/sf_SPTS);
+    return {x:t, y: +(s/7).toFixed(4)};
+  });
+}
+
+function sf_filtSignal(key) {
+  return Array.from({length:sf_SPTS}, (_,t) => {
+    let s=0;
+    for(let fr=1;fr<80;fr++) s += sf_H(fr,key,sf_D0,sf_hp) * Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/sf_SPTS);
+    return {x:t, y: +(s/7).toFixed(4)};
+  });
+}
+
+function sf_datasets_signal() {
+  const orig = { label:'original', data: sf_origSignal(),
+    borderColor: sf_dark?'rgba(255,255,255,.3)':'rgba(0,0,0,.2)',
+    backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, tension:0.3, borderDash:[4,3] };
+  return [orig, ...sf_activeFilters().map(f => ({
+    label: f.name, data: sf_filtSignal(f.key),
+    borderColor: f.color, backgroundColor:'transparent',
+    borderWidth:2, pointRadius:0, tension:0.3, borderDash:f.dash,
+  }))];
+}
+
+function sf_energyBands(key) {
+  const bands = [[0,20],[20,40],[40,60],[60,80],[80,100]];
+  return bands.map(([lo,hi]) => {
+    let e=0, n=0;
+    for(let d=lo;d<hi;d+=1){ e+=sf_H(d,key,sf_D0,sf_hp)**2; n++; }
+    return Math.round(e/n*100);
+  });
+}
+
+function sf_datasets_energy() {
+  return sf_activeFilters().map(f => ({
+    label: f.name, data: sf_energyBands(f.key),
+    backgroundColor: f.color+'99', borderColor: f.color, borderWidth:1,
+  }));
+}
+
+const sf_baseAxes = (xt,yt,xmax) => ({
+  x:{ type:'linear', min:0, max:xmax, title:{display:true,text:xt,font:{size:11},color:sf_tc}, grid:{color:sf_gc}, ticks:{color:sf_tc,font:{size:10}} },
+  y:{ min:-0.05, max:1.1, title:{display:true,text:yt,font:{size:11},color:sf_tc}, grid:{color:sf_gc}, ticks:{color:sf_tc,font:{size:10},stepSize:0.25} }
+});
+
+function sf_initCharts() {
+  const common = { responsive:true, maintainAspectRatio:false, animation:{duration:200}, plugins:{legend:{display:false}} };
+
+  sf_charts.c1 = new Chart(document.getElementById('sf_c1'), {
+    type:'line', data:{datasets:sf_datasets_profile()},
+    options:{...common, scales: sf_baseAxes('D(u,v)','H(D)',300),
+      plugins:{...common.plugins, tooltip:{callbacks:{title:i=>`D = ${Math.round(i[0].parsed.x)}`,label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}`}}}}
+  });
+
+  sf_charts.c2 = new Chart(document.getElementById('sf_c2'), {
+    type:'line', data:{datasets:sf_datasets_spectrum()},
+    options:{...common, scales:{
+      x:{type:'linear',min:0,max:300,title:{display:true,text:'D(u,v)',font:{size:11},color:sf_tc},grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10}}},
+      y:{min:0,max:1.05,title:{display:true,text:'|F·H|',font:{size:11},color:sf_tc},grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10}}}
+    }}
+  });
+
+  sf_charts.c3 = new Chart(document.getElementById('sf_c3'), {
+    type:'line', data:{datasets:sf_datasets_signal()},
+    options:{...common, scales:{
+      x:{type:'linear',min:0,max:sf_SPTS,title:{display:true,text:'amostras',font:{size:11},color:sf_tc},grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10}}},
+      y:{title:{display:true,text:'amplitude',font:{size:11},color:sf_tc},grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10}}}
+    }}
+  });
+
+  sf_charts.c4 = new Chart(document.getElementById('sf_c4'), {
+    type:'bar', data:{labels:['0–20','20–40','40–60','60–80','80–100'], datasets:sf_datasets_energy()},
+    options:{...common, scales:{
+      x:{grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10}},title:{display:true,text:'banda freq.',font:{size:11},color:sf_tc}},
+      y:{min:0,max:100,grid:{color:sf_gc},ticks:{color:sf_tc,font:{size:10},callback:v=>v+'%'},title:{display:true,text:'energia (%)',font:{size:11},color:sf_tc}}
+    }}
+  });
+}
+
+function sf_updateStats() {
+  const el = document.getElementById('sf_stats');
+  el.innerHTML = sf_activeFilters().map(f => {
+    const h50 = sf_H(sf_D0,f.key,sf_D0,sf_hp);
+    const en = Math.round(Array.from({length:200},(_,i)=>sf_H(i*0.5,f.key,sf_D0,sf_hp)**2).reduce((a,b)=>a+b)/200*100);
+    return `<div class="sf_pill" style="border-color:${f.color}44"><b style="color:${f.color}">${f.name}</b> H(D₀)=<b>${h50.toFixed(2)}</b> · energia=<b>${en}%</b></div>`;
+  }).join('');
+}
+
+function sf_update() {
+  sf_charts.c1.data.datasets = sf_datasets_profile(); sf_charts.c1.update();
+  sf_charts.c2.data.datasets = sf_datasets_spectrum(); sf_charts.c2.update();
+  sf_charts.c3.data.datasets = sf_datasets_signal(); sf_charts.c3.update();
+  sf_charts.c4.data.datasets = sf_datasets_energy(); sf_charts.c4.update();
+  sf_updateStats();
+}
+
+document.getElementById('sf_d0').addEventListener('input', function(){
+  sf_D0 = +this.value;
+  document.getElementById('sf_d0v').textContent = sf_D0;
+  sf_update();
+});
+
+document.querySelectorAll('input[name="sf_ft"]').forEach(r => {
+  r.addEventListener('change', e => { sf_hp = e.target.value==='hp'; sf_update(); });
+});
+
+sf_buildLegend();
+sf_initCharts();
+sf_updateStats();
+
+})();
+</script>
