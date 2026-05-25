@@ -1793,66 +1793,66 @@ Figura&nbsp;5.13: Filtro passa-alta Gaussiano. (a) Original; (b) Filtro passa-al
 <div id="cell-fig-05-ruido-periodico" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Imagem com ruído periódico sintético ──────────────────────────────────────</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>h_img, w_img <span class="op">=</span> img_gray.shape</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.arange(w_img)<span class="op">;</span> y <span class="op">=</span> np.arange(h_img)</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>X, Y <span class="op">=</span> np.meshgrid(x, y)</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Ruído senoidal com frequências (u0=20, v0=20) e simétricas</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>ruido <span class="op">=</span> <span class="dv">40</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (<span class="dv">20</span> <span class="op">*</span> X <span class="op">/</span> w_img <span class="op">+</span> <span class="dv">20</span> <span class="op">*</span> Y <span class="op">/</span> h_img))</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>img_ruidosa <span class="op">=</span> np.clip(img_gray.astype(np.float64) <span class="op">+</span> ruido, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.arange(w_img)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.arange(h_img)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>X, Y <span class="op">=</span> np.meshgrid(x, y)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Usar frequências inteiras e consistentes (importante para restauração perfeita)</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>u0, v0 <span class="op">=</span> <span class="dv">20</span>, <span class="dv">20</span>  <span class="co"># frequências exatas do ruído</span></span>
 <span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Espectro da imagem ruidosa ───────────────────────────────────────────────</span></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>F_r  <span class="op">=</span> np.fft.fftshift(np.fft.fft2(img_ruidosa.astype(np.float64)))</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>mag_r <span class="op">=</span> np.log1p(np.<span class="bu">abs</span>(F_r))</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>mag_vis <span class="op">=</span> cv2.normalize(mag_r, <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Máscara notch (suprime os picos do ruído) ────────────────────────────────</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>mascara <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>r_notch  <span class="op">=</span> <span class="dv">10</span>      <span class="co"># raio da região suprimida</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico(mask, cy, cx, r):</span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Zera um disco de raio r centrado em (cy, cx) na máscara."""</span></span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.ogrid[:mask.shape[<span class="dv">0</span>], :mask.shape[<span class="dv">1</span>]]</span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    dist    <span class="op">=</span> np.sqrt((yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    mask[dist <span class="op">&lt;=</span> r] <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Coordenadas dos picos no espectro centralizado</span></span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>cy0, cx0 <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="co"># O ruído foi gerado com frequências u0=20 ciclos na largura, v0=20 ciclos na altura.</span></span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="co"># No espectro centrado (após fftshift), os picos ficam em:</span></span>
-<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="co">#   linha:  h_img//2 ± round(v0 * h_img / h_img) = h_img//2 ± v0</span></span>
-<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a><span class="co">#   coluna: w_img//2 ± round(u0 * w_img / w_img) = w_img//2 ± u0</span></span>
-<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Como u0=v0=20, a simplificação acidental estava correta neste caso específico,</span></span>
-<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a><span class="co"># mas a forma correta e clara é:</span></span>
-<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>u0_noise, v0_noise <span class="op">=</span> <span class="dv">20</span>, <span class="dv">20</span>   <span class="co"># frequências do ruído sintético</span></span>
-<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>dy0 <span class="op">=</span> v0_noise   <span class="co"># deslocamento em linhas</span></span>
-<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>dx0 <span class="op">=</span> u0_noise   <span class="co"># deslocamento em colunas</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>ruido <span class="op">=</span> <span class="dv">40</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (u0 <span class="op">*</span> X <span class="op">/</span> w_img <span class="op">+</span> v0 <span class="op">*</span> Y <span class="op">/</span> h_img))</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>img_ruidosa <span class="op">=</span> np.clip(img_gray.astype(np.float64) <span class="op">+</span> ruido, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Espectro da imagem ruidosa ───────────────────────────────────────────────</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>F_r <span class="op">=</span> np.fft.fftshift(np.fft.fft2(img_ruidosa.astype(np.float64)))</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>mag_r <span class="op">=</span> np.log1p(np.<span class="bu">abs</span>(F_r))</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>mag_vis <span class="op">=</span> cv2.normalize(mag_r, <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Máscara notch ────────────────────────────────────────────────────────────</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>mascara <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>r_notch <span class="op">=</span> <span class="dv">8</span>  <span class="co"># raio do notch (ajuste fino se necessário)</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico(mask, cy, cx, r):</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Zera um disco de raio r centrado em (cy, cx)"""</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.ogrid[:mask.shape[<span class="dv">0</span>], :mask.shape[<span class="dv">1</span>]]</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    dist <span class="op">=</span> np.sqrt((yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    mask[dist <span class="op">&lt;=</span> r] <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Coordenadas centrais</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>cy, cx <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Suprimir os 4 picos simétricos (importante!)</span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(v0, u0), (<span class="op">-</span>v0, <span class="op">-</span>u0), (v0, <span class="op">-</span>u0), (<span class="op">-</span>v0, u0)]:</span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    mascara <span class="op">=</span> suprimir_pico(mascara, cy <span class="op">+</span> dy, cx <span class="op">+</span> dx, r_notch)</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
 <span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(<span class="op">+</span>dy0,<span class="op">+</span>dx0),(<span class="op">-</span>dy0,<span class="op">-</span>dx0),(<span class="op">+</span>dy0,<span class="op">-</span>dx0),(<span class="op">-</span>dy0,<span class="op">+</span>dx0)]:</span>
-<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>    mascara <span class="op">=</span> suprimir_pico(mascara, cy0<span class="op">+</span>dy, cx0<span class="op">+</span>dx, r_notch)</span>
-<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Filtragem e reconstrução ─────────────────────────────────────────────────</span></span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>F_filtrada <span class="op">=</span> F_r <span class="op">*</span> mascara</span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>img_rest <span class="op">=</span> np.real(np.fft.ifft2(np.fft.ifftshift(F_filtrada)))</span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>img_rest_vis <span class="op">=</span> cv2.normalize(img_rest, <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
 <span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Filtragem e reconstrução ─────────────────────────────────────────────────</span></span>
-<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>F_filtrada  <span class="op">=</span> F_r <span class="op">*</span> mascara</span>
-<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>img_rest     <span class="op">=</span> np.real(np.fft.ifft2(np.fft.ifftshift(F_filtrada)))</span>
-<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a>img_rest_vis <span class="op">=</span> cv2.normalize(img_rest, <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a>psnr <span class="op">=</span> cv2.PSNR(img_gray, img_rest_vis)</span>
-<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PSNR (original vs restaurada): </span><span class="sc">{</span>psnr<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a>    [img_ruidosa, mag_vis, mascara_vis, img_rest_vis],</span>
-<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Com ruído periódico"</span>,</span>
-<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro (log)"</span>,</span>
-<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch"</span>,</span>
-<span id="cb14-57"><a href="#cb14-57" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Restaurada (PSNR=</span><span class="sc">{</span>psnr<span class="sc">:.1f}</span><span class="ss"> dB)"</span></span>
-<span id="cb14-58"><a href="#cb14-58" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Avaliação</span></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>psnr <span class="op">=</span> cv2.PSNR(img_gray, img_rest_vis)</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>ssim <span class="op">=</span> cv2.SSIM(img_gray, img_rest_vis) <span class="cf">if</span> <span class="bu">hasattr</span>(cv2, <span class="st">'SSIM'</span>) <span class="cf">else</span> <span class="st">"N/A"</span></span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PSNR (original vs restaurada): </span><span class="sc">{</span>psnr<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Visualização ─────────────────────────────────────────────────────────────</span></span>
+<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a>    [img_ruidosa, mag_vis, mascara_vis, img_rest_vis],</span>
+<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Com ruído periódico"</span>,</span>
+<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro (log)"</span>,</span>
+<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch"</span>,</span>
+<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Restaurada (PSNR=</span><span class="sc">{</span>psnr<span class="sc">:.1f}</span><span class="ss"> dB)"</span></span>
+<span id="cb14-57"><a href="#cb14-57" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb14-58"><a href="#cb14-58" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, </span>
+<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
 <span id="cb14-60"><a href="#cb14-60" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>PSNR (original vs restaurada): 30.62 dB</code></pre>
+<pre><code>PSNR (original vs restaurada): 32.93 dB</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div id="fig-05-ruido-periodico" class="quarto-float quarto-figure quarto-figure-center anchored">
