@@ -920,8 +920,9 @@ Figura&nbsp;5.5: Simulador interativo da decomposição de Fourier 1D: visualiza
 <section id="teorema-da-convolução-e-estratégias-de-filtragem" class="level2" data-number="5.4">
 <h2 data-number="5.4" class="anchored" data-anchor-id="teorema-da-convolução-e-estratégias-de-filtragem"><span class="header-section-number">5.4</span> Teorema da Convolução e Estratégias de Filtragem</h2>
 <p>O <strong>Teorema da Convolução</strong> estabelece uma das relações mais importantes entre os domínios espacial e de frequência:</p>
-<p><span class="math display">\[f(x,y) \circledast h(x,y) \;\xleftrightarrow{\mathcal{F}}\; F(u,v)\,H(u,v)\]</span></p>
-<p>{#eq-05-conv-teorema}</p>
+<p><span id="eq-05-conv-teorema"><span class="math display">\[
+f(x,y) \circledast h(x,y) \;\xleftrightarrow{\mathcal{F}}\; F(u,v)\,H(u,v)
+\tag{5.3}\]</span></span></p>
 <p>onde <span class="math inline">\(\circledast\)</span> representa a convolução circular discreta. Para reproduzir a convolução linear convencional sem artefatos de borda, utiliza-se <em>zero-padding</em> antes da FFT. Isso significa que, em vez de deslizar uma máscara espacialmente sobre cada pixel, podemos realizar uma multiplicação ponto a ponto no domínio da frequência.</p>
 <p>Contudo, no domínio espacial, existe uma propriedade matemática crucial para filtros como o Gaussiano e o <em>Box Filter</em>: a <strong>separabilidade</strong>.</p>
 <section id="kernel-separável-vs.-não-separável" class="level3" data-number="5.4.1">
@@ -929,7 +930,7 @@ Figura&nbsp;5.5: Simulador interativo da decomposição de Fourier 1D: visualiza
 <p>A diferença entre um <em>kernel</em> separável e um não separável reside na capacidade de decompor uma matriz bidimensional em duas operações unidimensionais independentes.</p>
 <ul>
 <li><strong><em>Kernel</em> Não Separável:</strong> É uma matriz de filtro <span class="math inline">\(K \times K\)</span> cujas linhas ou colunas são linearmente independentes. Para calcular o valor de um único pixel na imagem resultante, o algoritmo precisa realizar <span class="math inline">\(K^2\)</span> multiplicações e somas, varrendo toda a vizinhança bidimensional simultaneamente.</li>
-<li><strong><em>Kernel</em> Separável:</strong> É uma matriz de posto 1, o que significa que ela pode ser expressa como o produto externo de dois vetores unidimensionais: um vetor coluna e um vetor linha (<span class="math inline">\(H = v \cdot h^T\)</span>).</li>
+<li><strong><em>Kernel</em> Separável:</strong> Pode ser escrito exatamente como produto externo entre dois vetores 1D: um vetor coluna e um vetor linha (<span class="math inline">\(H = v \cdot h^T\)</span>).</li>
 </ul>
 <p>Na prática, isso transforma uma varredura bidimensional pesada em duas passagens unidimensionais consecutivas: primeiro, filtra-se cada linha da imagem com o vetor horizontal de tamanho <span class="math inline">\(1 \times K\)</span>; em seguida, filtra-se o resultado verticalmente com o vetor de tamanho <span class="math inline">\(K \times 1\)</span>.</p>
 </section>
@@ -986,12 +987,13 @@ Tabela&nbsp;5.1: Comparação de complexidade entre convolução direta, separá
 <h3 data-number="5.4.3" class="anchored" data-anchor-id="discussão-do-gráfico-experimental-2560-times-1920"><span class="header-section-number">5.4.3</span> Discussão do Gráfico Experimental (<span class="math inline">\(2560 \times 1920\)</span>)</h3>
 <p>O gráfico obtido no ensaio experimental, apresentado na <a href="#fig-05-conv-eficiencia" class="quarto-xref">Figura&nbsp;<span>5.6</span></a>, traduz perfeitamente a teoria para cenários reais de alta carga de processamento:</p>
 <ol type="1">
-<li><strong>O Colapso da Convolução Não Separável (<span class="math inline">\(\mathcal{O}(N^2K^2)\)</span>):</strong> Como previsto pela curva laranja, a abordagem direta bidimensional sofre uma penalidade severa. Para um <em>kernel</em> pequeno de <span class="math inline">\(5 \times 5\)</span>, o tempo é desprezível, mas ao atingir um <em>kernel</em> de <span class="math inline">\(51 \times 51\)</span>, o tempo de execução ultrapassa a marca dos <strong>25.000 ms (25 segundos)</strong> para processar apenas três iterações. Ela se torna proibitiva para <em>pipelines</em> de tempo real.</li>
-<li><strong>A Consistência Absoluta da FFT (<span class="math inline">\(\mathcal{O}(N^2 \log N)\)</span>):</strong> A linha roxa demonstra a independência da FFT em relação ao tamanho do filtro. Uma vez mapeados a imagem e o <em>kernel</em> expandido para o domínio da frequência, a operação passa a ser uma multiplicação ponto a ponto de complexidade fixa. O tempo flutua estavelmente em torno de <strong>1.500 ms</strong>, independentemente de o <em>kernel</em> ser <span class="math inline">\(5 \times 5\)</span> ou <span class="math inline">\(51 \times 51\)</span>. A FFT cruza a curva não separável por volta de <span class="math inline">\(K = 11\)</span>.</li>
-<li><strong>A Supremacia Prática da Convolução Separável (<span class="math inline">\(\mathcal{O}(N^2 \cdot 2K)\)</span>):</strong> Representada pela linha verde rente ao eixo horizontal, a convolução separável aproveita a otimização de baixo nível (como vetorialização SIMD do <code>cv2.sepFilter2D</code>). Como o custo cresce apenas de forma linear com <span class="math inline">\(K\)</span> (<span class="math inline">\(2K\)</span> operações), ela consegue processar a imagem de 5 MP em <strong>poucos milissegundos</strong>, superando inclusive a FFT em toda a faixa testada devido à ausência do <em>overhead</em> de cálculo das transformadas direta e inversa.</li>
+<li><strong>O Colapso da Convolução Não Separável (<span class="math inline">\(\mathcal{O}(M \cdot N \cdot K^2)\)</span> ):</strong> Como previsto pela curva laranja, a abordagem direta bidimensional sofre uma penalidade severa. Para um <em>kernel</em> pequeno de <span class="math inline">\(5 \times 5\)</span>, o tempo é desprezível, mas ao atingir um <em>kernel</em> de <span class="math inline">\(51 \times 51\)</span>, o tempo de execução ultrapassa a marca dos <strong>25.000 ms (25 segundos)</strong> para processar apenas três iterações. Ela se torna proibitiva para <em>pipelines</em> de tempo real.</li>
+<li><strong>A Consistência Absoluta da FFT (<span class="math inline">\(\mathcal{O}(M \cdot N \log(M \cdot N))\)</span>):</strong> A linha roxa demonstra a independência da FFT em relação ao tamanho do filtro. Uma vez mapeados a imagem e o <em>kernel</em> expandido para o domínio da frequência, a operação passa a ser uma multiplicação ponto a ponto de complexidade fixa. O tempo flutua estavelmente em torno de <strong>1.500 ms</strong>, independentemente de o <em>kernel</em> ser <span class="math inline">\(5 \times 5\)</span> ou <span class="math inline">\(51 \times 51\)</span>. A FFT cruza a curva não separável por volta de <span class="math inline">\(K = 11\)</span>.</li>
+<li><strong>A Supremacia Prática da Convolução Separável (<span class="math inline">\(\mathcal{O}(M \cdot N \cdot 2K)\)</span>):</strong> Representada pela linha verde rente ao eixo horizontal, a convolução separável aproveita a otimização de baixo nível (como vetorialização SIMD do <code>cv2.sepFilter2D</code>). Como o custo cresce apenas de forma linear com <span class="math inline">\(K\)</span> (<span class="math inline">\(2K\)</span> operações), ela consegue processar a imagem de 5 MP em <strong>poucos milissegundos</strong>, superando inclusive a FFT em toda a faixa testada devido à ausência do <em>overhead</em> de cálculo das transformadas direta e inversa.</li>
 </ol>
+<p>O ganho da FFT torna-se evidente principalmente para <em>kernels</em> grandes não separáveis ou quando múltiplas convoluções são realizadas no domínio espectral. Para filtros gaussianos, a separabilidade reduz drasticamente o custo espacial.</p>
 <p><span id="eq-05-filter-comparison"><span class="math display">\[g = \mathcal{F}^{-1}\bigl[\mathcal{F}(f) \cdot \mathcal{F}(h)\bigr] \quad \text{vs.} \quad g = (f \circledast K) \quad \text{vs.} \quad g = (f \circledast v) \circledast h^T
-\tag{5.3}\]</span></span></p>
+\tag{5.4}\]</span></span></p>
 <div id="cell-fig-05-conv-eficiencia" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -1237,18 +1239,18 @@ Figura&nbsp;5.9: A Dualidade Perigosa: O corte abrupto na Frequência (Cilindro)
 <p>Filtros passa-baixa atenuam altas frequências, suavizando a imagem e reduzindo ruído. Definem-se em termos da distância ao centro do espectro:</p>
 <p><span id="eq-05-dist-centro"><span class="math display">\[
 D(u,v) = \sqrt{\left(u - \tfrac{M}{2}\right)^2 + \left(v - \tfrac{N}{2}\right)^2}
-\tag{5.4}\]</span></span></p>
+\tag{5.5}\]</span></span></p>
 <p><strong>Filtro Ideal (LPFI):</strong> <span id="eq-05-lpf-ideal"><span class="math display">\[
 H_{\text{ideal}}(u,v) = \begin{cases} 1, &amp; D(u,v) \leq D_0 \\ 0, &amp; D(u,v) &gt; D_0 \end{cases}
-\tag{5.5}\]</span></span></p>
+\tag{5.6}\]</span></span></p>
 <p>O corte abrupto em <span class="math inline">\(D_0\)</span> causa o <strong>fenômeno de Ringing</strong>: oscilações artificiais próximas às bordas dos objetos, análogas ao comportamento da série de Fourier truncada.</p>
 <p><strong>Filtro Gaussiano (LPFG):</strong> <span id="eq-05-lpf-gauss"><span class="math display">\[
 H_{\text{gauss}}(u,v) = e^{-D^2(u,v)/\left(2\sigma^2\right)}
-\tag{5.6}\]</span></span></p>
+\tag{5.7}\]</span></span></p>
 <p>No domínio contínuo, a transformada de Fourier de uma Gaussiana é também Gaussiana — propriedade que garante transição suave sem <em>ringing</em>.</p>
 <p><strong>Filtro Butterworth (LPFB) de ordem <span class="math inline">\(n\)</span>:</strong> <span id="eq-05-lpf-butterworth"><span class="math display">\[
 H_{\text{BW}}(u,v) = \frac{1}{1 + \left[D(u,v)/D_0\right]^{2n}}
-\tag{5.7}\]</span></span></p>
+\tag{5.8}\]</span></span></p>
 <p>O parâmetro <span class="math inline">\(n\)</span> controla a inclinação da transição: valores baixos (<span class="math inline">\(n=1,2\)</span>) produzem transições suaves (sem <em>ringing</em>); valores altos (<span class="math inline">\(n \geq 5\)</span>) aproximam o comportamento do filtro ideal. Ver exemplos na <a href="#fig-05-filtros-passa-baixa" class="quarto-xref">Figura&nbsp;<span>5.10</span></a>.</p>
 <div id="cell-fig-05-filtros-passa-baixa" class="cell">
 <div id="fig-05-filtros-passa-baixa" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="11">
@@ -1854,22 +1856,23 @@ Figura&nbsp;5.13: Filtro passa-alta Gaussiano. (a) Original; (b) Filtro passa-al
 <span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Avaliação</span></span>
 <span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>psnr <span class="op">=</span> cv2.PSNR(img_gray, img_rest_vis)</span>
-<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>ssim <span class="op">=</span> cv2.SSIM(img_gray, img_rest_vis) <span class="cf">if</span> <span class="bu">hasattr</span>(cv2, <span class="st">'SSIM'</span>) <span class="cf">else</span> <span class="st">"N/A"</span></span>
-<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PSNR (original vs restaurada): </span><span class="sc">{</span>psnr<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Visualização ─────────────────────────────────────────────────────────────</span></span>
-<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>    [img_ruidosa, mag_vis, mascara_vis, img_rest_vis],</span>
-<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Com ruído periódico"</span>,</span>
-<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro (log)"</span>,</span>
-<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch"</span>,</span>
-<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Restaurada (PSNR=</span><span class="sc">{</span>psnr<span class="sc">:.1f}</span><span class="ss"> dB)"</span></span>
-<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, </span>
-<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
-<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="co">#ssim = cv2.SSIM(img_gray, img_rest_vis) if hasattr(cv2, 'SSIM') else "N/A"</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>ssim <span class="op">=</span> ssim_sk(img_gray, img_rest_vis, data_range<span class="op">=</span><span class="dv">255</span>)</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PSNR (original vs restaurada): </span><span class="sc">{</span>psnr<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Visualização ─────────────────────────────────────────────────────────────</span></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>    [img_ruidosa, mag_vis, mascara_vis, img_rest_vis],</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Com ruído periódico"</span>,</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro (log)"</span>,</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch"</span>,</span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Restaurada (PSNR=</span><span class="sc">{</span>psnr<span class="sc">:.1f}</span><span class="ss"> dB)"</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>, </span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>)</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>PSNR (original vs restaurada): 32.93 dB</code></pre>
 </div>
@@ -1943,7 +1946,7 @@ Figura&nbsp;5.14: Remoção de ruído periódico via filtro notch no domínio da
 <section id="wavelets-e-multirresolução" class="level2" data-number="5.6">
 <h2 data-number="5.6" class="anchored" data-anchor-id="wavelets-e-multirresolução"><span class="header-section-number">5.6</span> <em>Wavelets</em> e Multirresolução</h2>
 <p>A Transformada de Fourier decompõe o sinal em frequências <strong>globais</strong>: cada coeficiente <span class="math inline">\(F(u,v)\)</span> recebe contribuições de <strong>toda</strong> a imagem, sem informação sobre <em>onde</em> uma frequência ocorre. Uma borda localizada no canto da imagem se mistura ao espectro inteiro — o que limita sua capacidade de representar explicitamente onde determinadas frequências ocorrem espacialmente.</p>
-<p>As <strong><em>wavelets</em></strong> (<em>ondaletas</em>) resolvem essa limitação com funções de base <strong>compactas</strong> — energia concentrada em uma região finita — que podem ser deslocadas e escaladas, oferecendo representação simultânea em <strong>frequência e localização espacial</strong>.</p>
+<p>As <strong><em>wavelets</em></strong> (<em>ondaletas</em>) mitigam essa limitação com funções de base <strong>compactas</strong> — energia concentrada em uma região finita — que podem ser deslocadas e escaladas, oferecendo representação simultânea em <strong>frequência e localização espacial</strong>.</p>
 <section id="o-limite-de-fourier-onde-ocorreu-o-evento" class="level3" data-number="5.6.1">
 <h3 data-number="5.6.1" class="anchored" data-anchor-id="o-limite-de-fourier-onde-ocorreu-o-evento"><span class="header-section-number">5.6.1</span> O Limite de Fourier: Onde ocorreu o evento?</h3>
 <p>Fourier nos diz perfeitamente <em>quais</em> frequências existem, mas perde totalmente a noção do <em>tempo/espaço</em> de onde elas ocorreram. Veja o experimento abaixo: uma imagem com duas linhas nítidas, e outra com as mesmas linhas deslocadas. O espectro de magnitude é virtualmente idêntico.</p>
@@ -2424,7 +2427,7 @@ Tabela&nbsp;5.2: Tipos de redundância em imagens e como são exploradas.
 C(u,v) = \alpha(u)\,\alpha(v) \sum_{x=0}^{N-1}\sum_{y=0}^{N-1} f(x,y)\,
 \cos\!\left[\frac{\pi(2x+1)u}{2N}\right]
 \cos\!\left[\frac{\pi(2y+1)v}{2N}\right]
-\tag{5.8}\]</span></span></p>
+\tag{5.9}\]</span></span></p>
 <p>onde <span class="math inline">\(\alpha(0) = \sqrt{1/N}\)</span> e <span class="math inline">\(\alpha(k) = \sqrt{2/N}\)</span> para <span class="math inline">\(k &gt; 0\)</span> (fator de normalização ortogonal). O coeficiente <span class="math inline">\(C(0,0)\)</span> corresponde ao <strong>componente DC</strong>.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -2949,12 +2952,12 @@ Tabela&nbsp;5.3: Comparação entre os principais formatos de imagem rasterizado
 <p>Duas métricas objetivas são amplamente usadas para avaliar a qualidade de imagens comprimidas:</p>
 <p><strong>PSNR (Peak Signal-to-Noise Ratio):</strong> <span id="eq-05-psnr"><span class="math display">\[
 \text{PSNR} = 10\,\log_{10}\!\left(\frac{L^2}{\text{MSE}}\right) \quad [\text{dB}]
-\tag{5.9}\]</span></span></p>
+\tag{5.10}\]</span></span></p>
 <p>onde <span class="math inline">\(L = 255\)</span> para imagens de 8 bits e MSE é o erro quadrático médio. Valores típicos: PSNR &gt; 40 dB indica qualidade excelente; 30–40 dB, qualidade boa; &lt; 30 dB, degradação visível.</p>
 <p><strong>SSIM (Structural Similarity Index):</strong></p>
 <p><span id="eq-05-ssim"><span class="math display">\[
 \text{SSIM}(f,g) = \frac{(2\mu_f\mu_g + c_1)(2\sigma_{fg} + c_2)}{(\mu_f^2+\mu_g^2+c_1)(\sigma_f^2+\sigma_g^2+c_2)}
-\tag{5.10}\]</span></span></p>
+\tag{5.11}\]</span></span></p>
 <p>O SSIM combina três fatores medidos em janelas locais: <strong>luminância</strong> (<span class="math inline">\(\mu_f, \mu_g\)</span>), <strong>contraste</strong> (<span class="math inline">\(\sigma_f, \sigma_g\)</span>) e <strong>estrutura</strong> (<span class="math inline">\(\sigma_{fg}\)</span>), ponderados por constantes de estabilidade <span class="math inline">\(c_1, c_2\)</span>. O resultado varia em <span class="math inline">\([-1, 1]\)</span>, com 1 indicando identidade perfeita. Diferentemente do PSNR, o SSIM é sensível à organização espacial dos erros, sendo mais alinhado com a percepção humana — consulte <span class="citation" data-cites="gonzalez2018digital">Gonzalez; Woods (<a href="../referencias.html#ref-gonzalez2018digital" role="doc-biblioref">2018</a>)</span> para a formulação completa.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -3205,71 +3208,69 @@ Figura&nbsp;5.27: Mapas de erro JPEG em diferentes qualidades: artefatos de bloc
 <span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>    subprocess.run([<span class="st">"pip"</span>, <span class="st">"install"</span>, <span class="st">"scikit-image"</span>, <span class="st">"-q"</span>])</span>
 <span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> skimage.metrics <span class="im">import</span> structural_similarity <span class="im">as</span> ssim_sk</span>
 <span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico_gaussiano(mask, cy, cx, r, sigma<span class="op">=</span><span class="fl">1.5</span>):</span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Máscara notch com transição gaussiana suave — evita artefatos de Gibbs."""</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.ogrid[:mask.shape[<span class="dv">0</span>], :mask.shape[<span class="dv">1</span>]]</span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>    dist2  <span class="op">=</span> (yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span></span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    notch  <span class="op">=</span> <span class="fl">1.0</span> <span class="op">-</span> np.exp(<span class="op">-</span>dist2 <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> sigma<span class="op">**</span><span class="dv">2</span>))</span>
-<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>    notch[np.sqrt(dist2) <span class="op">&gt;</span> r] <span class="op">=</span> <span class="fl">1.0</span>          <span class="co"># hard cut fora do raio</span></span>
-<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>    mask  <span class="op">*=</span> notch</span>
-<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
-<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 1. Construção do ruído misto ─────────────────────────────────────────────</span></span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
-<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>h_img, w_img <span class="op">=</span> img_gray.shape</span>
-<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>X2, Y2 <span class="op">=</span> np.meshgrid(np.arange(w_img), np.arange(h_img))</span>
-<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>u0, v0       <span class="op">=</span> <span class="dv">15</span>, <span class="dv">10</span></span>
-<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>ruido_gauss  <span class="op">=</span> np.random.normal(<span class="dv">0</span>, <span class="dv">15</span>, img_gray.shape)</span>
-<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>ruido_period <span class="op">=</span> <span class="dv">30</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (u0 <span class="op">*</span> X2 <span class="op">/</span> w_img <span class="op">+</span> v0 <span class="op">*</span> Y2 <span class="op">/</span> h_img))</span>
-<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>img_noisy    <span class="op">=</span> np.clip(img_gray.astype(<span class="bu">float</span>) <span class="op">+</span> ruido_gauss <span class="op">+</span> ruido_period, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 2. Espectro e identificação dos picos ────────────────────────────────────</span></span>
-<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>F_n   <span class="op">=</span> np.fft.fftshift(np.fft.fft2(img_noisy.astype(np.float64)))</span>
-<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>mag_n <span class="op">=</span> cv2.normalize(np.log1p(np.<span class="bu">abs</span>(F_n)), <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 3. Notch gaussiano nos picos periódicos ──────────────────────────────────</span></span>
-<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a>cy0, cx0       <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
-<span id="cb29-33"><a href="#cb29-33" aria-hidden="true" tabindex="-1"></a>mascara_notch  <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
-<span id="cb29-34"><a href="#cb29-34" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(<span class="op">+</span>v0, <span class="op">+</span>u0), (<span class="op">-</span>v0, <span class="op">-</span>u0), (<span class="op">+</span>v0, <span class="op">-</span>u0), (<span class="op">-</span>v0, <span class="op">+</span>u0)]:</span>
-<span id="cb29-35"><a href="#cb29-35" aria-hidden="true" tabindex="-1"></a>    mascara_notch <span class="op">=</span> suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, r<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb29-36"><a href="#cb29-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-37"><a href="#cb29-37" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> np.real(np.fft.ifft2(np.fft.ifftshift(F_n <span class="op">*</span> mascara_notch)))</span>
-<span id="cb29-38"><a href="#cb29-38" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> np.clip(img_notch, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb29-39"><a href="#cb29-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-40"><a href="#cb29-40" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 4. Bilateral: remove gaussiano residual preservando bordas ───────────────</span></span>
-<span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a>img_den <span class="op">=</span> cv2.bilateralFilter(img_notch, d<span class="op">=</span><span class="dv">7</span>, sigmaColor<span class="op">=</span><span class="dv">25</span>, sigmaSpace<span class="op">=</span><span class="dv">7</span>)</span>
-<span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-43"><a href="#cb29-43" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Métricas nas três etapas ─────────────────────────────────────────────────</span></span>
-<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a>psnr_n,  ssim_n  <span class="op">=</span> cv2.PSNR(img_gray, img_noisy), ssim_sk(img_gray, img_noisy)</span>
-<span id="cb29-45"><a href="#cb29-45" aria-hidden="true" tabindex="-1"></a>psnr_no, ssim_no <span class="op">=</span> cv2.PSNR(img_gray, img_notch), ssim_sk(img_gray, img_notch)</span>
-<span id="cb29-46"><a href="#cb29-46" aria-hidden="true" tabindex="-1"></a>psnr_d,  ssim_d  <span class="op">=</span> cv2.PSNR(img_gray, img_den),   ssim_sk(img_gray, img_den)</span>
-<span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-48"><a href="#cb29-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Etapa'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span><span class="st">'PSNR (dB)'</span><span class="sc">:&gt;9}</span><span class="ss"> | </span><span class="sc">{</span><span class="st">'SSIM'</span><span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
-<span id="cb29-49"><a href="#cb29-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
-<span id="cb29-50"><a href="#cb29-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Ruidosa (gauss+per)'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_n<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_n<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
-<span id="cb29-51"><a href="#cb29-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Após notch'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_no<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_no<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
-<span id="cb29-52"><a href="#cb29-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Notch + bilateral'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_d<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_d<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
-<span id="cb29-53"><a href="#cb29-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-54"><a href="#cb29-54" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara_notch <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb29-55"><a href="#cb29-55" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb29-56"><a href="#cb29-56" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den],</span>
-<span id="cb29-57"><a href="#cb29-57" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb29-58"><a href="#cb29-58" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Original"</span>,</span>
-<span id="cb29-59"><a href="#cb29-59" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Ruidosa</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.1f}</span><span class="ss"> dB"</span>,</span>
-<span id="cb29-60"><a href="#cb29-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro</span><span class="ch">\n</span><span class="st">(picos visíveis)"</span>,</span>
-<span id="cb29-61"><a href="#cb29-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch</span><span class="ch">\n</span><span class="st">(gaussiana suave)"</span>,</span>
-<span id="cb29-62"><a href="#cb29-62" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Após notch</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_no<span class="sc">:.1f}</span><span class="ss"> dB"</span>,</span>
-<span id="cb29-63"><a href="#cb29-63" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Notch + bilateral</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_d<span class="sc">:.1f}</span><span class="ss"> dB  SSIM=</span><span class="sc">{</span>ssim_d<span class="sc">:.3f}</span><span class="ss">"</span></span>
-<span id="cb29-64"><a href="#cb29-64" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb29-65"><a href="#cb29-65" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">6</span>, figsize<span class="op">=</span>(<span class="dv">20</span>, <span class="dv">4</span>)</span>
-<span id="cb29-66"><a href="#cb29-66" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico_gaussiano(mask, cy, cx, r, sigma<span class="op">=</span><span class="fl">3.0</span>):</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.ogrid[:mask.shape[<span class="dv">0</span>], :mask.shape[<span class="dv">1</span>]]</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>    dist <span class="op">=</span> np.sqrt((yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>    notch <span class="op">=</span> np.exp(<span class="op">-</span>dist<span class="op">**</span><span class="dv">2</span> <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> sigma<span class="op">**</span><span class="dv">2</span>))</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">*=</span> (<span class="dv">1</span> <span class="op">-</span> notch)                     <span class="co"># multiplicação correta</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 1. Construção do ruído misto ─────────────────────────────────────────────</span></span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>h_img, w_img <span class="op">=</span> img_gray.shape</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>X2, Y2 <span class="op">=</span> np.meshgrid(np.arange(w_img), np.arange(h_img))</span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>u0, v0       <span class="op">=</span> <span class="dv">15</span>, <span class="dv">10</span></span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>ruido_gauss  <span class="op">=</span> np.random.normal(<span class="dv">0</span>, <span class="dv">15</span>, img_gray.shape)</span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>ruido_period <span class="op">=</span> <span class="dv">30</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (u0 <span class="op">*</span> X2 <span class="op">/</span> w_img <span class="op">+</span> v0 <span class="op">*</span> Y2 <span class="op">/</span> h_img))</span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>img_noisy    <span class="op">=</span> np.clip(img_gray.astype(<span class="bu">float</span>) <span class="op">+</span> ruido_gauss <span class="op">+</span> ruido_period, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 2. Espectro e identificação dos picos ────────────────────────────────────</span></span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>F_n   <span class="op">=</span> np.fft.fftshift(np.fft.fft2(img_noisy.astype(np.float64)))</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>mag_n <span class="op">=</span> cv2.normalize(np.log1p(np.<span class="bu">abs</span>(F_n)), <span class="va">None</span>, <span class="dv">0</span>, <span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 3. Notch gaussiano nos picos periódicos ──────────────────────────────────</span></span>
+<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a>cy0, cx0       <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
+<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a>mascara_notch  <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
+<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(<span class="op">+</span>v0, <span class="op">+</span>u0), (<span class="op">-</span>v0, <span class="op">-</span>u0), (<span class="op">+</span>v0, <span class="op">-</span>u0), (<span class="op">-</span>v0, <span class="op">+</span>u0)]:</span>
+<span id="cb29-33"><a href="#cb29-33" aria-hidden="true" tabindex="-1"></a>    mascara_notch <span class="op">=</span> suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, r<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb29-34"><a href="#cb29-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-35"><a href="#cb29-35" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> np.real(np.fft.ifft2(np.fft.ifftshift(F_n <span class="op">*</span> mascara_notch)))</span>
+<span id="cb29-36"><a href="#cb29-36" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> np.clip(img_notch, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb29-37"><a href="#cb29-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-38"><a href="#cb29-38" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 4. Bilateral: remove gaussiano residual preservando bordas ───────────────</span></span>
+<span id="cb29-39"><a href="#cb29-39" aria-hidden="true" tabindex="-1"></a>img_den <span class="op">=</span> cv2.bilateralFilter(img_notch, d<span class="op">=</span><span class="dv">7</span>, sigmaColor<span class="op">=</span><span class="dv">25</span>, sigmaSpace<span class="op">=</span><span class="dv">7</span>)</span>
+<span id="cb29-40"><a href="#cb29-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Métricas nas três etapas ─────────────────────────────────────────────────</span></span>
+<span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a>psnr_n,  ssim_n  <span class="op">=</span> cv2.PSNR(img_gray, img_noisy), ssim_sk(img_gray, img_noisy)</span>
+<span id="cb29-43"><a href="#cb29-43" aria-hidden="true" tabindex="-1"></a>psnr_no, ssim_no <span class="op">=</span> cv2.PSNR(img_gray, img_notch), ssim_sk(img_gray, img_notch)</span>
+<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a>psnr_d,  ssim_d  <span class="op">=</span> cv2.PSNR(img_gray, img_den),   ssim_sk(img_gray, img_den)</span>
+<span id="cb29-45"><a href="#cb29-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-46"><a href="#cb29-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Etapa'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span><span class="st">'PSNR (dB)'</span><span class="sc">:&gt;9}</span><span class="ss"> | </span><span class="sc">{</span><span class="st">'SSIM'</span><span class="sc">:&gt;6}</span><span class="ss">"</span>)</span>
+<span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
+<span id="cb29-48"><a href="#cb29-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Ruidosa (gauss+per)'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_n<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_n<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
+<span id="cb29-49"><a href="#cb29-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Após notch'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_no<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_no<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
+<span id="cb29-50"><a href="#cb29-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Notch + bilateral'</span><span class="sc">:&gt;20}</span><span class="ss"> | </span><span class="sc">{</span>psnr_d<span class="sc">:&gt;9.2f}</span><span class="ss"> | </span><span class="sc">{</span>ssim_d<span class="sc">:&gt;6.4f}</span><span class="ss">"</span>)</span>
+<span id="cb29-51"><a href="#cb29-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-52"><a href="#cb29-52" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara_notch <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb29-53"><a href="#cb29-53" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb29-54"><a href="#cb29-54" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den],</span>
+<span id="cb29-55"><a href="#cb29-55" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb29-56"><a href="#cb29-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Original"</span>,</span>
+<span id="cb29-57"><a href="#cb29-57" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Ruidosa</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.1f}</span><span class="ss"> dB"</span>,</span>
+<span id="cb29-58"><a href="#cb29-58" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro</span><span class="ch">\n</span><span class="st">(picos visíveis)"</span>,</span>
+<span id="cb29-59"><a href="#cb29-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Máscara notch</span><span class="ch">\n</span><span class="st">(gaussiana suave)"</span>,</span>
+<span id="cb29-60"><a href="#cb29-60" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Após notch</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_no<span class="sc">:.1f}</span><span class="ss"> dB"</span>,</span>
+<span id="cb29-61"><a href="#cb29-61" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Notch + bilateral</span><span class="ch">\n</span><span class="ss">PSNR=</span><span class="sc">{</span>psnr_d<span class="sc">:.1f}</span><span class="ss"> dB  SSIM=</span><span class="sc">{</span>ssim_d<span class="sc">:.3f}</span><span class="ss">"</span></span>
+<span id="cb29-62"><a href="#cb29-62" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb29-63"><a href="#cb29-63" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">6</span>, figsize<span class="op">=</span>(<span class="dv">20</span>, <span class="dv">4</span>)</span>
+<span id="cb29-64"><a href="#cb29-64" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>               Etapa | PSNR (dB) |   SSIM
 ------------------------------------------
  Ruidosa (gauss+per) |     19.97 | 0.3478
-          Após notch |     24.69 | 0.3785
-   Notch + bilateral |     32.32 | 0.7907</code></pre>
+          Após notch |     24.55 | 0.3777
+   Notch + bilateral |     31.55 | 0.7892</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div id="fig-05-pipeline-denoising" class="quarto-float quarto-figure quarto-figure-center anchored">
