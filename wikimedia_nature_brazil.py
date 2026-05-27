@@ -62,7 +62,7 @@ CATEGORIAS_NATUREZA = [
 ]
 
 
-BUSCA = CATEGORIAS_NATUREZA[0]
+BUSCA = CATEGORIAS_NATUREZA
 
 BUSCAS_TEXTO = [
     "scanned text",
@@ -78,7 +78,7 @@ BUSCAS_TEXTO = [
     "street signs",
 ]
 
-BUSCA = BUSCAS_TEXTO[0]
+#BUSCA = BUSCAS_TEXTO
 
 # A API retorna strings como "CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain"
 LICENCAS_LIVRO_KEYWORDS = {
@@ -259,6 +259,7 @@ def buscar_por_categoria(categoria: str, alvo: int = 100) -> list:
     até atingir `alvo` títulos ou esgotar a categoria.
     """
     ext_validas = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
+    ext_validas = {".png"} 
     titulos = []
     continuar = None
 
@@ -425,30 +426,41 @@ def gerar_caption_quarto(
         "#| echo: true",
         "",
         "import requests",
+        "import numpy as np",
+        "import matplotlib.pyplot as plt",
         "from PIL import Image",
-        "from PIL.ExifTags import TAGS",
         "from io import BytesIO",
         "",
         f'url = "{img.url_download}"',
         f"# Fonte : {img.url_pagina}",
-    ]
-    if img.tem_gps:
-        linhas.append(f"# Mapa  : {img.google_maps_url}")
-    linhas += [
-        gps_helper,
+        "",
         "res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})",
         "img_pil = Image.open(BytesIO(res.content))",
-        "exif = img_pil._getexif()",
         "",
-        "if exif:",
-        "    tags = ['Make', 'Model', 'DateTime']",
-        "    info = {TAGS.get(k, k): v for k, v in exif.items() if TAGS.get(k, k) in tags}",
-        '    print(f"Dados de Aquisição:\\n{info}")',
-        "    gps_raw = exif.get(34853)  # tag 34853 = GPSInfo",
-        "    if gps_raw:",
-        "        print(_formatar_gps(gps_raw))",
+        "# 1. Imagem Original (RGB Puro - 3 canais)",
+        "img_rgb = np.array(img_pil.convert('RGB'))",
+        "print(f'Dimensões originais (RGB): {img_rgb.shape}')",
         "",
-        "img_pil.show()",
+        "# 2. Criando o 4º Canal (Alfa) artificialmente para fins didáticos",
+        "# Criamos um gradiente linear de transparência da esquerda para a direita (0 a 255)",
+        "altura, largura, _ = img_rgb.shape",
+        "gradiente_alfa = np.linspace(0, 255, largura, dtype=np.uint8)",
+        "canal_alfa = np.tile(gradiente_alfa, (altura, 1))",
+        "",
+        "# 3. Combinando o RGB com o novo canal Alfa -> RGBA (4 canais)",
+        "img_rgba = np.zeros((altura, largura, 4), dtype=np.uint8)",
+        "img_rgba[:, :, :3] = img_rgb",     # Copia R, G, B",
+        "img_rgba[:, :, 3] = canal_alfa",    # Insere o Alfa (Transparência)",
+        "",
+        "print(f'Novas dimensões com canal Alfa (RGBA): {img_rgba.shape}')",
+        "print(f'Amostras por pixel no primeiro pixel: {img_rgba[0, 0]}')",
+        "",
+        "# Exibindo o resultado com suporte a transparência",
+        "plt.figure(figsize=(10, 5))",
+        "plt.imshow(img_rgba)",
+        "plt.title('Imagem de Natureza com 4 Canais (Alfa Gradual Aplicado)')",
+        "plt.axis('off')",
+        "plt.show()",
     ]
     return "\n".join(linhas)
 
@@ -459,7 +471,7 @@ def gerar_caption_quarto(
 
 def buscar_imagens(
     categoria: str = BUSCA,
-    limite: int = 5,
+    limite: int = 50,
     apenas_com_gps: bool = True,
     lat: Optional[float] = None,
     lon: Optional[float] = None,
@@ -511,28 +523,41 @@ def buscar_imagens(
 
 
 # ---------------------------------------------------------------------------
-# Execução direta
+# Execução direta (Alterada para buscar em toda a lista)
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
 
-    # Opção A — por categoria (recomendado para natureza do Brasil)
-    imagens = buscar_imagens(
-        categoria=BUSCA,
-        limite=50,
-        apenas_com_gps=False,
-        debug=False,
-    )
+    LIMITE_TOTAL = 50
+    imagens = []
 
-    # Opção B — por coordenadas (Pantanal, MS)
-    # imagens = buscar_imagens(lat=-19.0, lon=-57.0, raio_m=10_000, limite=5)
+    print(f"🚀 Iniciando varredura em {len(BUSCA)} categorias...\n")
 
-    # Opção C — sem filtro GPS (mais resultados)
-    # imagens = buscar_imagens(categoria="Flora of Brazil", limite=10, apenas_com_gps=False)
+    for cat in BUSCA:
+        # Se já atingimos o limite total, interrompe as buscas
+        if len(imagens) >= LIMITE_TOTAL:
+            break
+            
+        print(f"📂 Varendo categoria atual: '{cat}'")
+        
+        # Calcula quantas imagens ainda faltam para atingir o objetivo
+        vagas_restantes = LIMITE_TOTAL - len(imagens)
+        
+        # Busca apenas as que faltam nesta categoria
+        resultados_cat = buscar_imagens(
+            categoria=cat,
+            limite=vagas_restantes,
+            apenas_com_gps=False,
+            debug=False,
+        )
+        
+        # Consolida os resultados na lista global
+        imagens.extend(resultados_cat)
+        print(f"   -> Encontradas {len(resultados_cat)} imagens válidas em '{cat}'. Total acumulado: {len(imagens)}\n")
 
     # ------------------------------------------------------------------
     print("=" * 72)
-    print("RESULTADOS")
+    print(f"RESULTADOS FINAIS ({len(imagens)} imagens obtidas)")
     print("=" * 72)
 
     for i, img in enumerate(imagens, 1):
