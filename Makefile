@@ -66,6 +66,22 @@ full:
 publish:
 	./publish_all.sh --langs $(LANGS) --locales $(LOCALES)
 
+
+# ── Publicação de notebook único ──────────────────────────────────────────────
+.PHONY: render-single
+render-single:
+ifndef FILE
+	$(error Use: make render-single FILE=meu_notebook.ipynb)
+endif
+	./publish_single.sh $(FILE) --lang $(LANGS) --locale $(LOCALES) --skip-git
+
+.PHONY: publish-single
+publish-single:
+ifndef FILE
+	$(error Use: make publish-single FILE=meu_notebook.ipynb)
+endif
+	./publish_single.sh $(FILE) --lang $(LANGS) --locale $(LOCALES)
+
 # ── Limpeza ───────────────────────────────────────────────────────────────────
 .PHONY: clean
 clean:
@@ -111,6 +127,9 @@ help:
 	@echo "  make publish       → build + docs/ + git push"
 	@echo "  make index         → só regenera o índice"
 	@echo "  make open          → abre gen/book/index.html"
+	@echo ""
+	@echo "  make render-single FILE=all/cap01/cap01.ipynb  → renderiza HTML sem publicar"
+	@echo "  make publish-single FILE=all/cap01/cap01.ipynb → HTML + git push do arquivo"
 	@echo ""
 	@echo "  🧹 Limpeza:"
 	@echo "  make clean         → apaga gen/, docs/ e .cache/"

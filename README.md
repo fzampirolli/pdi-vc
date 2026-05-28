@@ -218,6 +218,23 @@ python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alun
 make publish    # build + docs/ + git push
 ```
 
+# Só renderizar (sem git)
+
+```bash
+make render-single FILE=all/cap01/cap01.ipynb
+```
+
+# Renderizar + publicar
+```bash
+make publish-single FILE=all/cap01/cap01.ipynb
+```
+
+# Com idioma diferente
+
+```bash
+make publish-single FILE=cap03_filtros.ipynb LANGS=cpp LOCALES=en
+```
+
 ### Limpeza
 
 ```bash
