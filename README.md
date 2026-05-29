@@ -218,23 +218,6 @@ python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alun
 make publish    # build + docs/ + git push
 ```
 
-# Só renderizar (sem git)
-
-```bash
-make render-single FILE=all/cap01/cap01.ipynb
-```
-
-# Renderizar + publicar
-```bash
-make publish-single FILE=all/cap01/cap01.ipynb
-```
-
-# Com idioma diferente
-
-```bash
-make publish-single FILE=cap03_filtros.ipynb LANGS=cpp LOCALES=en
-```
-
 ### Limpeza
 
 ```bash
@@ -272,6 +255,32 @@ UI_STRINGS['de'] = {
 **2.** Gere:
 ```bash
 python dev.py --once --langs py --locales pt,en,de --render html
+```
+
+---
+
+## 🔄 Git Workflow (Para Co-autores)
+
+**Importante:** Nunca trabalhe diretamente na pasta `si-md1`. Todo o desenvolvimento ocorre em `si-md2`.
+
+1. **Início:** `git pull origin main`
+
+```bash
+# Desfaz todas as alterações locais em arquivos rastreados
+git reset --hard HEAD
+
+# Agora o pull vai rodar perfeitamente
+git pull origin master
+```
+
+2. **Desenvolvimento:** Edite os arquivos `.ipynb` ou `.qmd`.
+3. **Limpeza:** Antes de enviar, você pode rodar `./limpar.sh` para não enviar lixo de cache.
+4. **Envio:** 
+
+```bash
+git add .
+git commit -m "Descrição clara da alteração"
+git push origin master
 ```
 
 ---
