@@ -38,13 +38,13 @@ class mm:
     def read(file, pil=False):
         """
         Lê imagem local, URL ou Google Drive.
-
-        pil=True → retorna PIL.Image
+        pil=True → PIL.Image
         padrão   → ndarray RGB uint8
         """
         import re, requests, numpy as np
         from PIL import Image
         from io import BytesIO
+        from urllib.request import urlopen, Request
         if isinstance(file, str) and file.startswith(("http://", "https://", "id=")):
             m = (re.search(r"id=([\w-]+)", file) or
                 re.search(r"/d/([\w-]+)", file))
@@ -57,14 +57,15 @@ class mm:
                 "User-Agent":
                 "Mozilla/5.0 AppleWebKit/537.36 Chrome/124 Safari/537.36"
             }
-            r = requests.get(url, headers=headers, timeout=20)
-            if r.status_code == 429:
-                raise RuntimeError(
-                    "HTTP 429: excesso de requisições. "
-                    "Baixe a imagem localmente ou tente novamente depois."
-                )
-            r.raise_for_status()
-            source = BytesIO(r.content)
+            try:
+                r = requests.get(url, headers=headers, timeout=20)
+                if r.status_code == 429:
+                    raise requests.exceptions.HTTPError()
+                r.raise_for_status()
+                source = BytesIO(r.content)
+            except:
+                req = Request(url, headers=headers)
+                source = BytesIO(urlopen(req, timeout=20).read())
         else:
             source = file
         img = Image.open(source)
