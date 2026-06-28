@@ -106,38 +106,6 @@ class mm:
         return img if pil else np.array(img.convert("RGB"))
 
     @staticmethod
-    def read_old(file, pil=False):
-        """
-        Lê imagem de arquivo local ou URL.
-        pil=True  : retorna PIL.Image (preserva EXIF e metadados).
-        padrão    : retorna ndarray RGB.
-        """
-        import re, requests
-        from PIL import Image
-        from io import BytesIO
-
-        if file.startswith(('http://', 'https://', 'id=')):
-            m = re.search(r'id=([a-zA-Z0-9_-]+)', file) or \
-                re.search(r'/d/([a-zA-Z0-9_-]+)', file)
-            url = f"https://drive.google.com/uc?export=view&id={m.group(1)}" \
-                if m and ('id=' in file or 'drive.google.com' in file) else file
-
-            headers = {"User-Agent": "MeuLivroQuartoBot/1.0 (fins didáticos)"}
-            r = requests.get(url, headers=headers, timeout=10)
-            r.raise_for_status()
-            source = BytesIO(r.content)
-        else:
-            source = file
-
-        img_pil = Image.open(source)
-        img_pil.load()   # força leitura completa antes de fechar o BytesIO
-
-        if pil:
-            return img_pil
-
-        return np.array(img_pil.convert("RGB"))
-
-    @staticmethod
     def color(img):
         """Converte imagem para RGB."""
         if img.ndim == 2:         return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
@@ -440,13 +408,6 @@ class mm:
 
     # ── HISTOGRAMA / EQUALIZAÇÃO ─────────────────────────────────────────────
 
-    @staticmethod
-    def hist_old(img):
-        """Histograma da imagem."""
-        H = np.zeros(int(img.max()) + 1, dtype=int)
-        for v in img.flatten(): H[v] += 1
-        return H
-
     def hist(img, B=8):
         H = np.zeros(2**B, dtype=int)
         for v in img.flatten(): H[v] += 1
@@ -480,15 +441,6 @@ class mm:
         plt.close(fig)
         buf.seek(0)
         return np.array(plt.imread(buf))
-
-    @staticmethod
-    def equalize_old(image):
-        """Equalização de histograma pela CDF: s_k = (L-1) * CDF(r_k)."""
-        import numpy as np
-        h    = mm.hist(image)
-        cdf  = np.cumsum(h / h.sum())          # CDF normalizada
-        lut  = np.round(cdf * 255).astype(np.uint8)  # mapeamento para [0,255]
-        return lut[image]                      # aplica LUT pixel a pixel
 
     def equalize(image, B=8):
         """Equalização de histograma pela CDF: s_k = (L-1) * CDF(r_k)."""
@@ -537,18 +489,6 @@ class mm:
     def sedisk(n=3):  return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
 
     # ── VIZINHANÇA (helper interno) ───────────────────────────────────────────
-
-    # @staticmethod
-    # def _viz(f, B, y, x):
-    #     """Gera (vy, vx, b_val) para cada vizinho válido de (y,x)."""
-    #     H, W = f.shape
-    #     Bh, Bw = B.shape
-    #     for by in range(Bh):
-    #         for bx in range(Bw):
-    #             vy = int(y + by - Bh/2 + 0.5)
-    #             vx = int(x + bx - Bw/2 + 0.5)
-    #             if 0 <= vy < H and 0 <= vx < W:
-    #                 yield vy, vx, B[by, bx]
 
 
     @staticmethod
@@ -1165,22 +1105,6 @@ class mm:
         res = np.where((markers <= 0) | (~mask), 0, markers).astype('uint8')
         
         return res if op == 'region' else mm.gradm(res, mm.secross())
-    
-    @staticmethod
-    def watershed_old(f, mark, op='region'):
-        mark = mark*255 if mark.max()==1 else mark
-        if len(f):
-            _, markers = cv2.connectedComponents(mark)
-            w = cv2.watershed(f, markers)
-            if op=='line': f[markers==-1]=[255,0,0]; return f
-            return w
-        from scipy import ndimage as ndi
-        from skimage.segmentation import watershed
-        fones = np.ones_like(mark)*255
-        w = watershed(fones, ndi.label(mark)[0], mask=fones)
-        if op=='line':
-            return np.array((w-cv2.erode(w.astype('uint16'),mm.sebox()))>0,dtype='uint16')
-        return w
 
     # ── DISTÂNCIA / ESQUELETO ─────────────────────────────────────────────────
 
