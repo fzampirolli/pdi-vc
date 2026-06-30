@@ -1,0 +1,190 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP05_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP05_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_01 🟢 Filtro Passa-Baixa Ideal por Distância no Espectro</h2>
+<p>Em um <strong>scanner de documentos antigo</strong>, o sensor capta papel amassado e textura de fibra junto com o texto — ruído de alta frequência que “polui” o espectro nas bordas. O técnico de manutenção não tem acesso à imagem original, apenas ao <strong>espectro de magnitude já calculado</strong> pelo software do scanner. Seu trabalho é simples e cirúrgico: manter apenas o <strong>círculo central</strong> de baixas frequências (a estrutura global do documento) e apagar tudo que estiver fora do raio <em>D</em>_0, eliminando a textura fina sem nem precisar tocar na imagem espacial.</p>
+<p>Este é o <strong>Filtro Passa-Baixa Ideal (LPFI)</strong>: a operação espectral mais direta do capítulo, mas também a que melhor revela a anatomia de um espectro centrado.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) do espectro de magnitude — já fornecido <strong>centrado</strong> (equivalente à saída de <code>np.fft.fftshift</code>).</li>
+<li><strong>Frequência de corte:</strong> Ler o inteiro <em>D</em>_0.</li>
+<li><strong>Dados:</strong> Ler os valores inteiros da matriz de magnitude, linha a linha.</li>
+<li><strong>Centro do espectro:</strong> Calcular (<em>c</em>_<em>y</em>, <em>c</em>_<em>x</em>) = (<em>L</em> \mathbin// 2,\; <em>C</em> \mathbin// 2).</li>
+<li><strong>Distância:</strong> Para cada posição (<em>u</em>,<em>v</em>), calcular <em>D</em>(<em>u</em>,<em>v</em>) = √((<em>u</em>-<em>c</em>_<em>y</em>)^2 + (<em>v</em>-<em>c</em>_<em>x</em>)^2)</li>
+<li><strong>Máscara ideal:</strong> Aplicar <em>H</em>(<em>u</em>,<em>v</em>) = 1, <em>D</em>(<em>u</em>,<em>v</em>) \le <em>D</em>_0; 0, <em>D</em>(<em>u</em>,<em>v</em>) &gt; <em>D</em>_0</li>
+<li><strong>Filtragem:</strong> O valor de saída é mag'(<em>u</em>,<em>v</em>) = mag(<em>u</em>,<em>v</em>) · <em>H</em>(<em>u</em>,<em>v</em>).</li>
+<li><strong>Saída:</strong> Exibir a matriz filtrada com dimensões <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Comparação não estrita:</strong> o critério usa <em>D</em>(<em>u</em>,<em>v</em>) \le <em>D</em>_0 (a fronteira pertence ao filtro, ou seja, é mantida).</li>
+<li><strong>Tipo:</strong> todos os valores de entrada e saída são inteiros; a distância é calculada em ponto flutuante apenas internamente.</li>
+<li><strong>Sem arredondamento de magnitude:</strong> como a entrada já é inteira e a máscara é binária (0 ou 1), a saída nunca precisa de arredondamento.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Região</th>
+<th style="padding:10px;border:1px solid #ddd;">Distância ao centro</th>
+<th style="padding:10px;border:1px solid #ddd;">Efeito do filtro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Centro</strong> (<em>D</em> \le <em>D</em>_0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Baixas frequências</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Preservadas — estrutura global mantida</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Bordas</strong> (<em>D</em> &gt; <em>D</em>_0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Altas frequências</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Zeradas — textura e ruído removidos</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong><em>D</em>_0 pequeno</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">—</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Imagem reconstruída ficaria muito borrada</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong><em>D</em>_0 grande</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">—</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pouca filtragem; quase toda energia preservada</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linha 3: Inteiro <em>D</em>_0.</li>
+<li>Linhas seguintes: Elementos inteiros da matriz de magnitude (centrada).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz filtrada em <em>L</em> linhas e <em>C</em> colunas, separados por espaço.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+1<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 20 0<br/>
+40 50 60<br/>
+0 80 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Centro (1,1). Cantos têm D=√(2)\approx1.41 &gt; 1, logo são zerados; vizinhos ortogonais têm D=1 \le 1 e são mantidos.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+3<br/>
+0<br/>
+5 9 7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 9 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">L=1, C=3: centro em (0,1). Apenas a própria posição central (D=0) sobrevive a <em>D</em>_0=0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-05-sim-ep01">
+<div id="sim-ep0501" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Filtro Passa-Baixa Ideal</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 H = (D ≤ D₀) ? 1 : 0</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste D₀ e observe quais posições do espectro 5×5 sobrevivem ao filtro.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">D₀ (raio de corte)</label>
+<span id="ep0501_vl_d0" style="font-family:monospace;font-weight:bold;color:#2980b9;">1</span>
+</div>
+<input id="ep0501_sl_d0" max="4" min="0" step="1" style="width:100%;" type="range" value="1"/>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Espectro Original (magnitude)</p>
+<div id="ep0501_grid_orig" style="display:grid;grid-template-columns:repeat(5,42px);gap:4px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Resultado Filtrado</p>
+<div id="ep0501_grid_new" style="display:grid;grid-template-columns:repeat(5,42px);gap:4px;justify-content:center;"></div>
+</div>
+</div>
+<div id="ep0501_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root) return;
+    if(root.dataset.init) return;
+    root.dataset.init = "1";
+    var N = 5, cy = Math.floor(N/2), cx = Math.floor(N/2);
+    var mag = [];
+    for(var i=0;i<N;i++){ var row=[]; for(var j=0;j<N;j++){ row.push(10*(i+1)+j+1); } mag.push(row); }
+    var d0el = root.querySelector('#ep0501_sl_d0');
+    var d0v  = root.querySelector('#ep0501_vl_d0');
+    var go = root.querySelector('#ep0501_grid_orig');
+    var gn = root.querySelector('#ep0501_grid_new');
+    var dbg = root.querySelector('#ep0501_debug');
+
+    function cellStyle(active){
+      return 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:bold;font-family:monospace;' +
+             (active ? 'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;' : 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;');
+    }
+
+    function render(){
+      var D0 = parseInt(d0el.value);
+      d0v.textContent = D0;
+      go.innerHTML=''; gn.innerHTML='';
+      var kept = 0;
+      for(var i=0;i<N;i++){
+        for(var j=0;j<N;j++){
+          var d = Math.sqrt((i-cy)*(i-cy)+(j-cx)*(j-cx));
+          var keep = d <= D0;
+          if(keep) kept++;
+          var co = document.createElement('div'); co.style.cssText = cellStyle(true); co.textContent = mag[i][j];
+          go.appendChild(co);
+          var cn = document.createElement('div'); cn.style.cssText = cellStyle(keep); cn.textContent = keep ? mag[i][j] : 0;
+          gn.appendChild(cn);
+        }
+      }
+      dbg.textContent = 'Centro=(' + cy + ',' + cx + ')  |  D₀=' + D0 + '  |  Coeficientes mantidos: ' + kept + '/' + (N*N);
+    }
+    d0el.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0501');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div>
+</div>
+</div></div>
