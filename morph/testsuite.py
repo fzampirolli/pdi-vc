@@ -2,7 +2,7 @@
 # testsuite.py - Baixa casos de teste do GitHub e executa testes locais
 import subprocess, sys, os, warnings, urllib.request, re
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 warnings.filterwarnings("ignore")
 
@@ -53,65 +53,46 @@ class TestSuite:
 
         self._flush()
 
+
     def run_code(self, codigo: str, casos_dict: dict = None):
         """
-        Executa código Python diretamente (sem salvar arquivo).
-        
-        Parâmetros
-        ----------
-        codigo : str
-            Código Python do aluno como string.
-        casos_dict : dict, opcional
-            Dicionário {nome: {"input": ..., "output": ...}}.
-            Se None, baixa os casos normalmente do GitHub.
+        Executa código Python diretamente (sem salvar permanentemente o arquivo).
+        O código é gravado em um arquivo temporário e executado pelo mesmo
+        mecanismo utilizado por run(), garantindo comportamento idêntico.
         """
-        import builtins, sys
-        from io import StringIO
+        import tempfile, os
 
         if casos_dict:
             casos = [(nome, v["input"], v["output"]) for nome, v in casos_dict.items()]
             self._p(f"📋 {len(casos)} caso(s) fornecido(s) diretamente")
         else:
-            nome_caso     = f"{self.base_norm}.cases"
+            nome_caso = f"{self.base_norm}.cases"
             caminho_casos = os.path.join(LOCAL_CASES_DIR, nome_caso)
             if not self._baixar(nome_caso, caminho_casos):
-                self._flush(); return
+                self._flush()
+                return
             casos = self._carregar(caminho_casos)
             if not casos:
-                self._flush(); return
+                self._flush()
+                return
 
-        self._p(f"\n🔍 Testando Python (inline)")
-        acertos = 0
-        for nome, entrada, gabarito_raw in casos:
-            dados  = StringIO(entrada)
-            saida  = StringIO()
-            _input_orig  = builtins.input
-            _stdout_orig = sys.stdout
-            builtins.input = lambda *args: dados.readline().rstrip("\n")
-            sys.stdout = saida
+        self._p("\n🔍 Testando Python (inline)")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            nome = f"{self.base_norm}.py"
+            arq = os.path.join(tmp, nome)
+            with open(arq,"w",encoding="utf-8") as f:
+                f.write(codigo)
+
+            atual=os.getcwd()
+            os.chdir(tmp)
             try:
-                exec(codigo, {})
-                resultado = saida.getvalue().strip()
-                if self._comparar(resultado, gabarito_raw):
-                    self._p(f"{GREEN}✔️ {nome}: OK{NC}")
-                    acertos += 1
-                else:
-                    self._p(f"{RED}❌ {nome}: FALHOU{NC}")
-                    self._p(f"   📥 Entrada:\n{entrada}")
-                    self._p(f"   🎯 Esperado:\n{gabarito_raw.split('<OU>')[0].strip()}")
-                    self._p(f"   📤 Obtido:\n{resultado}")
-            except Exception as e:
-                self._p(f"{RED}💥 {nome}: Erro - {e}{NC}")
+                self._testar(self._linguagens()[".py"], nome, casos)
             finally:
-                builtins.input = _input_orig
-                sys.stdout     = _stdout_orig
+                os.chdir(atual)
 
-        pct = acertos / len(casos) * 100 if casos else 0
-        self._p(f"\n📊 Resultado: {acertos}/{len(casos)} ({pct:.1f}%)")
-        if acertos == len(casos):
-            self._p(f"{GREEN}🎉 Parabéns! Todos os testes passaram.{NC}")
         self._flush()
-        
+
     # ------------------------------------------------------------------ #
     #  Internos                                                            #
     # ------------------------------------------------------------------ #
@@ -265,7 +246,14 @@ class TestSuite:
         acertos = 0
         for nome, entrada, gabarito_raw in casos:
             try:
-                proc  = subprocess.run(comando, input=entrada, capture_output=True, text=True, timeout=5)
+                proc = subprocess.run(comando, input=entrada, capture_output=True, text=True, timeout=5)
+
+                if proc.returncode != 0:
+                    self._p(f"{RED}💥 {nome}: Erro durante a execução{NC}")
+                    if proc.stderr.strip():
+                        self._p(proc.stderr.strip())
+                    continue
+
                 saida = proc.stdout.strip()
                 if self._comparar(saida, gabarito_raw):
                     self._p(f"{GREEN}✔️ {nome}: OK{NC}")
@@ -277,8 +265,9 @@ class TestSuite:
                     self._p(f"   📤 Obtido:\n{saida}")
             except subprocess.TimeoutExpired:
                 self._p(f"{RED}⏱️ {nome}: Tempo limite excedido (5s){NC}")
-            except Exception as e:
-                self._p(f"{RED}💥 {nome}: Erro - {e}{NC}")
+            except Exception:
+                self._p(f"{RED}💥 {nome}: Erro durante a execução{NC}")
+                self._p(traceback.format_exc())
         pct = acertos / len(casos) * 100 if casos else 0
         self._p(f"\n📊 Resultado: {acertos}/{len(casos)} ({pct:.1f}%)")
         if acertos == len(casos):
