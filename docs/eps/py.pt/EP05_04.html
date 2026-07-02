@@ -323,147 +323,6 @@ window.Quarto = {
 </script>
 <script>
 (function(){
-  const specC = document.getElementById('exp2d_CanvasSpec');
-  const spaceC = document.getElementById('exp2d_CanvasSpace');
-  const sctx = specC.getContext('2d');
-  const spctx = spaceC.getContext('2d');
-
-  let u = 10;
-  let v = 5;
-  const N = 220; // tamanho do canvas de exibição fixa
-
-  function updateMetrics() {
-    const r = Math.sqrt(u*u + v*v);
-    let angle = Math.atan2(v, u) * (180 / Math.PI);
-    if (angle < 0) angle += 360;
-
-    document.getElementById('exp2d_valU').textContent = u;
-    document.getElementById('exp2d_valV').textContent = v;
-    document.getElementById('exp2d_valR').textContent = r.toFixed(2);
-    document.getElementById('exp2d_valAng').textContent = angle.toFixed(1) + '°';
-
-    document.getElementById('exp2d_sliderU').value = u;
-    document.getElementById('exp2d_sliderV').value = v;
-    document.getElementById('exp2d_slValU').textContent = u;
-    document.getElementById('exp2d_slValV').textContent = v;
-  }
-
-  function render() {
-    updateMetrics();
-
-    // 1. Desenhar Espectro
-    sctx.fillStyle = '#111827';
-    sctx.fillRect(0, 0, N, N);
-
-    // Linhas guias do centro (eixos coordenados)
-    sctx.strokeStyle = '#374151';
-    sctx.lineWidth = 1;
-    sctx.beginPath();
-    sctx.moveTo(N/2, 0); sctx.lineTo(N/2, N);
-    sctx.moveTo(0, N/2); sctx.lineTo(N, N/2);
-    sctx.stroke();
-
-    // Ponto DC de referência (centro)
-    sctx.fillStyle = '#6b7280';
-    sctx.beginPath();
-    sctx.arc(N/2, N/2, 2, 0, 2*Math.PI);
-    sctx.fill();
-
-    // Ponto ativo (levando em conta a inversão do eixo Y clássica em computação)
-    let ptX = N/2 + u;
-    let ptY = N/2 - v;
-
-    // Linha conectando o centro ao ponto ativo para realçar o vetor
-    sctx.strokeStyle = '#ba751788';
-    sctx.lineWidth = 1.5;
-    sctx.beginPath();
-    sctx.moveTo(N/2, N/2);
-    sctx.lineTo(ptX, ptY);
-    sctx.stroke();
-
-    // Desenha o ponto simétrico para representar a natureza real da transformada (frequências espelhadas)
-    let symX = N/2 - u;
-    let symY = N/2 + v;
-    sctx.fillStyle = '#ef444488';
-    sctx.beginPath();
-    sctx.arc(symX, symY, 4, 0, 2*Math.PI);
-    sctx.fill();
-
-    // Ponto principal ativo destacado
-    sctx.fillStyle = '#3b82f6';
-    sctx.strokeStyle = '#ffffff';
-    sctx.lineWidth = 1.5;
-    sctx.beginPath();
-    sctx.arc(ptX, ptY, 5, 0, 2*Math.PI);
-    sctx.fill();
-    sctx.stroke();
-
-
-    // 2. Desenhar Onda Espacial 2D Resultante
-    // Criar buffer de imagem para processamento pixel a pixel rápido
-    const imgData = spctx.createImageData(N, N);
-    const data = imgData.data;
-
-    // Fator de escala para ajustar a visualização da frequência na tela
-    const freqScale = 2 * Math.PI / N;
-
-    for (let y = 0; y < N; y++) {
-      // Ajustar coordenadas espaciais relativas ao centro para a rotação matemática bater perfeitamente
-      const ny = y - N/2;
-      for (let x = 0; x < N; x++) {
-        const nx = x - N/2;
-
-        // Equação fundamental de uma senoide 2D plana rotacionada: cos(2*pi*(u*x + v*y))
-        // Adicionando a simetria de cosseno gerada por pontos conjugados na Transformada de Fourier Real
-        const val = Math.cos(freqScale * (u * nx + v * (-ny)));
-
-        // Mapear de [-1, 1] para [0, 255] de intensidade de cinza
-        const intensity = Math.floor((val + 1) * 127.5);
-
-        const idx = (y * N + x) * 4;
-        data[idx]     = intensity; // R
-        data[idx + 1] = intensity; // G
-        data[idx + 2] = intensity; // B
-        data[idx + 3] = 255;       // A
-      }
-    }
-    spctx.putImageData(imgData, 0, 0);
-  }
-
-  // Interatividade via Sliders
-  document.getElementById('exp2d_sliderU').addEventListener('input', function() {
-    u = parseInt(this.value);
-    render();
-  });
-
-  document.getElementById('exp2d_sliderV').addEventListener('input', function() {
-    v = parseInt(this.value);
-    render();
-  });
-
-  // Interatividade via clique direto no Canvas do Espectro
-  specC.addEventListener('mousedown', function(e) {
-    const rect = specC.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Converter pixels absolutos da tela em offsets u, v em relação ao centro do grid
-    let newU = Math.round(clickX - N/2);
-    let newV = Math.round(N/2 - clickY);
-
-    // Limitar valores à faixa permitida pelos sliders
-    u = Math.max(-30, Math.min(30, newU));
-    v = Math.max(-30, Math.min(30, newV));
-
-    render();
-  });
-
-  // Renderização Inicial
-  render();
-})();
-</script>
-<script>
-(function(){
   const C = document.getElementById('sim05fft_Canvas');
   const S = document.getElementById('sim05fft_SpecCanvas');
   const ctx = C.getContext('2d');
@@ -629,6 +488,147 @@ window.Quarto = {
   });
 
   sim05fft_draw();
+})();
+</script>
+<script>
+(function(){
+  const specC = document.getElementById('exp2d_CanvasSpec');
+  const spaceC = document.getElementById('exp2d_CanvasSpace');
+  const sctx = specC.getContext('2d');
+  const spctx = spaceC.getContext('2d');
+
+  let u = 10;
+  let v = 5;
+  const N = 220; // tamanho do canvas de exibição fixa
+
+  function updateMetrics() {
+    const r = Math.sqrt(u*u + v*v);
+    let angle = Math.atan2(v, u) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+
+    document.getElementById('exp2d_valU').textContent = u;
+    document.getElementById('exp2d_valV').textContent = v;
+    document.getElementById('exp2d_valR').textContent = r.toFixed(2);
+    document.getElementById('exp2d_valAng').textContent = angle.toFixed(1) + '°';
+
+    document.getElementById('exp2d_sliderU').value = u;
+    document.getElementById('exp2d_sliderV').value = v;
+    document.getElementById('exp2d_slValU').textContent = u;
+    document.getElementById('exp2d_slValV').textContent = v;
+  }
+
+  function render() {
+    updateMetrics();
+
+    // 1. Desenhar Espectro
+    sctx.fillStyle = '#111827';
+    sctx.fillRect(0, 0, N, N);
+
+    // Linhas guias do centro (eixos coordenados)
+    sctx.strokeStyle = '#374151';
+    sctx.lineWidth = 1;
+    sctx.beginPath();
+    sctx.moveTo(N/2, 0); sctx.lineTo(N/2, N);
+    sctx.moveTo(0, N/2); sctx.lineTo(N, N/2);
+    sctx.stroke();
+
+    // Ponto DC de referência (centro)
+    sctx.fillStyle = '#6b7280';
+    sctx.beginPath();
+    sctx.arc(N/2, N/2, 2, 0, 2*Math.PI);
+    sctx.fill();
+
+    // Ponto ativo (levando em conta a inversão do eixo Y clássica em computação)
+    let ptX = N/2 + u;
+    let ptY = N/2 - v;
+
+    // Linha conectando o centro ao ponto ativo para realçar o vetor
+    sctx.strokeStyle = '#ba751788';
+    sctx.lineWidth = 1.5;
+    sctx.beginPath();
+    sctx.moveTo(N/2, N/2);
+    sctx.lineTo(ptX, ptY);
+    sctx.stroke();
+
+    // Desenha o ponto simétrico para representar a natureza real da transformada (frequências espelhadas)
+    let symX = N/2 - u;
+    let symY = N/2 + v;
+    sctx.fillStyle = '#ef444488';
+    sctx.beginPath();
+    sctx.arc(symX, symY, 4, 0, 2*Math.PI);
+    sctx.fill();
+
+    // Ponto principal ativo destacado
+    sctx.fillStyle = '#3b82f6';
+    sctx.strokeStyle = '#ffffff';
+    sctx.lineWidth = 1.5;
+    sctx.beginPath();
+    sctx.arc(ptX, ptY, 5, 0, 2*Math.PI);
+    sctx.fill();
+    sctx.stroke();
+
+
+    // 2. Desenhar Onda Espacial 2D Resultante
+    // Criar buffer de imagem para processamento pixel a pixel rápido
+    const imgData = spctx.createImageData(N, N);
+    const data = imgData.data;
+
+    // Fator de escala para ajustar a visualização da frequência na tela
+    const freqScale = 2 * Math.PI / N;
+
+    for (let y = 0; y < N; y++) {
+      // Ajustar coordenadas espaciais relativas ao centro para a rotação matemática bater perfeitamente
+      const ny = y - N/2;
+      for (let x = 0; x < N; x++) {
+        const nx = x - N/2;
+
+        // Equação fundamental de uma senoide 2D plana rotacionada: cos(2*pi*(u*x + v*y))
+        // Adicionando a simetria de cosseno gerada por pontos conjugados na Transformada de Fourier Real
+        const val = Math.cos(freqScale * (u * nx + v * (-ny)));
+
+        // Mapear de [-1, 1] para [0, 255] de intensidade de cinza
+        const intensity = Math.floor((val + 1) * 127.5);
+
+        const idx = (y * N + x) * 4;
+        data[idx]     = intensity; // R
+        data[idx + 1] = intensity; // G
+        data[idx + 2] = intensity; // B
+        data[idx + 3] = 255;       // A
+      }
+    }
+    spctx.putImageData(imgData, 0, 0);
+  }
+
+  // Interatividade via Sliders
+  document.getElementById('exp2d_sliderU').addEventListener('input', function() {
+    u = parseInt(this.value);
+    render();
+  });
+
+  document.getElementById('exp2d_sliderV').addEventListener('input', function() {
+    v = parseInt(this.value);
+    render();
+  });
+
+  // Interatividade via clique direto no Canvas do Espectro
+  specC.addEventListener('mousedown', function(e) {
+    const rect = specC.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Converter pixels absolutos da tela em offsets u, v em relação ao centro do grid
+    let newU = Math.round(clickX - N/2);
+    let newV = Math.round(N/2 - clickY);
+
+    // Limitar valores à faixa permitida pelos sliders
+    u = Math.max(-30, Math.min(30, newU));
+    v = Math.max(-30, Math.min(30, newV));
+
+    render();
+  });
+
+  // Renderização Inicial
+  render();
 })();
 </script>
 <script>
