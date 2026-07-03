@@ -900,8 +900,176 @@ def _fix_html_outputs_for_pdf(nb_root: Path):
             if modified:
                 nbformat.write(nb, nb_path)
                 print(f'  ✓ HTML outputs limpos: {fname}')
+        
+from nbclient import NotebookClient
+from playwright.sync_api import sync_playwright
+
+def _capture_html_output_as_png(html_content: str, out_path: Path,
+                                  width: int = 900, height: int = 600) -> bool:
+    """Renderiza uma string HTML isolada e salva screenshot em out_path."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    wrapper = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body {{ margin: 0; padding: 12px; background: white; font-family: sans-serif; }}
+</style>
+</head>
+<body>
+{html_content}
+</body></html>"""
+
+    tmp_html = out_path.with_suffix('.tmp.html')
+    tmp_html.write_text(wrapper, encoding='utf-8')
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={'width': width, 'height': height})
+            page.goto(f'file://{tmp_html.resolve()}')
+            page.wait_for_timeout(800)  # tempo pro JS/plot renderizar
+            page.screenshot(path=str(out_path), full_page=True)
+            browser.close()
+        return True
+    except Exception as e:
+        print(f'    ✗ Falha ao capturar {out_path.name}: {e}')
+        return False
+    finally:
+        tmp_html.unlink(missing_ok=True)
 
 def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
+
+    nb_root = qdir.parent.parent / qdir.name
+
+    for nb_path in nb_root.rglob('*.ipynb'):
+        real_path = nb_path.resolve()
+        nb = nbformat.read(real_path, as_version=4)
+        modified = False
+        new_cells = []
+
+        # Detecta se há alguma célula HTML(""" ... """) sem PNG correspondente
+        # ANTES de decidir se precisa executar o notebook (evita custo desnecessário)
+        needs_execution = False
+        cap_guess = None
+        for part in nb_path.parts:
+            if re.match(r'cap\d+', part):
+                cap_guess = part
+                break
+
+        for cell in nb.cells:
+            if cell.cell_type != 'code' or (
+                'HTML("""' not in cell.source and "HTML('''" not in cell.source
+            ):
+                continue
+            m_label = re.search(r'#\|\s*label:\s*(\S+)', cell.source)
+            if not m_label or not cap_guess:
+                continue
+            label = m_label.group(1)
+            png_abs = all_root / cap_guess / 'imagens' / f'{label}.png'
+            if not png_abs.exists():
+                needs_execution = True
+                break
+
+        executed_nb = None
+        if needs_execution:
+            try:
+                print(f'  ⚙ Executando notebook para gerar PNGs ausentes: {nb_path.name}')
+                executed_nb = nbformat.from_dict(nb)
+                client = NotebookClient(
+                    executed_nb, timeout=120, kernel_name='python3',
+                    resources={'metadata': {'path': str(real_path.parent)}}
+                )
+                client.execute()
+            except Exception as e:
+                print(f'    ✗ Erro ao executar notebook {nb_path.name}: {e}')
+                executed_nb = None
+
+        for idx, cell in enumerate(nb.cells):
+            if cell.cell_type != 'code' or (
+                'HTML("""' not in cell.source and "HTML('''" not in cell.source
+            ):
+                new_cells.append(cell)
+                continue
+
+            label = None
+            fig_cap = None
+            for line in cell.source.splitlines():
+                m = re.match(r'#\|\s*label:\s*(\S+)', line)
+                if m:
+                    label = m.group(1)
+                m = re.match(r'#\|\s*fig-cap:\s*["\']?(.*?)["\']?\s*$', line)
+                if m:
+                    fig_cap = m.group(1).strip('"\'')
+
+            if not label:
+                cell.outputs = []
+                cell.execution_count = None
+                new_cells.append(cell)
+                continue
+
+            cap = None
+            for part in nb_path.parts:
+                if re.match(r'cap\d+', part):
+                    cap = part
+                    break
+
+            png_rel = f'imagens/{label}.png'
+            png_abs = all_root / cap / png_rel if cap else None
+            png_exists = png_abs and png_abs.exists()
+
+            # ── Geração automática se ainda não existir ──────────────────
+            if not png_exists and executed_nb is not None and png_abs is not None:
+                try:
+                    exec_cell = executed_nb.cells[idx]
+                    html_out = None
+                    for out in exec_cell.get('outputs', []):
+                        if out.get('output_type') == 'execute_result':
+                            html_out = out.get('data', {}).get('text/html')
+                            if html_out:
+                                break
+                    if html_out:
+                        ok = _capture_html_output_as_png(html_out, png_abs)
+                        if ok:
+                            print(f'  ✓ PNG gerado automaticamente: {label}')
+                            png_exists = True
+                        else:
+                            print(f'  ⚠ Falha ao gerar PNG: {label}')
+                    else:
+                        print(f'  ⚠ Sem output HTML para gerar PNG: {label}')
+                except Exception as e:
+                    print(f'  ⚠ Erro gerando PNG de {label}: {e}')
+
+            if png_exists:
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    '::: {.content-visible when-format="html"}'
+                ))
+                cell.outputs = []
+                cell.execution_count = None
+                new_cells.append(cell)
+                cap_str = fig_cap or label
+                new_cells.append(nbformat.v4.new_markdown_cell(':::'))
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    f'::: {{.content-visible when-format="pdf"}}\n'
+                    f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
+                    f':::'
+                ))
+                modified = True
+                print(f'  ✓ Patch condicional: {label}')
+            else:
+                new_cells.append(nbformat.v4.new_markdown_cell(
+                    '::: {.content-visible when-format="html"}'
+                ))
+                new_cells.append(cell)
+                new_cells.append(nbformat.v4.new_markdown_cell(':::'))
+                modified = True
+                print(f'  ⚠ Patch sem imagem: {label}')
+
+        if modified:
+            nb.cells = new_cells
+            nbformat.write(nb, nb_path)
+            print(f'  ✓ Notebook patcheado: {nb_path.name}')
+
+def _patch_html_cells_for_pdf_old(qdir: Path, all_root: Path = Path('all')):
 
     nb_root = qdir.parent.parent / qdir.name
 
