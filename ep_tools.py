@@ -676,8 +676,19 @@ def sanitize_scripts(html: str) -> str:
 # ── Localização do ep-container ───────────────────────────────────────────────
 
 def find_container_span(html: str) -> tuple[int, int] | None:
-    """Localiza o span [start, end) do <div class="ep-container"> mais externo."""
-    start_match = re.search(r'<div class="ep-container">', html)
+    """
+    Localiza o span [start, end) do <div class="ep-container"> mais externo.
+
+    O regex tolera atributos adicionais na tag de abertura (ex.: style="...",
+    id="...", etc.), então mudanças como
+
+        <div class="ep-container">
+        →
+        <div class="ep-container" style="margin:0 auto; max-width:80ch">
+
+    continuam sendo reconhecidas sem exigir alterações aqui.
+    """
+    start_match = re.search(r'<div class="ep-container"[^>]*>', html)
     if not start_match:
         return None
 
@@ -756,14 +767,6 @@ def _fix_sim_header(html: str) -> str:
         title_div.insert_after(content_div)
 
     return str(soup)
-
-
-    """Desenrola <div class="cell-output..."><figure>CONTEÚDO</figure></div> → CONTEÚDO."""
-    def unwrap(m: re.Match) -> str:
-        inner = FIGCAPTION_RE.sub('', m.group(1))
-        inner = re.sub(r'<div\s+aria-describedby="[^"]*">([\s\S]*?)</div>', r'\1', inner)
-        return inner.strip()
-    return QUARTO_FLOAT_OUTER_RE.sub(unwrap, html)
 
 
 def moodle_sanitize(fragment: str) -> str:
