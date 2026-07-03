@@ -1,0 +1,208 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_07 ⛰️ Dilatação e Erosão com Pesos (mm.dil1 / mm.ero1)</h2>
+<p>Até agora, o elemento estruturante só dizia “este vizinho conta” ou “não conta” — mas em <strong>modelos digitais de elevação</strong> (usados em SIG e em planejamento de drenagem urbana), cada vizinho deveria ter um <strong>peso diferente</strong> dependendo da distância ou da direção do relevo. As versões <strong>ponderadas</strong> da dilatação e da erosão, implementadas em <code>morph.py</code> como <code>mm.dil1(f, b)</code> e <code>mm.ero1(f, b)</code>, somam (ou subtraem) o peso de cada vizinho antes de tomar o máximo (ou mínimo) — generalizando tudo o que foi feito nos EPs anteriores. Ver na Figura 4.36 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões da imagem:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) de <em>f</em>.</li>
+<li><strong>Dimensões de <em>b</em>:</strong> Ler os inteiros <em>L</em>_<em>B</em> (linhas) e <em>C</em>_<em>B</em> (colunas) do elemento estruturante ponderado.</li>
+<li><strong>Pesos:</strong> Ler a matriz <em>b</em> de pesos <strong>inteiros</strong> (podem ser negativos, zero ou positivos), linha a linha.</li>
+<li><strong>Dados:</strong> Ler a matriz <em>f</em> (a imagem original), linha a linha.</li>
+<li><strong>Vizinhança sem padding:</strong> Para cada pixel (<em>y</em>,<em>x</em>), percorrer <strong>todas</strong> as posições (by,bx) de <em>b</em> (não apenas onde valeria 1 — aqui <strong>todo</strong> peso participa), usando o mesmo deslocamento dos EPs anteriores: <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Descartar</strong> todo (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fora de [0,<em>L</em>)×[0,<em>C</em>).</li>
+<li><strong>Dilatação ponderada:</strong> Calcular <em>g</em>_dil(<em>y</em>,<em>x</em>) = \max\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \max_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ <em>v</em>álido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) + <em>b</em>(by,bx)\big)\Big)</li>
+<li><strong>Erosão ponderada:</strong> Calcular, <strong>usando o mesmo <em>b</em> e sem refletir</strong>: <em>g</em>_ero(<em>y</em>,<em>x</em>) = \min\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \min_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ <em>v</em>álido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) - <em>b</em>(by,bx)\big)\Big)</li>
+<li><strong>Saída:</strong> Exibir <strong>primeiro</strong> a matriz <em>g</em>_dil completa, e <strong>depois</strong> a matriz <em>g</em>_ero completa.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Nenhuma das duas reflete <em>b</em></strong> — a versão ponderada não usa reflexão, mesmo na dilatação (diferente de <code>mm.dil0</code>).</li>
+<li><strong>Todos os pesos participam:</strong> Não existe aqui o filtro “B=1”; mesmo peso 0 entra na conta.</li>
+<li><strong>Sem padding:</strong> vizinhos fora da imagem são ignorados, nunca virtualmente preenchidos.</li>
+<li><strong>Tipo:</strong> A saída pode conter valores negativos ou maiores que 255 — <strong>não</strong> há <em>clipping</em> neste EP.</li>
+<li><strong>Dica:</strong> Para remover mensagens de overflow ao ultrapassar limites do tipo uint8, incluir no início do código:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a aria-hidden="true" href="#cb71-1" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb71-2"><a aria-hidden="true" href="#cb71-2" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto Visual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Peso positivo</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">“Puxa” o valor do vizinho para cima na dilatação</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simula relevo que sobe naquela direção</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Peso negativo</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reduz a contribuição do vizinho</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simula distância ou atenuação direcional</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Dualidade ponderada</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">ero1(<em>f</em>,<em>b</em>) = -dil1(-<em>f</em>,<em>b</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A simetria entre as duas operações se mantém mesmo com pesos</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linha 3: Inteiro <em>L</em>_<em>B</em>.</li>
+<li>Linha 4: Inteiro <em>C</em>_<em>B</em>.</li>
+<li>Próximas <em>L</em>_<em>B</em> linhas: elementos inteiros (podem ser negativos) da matriz <em>b</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <em>f</em>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Primeiro a matriz <em>g</em>_dil em <em>L</em> linhas e <em>C</em> colunas.</li>
+<li>Em seguida a matriz <em>g</em>_ero em <em>L</em> linhas e <em>C</em> colunas.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+3<br/>
+0 1 0<br/>
+1 2 1<br/>
+0 1 0<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 60 61<br/>
+80 90 91<br/>
+81 91 92<br/>
+8 9 19<br/>
+9 10 20<br/>
+39 40 50</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Peso central 2 acelera o crescimento na dilatação e o encolhimento na erosão</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-04-sim-pesos">
+<div id="sim-ep0407" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Pesos no Elemento Estruturante</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">⛰️ dil1 / ero1</span>
+
+</div><div style="padding:20px;background:white;">
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<p style="font-size:11px;font-weight:bold;color:#d35400;margin-bottom:10px;text-align:center;">Pesos b (clique e arraste o slider de cada célula)</p>
+<div id="ep0407_grid_b" style="display:grid;grid-template-columns:repeat(3,56px);gap:6px;justify-content:center;"></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">f original</p>
+<div id="ep0407_grid_f" style="display:grid;grid-template-columns:repeat(3,52px);gap:4px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#27ae60;text-transform:uppercase;margin-bottom:10px;">dil1(f,b)</p>
+<div id="ep0407_grid_d" style="display:grid;grid-template-columns:repeat(3,52px);gap:4px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#c0392b;text-transform:uppercase;margin-bottom:10px;">ero1(f,b)</p>
+<div id="ep0407_grid_e" style="display:grid;grid-template-columns:repeat(3,52px);gap:4px;justify-content:center;"></div>
+</div>
+</div>
+</div>
+<script>
+(function initSimEp0407() {
+  var container = document.getElementById('sim-ep0407');
+  if (!container) { setTimeout(initSimEp0407, 100); return; }
+
+var gB=document.getElementById('ep0407_grid_b');
+  var gF=document.getElementById('ep0407_grid_f');
+  var gD=document.getElementById('ep0407_grid_d');
+  var gE=document.getElementById('ep0407_grid_e');
+var b=[[0,1,0],[1,2,1],[0,1,0]];
+  var f=[[10,20,30],[40,50,60],[70,80,90]];
+  var L=3,C=3;
+  function compute(){
+    var oy=-3/2+0.5, ox=-3/2+0.5;
+    var dil=f.map(function(r){return r.slice();});
+    var ero=f.map(function(r){return r.slice();});
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+      for(var by=0;by<3;by++)for(var bx=0;bx<3;bx++){
+        var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+        if(vy>=0&&vy<L&&vx>=0&&vx<C){
+          var cd=f[vy][vx]+b[by][bx];
+          if(cd>dil[y][x]) dil[y][x]=cd;
+          var ce=f[vy][vx]-b[by][bx];
+          if(ce<ero[y][x]) ero[y][x]=ce;
+        }
+      }
+    }
+    return {dil:dil,ero:ero};
+  }
+  function renderB(){
+    gB.innerHTML='';
+    for(var by=0;by<3;by++)for(var bx=0;bx<3;bx++){
+      (function(by,bx){
+        var wrap=document.createElement('div');
+        wrap.style.cssText='display:flex;flex-direction:column;align-items:center;';
+        var val=document.createElement('div');
+        val.style.cssText='font-family:monospace;font-weight:bold;font-size:11px;color:#d35400;margin-bottom:2px;';
+        val.innerText=b[by][bx];
+        var sl=document.createElement('input');
+        sl.type='range'; sl.min='-5'; sl.max='5'; sl.step='1'; sl.value=b[by][bx];
+        sl.style.cssText='width:50px;';
+        sl.oninput=function(){b[by][bx]=parseInt(sl.value); val.innerText=b[by][bx]; render_0407();};
+        wrap.appendChild(val); wrap.appendChild(sl);
+        gB.appendChild(wrap);
+      })(by,bx);
+    }
+  }
+  function paint(grid,img,color){
+    grid.innerHTML='';
+    var maxAbs=Math.max.apply(null,img.flat().map(Math.abs))||1;
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+      var c=document.createElement('div');
+      var v=img[y][x];
+      var inten=Math.min(255,Math.max(0,v));
+      c.style.cssText='width:52px;height:42px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border-radius:4px;border:1px solid #ddd;';
+      c.style.background='rgb('+inten+','+inten+','+inten+')';
+      c.style.color=inten>128?'black':'white';
+      c.innerText=v;
+      grid.appendChild(c);
+    }
+  }
+  function render_0407(){
+    var res=compute();
+    paint(gF,f); paint(gD,res.dil); paint(gE,res.ero);
+  }
+  renderB(); render_0407();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>

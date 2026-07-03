@@ -1,0 +1,288 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP02_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP02_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP02_04 📐 Transformada de Distância em Imagem Binária</h2>
+<p>Dada uma imagem binária onde pixels de valor <strong>1</strong> representam o <em>objeto</em> e pixels <strong>0</strong> representam o <em>fundo</em>, a distância de um pixel de fundo recebe a <strong>menor distância ao pixel de objeto mais próximo</strong>. Pixels de objeto recebem distância <strong>0</strong>. Para simplificar, considere que a imagem tem <strong>apenas um único objeto com um pixel de valor 1</strong>.</p>
+<p><strong>Problema:</strong> Leia uma imagem binária <em>L</em> × <em>C</em> e uma métrica, e calcule essa distância simplificada aplicando uma das três fórmulas:</p>
+<p><em>d</em>_Euclidiana = √((\Delta <em>r</em>)^2 + (\Delta <em>c</em>)^2)</p>
+<p><em>d</em>_City-block = |\Delta <em>r</em>| + |\Delta <em>c</em>|</p>
+<p><em>d</em>_Chessboard = \max(|\Delta <em>r</em>|,\; |\Delta <em>c</em>|)</p>
+<p>onde \Delta <em>r</em> é a diferença de linhas e \Delta <em>c</em> a diferença de colunas entre dois pixels.</p>
+<div></div>
+<div>
+<h4> 🖼️ Por que isso importa? - Aplicações da DT</h4>
+<p>A Transformada de Distância (DT) aparece em dezenas de pipelines de visão computacional:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 27%"/>
+<col style="width: 53%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Métrica</th>
+<th style="text-align: left;">Complexidade</th>
+<th style="text-align: left;">Aplicação típica</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Euclidiana</td>
+<td style="text-align: left;">🔴 <em>O</em>(<em>n</em>^2) ingênuo</td>
+<td style="text-align: left;">Esqueletização, matching de formas</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">City-block</td>
+<td style="text-align: left;">🟡 <em>O</em>(<em>n</em>) com 2 passes</td>
+<td style="text-align: left;">Morfologia, dilatação/erosão</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chessboard</td>
+<td style="text-align: left;">🟢 <em>O</em>(<em>n</em>) com 2 passes</td>
+<td style="text-align: left;">Morfologia, dilatação/erosão</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Requisitos Técnicos</h4>
+<ul>
+<li><strong>Entrada:</strong> * Primeira linha: <em>L</em> e <em>C</em> (inteiros).
+<ul>
+<li>Segunda linha: nome da métrica (<code>euclidean</code>, <code>cityblock</code> ou <code>chessboard</code>).<br/>
+</li>
+<li>Em seguida, a matriz binária <em>L</em> × <em>C</em> (valores 0 ou 1).</li>
+</ul></li>
+<li><strong>Pixels de objeto (1):</strong> distância = 0 (ou 0.00 para euclidiana).<br/>
+</li>
+<li><strong>Pixels de fundo (0):</strong> distância ao único pixel de objeto na imagem.<br/>
+</li>
+<li><strong>Arredondamento (euclidiana):</strong> imprimir com <strong>2 casas decimais</strong> (formato <code>:.2f</code>). City-block e Chessboard produzem inteiros — imprimir sem decimais.<br/>
+</li>
+<li><strong>Saída:</strong> valores separados por espaço, uma linha por linha da matriz.</li>
+<li>Ver na Figura 2.15 uma simulação deste EP.</li>
+</ul>
+<hr/>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+4<br/>
+chessboard<br/>
+0 0 0 0<br/>
+0 0 0 0<br/>
+0 0 1 0<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2 2 2<br/>
+2 1 1 1<br/>
+2 1 0 1<br/>
+2 1 1 1</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">A distância Chessboard é \max(\|dx\|, \|dy\|). O único pixel objeto é (2,2)=0; os demais armazenam sua distância mínima até ele.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Observações finais</h4>
+<ul>
+<li>Como a imagem tem <strong>apenas um objeto de um pixel</strong>, a distância de cada pixel de fundo é simplesmente a distância desse pixel ao único ponto objeto.</li>
+<li>A implementação pode usar força bruta (percorrer todos os pixels da imagem e calcular a distância diretamente), pois <em>L</em> e <em>C</em> são pequenos nos casos de teste.</li>
+<li>Este problema é um aquecimento para a Transformada de Distância geral, que será trabalhada em capítulos posteriores com múltiplos objetos e algoritmos otimizados.</li>
+</ul>
+<div class="cell" id="cell-fig-02-distancia">
+<!-- Simulador -->
+<div style="background-color: #fef9ef; border-radius: 18px; border: 1px solid #ede6d8; overflow: hidden; margin-top: 4px;">
+<div style="background: #f3efe6; padding: 8px 16px; font-size: 12px; color: #5e5a4a; border-bottom: 1px solid #e9dfcf; display: flex; justify-content: space-between; align-items: center;">
+    🎮 Simulador Interativo — Transformada de Distância <span style="background: #e8e0cf; border-radius: 40px; padding: 2px 10px; font-weight: 600; font-size: 10px;">Clique
+      na grade para alternar pixels</span>
+<div style="display: flex; gap: 10px; padding: 14px 16px 6px; align-items: center; flex-wrap: wrap;">
+<span style="font-size: 12px; font-weight: bold; color: #5e5a4a;">Métrica:</span>
+<label style="font-size: 12px; cursor: pointer;"><input checked="checked" name="metric" type="radio" value="chessboard"/> Chessboard</label>
+<label style="font-size: 12px; cursor: pointer;"><input name="metric" type="radio" value="cityblock"/> City-block</label> <label style="font-size: 12px; cursor: pointer;"><input name="metric" type="radio" value="euclidean"/> Euclidiana</label> <button id="btn-clear" style="margin-left: auto; font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer;">🗑
+      Limpar</button> <button id="btn-example" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer;">📋
+      Exemplo</button></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 10px 16px 16px;">
+<div style="text-align: center;">
+<p style="font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; margin: 0 0 8px;">
+        Imagem Binária (clique para editar)</p>
+<div id="grid-input" style="display: inline-grid; gap: 3px; border: 1px solid #ddd; padding: 6px; border-radius: 8px; background: #fff;">
+</div>
+</div>
+<div style="text-align: center;">
+<p style="font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; margin: 0 0 8px;">
+        Transformada de Distância</p>
+<div id="grid-output" style="display: inline-grid; gap: 3px; border: 1px solid #ddd; padding: 6px; border-radius: 8px; background: #fff;">
+</div>
+</div>
+</div>
+<div id="sim-info" style="margin: 0 16px 14px; background: #eef4fb; border-radius: 8px; padding: 9px 12px; border: 1px solid #bee3f8; font-family: monospace; font-size: 11px; color: #1a5fa8; text-align: center;">
+    Grade 5×5 · Clique em qualquer célula da imagem para adicionar/remover
+    objeto</div>
+</div>
+<script>
+
+  (function() {
+    const ROWS = 5,
+      COLS = 5;
+    let binary = Array.from({
+      length: ROWS
+    }, () => Array(COLS).fill(0));
+
+    // Estado inicial: centralizado em 5x5
+    binary[2][2] = 1;
+
+    function getMetric() {
+      return document.querySelector('input[name="metric"]:checked').value;
+    }
+
+    function computeDT(bin, metric) {
+      const L = bin.length,
+        C = bin[0].length;
+      const dt = Array.from({
+        length: L
+      }, () => Array(C).fill(0));
+      for (let i = 0; i < L; i++) {
+        for (let j = 0; j < C; j++) {
+          if (bin[i][j] === 1) {
+            dt[i][j] = 0;
+            continue;
+          }
+          let minD = Infinity;
+          for (let oi = 0; oi < L; oi++) {
+            for (let oj = 0; oj < C; oj++) {
+              if (bin[oi][oj] !== 1) continue;
+              const dr = Math.abs(i - oi),
+                dc = Math.abs(j - oj);
+              let d;
+              if (metric === 'euclidean') d = Math.sqrt(dr * dr + dc * dc);
+              else if (metric === 'cityblock') d = dr + dc;
+              else d = Math.max(dr, dc);
+              if (d < minD) minD = d;
+            }
+          }
+          dt[i][j] = minD === Infinity ? -1 : minD;
+        }
+      }
+      return dt;
+    }
+
+    function cellColor(val, isObj, maxVal, metric) {
+      if (isObj) return {
+        bg: '#1a5fa8',
+        text: '#fff'
+      };
+      if (val < 0) return {
+        bg: '#eee',
+        text: '#999'
+      };
+      const t = maxVal > 0 ? val / maxVal : 0;
+      const r = 255;
+      const g = Math.round(255 - t * 180);
+      const b = Math.round(255 - t * 200);
+      return {
+        bg: `rgb(${r},${g},${b})`,
+        text: t > 0.55 ? '#7a1a00' : '#333'
+      };
+    }
+
+    function formatVal(val, metric) {
+      if (val === 0) return '0';
+      if (val < 0) return '—';
+      return metric === 'euclidean' ? val.toFixed(2) : String(val);
+    }
+
+    function render() {
+      const metric = getMetric();
+      const dt = computeDT(binary, metric);
+      const allVals = dt.flat().filter(v => v > 0);
+      const maxVal = allVals.length ? Math.max(...allVals) : 1;
+      const hasObj = binary.flat().some(v => v === 1);
+
+      // Input grid
+      const gI = document.getElementById('grid-input');
+      gI.style.gridTemplateColumns = `repeat(${COLS}, 44px)`;
+      gI.innerHTML = '';
+      for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+          const isObj = binary[i][j] === 1;
+          const cell = document.createElement('div');
+          cell.style.cssText =
+            `width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;border-radius:5px;cursor:pointer;box-sizing:border-box;border:1px solid #ddd;user-select:none;`;
+          cell.style.background = isObj ? '#1a5fa8' : '#f8f8f8';
+          cell.style.color = isObj ? '#fff' : '#aaa';
+          cell.innerText = isObj ? '1' : '0';
+          cell.onclick = () => {
+            binary[i][j] = binary[i][j] === 1 ? 0 : 1;
+            render();
+          };
+          gI.appendChild(cell);
+        }
+      }
+
+      // Output grid
+      const gO = document.getElementById('grid-output');
+      gO.style.gridTemplateColumns = `repeat(${COLS}, 44px)`;
+      gO.innerHTML = '';
+      for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+          const isObj = binary[i][j] === 1;
+          const {
+            bg,
+            text
+          } = cellColor(dt[i][j], isObj, maxVal, metric);
+          const cell = document.createElement('div');
+          cell.style.cssText =
+            `width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border-radius:5px;box-sizing:border-box;border:1px solid #ddd;`;
+          cell.style.background = hasObj ? bg : '#f0f0f0';
+          cell.style.color = hasObj ? text : '#ccc';
+          cell.innerText = hasObj ? formatVal(dt[i][j], metric) : '—';
+          gO.appendChild(cell);
+        }
+      }
+
+      const metricLabel = {
+        euclidean: 'Euclidiana (2 decimais)',
+        cityblock: 'City-block (inteiro)',
+        chessboard: 'Chessboard (inteiro)'
+      };
+      const objCount = binary.flat().filter(v => v === 1).length;
+      document.getElementById('sim-info').innerText =
+        `Grade ${ROWS}×${COLS} · ${objCount} pixel(s) de objeto · Métrica: ${metricLabel[metric]}`;
+    }
+
+    document.querySelectorAll('input[name="metric"]').forEach(r => r
+      .onchange = render);
+    document.getElementById('btn-clear').onclick = () => {
+      binary = Array.from({
+        length: ROWS
+      }, () => Array(COLS).fill(0));
+      render();
+    };
+    document.getElementById('btn-example').onclick = () => {
+      binary = Array.from({
+        length: ROWS
+      }, () => Array(COLS).fill(0));
+      binary[2][2] = 1;
+      render();
+    };
+    render();
+  })();
+
+</script>
+</div>
+</div>
+</div>
+</div>

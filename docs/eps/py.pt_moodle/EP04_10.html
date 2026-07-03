@@ -1,0 +1,219 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_10.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_10.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_10 🪙 Separação de Blobs , Rotulação e Descritores</h2>
+<p>Em uma <strong>linha de produção de moedas</strong>, é comum que peças encostem umas nas outras na esteira, formando uma única mancha conectada na imagem — uma contagem ingênua erraria o total. A solução clássica combina operações morfológicas e análise de conectividade: primeiro uma <strong>erosão</strong> reduz ou rompe conexões frágeis entre objetos, e depois a <strong>rotulação de componentes conectados</strong> separa cada objeto em uma região distinta. Por fim, <strong>descritores geométricos</strong> (área e caixa delimitadora) resumem cada componente encontrado.</p>
+<p>Ver na Figura 4.39 uma simulação deste EP.</p>
+<div></div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><p><strong>Dimensões da imagem:</strong> ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) de <em>f</em>.</p></li>
+<li><p><strong>Dimensões de <em>B</em>:</strong> ler os inteiros <em>L</em>_<em>B</em> (linhas) e <em>C</em>_<em>B</em> (colunas) do elemento estruturante.</p></li>
+<li><p><strong>Elemento estruturante:</strong> ler a matriz <em>B</em>, contendo valores 0 ou 1, linha a linha.</p></li>
+<li><p><strong>Dados:</strong> ler a matriz binária <em>f</em> (valores 0 ou 1), linha a linha.</p></li>
+<li><p><strong>Separação:</strong> calcular <em>f</em>_ero = <em>f</em> \ominus <em>B</em> usando erosão binária plana (como no EP04_04), eliminando conexões frágeis entre objetos.</p></li>
+<li><p><strong>Rotulação:</strong> sobre <em>f</em>_ero, identificar componentes conectados usando conectividade definida pela vizinhança <em>B</em>. A rotulação deve seguir varredura <em>raster</em>: ao encontrar um pixel 1 ainda não rotulado, atribuir um novo rótulo inteiro crescente a partir de 1 e propagar esse rótulo a toda a região conectada.</p></li>
+<li><p><strong>Descritores:</strong> para cada rótulo <em>k</em>, calcular:</p>
+<ul>
+<li><strong>Área:</strong> número de pixels pertencentes ao rótulo;</li>
+<li><strong>Caixa delimitadora:</strong> (<em>y</em>_min, <em>x</em>_min, <em>y</em>_max, <em>x</em>_max)</li>
+</ul></li>
+<li><p><strong>Saída:</strong> exibir o número total de rótulos e, em seguida, uma linha por rótulo no formato: <em>k</em>,\ área,\ <em>y</em>_min,\ <em>x</em>_min,\ <em>y</em>_max,\ <em>x</em>_max</p></li>
+</ol>
+<hr/>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li>A erosão deve ser aplicada antes da rotulação.</li>
+<li>A conectividade é fixa e definida pela vizinhança acima.</li>
+<li>O elemento estruturante <em>B</em> não interfere na conectividade da rotulação.</li>
+<li>Sem padding em qualquer etapa.</li>
+<li>A ordem dos rótulos segue a primeira descoberta em varredura <em>raster</em>.</li>
+</ul>
+<hr/>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ponte fina</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Conexão estreita entre objetos</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pode ser removida pela erosão morfológica</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Conectividade</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Definida pelo conjunto \mathcalN(<em>y</em>,<em>x</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Determina quais pixels pertencem ao mesmo componente</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Área</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Número de pixels por componente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Estimativa direta do tamanho do objeto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Caixa delimitadora</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Extensão espacial do rótulo</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resumo geométrico do componente</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: inteiro <em>L</em></li>
+<li>Linha 2: inteiro <em>C</em></li>
+<li>Linha 3: inteiro <em>L</em>_<em>B</em></li>
+<li>Linha 4: inteiro <em>C</em>_<em>B</em></li>
+<li>Próximas <em>L</em>_<em>B</em> linhas: matriz <em>B</em></li>
+<li>Próximas <em>L</em> linhas: matriz <em>f</em></li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: número total de rótulos encontrados</li>
+<li>Linhas seguintes: <em>k</em>,\ área,\ <em>y</em>_min,\ <em>x</em>_min,\ <em>y</em>_max,\ <em>x</em>_max</li>
+</ul>
+<div class="cell" id="cell-fig-04-sim-rotulacao">
+<div id="sim-ep0410" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Moedas Coladas → Separadas → Contadas</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🪙 erosão + rótulo + descritores</span>
+
+</div><div style="padding:20px;background:white;">
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:15px;margin-bottom:18px;text-align:center;">
+<label style="font-size:12px;font-weight:bold;color:#b9770e;">Espessura da ponte entre as moedas</label><br/>
+<input id="ep0410_sl_p" max="3" min="1" step="1" style="width:60%;margin-top:8px;" type="range" value="1"/>
+<span id="ep0410_vl_p" style="font-family:monospace;font-weight:bold;color:#b9770e;margin-left:8px;">1 px</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">f original (ligadas)</p>
+<div id="ep0410_grid_f" style="display:grid;grid-template-columns:repeat(10,26px);gap:2px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">após erosão + rótulos</p>
+<div id="ep0410_grid_lab" style="display:grid;grid-template-columns:repeat(10,26px);gap:2px;justify-content:center;"></div>
+</div>
+</div>
+<div id="ep0410_info" style="margin-top:18px;background:#fff8e1;border-radius:8px;padding:12px;border:1px solid #ffe0a3;font-size:12px;color:#7d5a00;text-align:center;"></div>
+</div>
+<script>
+(function initSimEp0410() {
+  var container = document.getElementById('sim-ep0410');
+  if (!container) { setTimeout(initSimEp0410, 100); return; }
+
+var slP=document.getElementById('ep0410_sl_p');
+  var vlP=document.getElementById('ep0410_vl_p');
+  var gF=document.getElementById('ep0410_grid_f');
+  var gL=document.getElementById('ep0410_grid_lab');
+  var info=document.getElementById('ep0410_info');
+var L=7,C=10;
+  var B=[[1,1,1],[1,1,1],[1,1,1]];
+  var palette=['#e74c3c','#27ae60','#2980b9','#8e44ad','#d35400'];
+  function buildF(p){
+    var f=Array.from({length:L},function(){return new Array(C).fill(0);});
+    for(var y=1;y<6;y++)for(var x=1;x<4;x++) f[y][x]=1;
+    for(var y=1;y<6;y++)for(var x=6;x<9;x++) f[y][x]=1;
+    var midRow=3;
+    for(var dy=0;dy<p;dy++){
+      var ry=midRow-Math.floor(p/2)+dy;
+      for(var x=4;x<6;x++) f[ry][x]=1;
+    }
+    return f;
+  }
+  function erode(img,Bm){
+    var HB=Bm.length, WB=Bm[0].length, oy=-HB/2+0.5, ox=-WB/2+0.5;
+    var g=img.map(function(r){return r.slice();});
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++)for(var by=0;by<HB;by++)for(var bx=0;bx<WB;bx++){
+      if(Bm[by][bx]!==1) continue;
+      var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+      if(vy>=0&&vy<L&&vx>=0&&vx<C && img[vy][vx]<g[y][x]) g[y][x]=img[vy][vx];
+    }
+    return g;
+  }
+  function labelK8(img){
+    var labels=Array.from({length:L},function(){return new Array(C).fill(0);});
+    var dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    var cur=0, desc=[];
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+      if(img[y][x]===1 && labels[y][x]===0){
+        cur++;
+        var stack=[[y,x]];
+        labels[y][x]=cur;
+        var area=0, miny=y,maxy=y,minx=x,maxx=x;
+        while(stack.length){
+          var cell=stack.pop(); var cy=cell[0],cx=cell[1];
+          area++;
+          if(cy<miny)miny=cy; if(cy>maxy)maxy=cy;
+          if(cx<minx)minx=cx; if(cx>maxx)maxx=cx;
+          dirs.forEach(function(d){
+            var ny=cy+d[0],nx=cx+d[1];
+            if(ny>=0&&ny<L&&nx>=0&&nx<C&&img[ny][nx]===1&&labels[ny][nx]===0){
+              labels[ny][nx]=cur; stack.push([ny,nx]);
+            }
+          });
+        }
+        desc.push({k:cur,area:area,miny:miny,minx:minx,maxy:maxy,maxx:maxx});
+      }
+    }
+    return {labels:labels, desc:desc};
+  }
+  function paintBin(grid,img){
+    grid.innerHTML='';
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+      var c=document.createElement('div');
+      c.style.cssText='width:26px;height:26px;border-radius:3px;border:1px solid #ddd;';
+      c.style.background=img[y][x]?'#b9770e':'#fdf6ec';
+      grid.appendChild(c);
+    }
+  }
+  function paintLabels(grid,labels){
+    grid.innerHTML='';
+    for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+      var c=document.createElement('div');
+      var k=labels[y][x];
+      c.style.cssText='width:26px;height:26px;border-radius:3px;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:white;';
+      c.style.background = k>0 ? palette[(k-1)%palette.length] : '#fdf6ec';
+      c.innerText = k>0 ? k : '';
+      grid.appendChild(c);
+    }
+  }
+  function render_0410(){
+    var p=parseInt(slP.value);
+    vlP.innerText=p+' px';
+    var f=buildF(p);
+    var fe=erode(f,B);
+    var res=labelK8(fe);
+    paintBin(gF,f);
+    paintLabels(gL,res.labels);
+    var txt='<b>'+res.desc.length+' objeto(s) detectado(s) após a erosão.</b><br>';
+    res.desc.forEach(function(d){
+      txt+='Rótulo '+d.k+': área='+d.area+', bbox=('+d.miny+','+d.minx+')→('+d.maxy+','+d.maxx+')<br>';
+    });
+    if(res.desc.length<2){
+      txt+='<i>A ponte ainda é espessa demais para a erosão 3×3 — as moedas continuam fundidas em 1 só objeto.</i>';
+    }
+    info.innerHTML=txt;
+  }
+  slP.oninput=render_0410;
+  render_0410();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>

@@ -1,0 +1,234 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_05 🧹 Abertura Morfológica (Remoção de Ruído)</h2>
+<p>Imagens capturadas por <strong>sensores de baixo custo</strong>, como os de drones agrícolas, costumam vir salpicadas de pequenos pontos de ruído — pixels isolados que não representam nada real. Aplicar erosão seguida de dilatação com o <strong>mesmo</strong> elemento estruturante produz a <strong>abertura</strong>: ela “limpa” pontos e protuberâncias finas, mas devolve ao objeto principal praticamente seu tamanho original. É a combinação clássica usada em <strong>pré-processamento de imagens de satélite</strong> antes de qualquer contagem de área plantada. Ver na Figura 4.34 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões da imagem:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) de <em>f</em>.</li>
+<li><strong>Dimensões de <em>B</em>:</strong> Ler os inteiros <em>L</em>_<em>B</em> (linhas) e <em>C</em>_<em>B</em> (colunas) do elemento estruturante.</li>
+<li><strong>Elemento estruturante:</strong> Ler a matriz <em>B</em> com valores 0 ou 1, linha a linha.</li>
+<li><strong>Dados:</strong> Ler a matriz binária <em>f</em> (valores 0 ou 1), linha a linha.</li>
+<li><strong>Erosão:</strong> Calcular <em>e</em> = <em>f</em> \ominus <em>B</em>, usando exatamente o algoritmo do EP04_04 (sem refletir <em>B</em>, sem padding).</li>
+<li><strong>Dilatação:</strong> Calcular <em>g</em> = <em>e</em> \oplus <em>B</em>, usando exatamente o algoritmo do EP04_03 (refletindo <em>B</em>, sem padding) — mas agora aplicado sobre <em>e</em>, não sobre <em>f</em>.</li>
+<li><strong>Saída:</strong> Exibir a matriz resultante <em>g</em> (a <strong>abertura</strong> de <em>f</em> por <em>B</em>) com dimensões <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Ordem fixa:</strong> É <strong>sempre</strong> erosão primeiro, depois dilatação — a ordem inversa define outro operador (fechamento, do próximo EP).</li>
+<li><strong>Mesmo <em>B</em>:</strong> O elemento estruturante usado na erosão e na dilatação deve ser idêntico.</li>
+<li><strong>Sem padding em nenhuma das duas etapas.</strong></li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto Visual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Anti-extensividade</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>g</em> \subseteq <em>f</em> sempre</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A abertura nunca cria pixel novo, só remove</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Idempotência</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">abertura(abertura(<em>f</em>)) = abertura(<em>f</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aplicar de novo não muda mais nada</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Pontos isolados</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Menores que <em>B</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">São completamente eliminados</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Núcleo do objeto</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Maior que <em>B</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">É recuperado quase intacto pela dilatação final</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linha 3: Inteiro <em>L</em>_<em>B</em>.</li>
+<li>Linha 4: Inteiro <em>C</em>_<em>B</em>.</li>
+<li>Próximas <em>L</em>_<em>B</em> linhas: elementos inteiros (0 ou 1) da matriz <em>B</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos inteiros (0 ou 1) da matriz <em>f</em>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz resultante em <em>L</em> linhas e <em>C</em> colunas, valores 0 ou 1.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">7<br/>
+7<br/>
+3<br/>
+3<br/>
+1 1 1<br/>
+1 1 1<br/>
+1 1 1<br/>
+0 0 0 0 0 0 0<br/>
+0 1 0 0 0 1 0<br/>
+0 0 1 1 1 0 0<br/>
+0 0 1 1 1 0 0<br/>
+0 0 1 1 1 1 0<br/>
+0 0 0 0 0 0 0<br/>
+0 1 0 0 0 0 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0<br/>
+0 0 1 1 1 0 0<br/>
+0 0 1 1 1 0 0<br/>
+0 0 1 1 1 0 0<br/>
+0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Pontos isolados e a protuberância fina desaparecem; o quadrado central sobrevive</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-04-sim-abertura">
+<div id="sim-ep0405" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Abertura Morfológica</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🧹 g = (f ⊖ B) ⊕ B</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">👆 Clique nas células de <b>f original</b> para acender/apagar pixels (crie seu próprio ruído!)</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:15px;margin-bottom:20px;text-align:center;">
+<label style="font-size:12px;font-weight:bold;color:#8e44ad;">Tamanho de B (caixa n×n)</label><br/>
+<input id="ep0405_sl_n" max="5" min="3" step="2" style="width:60%;margin-top:8px;" type="range" value="3"/>
+<span id="ep0405_vl_n" style="font-family:monospace;font-weight:bold;color:#8e44ad;margin-left:8px;">3×3</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">f original (clicável)</p>
+<div id="ep0405_grid_f" style="display:grid;grid-template-columns:repeat(7,28px);gap:2px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">e = f ⊖ B</p>
+<div id="ep0405_grid_e" style="display:grid;grid-template-columns:repeat(7,28px);gap:2px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;">g = e ⊕ B</p>
+<div id="ep0405_grid_g" style="display:grid;grid-template-columns:repeat(7,28px);gap:2px;justify-content:center;"></div>
+</div>
+</div>
+<div style="text-align:center;margin-top:15px;">
+<button id="ep0405_btn_new" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">🎲 Nova Imagem (com ruído)</button>
+<button id="ep0405_btn_clear" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;margin-left:6px;">🧹 Limpar Tudo</button>
+</div>
+</div>
+<script>
+(function initSimEp0405() {
+  var container = document.getElementById('sim-ep0405');
+  if (!container) { setTimeout(initSimEp0405, 100); return; }
+
+var slN = document.getElementById('ep0405_sl_n');
+    var vlN = document.getElementById('ep0405_vl_n');
+    var gF = document.getElementById('ep0405_grid_f');
+    var gE = document.getElementById('ep0405_grid_e');
+    var gG = document.getElementById('ep0405_grid_g');
+    var btnNew = document.getElementById('ep0405_btn_new');
+    var btnClear = document.getElementById('ep0405_btn_clear');
+var L=7, C=7, f=[];
+
+    function generate(){
+      f=[]; for(var y=0;y<L;y++){ var row=[]; for(var x=0;x<C;x++) row.push(0); f.push(row); }
+      for(var y=2;y<5;y++) for(var x=2;x<5;x++) f[y][x]=1;
+      for(var k=0;k<3;k++){
+        var ry=Math.floor(Math.random()*L), rx=Math.floor(Math.random()*C);
+        if(f[ry][rx]===0 && (ry<1||ry>5||rx<1||rx>5)) f[ry][rx]=1;
+      }
+    }
+    function clearAll(){ for(var y=0;y<L;y++) for(var x=0;x<C;x++) f[y][x]=0; }
+    function box(n){ var B=[]; for(var i=0;i<n;i++){ var row=[]; for(var j=0;j<n;j++) row.push(1); B.push(row); } return B; }
+    function reflect(M){ var n=M.length, out=[]; for(var i=n-1;i>=0;i--) out.push(M[i].slice().reverse()); return out; }
+    function erode(img,Bm){
+      var HB=Bm.length, WB=Bm[0].length, oy=-HB/2+0.5, ox=-WB/2+0.5;
+      var g=[]; for(var y=0;y<L;y++) g.push(img[y].slice());
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++) for(var by=0;by<HB;by++) for(var bx=0;bx<WB;bx++){
+        if(Bm[by][bx]!==1) continue;
+        var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+        if(vy>=0 && vy<L && vx>=0 && vx<C && img[vy][vx]<g[y][x]) g[y][x]=img[vy][vx];
+      }
+      return g;
+    }
+    function dilate(img,Bm){
+      var Bref=reflect(Bm);
+      var HB=Bref.length, WB=Bref[0].length, oy=-HB/2+0.5, ox=-WB/2+0.5;
+      var g=[]; for(var y=0;y<L;y++) g.push(img[y].slice());
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++) for(var by=0;by<HB;by++) for(var bx=0;bx<WB;bx++){
+        if(Bref[by][bx]!==1) continue;
+        var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+        if(vy>=0 && vy<L && vx>=0 && vx<C && img[vy][vx]>g[y][x]) g[y][x]=img[vy][vx];
+      }
+      return g;
+    }
+    function paintStatic(grid,img){
+      grid.innerHTML='';
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++){
+        var c=document.createElement('div');
+        c.style.cssText='width:28px;height:28px;border-radius:3px;border:1px solid #ddd;';
+        c.style.background = img[y][x]===1 ? '#8e44ad' : '#f7f3fb';
+        grid.appendChild(c);
+      }
+    }
+    function paintEditable(grid,img){
+      grid.innerHTML='';
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++){
+        (function(yy,xx){
+          var c=document.createElement('div');
+          c.style.cssText='width:28px;height:28px;border-radius:3px;border:1px solid #ccc;cursor:pointer;';
+          c.style.background = img[yy][xx]===1 ? '#8e44ad' : '#f7f3fb';
+          c.onclick=function(){ f[yy][xx]=1-f[yy][xx]; render(); };
+          grid.appendChild(c);
+        })(y,x);
+      }
+    }
+    function render(){
+      var n=parseInt(slN.value,10);
+      vlN.innerText=n+'×'+n;
+      var B=box(n);
+      var e=erode(f,B);
+      var g=dilate(e,B);
+      paintEditable(gF,f); paintStatic(gE,e); paintStatic(gG,g);
+    }
+
+    slN.oninput = render;
+    btnNew.onclick = function(){ generate(); render(); };
+    btnClear.onclick = function(){ clearAll(); render(); };
+
+    generate();
+    render();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>

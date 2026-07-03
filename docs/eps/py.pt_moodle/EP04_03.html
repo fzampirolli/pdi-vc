@@ -1,0 +1,224 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_03 🌱 Dilatação Binária Plana (mm.dil0)</h2>
+<p>Em <strong>microscopia de partículas</strong> e em <strong>OCR de placas de carro desgastadas</strong>, traços finos ou descontínuos precisam ser “engrossados” para que o reconhecimento funcione. A <strong>dilatação morfológica</strong> faz exatamente isso: expande regiões claras usando um elemento estruturante <em>B</em> — a mesma operação implementada em <code>morph.py</code> como <code>mm.dil0(f, B)</code>, usada quando <em>B</em> é <strong>plano</strong> (sem pesos, só 0/1). Ver na Figura 4.32 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões da imagem:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) de <em>f</em>.</li>
+<li><strong>Dimensões de <em>B</em>:</strong> Ler os inteiros <em>L</em>_<em>B</em> (linhas) e <em>C</em>_<em>B</em> (colunas) do elemento estruturante.</li>
+<li><strong>Elemento estruturante:</strong> Ler a matriz <em>B</em> com valores 0 ou 1, linha a linha.</li>
+<li><strong>Dados:</strong> Ler a matriz <em>f</em> (a imagem original), linha a linha.</li>
+<li><strong>Reflexão:</strong> Construir <em>B</em>_ref, a versão de <em>B</em> refletida em 180° (linhas e colunas invertidas) — exatamente como faz <code>mm.dil0</code> internamente.</li>
+<li><strong>Vizinhança sem padding:</strong> Para cada pixel (<em>y</em>,<em>x</em>), percorrer as posições (by,bx) de <em>B</em>_ref centradas em (<em>y</em>,<em>x</em>), usando o deslocamento <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Descartar</strong> todo (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fora de [0,<em>L</em>)×[0,<em>C</em>) — <strong>não preencher com zeros</strong>.</li>
+<li><strong>Mapeamento:</strong> Calcular cada pixel de saída como o <strong>máximo</strong> entre <em>f</em>(<em>y</em>,<em>x</em>) e todos os <em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) válidos cuja posição correspondente em <em>B</em>_ref vale 1: <em>g</em>(<em>y</em>,<em>x</em>) = \max\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \max_\substack(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ <em>v</em>álido\\ <em>B</em>_ref(by,bx)=1 <em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\Big)</li>
+<li><strong>Saída:</strong> Exibir a matriz <em>g</em> com dimensões <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Sem padding:</strong> Jamais inventar vizinhos fora da imagem; usar apenas os que existem de fato.</li>
+<li><strong>Reflexão obrigatória:</strong> <em>B</em> deve ser refletido antes de aplicado (é o que diferencia <code>mm.dil0</code> de uma simples busca por máximo).</li>
+<li><strong>Robustez de borda:</strong> Se nenhuma posição válida de <em>B</em>_ref=1 cair dentro do domínio para um dado pixel, ele <strong>mantém seu valor original</strong>.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto Visual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Dilatação</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>g</em> ≥ <em>f</em> sempre (extensiva)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Regiões claras crescem, buracos escuros encolhem</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong><em>B</em> maior</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Vizinhança mais ampla</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Crescimento mais agressivo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Reflexão de <em>B</em></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>B</em>_ref(<em>y</em>,<em>x</em>) = <em>B</em>(-<em>y</em>,-<em>x</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Garante a definição formal de Minkowski da dilatação</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linha 3: Inteiro <em>L</em>_<em>B</em>.</li>
+<li>Linha 4: Inteiro <em>C</em>_<em>B</em>.</li>
+<li>Próximas <em>L</em>_<em>B</em> linhas: elementos inteiros (0 ou 1) da matriz <em>B</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <em>f</em>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz <em>g</em> em <em>L</em> linhas e <em>C</em> colunas, valores inteiros separados por espaço.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+3<br/>
+0 1 0<br/>
+1 1 1<br/>
+0 1 0<br/>
+0 0 0<br/>
+0 9 0<br/>
+0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 9 0<br/>
+9 9 9<br/>
+0 9 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>B</em> em cruz simétrico: ponto isolado se expande em cruz</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+4<br/>
+1<br/>
+3<br/>
+1 1 1<br/>
+10 200 5 80</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">200 200 200 80</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>B</em> horizontal: cada pixel “puxa” o máximo dos vizinhos da linha</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-04-sim-dil0">
+<div id="sim-ep0403" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Dilatação Plana (mm.dil0)</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🌱 g = f ⊕ B</span>
+
+</div><div style="padding:20px;background:white;">
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<p style="font-size:11px;font-weight:bold;color:#16a085;margin-bottom:10px;text-align:center;">Elemento Estruturante B (clique para alternar 0/1)</p>
+<div id="ep0403_grid_B" style="display:grid;grid-template-columns:repeat(3,38px);gap:4px;justify-content:center;margin-bottom:10px;"></div>
+<div style="display:flex;gap:8px;justify-content:center;">
+<button id="ep0403_btn_cross" style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">➕ Cruz</button>
+<button id="ep0403_btn_box" style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">⬛ Caixa</button>
+<button id="ep0403_btn_diag" style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">⤫ Diagonal</button>
+</div>
+</div>
+<p style="font-size:11px;color:#777;margin-bottom:10px;text-align:center;">👆 Clique nas células de <b>f</b> para acender/apagar pixels</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Imagem Original (f)</p>
+<div id="ep0403_grid_orig" style="display:grid;grid-template-columns:repeat(5,36px);gap:3px;justify-content:center;"></div>
+<button id="ep0403_btn_new" style="margin-top:15px;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">🎲 Nova Imagem</button>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Dilatada (g)</p>
+<div id="ep0403_grid_new" style="display:grid;grid-template-columns:repeat(5,36px);gap:3px;justify-content:center;"></div>
+</div>
+</div>
+<div id="ep0403_debug" style="margin-top:20px;background:#e8f5e9;border-radius:8px;padding:10px;border:1px solid #c8e6c9;font-family:monospace;font-size:11px;color:#2e7d32;text-align:center;">g(y,x) = max sobre vizinhos válidos de B refletido</div>
+</div>
+<script>
+(function initSimEp0403() {
+  var container = document.getElementById('sim-ep0403');
+  if (!container) { setTimeout(initSimEp0403, 100); return; }
+
+var gB = document.getElementById('ep0403_grid_B');
+    var gO = document.getElementById('ep0403_grid_orig');
+    var gN = document.getElementById('ep0403_grid_new');
+    var db = document.getElementById('ep0403_debug');
+    var btnNew  = document.getElementById('ep0403_btn_new');
+    var btnCross = document.getElementById('ep0403_btn_cross');
+    var btnBox   = document.getElementById('ep0403_btn_box');
+    var btnDiag  = document.getElementById('ep0403_btn_diag');
+var B = [[0,1,0],[1,1,1],[0,1,0]];
+    var L=5, C=5, pixels=[];
+
+    function generate(){
+      pixels=[];
+      for(var y=0;y<L;y++){ var row=[]; for(var x=0;x<C;x++) row.push((Math.random()<0.78)?0:1); pixels.push(row); }
+    }
+    function reflect(M){ var n=M.length, out=[]; for(var i=n-1;i>=0;i--) out.push(M[i].slice().reverse()); return out; }
+    function dilate(f,Bm){
+      var HB=Bm.length, WB=Bm[0].length, oy=-HB/2+0.5, ox=-WB/2+0.5;
+      var Bref=reflect(Bm);
+      var g=[]; for(var y=0;y<L;y++) g.push(f[y].slice());
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++) for(var by=0;by<HB;by++) for(var bx=0;bx<WB;bx++){
+        if(Bref[by][bx]!==1) continue;
+        var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+        if(vy>=0 && vy<L && vx>=0 && vx<C && f[vy][vx]>g[y][x]) g[y][x]=f[vy][vx];
+      }
+      return g;
+    }
+    function renderB(){
+      gB.innerHTML='';
+      for(var by=0;by<3;by++) for(var bx=0;bx<3;bx++){
+        (function(byy,bxx){
+          var c=document.createElement('div');
+          c.style.cssText='width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;border-radius:4px;cursor:pointer;border:1px solid #ccc;';
+          c.style.background = B[byy][bxx] ? '#16a085' : '#f5f5f5';
+          c.style.color = B[byy][bxx] ? 'white' : '#999';
+          c.innerText = B[byy][bxx];
+          c.onclick=function(){ B[byy][bxx]=1-B[byy][bxx]; renderB(); render(); };
+          gB.appendChild(c);
+        })(by,bx);
+      }
+    }
+    function render(){
+      var g = dilate(pixels,B);
+      gO.innerHTML=''; gN.innerHTML='';
+      for(var y=0;y<L;y++) for(var x=0;x<C;x++){
+        (function(yy,xx){
+          var p = pixels[yy][xx] ? 255 : 30;
+          var cO=document.createElement('div');
+          cO.style.cssText='width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border-radius:3px;border:1px solid #eee;cursor:pointer;';
+          cO.style.background='rgb('+p+','+p+','+p+')'; cO.style.color = p>128 ? 'black' : 'white';
+          cO.innerText = pixels[yy][xx];
+          cO.onclick=function(){ pixels[yy][xx]=1-pixels[yy][xx]; render(); };
+          gO.appendChild(cO);
+        })(y,x);
+        var r = g[y][x] ? 255 : 30;
+        var cN=document.createElement('div');
+        cN.style.cssText='width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border-radius:3px;border:1px solid #ddd;';
+        cN.style.background='rgb('+r+','+r+','+r+')'; cN.style.color = r>128 ? 'black' : 'white';
+        cN.innerText = g[y][x];
+        gN.appendChild(cN);
+      }
+    }
+
+    btnNew.onclick   = function(){ generate(); render(); };
+    btnCross.onclick = function(){ B=[[0,1,0],[1,1,1],[0,1,0]]; renderB(); render(); };
+    btnBox.onclick   = function(){ B=[[1,1,1],[1,1,1],[1,1,1]]; renderB(); render(); };
+    btnDiag.onclick  = function(){ B=[[1,0,1],[0,1,0],[1,0,1]]; renderB(); render(); };
+
+    generate();
+    renderB();
+    render();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>
