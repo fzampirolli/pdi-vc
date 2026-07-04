@@ -1,0 +1,101 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_03 🟠 Codificação Manual do Descritor LBP</h2>
+<p>A função <code>local_binary_pattern</code> do <code>scikit-image</code>, utilizada no projeto de classificação de texturas, calcula automaticamente o código LBP de cada pixel de uma imagem. Antes de utilizá-la como uma caixa-preta, você foi encarregado de implementar manualmente o cálculo do código LBP clássico (P=8, R=1) para o pixel central de uma vizinhança 3×3, exatamente como definido na equação do capítulo.</p>
+<p>Além do código, o sistema de inspeção de texturas também precisa saber se aquele padrão é <strong>uniforme</strong> — um padrão é uniforme quando o número de transições (0\to1 ou 1\to0) ao percorrer os 8 bits <strong>circularmente</strong> (voltando do último bit ao primeiro) é <strong>no máximo 2</strong>, propriedade explorada pela variante <em>uniforme</em> do LBP mencionada no capítulo.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Quantidade:</strong> Ler o inteiro <em>T</em> (número de vizinhanças a processar).</li>
+<li><strong>Dados de cada vizinhança:</strong> Para cada uma das <em>T</em> vizinhanças, ler uma matriz 3×3 de inteiros (intensidades), fornecida em 3 linhas de 3 valores cada. O pixel central é a posição <code>[1][1]</code>.</li>
+<li><strong>Ordem dos vizinhos:</strong> Percorra os 8 vizinhos em sentido <strong>horário</strong>, iniciando no canto superior esquerdo, na seguinte ordem de posições <code>[linha][coluna]</code>: <code>[0][0]</code>, <code>[0][1]</code>, <code>[0][2]</code>, <code>[1][2]</code>, <code>[2][2]</code>, <code>[2][1]</code>, <code>[2][0]</code>, <code>[1][0]</code>. Esse é o índice <em>p</em> = 0, 1, …, 7 da equação do LBP.</li>
+<li><strong>Função limiar:</strong> Para cada vizinho <em>p</em> com intensidade <em>g</em>_<em>p</em> e centro <em>g</em>_<em>c</em>, calcule <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>), que vale <code>1</code> se <em>g</em>_<em>p</em> ≥ <em>g</em>_<em>c</em> e <code>0</code> caso contrário.</li>
+<li><strong>Código LBP:</strong> Calcule LBP = ∑_p=0^7 <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>)\, 2^<em>p</em>.</li>
+<li><strong>Transições:</strong> Considerando a sequência circular de bits <em>s</em>_0, <em>s</em>_1, …, <em>s</em>_7 (na ordem do item 3), conte quantos pares consecutivos <strong>adjacentes na sequência circular</strong> (incluindo o par <em>s</em>_7, <em>s</em>_0) diferem entre si.</li>
+<li><strong>Classificação:</strong> Se o número de transições for \le 2, classifique como <code>UNIFORME</code>; caso contrário, <code>NAO_UNIFORME</code>.</li>
+<li><strong>Saída:</strong> Para cada vizinhança, na ordem de entrada, imprimir o código LBP (inteiro decimal, 0–255), o número de transições e a classificação.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Ordem fixa dos vizinhos:</strong> a ordem do item 3 é obrigatória — invertê-la produz um código numericamente diferente, mesmo representando o mesmo padrão visual.</li>
+<li><strong>Comparação não estrita:</strong> <em>s</em>(<em>z</em>) = 1 quando <em>z</em> \ge 0 (o próprio capítulo define a igualdade como incluída no caso <code>1</code>).</li>
+<li><strong>Contagem circular:</strong> não esqueça o par que fecha o ciclo (<em>s</em>_7 com <em>s</em>_0); ignorar esse par é um erro comum que classifica incorretamente padrões uniformes.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Padrão (bits <em>s</em>_0… <em>s</em>_7)</th>
+<th style="padding:10px;border:1px solid #ddd;">Transições</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00000000</code> ou <code>11111111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Região homogênea (mancha clara ou escura)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00001111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Borda simples entre duas regiões</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>01010101</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Textura de contraste alternado — não uniforme</td>
+</tr>
+</tbody>
+</table>
+<p>Padrões uniformes concentram-se em regiões de textura suave ou bordas simples; padrões não uniformes tendem a corresponder a ruído de alta frequência. Por isso, o histograma LBP <em>uniforme</em>, usado no projeto de classificação de texturas, agrupa todos os padrões não uniformes em um único compartimento, reduzindo a dimensionalidade do descritor.</p>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>T</em>.</li>
+<li>Para cada vizinhança: 3 linhas com 3 inteiros cada (matriz 3×3).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>T</em> linhas, no formato <code>LBP=&lt;int&gt; transicoes=&lt;int&gt; &lt;UNIFORME|NAO_UNIFORME&gt;</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+10 10 10<br/>
+10 50 10<br/>
+10 10 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=0 transicoes=0 UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Centro é o mais claro; todos os vizinhos geram bit 0.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+90 90 90<br/>
+10 50 10<br/>
+90 90 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=119 transicoes=4 NAO_UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Vizinhos claros e escuros alternados na vizinhança.</td>
+</tr>
+</tbody>
+</table>
+</div></div>

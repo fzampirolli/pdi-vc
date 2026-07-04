@@ -1,0 +1,116 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_01 🟢 Classificador k-NN Passo a Passo</h2>
+<p>O <code>KNeighborsClassifier</code> do <code>scikit-learn</code>, usado ao longo do capítulo, esconde por trás de uma única chamada (<code>.fit</code> / <code>.predict</code>) uma regra de decisão bastante simples: para cada nova observação, calcular a distância a todos os exemplos de treinamento, selecionar os <em>k</em> mais próximos e votar pela classe majoritária entre eles.</p>
+<p>Antes de confiar na biblioteca, você foi encarregado de implementar essa regra do zero, para um espaço de características bidimensional, exatamente como o simulador interativo de fronteira de decisão do capítulo faz internamente a cada clique do usuário.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Quantidade e parâmetro:</strong> Ler o inteiro <em>N</em> (número de exemplos de treinamento) e o inteiro ímpar <em>k</em> (número de vizinhos).</li>
+<li><strong>Exemplos de treinamento:</strong> Para cada um dos <em>N</em> exemplos, ler três valores: as coordenadas <em>x</em> e <em>y</em> (reais) e o rótulo <em>r</em> (inteiro, 0 ou 1).</li>
+<li><strong>Consultas:</strong> Ler o inteiro <em>Q</em> (número de pontos de consulta) e, em seguida, as coordenadas <em>x</em>_<em>q</em>, <em>y</em>_<em>q</em> (reais) de cada consulta.</li>
+<li><strong>Distância:</strong> Para cada consulta, calcular a distância euclidiana até <strong>todos</strong> os exemplos de treinamento: <em>d</em>(<em>x</em>_<em>q</em>, <em>x</em>_<em>i</em>) = √((<em>x</em>_<em>q</em> - <em>x</em>_<em>i</em>)^2 + (<em>y</em>_<em>q</em> - <em>y</em>_<em>i</em>)^2).</li>
+<li><strong>Seleção dos vizinhos:</strong> Ordenar os exemplos por distância crescente e selecionar os <em>k</em> primeiros. Em caso de <strong>empate de distância</strong> na fronteira do k-ésimo vizinho, desempate pelo exemplo lido <strong>primeiro</strong> na entrada (ordem de leitura estável).</li>
+<li><strong>Votação majoritária:</strong> Contar os votos de cada classe entre os <em>k</em> vizinhos selecionados. Se houver <strong>empate na votação</strong> (apenas possível quando <em>k</em> é par, o que não deve ocorrer pela diretriz do item 1, mas trate defensivamente), atribua a classe do vizinho mais próximo entre as classes empatadas.</li>
+<li><strong>Saída:</strong> Para cada consulta, na ordem de entrada, imprimir a classe prevista. Ao final, imprimir o total de consultas classificadas como classe <code>1</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Métrica fixa:</strong> utilize exclusivamente a distância euclidiana (não a squared distance) para a ordenação, embora o resultado da comparação seja o mesmo.</li>
+<li><strong>k sempre ímpar:</strong> a entrada garante <em>k</em> ímpar e <em>k</em> \le <em>N</em>; ainda assim, implemente o desempate do item 6 por robustez.</li>
+<li><strong>Estabilidade:</strong> ao ordenar por distância, preserve a ordem relativa de exemplos com a mesma distância (ordenação estável).</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel no k-NN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Espaço de características</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Conjunto de todos os vetores (<em>x</em>, <em>y</em>) possíveis</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distância euclidiana</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Medida de similaridade entre observações</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>k</em> pequeno</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fronteira irregular, alta variância</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>k</em> grande</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fronteira suave, alto viés</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Votação majoritária</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Regra de decisão \hat <em>y</em> = \operatornamemoday_<em>i</em> : <em>x</em>_<em>i</em> ∈ <em>N</em>_<em>k</em>(<em>x</em>)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>N</em> e <em>k</em>, separados por espaço.</li>
+<li>Próximas <em>N</em> linhas: três valores por linha — <em>x</em>, <em>y</em> (reais) e <em>r</em> (inteiro ∈ 0,1), separados por espaço.</li>
+<li>Próxima linha: inteiro <em>Q</em>.</li>
+<li>Próximas <em>Q</em> linhas: dois valores por linha — <em>x</em>_<em>q</em>, <em>y</em>_<em>q</em> (reais), separados por espaço.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>Q</em> linhas, cada uma com a classe prevista (<code>0</code> ou <code>1</code>) para a respectiva consulta, na ordem de entrada.</li>
+<li>Última linha: <code>Total classe 1: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 3<br/>
+0 0 0<br/>
+1 0 0<br/>
+5 5 1<br/>
+6 5 1<br/>
+1<br/>
+1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0<br/>
+Total classe 1: 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Consulta próxima do agrupamento de classe 0.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 1<br/>
+0 0 0<br/>
+1 0 0<br/>
+5 5 1<br/>
+6 5 1<br/>
+2<br/>
+0.9 0.1<br/>
+5.5 5.1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0<br/>
+1<br/>
+Total classe 1: 1</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Com k=1, cada consulta herda a classe do vizinho mais próximo.</td>
+</tr>
+</tbody>
+</table>
+</div></div>

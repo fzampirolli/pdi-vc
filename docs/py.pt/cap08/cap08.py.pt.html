@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt" xml:lang="pt"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>8&nbsp; Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação – Processamento Digital de Imagens e Visão Computacional</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../referencias.html" rel="next">
+<link href="../cap07/cap07.py.pt.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "Nenhum resultado",
+    "search-matching-documents-text": "documentos correspondentes",
+    "search-copy-link-title": "Copiar link para a busca",
+    "search-hide-matches-text": "Esconder correspondências adicionais",
+    "search-more-match-text": "mais correspondência neste documento",
+    "search-more-matches-text": "mais correspondências neste documento",
+    "search-clear-button-title": "Limpar",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar",
+    "search-label": "Procurar"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('a[href="./"], a[href="."]').forEach(function(a) {
+    a.setAttribute('href', '../index.html');
+  });
+});
+</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cap06/cap06.py.pt.html">Parte II — Visão Computacional</a></li><li class="breadcrumb-item"><a href="../cap08/cap08.py.pt.html"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Procurar" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Processamento Digital de Imagens e Visão Computacional</a> 
+        <div class="sidebar-tools-main">
+    <a href="../livro.pt.py.pdf" title="Download PDF" class="quarto-navigation-tool px-1" aria-label="Download PDF"><i class="bi bi-file-pdf"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Procurar"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PDI e VC — Python</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../prefacio.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prefácio</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Parte I — Fundamentos de PDI</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Alternar seção">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap01/cap01.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Fundamentos e Primeiros Passos</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap02/cap02.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Da Captura ao Pixel - Amostragem, Quantização e Conectividade</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap03/cap03.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Operações Espaciais: Intensidade, Histograma e Filtragem</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap04/cap04.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Morfologia Matemática e Segmentação de Imagens</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap05/cap05.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Transformadas e Compressão</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Parte II — Visão Computacional</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Alternar seção">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap06/cap06.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Inspeção Industrial e Análise de Documentos</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap07/cap07.py.pt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Classificação de Imagens e Reconhecimento de Padrões</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap08/cap08.py.pt.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../referencias.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Referências</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Índice</h2>
+   
+  <ul>
+  <li><a href="#objetivos-do-capítulo" id="toc-objetivos-do-capítulo" class="nav-link active" data-scroll-target="#objetivos-do-capítulo"><span class="header-section-number">8.1</span> Objetivos do Capítulo</a></li>
+  <li><a href="#configuração-do-ambiente" id="toc-configuração-do-ambiente" class="nav-link" data-scroll-target="#configuração-do-ambiente"><span class="header-section-number">8.2</span> Configuração do Ambiente</a></li>
+  <li><a href="#detectores-e-descritores-locais-de-características" id="toc-detectores-e-descritores-locais-de-características" class="nav-link" data-scroll-target="#detectores-e-descritores-locais-de-características"><span class="header-section-number">8.3</span> Detectores e Descritores Locais de Características</a>
+  <ul class="collapse">
+  <li><a href="#o-descritor-orb" id="toc-o-descritor-orb" class="nav-link" data-scroll-target="#o-descritor-orb"><span class="header-section-number">8.3.1</span> O Descritor ORB</a></li>
+  </ul></li>
+  <li><a href="#projeto-prático-1-correspondência-de-características-e-homografia-com-orb" id="toc-projeto-prático-1-correspondência-de-características-e-homografia-com-orb" class="nav-link" data-scroll-target="#projeto-prático-1-correspondência-de-características-e-homografia-com-orb"><span class="header-section-number">8.4</span> Projeto Prático 1: Correspondência de Características e Homografia com ORB</a>
+  <ul class="collapse">
+  <li><a href="#estimando-a-homografia-com-ransac" id="toc-estimando-a-homografia-com-ransac" class="nav-link" data-scroll-target="#estimando-a-homografia-com-ransac"><span class="header-section-number">8.4.1</span> Estimando a Homografia com RANSAC</a></li>
+  </ul></li>
+  <li><a href="#modelagem-matemática-homografia-e-ransac" id="toc-modelagem-matemática-homografia-e-ransac" class="nav-link" data-scroll-target="#modelagem-matemática-homografia-e-ransac"><span class="header-section-number">8.5</span> Modelagem Matemática: Homografia e RANSAC</a>
+  <ul class="collapse">
+  <li><a href="#homografia" id="toc-homografia" class="nav-link" data-scroll-target="#homografia"><span class="header-section-number">8.5.1</span> Homografia</a></li>
+  <li><a href="#ransac" id="toc-ransac" class="nav-link" data-scroll-target="#ransac"><span class="header-section-number">8.5.2</span> RANSAC</a></li>
+  </ul></li>
+  <li><a href="#detecção-de-objetos-haar-cascade-viola-jones" id="toc-detecção-de-objetos-haar-cascade-viola-jones" class="nav-link" data-scroll-target="#detecção-de-objetos-haar-cascade-viola-jones"><span class="header-section-number">8.6</span> Detecção de Objetos: Haar Cascade (Viola-Jones)</a></li>
+  <li><a href="#detecção-de-objetos-caixas-delimitadoras-iou-e-nms" id="toc-detecção-de-objetos-caixas-delimitadoras-iou-e-nms" class="nav-link" data-scroll-target="#detecção-de-objetos-caixas-delimitadoras-iou-e-nms"><span class="header-section-number">8.7</span> Detecção de Objetos: Caixas Delimitadoras, IoU e NMS</a>
+  <ul class="collapse">
+  <li><a href="#intersection-over-union-iou" id="toc-intersection-over-union-iou" class="nav-link" data-scroll-target="#intersection-over-union-iou"><span class="header-section-number">8.7.1</span> Intersection over Union (IoU)</a></li>
+  <li><a href="#supressão-de-não-máximos-nms" id="toc-supressão-de-não-máximos-nms" class="nav-link" data-scroll-target="#supressão-de-não-máximos-nms"><span class="header-section-number">8.7.2</span> Supressão de Não-Máximos (NMS)</a></li>
+  </ul></li>
+  <li><a href="#segmentação-visual-semântica-de-instâncias-e-panóptica" id="toc-segmentação-visual-semântica-de-instâncias-e-panóptica" class="nav-link" data-scroll-target="#segmentação-visual-semântica-de-instâncias-e-panóptica"><span class="header-section-number">8.8</span> Segmentação Visual: Semântica, de Instâncias e Panóptica</a></li>
+  <li><a href="#visão-geral-de-modelos-modernos" id="toc-visão-geral-de-modelos-modernos" class="nav-link" data-scroll-target="#visão-geral-de-modelos-modernos"><span class="header-section-number">8.9</span> Visão Geral de Modelos Modernos</a></li>
+  <li><a href="#limitações-das-abordagens-clássicas-e-motivação-para-o-deep-learning" id="toc-limitações-das-abordagens-clássicas-e-motivação-para-o-deep-learning" class="nav-link" data-scroll-target="#limitações-das-abordagens-clássicas-e-motivação-para-o-deep-learning"><span class="header-section-number">8.10</span> Limitações das Abordagens Clássicas e Motivação para o Deep Learning</a></li>
+  <li><a href="#resumo" id="toc-resumo" class="nav-link" data-scroll-target="#resumo"><span class="header-section-number">8.11</span> Resumo</a></li>
+  <li><a href="#uso-do-notebooklm-como-tutor-complementar" id="toc-uso-do-notebooklm-como-tutor-complementar" class="nav-link" data-scroll-target="#uso-do-notebooklm-como-tutor-complementar"><span class="header-section-number">8.12</span> 🤖 Uso do NotebookLM como Tutor Complementar</a></li>
+  <li><a href="#lista-de-exercícios" id="toc-lista-de-exercícios" class="nav-link" data-scroll-target="#lista-de-exercícios"><span class="header-section-number">8.13</span> Lista de Exercícios</a>
+  <ul class="collapse">
+  <li><a href="#exercício-1-robustez-do-orb-a-transformações-básico" id="toc-exercício-1-robustez-do-orb-a-transformações-básico" class="nav-link" data-scroll-target="#exercício-1-robustez-do-orb-a-transformações-básico"><span class="header-section-number">8.13.1</span> Exercício 1: Robustez do ORB a Transformações (Básico)</a></li>
+  <li><a href="#exercício-2-ajustando-o-haar-cascade-intermediário" id="toc-exercício-2-ajustando-o-haar-cascade-intermediário" class="nav-link" data-scroll-target="#exercício-2-ajustando-o-haar-cascade-intermediário"><span class="header-section-number">8.13.2</span> Exercício 2: Ajustando o Haar Cascade (Intermediário)</a></li>
+  <li><a href="#exercício-3-iou-e-nms-em-um-cenário-mais-denso-intermediáriodesafio" id="toc-exercício-3-iou-e-nms-em-um-cenário-mais-denso-intermediáriodesafio" class="nav-link" data-scroll-target="#exercício-3-iou-e-nms-em-um-cenário-mais-denso-intermediáriodesafio"><span class="header-section-number">8.13.3</span> Exercício 3: IoU e NMS em um Cenário Mais Denso (Intermediário/Desafio)</a></li>
+  <li><a href="#exercício-4-do-mosaico-de-texturas-à-segmentação-desafio" id="toc-exercício-4-do-mosaico-de-texturas-à-segmentação-desafio" class="nav-link" data-scroll-target="#exercício-4-do-mosaico-de-texturas-à-segmentação-desafio"><span class="header-section-number">8.13.4</span> Exercício 4: Do Mosaico de Texturas à Segmentação (Desafio)</a></li>
+  </ul></li>
+  <li><a href="#próximos-passos" id="toc-próximos-passos" class="nav-link" data-scroll-target="#próximos-passos"><span class="header-section-number">8.14</span> Próximos Passos</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cap06/cap06.py.pt.html">Parte II — Visão Computacional</a></li><li class="breadcrumb-item"><a href="../cap08/cap08.py.pt.html"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/cap08/cap08_aluno.ipynb"><img src="imagens/colab-badge.png" class="img-fluid" style="width:16.0%"></a> <a href="https://github.com/fzampirolli/pdi-vc"><img src="imagens/github-badge.png" class="img-fluid" style="width:19.0%"></a></p>
+<p>🚧 <strong>Em construção!</strong></p>
+<p>No <strong>Capítulo 7</strong>, cada imagem — ou cada recorte de textura — era tratada como uma unidade isolada, já devidamente enquadrada, a ser rotulada com uma única classe: “este dígito é um 7”, “esta textura é granular”. Essa é uma simplificação poderosa para introduzir os fundamentos do reconhecimento de padrões, mas está longe de como a visão computacional é exigida na prática.</p>
+<p>Uma cena real raramente chega pronta e enquadrada. Ela é bagunçada: contém múltiplos objetos, em posições, escalas e orientações desconhecidas, muitas vezes parcialmente sobrepostos, e a tarefa não é apenas “que classe é essa imagem?”, mas perguntas bem mais ricas — <em>“este objeto que vejo aqui é o mesmo que vi naquela outra foto, só que girado e mais longe?”</em>, <em>“onde exatamente, nesta imagem, está cada rosto?”</em>, <em>“quais pixels pertencem a cada objeto individual da cena?”</em>.</p>
+<p>Este capítulo caminha por essas três perguntas, na ordem em que historicamente foram resolvidas por técnicas clássicas de visão computacional:</p>
+<ol type="1">
+<li><strong>Correspondência de características</strong> — como reconhecer o <em>mesmo</em> padrão local em duas imagens diferentes, mesmo sob rotação, escala e mudança de ponto de vista, usando detectores e descritores locais (como o <strong>ORB</strong>) combinados a modelos geométricos robustos (<strong>homografia</strong> via <strong>RANSAC</strong>);</li>
+<li><strong>Detecção de objetos</strong> — como localizar, e não apenas classificar, um padrão de interesse dentro de uma imagem maior, partindo do clássico algoritmo de <strong>Haar Cascade</strong> (Viola-Jones) até os conceitos gerais de <em>bounding box</em>, <em>Intersection over Union</em> (IoU) e supressão de não-máximos (NMS), comuns a praticamente todo detector moderno;</li>
+<li><strong>Segmentação visual</strong> — como ir além da caixa delimitadora e atribuir uma classe a <strong>cada pixel</strong> da imagem, distinguindo os três principais paradigmas: segmentação <strong>semântica</strong>, de <strong>instâncias</strong> e <strong>panóptica</strong>.</li>
+</ol>
+<p>Ao final, o capítulo apresenta uma visão geral dos principais modelos modernos que resolvem essas tarefas com redes neurais profundas — sem, no entanto, aprofundar seu treinamento, o que será feito no <strong>Capítulo 9</strong>, capítulo final desta parte.</p>
+<section id="objetivos-do-capítulo" class="level2" data-number="8.1">
+<h2 data-number="8.1" class="anchored" data-anchor-id="objetivos-do-capítulo"><span class="header-section-number">8.1</span> Objetivos do Capítulo</h2>
+<p>Ao final deste capítulo, o estudante deverá ser capaz de:</p>
+<ul>
+<li>Compreender o papel de <strong>detectores e descritores locais de características</strong> na correspondência entre imagens;</li>
+<li>Implementar um pipeline de correspondência de pontos com <strong>ORB</strong> e estimar uma <strong>homografia robusta</strong> com <strong>RANSAC</strong>;</li>
+<li>Compreender a intuição e as limitações do algoritmo de <strong>Haar Cascade</strong> para detecção de objetos (faces e olhos);</li>
+<li>Definir e calcular <strong>Intersection over Union (IoU)</strong> e aplicar <strong>supressão de não-máximos (NMS)</strong> para refinar detecções redundantes;</li>
+<li>Diferenciar conceitualmente <strong>segmentação semântica, de instâncias e panóptica</strong>, e implementar uma versão clássica (não baseada em aprendizado profundo) de segmentação semântica e de instâncias;</li>
+<li>Reconhecer, em linhas gerais, os principais modelos modernos de detecção e segmentação (YOLO, Faster R-CNN, SSD, U-Net, Mask R-CNN e Segment Anything) e o papel do aprendizado profundo em cada um deles.</li>
+</ul>
+</section>
+<section id="configuração-do-ambiente" class="level2" data-number="8.2">
+<h2 data-number="8.2" class="anchored" data-anchor-id="configuração-do-ambiente"><span class="header-section-number">8.2</span> Configuração do Ambiente</h2>
+<div id="85659b3f" class="cell" data-quarto-raw="true">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> importlib</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> subprocess</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> mod, pkg <span class="kw">in</span> {</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cv2"</span>: <span class="st">"opencv-python"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"skimage"</span>: <span class="st">"scikit-image"</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"numpy"</span>: <span class="st">"numpy"</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sklearn"</span>: <span class="st">"scikit-learn"</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"matplotlib"</span>: <span class="st">"matplotlib"</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>}.items():</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        importlib.import_module(mod)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">ImportError</span>:</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        subprocess.run([sys.executable, <span class="st">"-m"</span>, <span class="st">"pip"</span>, <span class="st">"install"</span>, <span class="st">"-q"</span>, pkg], check<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> cv2</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.patches <span class="im">as</span> patches</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage <span class="im">import</span> data <span class="im">as</span> skdata</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.filters <span class="im">import</span> threshold_otsu</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.measure <span class="im">import</span> label</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.morphology <span class="im">import</span> remove_small_objects, opening, disk</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(<span class="st">"morph.py"</span>):</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    urllib.request.urlretrieve(</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>        <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph/morph.py"</span>,</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>        <span class="st">"morph.py"</span>,</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. morph </span><span class="sc">{</span><span class="bu">getattr</span>(morph, <span class="st">'__version__'</span>, <span class="st">'local_file'</span>)<span class="sc">}</span><span class="ss"> | OpenCV </span><span class="sc">{</span>cv2<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ Ambiente pronto. morph 1.1.2 | OpenCV 4.13.0</code></pre>
+</div>
+</div>
+</section>
+<section id="detectores-e-descritores-locais-de-características" class="level2" data-number="8.3">
+<h2 data-number="8.3" class="anchored" data-anchor-id="detectores-e-descritores-locais-de-características"><span class="header-section-number">8.3</span> Detectores e Descritores Locais de Características</h2>
+<p>Retomando a distinção já estabelecida no <strong>Capítulo 6</strong>: um <strong>detector</strong> localiza pontos de interesse (<em>keypoints</em>) em uma imagem — regiões com alto contraste local, cantos, ou padrões distintivos, que tendem a ser reencontrados de forma estável mesmo sob pequenas transformações. Um <strong>descritor</strong>, por sua vez, resume a vizinhança de cada ponto detectado em um vetor numérico, de forma análoga aos descritores de textura e forma do Capítulo 7 — a diferença crucial é que aqui o descritor é calculado em torno de um ponto específico, e não sobre a imagem inteira.</p>
+<p>Com um conjunto de pares (ponto, descritor) extraído de duas imagens, o problema de <strong>correspondência</strong> (<em>matching</em>) consiste em, para cada ponto da primeira imagem, encontrar o ponto da segunda cujo descritor é mais similar — permitindo responder à pergunta “este padrão local também aparece na outra imagem, e onde?”.</p>
+<section id="o-descritor-orb" class="level3" data-number="8.3.1">
+<h3 data-number="8.3.1" class="anchored" data-anchor-id="o-descritor-orb"><span class="header-section-number">8.3.1</span> O Descritor ORB</h3>
+<p>Este capítulo utiliza o <strong>ORB</strong> (<em>Oriented FAST and Rotated BRIEF</em>), um descritor binário, rápido e de uso livre (sem restrições de patente), amplamente utilizado em aplicações de tempo real. O ORB combina:</p>
+<ul>
+<li>o detector <strong>FAST</strong> (<em>Features from Accelerated Segment Test</em>), que localiza cantos comparando a intensidade de um pixel central a um círculo de pixels vizinhos;</li>
+<li>o descritor <strong>BRIEF</strong> (<em>Binary Robust Independent Elementary Features</em>), que codifica a vizinhança de cada ponto como uma sequência de bits, resultante de comparações de intensidade entre pares de pixels amostrados;</li>
+<li>uma componente de <strong>orientação</strong>, que torna o descritor robusto a rotações da imagem.</li>
+</ul>
+<p>Por ser um descritor <strong>binário</strong>, a comparação entre dois descritores ORB é feita pela <strong>distância de Hamming</strong> (número de bits diferentes) em vez da distância euclidiana utilizada no k-NN do Capítulo 7 — uma operação muito mais rápida de calcular.</p>
+</section>
+</section>
+<section id="projeto-prático-1-correspondência-de-características-e-homografia-com-orb" class="level2" data-number="8.4">
+<h2 data-number="8.4" class="anchored" data-anchor-id="projeto-prático-1-correspondência-de-características-e-homografia-com-orb"><span class="header-section-number">8.4</span> Projeto Prático 1: Correspondência de Características e Homografia com ORB</h2>
+<p>Para demonstrar a correspondência de características sem depender de imagens externas, uma “cena” sintética é criada a partir da imagem <code>astronaut</code> da base <code>scikit-image</code>, aplicando uma rotação, uma escala e uma translação conhecidas — simulando a mesma cena fotografada de um ângulo e distância diferentes.</p>
+<div id="cell-fig-08-cena-sintetica" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>img_original <span class="op">=</span> cv2.cvtColor(skdata.astronaut(), cv2.COLOR_RGB2GRAY)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>altura, largura <span class="op">=</span> img_original.shape</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> cv2.getRotationMatrix2D((largura<span class="op">/</span><span class="dv">2</span>, altura<span class="op">/</span><span class="dv">2</span>), <span class="dv">25</span>, <span class="fl">0.8</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>M[<span class="dv">0</span>, <span class="dv">2</span>] <span class="op">+=</span> <span class="dv">40</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>M[<span class="dv">1</span>, <span class="dv">2</span>] <span class="op">+=</span> <span class="dv">20</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>img_cena <span class="op">=</span> cv2.warpAffine(img_original, M, (largura, altura))</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>mm.show([img_original, img_cena], titles<span class="op">=</span>[<span class="st">"Imagem Original"</span>, <span class="st">"Cena Sintética (rotação + escala + translação)"</span>], cols<span class="op">=</span><span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-cena-sintetica" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-cena-sintetica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-cena-sintetica-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-cena-sintetica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.1: Imagem original e cena sintética gerada por rotação, escala e translação — simulando a mesma cena vista de outro ângulo.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Em seguida, o detector/descritor ORB é aplicado a ambas as imagens, e os descritores são comparados por força bruta (<code>BFMatcher</code>) com distância de Hamming, mantendo apenas correspondências mútuas (<code>crossCheck=True</code>).</p>
+<div id="cell-fig-08-orb-matches" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>orb <span class="op">=</span> cv2.ORB_create(nfeatures<span class="op">=</span><span class="dv">500</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>kp1, des1 <span class="op">=</span> orb.detectAndCompute(img_original, <span class="va">None</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>kp2, des2 <span class="op">=</span> orb.detectAndCompute(img_cena, <span class="va">None</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pontos de interesse detectados: </span><span class="sc">{</span><span class="bu">len</span>(kp1)<span class="sc">}</span><span class="ss"> (original), </span><span class="sc">{</span><span class="bu">len</span>(kp2)<span class="sc">}</span><span class="ss"> (cena)"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>bf <span class="op">=</span> cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> bf.match(des1, des2)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> <span class="bu">sorted</span>(matches, key<span class="op">=</span><span class="kw">lambda</span> m: m.distance)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Correspondências encontradas: </span><span class="sc">{</span><span class="bu">len</span>(matches)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>img_matches <span class="op">=</span> cv2.drawMatches(</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    img_original, kp1, img_cena, kp2, matches[:<span class="dv">30</span>], <span class="va">None</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    flags<span class="op">=</span>cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>mm.show([img_matches], titles<span class="op">=</span>[<span class="st">"Top 30 Correspondências ORB"</span>], cols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">5</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pontos de interesse detectados: 500 (original), 500 (cena)
+Correspondências encontradas: 265</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-orb-matches" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-orb-matches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-orb-matches-output-2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-orb-matches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.2: As 30 melhores correspondências de características ORB entre a imagem original e a cena sintética, antes da filtragem por RANSAC.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<section id="estimando-a-homografia-com-ransac" class="level3" data-number="8.4.1">
+<h3 data-number="8.4.1" class="anchored" data-anchor-id="estimando-a-homografia-com-ransac"><span class="header-section-number">8.4.1</span> Estimando a Homografia com RANSAC</h3>
+<p>Mesmo com a distância de Hamming, algumas correspondências estarão incorretas (falsos positivos de <em>matching</em>). A <strong>homografia</strong> — a mesma transformação de perspectiva utilizada no Capítulo 6 para retificar documentos — pode ser estimada de forma robusta a essas correspondências espúrias por meio do algoritmo <strong>RANSAC</strong> (<em>Random Sample Consensus</em>), detalhado na próxima seção.</p>
+<div id="cell-fig-08-ransac-inliers" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pts1 <span class="op">=</span> np.float32([kp1[m.queryIdx].pt <span class="cf">for</span> m <span class="kw">in</span> matches])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>pts2 <span class="op">=</span> np.float32([kp2[m.trainIdx].pt <span class="cf">for</span> m <span class="kw">in</span> matches])</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>H, mascara_inliers <span class="op">=</span> cv2.findHomography(pts1, pts2, cv2.RANSAC, ransacReprojThreshold<span class="op">=</span><span class="fl">5.0</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>n_inliers <span class="op">=</span> <span class="bu">int</span>(mascara_inliers.<span class="bu">sum</span>())</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Matriz de homografia estimada:</span><span class="ch">\n</span><span class="sc">{</span>H<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Inliers: </span><span class="sc">{</span>n_inliers<span class="sc">}</span><span class="ss"> de </span><span class="sc">{</span><span class="bu">len</span>(matches)<span class="sc">}</span><span class="ss"> correspondências (</span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>n_inliers<span class="op">/</span><span class="bu">len</span>(matches)<span class="sc">:.1f}</span><span class="ss">%)"</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>img_inliers <span class="op">=</span> cv2.drawMatches(</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    img_original, kp1, img_cena, kp2, matches, <span class="va">None</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    matchesMask<span class="op">=</span>mascara_inliers.ravel().tolist(),</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    flags<span class="op">=</span>cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>mm.show([img_inliers], titles<span class="op">=</span>[<span class="ss">f"Correspondências Inliers (RANSAC) — </span><span class="sc">{</span>n_inliers<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span><span class="bu">len</span>(matches)<span class="sc">}</span><span class="ss">"</span>], cols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">5</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Matriz de homografia estimada:
+[[ 7.19469553e-01  3.33653609e-01  2.52714667e+01]
+ [-3.39480958e-01  7.18732182e-01  1.77321736e+02]
+ [-8.03801660e-06 -9.91670505e-06  1.00000000e+00]]
+
+Inliers: 242 de 265 correspondências (91.3%)</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-ransac-inliers" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-ransac-inliers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-ransac-inliers-output-2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-ransac-inliers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.3: Correspondências classificadas como inliers (verde) pelo RANSAC ao estimar a homografia entre as duas imagens.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="modelagem-matemática-homografia-e-ransac" class="level2" data-number="8.5">
+<h2 data-number="8.5" class="anchored" data-anchor-id="modelagem-matemática-homografia-e-ransac"><span class="header-section-number">8.5</span> Modelagem Matemática: Homografia e RANSAC</h2>
+<section id="homografia" class="level3" data-number="8.5.1">
+<h3 data-number="8.5.1" class="anchored" data-anchor-id="homografia"><span class="header-section-number">8.5.1</span> Homografia</h3>
+<p>Uma homografia <span class="math inline">\(H\)</span> é uma matriz <span class="math inline">\(3\times3\)</span> que mapeia pontos de um plano projetivo a outro:</p>
+<p><span class="math display">\[
+\begin{bmatrix} x' \\ y' \\ w' \end{bmatrix} =
+\begin{bmatrix} h_{11} &amp; h_{12} &amp; h_{13} \\ h_{21} &amp; h_{22} &amp; h_{23} \\ h_{31} &amp; h_{32} &amp; h_{33} \end{bmatrix}
+\begin{bmatrix} x \\ y \\ 1 \end{bmatrix},
+\qquad
+\left(\frac{x'}{w'}, \frac{y'}{w'}\right) \text{ é o ponto correspondente.}
+\]</span></p>
+<p>Como <span class="math inline">\(H\)</span> possui 8 graus de liberdade (a matriz é definida a menos de escala), são necessários, no mínimo, <strong>4 pares de pontos correspondentes</strong> para estimá-la — porém, na prática, o conjunto de correspondências obtido pelo ORB contém múltiplos pares incorretos.</p>
+</section>
+<section id="ransac" class="level3" data-number="8.5.2">
+<h3 data-number="8.5.2" class="anchored" data-anchor-id="ransac"><span class="header-section-number">8.5.2</span> RANSAC</h3>
+<p>O <strong>RANSAC</strong> estima um modelo robusto a essas correspondências espúrias (<em>outliers</em>) por meio de um processo iterativo:</p>
+<ol type="1">
+<li>Sorteia-se aleatoriamente um subconjunto mínimo de correspondências (4 pares, no caso da homografia);</li>
+<li>Estima-se o modelo (a homografia) a partir desse subconjunto;</li>
+<li>Conta-se quantas correspondências do conjunto total são consistentes com esse modelo — os <strong>inliers</strong> — dentro de uma margem de erro (<code>ransacReprojThreshold</code>);</li>
+<li>Repete-se o processo por um número de iterações, mantendo o modelo com o <strong>maior número de inliers</strong>;</li>
+<li>Ao final, o modelo é <strong>refinado</strong> utilizando apenas os inliers do melhor conjunto encontrado.</li>
+</ol>
+<p>Esse procedimento é bastante geral e não se restringe à homografia — o mesmo princípio pode ajustar retas, círculos ou qualquer modelo paramétrico na presença de dados ruidosos, como demonstrado no simulador a seguir.</p>
+<p>O simulador a seguir ilustra o funcionamento do RANSAC em um cenário simplificado — o ajuste de uma <strong>reta</strong> a um conjunto de pontos com aproximadamente 25% de <em>outliers</em>. Ajuste o limiar de distância e clique em “Rodar RANSAC” para observar como o algoritmo separa inliers de outliers e ajusta o modelo apenas com base nos primeiros.</p>
+<div id="cell-fig-08-ransac-simulador" class="cell">
+<div id="fig-08-ransac-simulador" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-ransac-simulador-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="cap08_Root">
+<style>
+  #cap08_Root * { box-sizing: border-box; }
+  #cap08_Root { font-family: sans-serif; padding: 10px; max-width: 760px; margin: 0 auto; color: #374151; }
+  #cap08_Root canvas { display: block; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; }
+  #cap08_Root button { font-size: 11px; padding: 6px 12px; border-radius: 4px; border: 1px solid #d1d5db; background: #fff; color: #374151; cursor: pointer; transition: background 0.15s; }
+  #cap08_Root button:hover { background: #f3f4f6; }
+  #cap08_Root button.cap08_primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+  #cap08_Root input[type=range] { width: 100%; accent-color: #6366f1; }
+  .cap08_panel { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+  .cap08_row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cap08_stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 14px; text-align: center; min-width: 90px; }
+  .cap08_stat_label { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .cap08_stat_value { font-size: 18px; font-weight: bold; font-family: monospace; color: #4f46e5; }
+  .cap08_pill { font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #a5b4fc; background: #eef2ff; color: #4338ca; }
+  .cap08_legend { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .cap08_dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
+</style>
+
+<div class="cap08_panel" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+  <span style="font-size:12px;font-weight:bold;color:#4b5563;">🎯 Simulador: RANSAC — Ajuste de Reta Robusto a Outliers</span>
+  <span class="cap08_pill">Dados com ~25% de correspondências espúrias</span>
+</div>
+
+<div class="cap08_panel">
+  <div class="cap08_row" style="margin-bottom:8px;">
+    <div class="cap08_stat"><div class="cap08_stat_label">Limiar (px)</div><div id="cap08_thVal" class="cap08_stat_value">15</div></div>
+    <div class="cap08_stat"><div class="cap08_stat_label">Inliers</div><div id="cap08_nIn" class="cap08_stat_value">–</div></div>
+    <div class="cap08_stat"><div class="cap08_stat_label">Outliers</div><div id="cap08_nOut" class="cap08_stat_value">–</div></div>
+    <div class="cap08_stat"><div class="cap08_stat_label">Iterações</div><div id="cap08_nIter" class="cap08_stat_value">–</div></div>
+    <button id="cap08_btnRun" class="cap08_primary">▶ Rodar RANSAC</button>
+    <button id="cap08_btnNovo">🎲 Novos Pontos</button>
+  </div>
+  <label style="font-size:11px;font-weight:600;color:#374151;">Limiar de distância (define quem é inlier): <span id="cap08_slVal">15</span> px</label>
+  <input type="range" id="cap08_slider" min="4" max="40" step="1" value="15">
+</div>
+
+<canvas id="cap08_canvas" width="640" height="320"></canvas>
+
+<div class="cap08_panel" style="margin-top:10px;">
+  <div class="cap08_row" style="justify-content:space-between;">
+    <div class="cap08_legend"><span class="cap08_dot" style="background:#9ca3af;"></span> Pontos (ainda não classificados)</div>
+    <div class="cap08_legend"><span class="cap08_dot" style="background:#16a34a;"></span> Inliers</div>
+    <div class="cap08_legend"><span class="cap08_dot" style="background:#dc2626;"></span> Outliers</div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  const cap08_canvas = document.getElementById("cap08_canvas");
+  const cap08_ctx = cap08_canvas.getContext("2d");
+  const cap08_W = cap08_canvas.width, cap08_H = cap08_canvas.height;
+
+  let cap08_pontos = [];
+  let cap08_limiar = 15;
+  let cap08_modelo = null; // {x1,y1,x2,y2, inliersIdx}
+
+  function cap08_gerarPontos(){
+    const pontos = [];
+    const a = 0.5, b = 60; // reta y = a*x + b (referência)
+    for (let i = 0; i < 30; i++){
+      const x = 40 + Math.random() * (cap08_W - 80);
+      const yIdeal = a * x + b;
+      const y = yIdeal + (Math.random() - 0.5) * 20;
+      pontos.push({x: x, y: Math.min(Math.max(y, 20), cap08_H - 20)});
+    }
+    for (let i = 0; i < 10; i++){
+      pontos.push({
+        x: 40 + Math.random() * (cap08_W - 80),
+        y: 20 + Math.random() * (cap08_H - 40)
+      });
+    }
+    return pontos;
+  }
+
+  function cap08_distPontoReta(px, py, x1, y1, x2, y2){
+    const num = Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1);
+    const den = Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
+    return den === 0 ? Infinity : num / den;
+  }
+
+  function cap08_ajustarMinimosQuadrados(indices){
+    let somaX = 0, somaY = 0, somaXY = 0, somaXX = 0;
+    const n = indices.length;
+    indices.forEach(i => {
+      const p = cap08_pontos[i];
+      somaX += p.x; somaY += p.y; somaXY += p.x * p.y; somaXX += p.x * p.x;
+    });
+    const denom = (n * somaXX - somaX * somaX);
+    if (Math.abs(denom) < 1e-6) return null;
+    const a = (n * somaXY - somaX * somaY) / denom;
+    const b = (somaY - a * somaX) / n;
+    return {a: a, b: b};
+  }
+
+  function cap08_rodarRansac(){
+    const numIter = 60;
+    let melhorInliers = [];
+    let melhorP1 = null, melhorP2 = null;
+
+    for (let it = 0; it < numIter; it++){
+      const i1 = Math.floor(Math.random() * cap08_pontos.length);
+      let i2 = Math.floor(Math.random() * cap08_pontos.length);
+      while (i2 === i1) i2 = Math.floor(Math.random() * cap08_pontos.length);
+      const p1 = cap08_pontos[i1], p2 = cap08_pontos[i2];
+
+      const inliersAtual = [];
+      cap08_pontos.forEach((p, idx) => {
+        const d = cap08_distPontoReta(p.x, p.y, p1.x, p1.y, p2.x, p2.y);
+        if (d <= cap08_limiar) inliersAtual.push(idx);
+      });
+
+      if (inliersAtual.length > melhorInliers.length){
+        melhorInliers = inliersAtual;
+        melhorP1 = p1; melhorP2 = p2;
+      }
+    }
+
+    const ajuste = cap08_ajustarMinimosQuadrados(melhorInliers) ||
+      {a: (melhorP2.y - melhorP1.y) / (melhorP2.x - melhorP1.x + 1e-6), b: melhorP1.y};
+
+    cap08_modelo = {
+      a: ajuste.a, b: ajuste.b,
+      inliersIdx: new Set(melhorInliers),
+      numIter: numIter
+    };
+    cap08_render();
+  }
+
+  function cap08_render(){
+    cap08_ctx.clearRect(0, 0, cap08_W, cap08_H);
+
+    cap08_pontos.forEach((p, idx) => {
+      let cor = "#9ca3af";
+      if (cap08_modelo){
+        cor = cap08_modelo.inliersIdx.has(idx) ? "#16a34a" : "#dc2626";
+      }
+      cap08_ctx.beginPath();
+      cap08_ctx.arc(p.x, p.y, 6, 0, 2 * Math.PI);
+      cap08_ctx.fillStyle = cor;
+      cap08_ctx.fill();
+      cap08_ctx.lineWidth = 1.2;
+      cap08_ctx.strokeStyle = "#ffffff";
+      cap08_ctx.stroke();
+    });
+
+    if (cap08_modelo){
+      const x0 = 0, x1 = cap08_W;
+      const y0 = cap08_modelo.a * x0 + cap08_modelo.b;
+      const y1 = cap08_modelo.a * x1 + cap08_modelo.b;
+      cap08_ctx.beginPath();
+      cap08_ctx.moveTo(x0, y0);
+      cap08_ctx.lineTo(x1, y1);
+      cap08_ctx.strokeStyle = "#2563eb";
+      cap08_ctx.lineWidth = 2.5;
+      cap08_ctx.stroke();
+
+      document.getElementById("cap08_nIn").textContent = cap08_modelo.inliersIdx.size;
+      document.getElementById("cap08_nOut").textContent = cap08_pontos.length - cap08_modelo.inliersIdx.size;
+      document.getElementById("cap08_nIter").textContent = cap08_modelo.numIter;
+    } else {
+      document.getElementById("cap08_nIn").textContent = "–";
+      document.getElementById("cap08_nOut").textContent = "–";
+      document.getElementById("cap08_nIter").textContent = "–";
+    }
+    document.getElementById("cap08_thVal").textContent = cap08_limiar;
+  }
+
+  document.getElementById("cap08_slider").addEventListener("input", function(ev){
+    cap08_limiar = parseInt(ev.target.value, 10);
+    document.getElementById("cap08_slVal").textContent = cap08_limiar;
+    if (cap08_modelo) cap08_rodarRansac();
+    else cap08_render();
+  });
+
+  document.getElementById("cap08_btnRun").addEventListener("click", cap08_rodarRansac);
+
+  document.getElementById("cap08_btnNovo").addEventListener("click", function(){
+    cap08_pontos = cap08_gerarPontos();
+    cap08_modelo = null;
+    cap08_render();
+  });
+
+  cap08_pontos = cap08_gerarPontos();
+  cap08_render();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-ransac-simulador-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.4: Simulador interativo do algoritmo RANSAC: ajuste o limiar de distância e execute o algoritmo para observar a separação entre inliers e outliers.
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Nota</span>🧠 Por que funciona? — Robustez por consenso
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>O RANSAC não tenta usar todos os dados de uma vez — ao contrário da regressão por mínimos quadrados tradicional, que é fortemente distorcida por <em>outliers</em>, o RANSAC ajusta modelos a partir de pequenas amostras aleatórias e <strong>confia no consenso</strong>: o modelo correto tende a ser consistente com uma grande fração dos dados (os inliers), enquanto um modelo ajustado a uma amostra “azarada” (contendo <em>outliers</em>) raramente será consistente com muitos outros pontos.</p>
+<p><strong>Parâmetros críticos:</strong> o limiar de distância define o quão “rigorosa” é a definição de inlier — um limiar muito pequeno pode descartar inliers legítimos (dados com ruído natural); um limiar muito grande pode aceitar outliers como se fossem inliers, contaminando o modelo final. O número de iterações deve ser grande o suficiente para que, estatisticamente, pelo menos uma amostra aleatória livre de outliers seja sorteada.</p>
+<p><strong>Limitações:</strong> o RANSAC assume que existe <strong>um único modelo dominante</strong> nos dados; funciona mal se os inliers representam menos da metade do conjunto, ou se há múltiplas estruturas igualmente relevantes (por exemplo, dois planos distintos em uma cena 3D).</p>
+</div>
+</div>
+</section>
+</section>
+<section id="detecção-de-objetos-haar-cascade-viola-jones" class="level2" data-number="8.6">
+<h2 data-number="8.6" class="anchored" data-anchor-id="detecção-de-objetos-haar-cascade-viola-jones"><span class="header-section-number">8.6</span> Detecção de Objetos: Haar Cascade (Viola-Jones)</h2>
+<p>A correspondência de características responde “onde está o mesmo padrão que já conheço?”. A <strong>detecção de objetos</strong> propõe um problema diferente: “onde está um padrão de uma <strong>categoria genérica</strong> (por exemplo,”rosto humano”), mesmo que eu nunca tenha visto esta pessoa específica antes?“.</p>
+<p>O algoritmo de <strong>Haar Cascade</strong>, proposto por Viola e Jones em 2001, foi o primeiro método capaz de realizar detecção de faces em tempo real, e permanece disponível no OpenCV para fins didáticos e aplicações leves. Seu funcionamento combina três ideias:</p>
+<ol type="1">
+<li><strong>Características do tipo Haar:</strong> filtros retangulares simples (por exemplo, a diferença de intensidade entre uma região clara e uma região escura adjacente) que capturam padrões grosseiros, mas informativos, como “a região dos olhos costuma ser mais escura que a da testa”;</li>
+<li><strong>Imagem integral:</strong> uma estrutura de dados que permite calcular a soma de intensidades de qualquer região retangular em tempo constante, tornando viável avaliar milhares de características Haar em diferentes posições e escalas rapidamente: <span class="math display">\[
+I_{\text{integral}}(x, y) = \sum_{x' \leq x,\, y' \leq y} I(x', y');
+\]</span></li>
+<li><strong>Cascata de classificadores fracos (AdaBoost):</strong> em vez de um único classificador complexo, uma sequência de classificadores simples é aplicada em cascata — janelas que claramente não contêm o objeto são descartadas nos primeiros estágios (baratos), e apenas as candidatas promissoras avançam para estágios mais rigorosos, tornando a busca por toda a imagem, em múltiplas escalas (<em>sliding window</em> multi-escala), computacionalmente viável.</li>
+</ol>
+<div id="cell-fig-08-haar-deteccao" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar imagem</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>img_rgb <span class="op">=</span> skdata.astronaut()</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>img_gray <span class="op">=</span> cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Pré-processamento</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>img_gray_equalizado <span class="op">=</span> cv2.equalizeHist(img_gray)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>img_gray_suave <span class="op">=</span> cv2.GaussianBlur(img_gray_equalizado, (<span class="dv">3</span>, <span class="dv">3</span>), <span class="dv">0</span>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar classificadores</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>face_cascade <span class="op">=</span> cv2.CascadeClassifier(cv2.data.haarcascades <span class="op">+</span> <span class="st">"haarcascade_frontalface_default.xml"</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>face_cascade_alt <span class="op">=</span> cv2.CascadeClassifier(cv2.data.haarcascades <span class="op">+</span> <span class="st">"haarcascade_frontalface_alt.xml"</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>eye_cascade <span class="op">=</span> cv2.CascadeClassifier(cv2.data.haarcascades <span class="op">+</span> <span class="st">"haarcascade_eye.xml"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Detecção com parâmetros otimizados</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>faces <span class="op">=</span> face_cascade.detectMultiScale(</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    img_gray_suave,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    scaleFactor<span class="op">=</span><span class="fl">1.03</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    minNeighbors<span class="op">=</span><span class="dv">8</span>,</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    minSize<span class="op">=</span>(<span class="dv">70</span>, <span class="dv">70</span>),</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    maxSize<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">300</span>)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Validação com segundo classificador</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>faces2 <span class="op">=</span> face_cascade_alt.detectMultiScale(</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    img_gray_suave,</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    scaleFactor<span class="op">=</span><span class="fl">1.03</span>,</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    minNeighbors<span class="op">=</span><span class="dv">6</span>,</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    minSize<span class="op">=</span>(<span class="dv">70</span>, <span class="dv">70</span>),</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    maxSize<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">300</span>)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Combinar detecções (simplificado)</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>faces_validas <span class="op">=</span> []</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (x, y, w, h) <span class="kw">in</span> faces:</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Filtrar por proporção</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="fl">0.7</span> <span class="op">&lt;=</span> w<span class="op">/</span>h <span class="op">&lt;=</span> <span class="fl">1.1</span>:</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Verificar olhos</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>        regiao_face <span class="op">=</span> img_gray[y:y<span class="op">+</span>h, x:x<span class="op">+</span>w]</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>        olhos <span class="op">=</span> eye_cascade.detectMultiScale(</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>            regiao_face,</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>            scaleFactor<span class="op">=</span><span class="fl">1.03</span>,</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>            minNeighbors<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>            minSize<span class="op">=</span>(<span class="dv">15</span>, <span class="dv">15</span>)</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(olhos) <span class="op">&gt;=</span> <span class="dv">1</span>:</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Verificar se está nas detecções do segundo classificador</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> (x2, y2, w2, h2) <span class="kw">in</span> faces2:</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="bu">abs</span>(x <span class="op">-</span> x2) <span class="op">&lt;</span> w<span class="op">/</span><span class="dv">2</span> <span class="kw">and</span> <span class="bu">abs</span>(y <span class="op">-</span> y2) <span class="op">&lt;</span> h<span class="op">/</span><span class="dv">2</span>:</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>                    faces_validas.append((x, y, w, h))</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">break</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualização</span></span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>img_anotada <span class="op">=</span> img_rgb.copy()</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (x, y, w, h) <span class="kw">in</span> faces_validas:</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>    cv2.rectangle(img_anotada, (x, y), (x<span class="op">+</span>w, y<span class="op">+</span>h), (<span class="dv">0</span>, <span class="dv">255</span>, <span class="dv">0</span>), <span class="dv">3</span>)</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>    regiao_face <span class="op">=</span> img_gray[y:y<span class="op">+</span>h, x:x<span class="op">+</span>w]</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>    olhos <span class="op">=</span> eye_cascade.detectMultiScale(regiao_face, scaleFactor<span class="op">=</span><span class="fl">1.03</span>, minNeighbors<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (ex, ey, ew, eh) <span class="kw">in</span> olhos:</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>        cv2.rectangle(img_anotada, (x<span class="op">+</span>ex, y<span class="op">+</span>ey), (x<span class="op">+</span>ex<span class="op">+</span>ew, y<span class="op">+</span>ey<span class="op">+</span>eh), (<span class="dv">255</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="dv">2</span>)</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>mm.show([img_anotada], titles<span class="op">=</span>[<span class="st">"Detecção Haar Cascade: faces (verde) e olhos (azul)"</span>], cols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-haar-deteccao" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-haar-deteccao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-haar-deteccao-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-haar-deteccao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.5: Detecção de faces e olhos com Haar Cascade na imagem astronaut (scikit-image).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Nota</span>🧠 Por que funciona? — E por que também falha
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Ao executar a célula acima, o classificador de fato localiza corretamente o rosto na imagem — e, dentro dele, os dois olhos. Mas repare: <strong>uma segunda região também foi marcada como “face”</strong>, sobre um trecho do traje espacial. Trata-se de um <strong>falso positivo</strong> genuíno: o padrão de contraste local daquela região do tecido, por coincidência, é suficiente para satisfazer os filtros Haar em todos os estágios da cascata.</p>
+<p>Esse resultado, embora indesejado, ilustra exatamente a principal <strong>limitação</strong> do Haar Cascade: por depender de características extremamente genéricas (diferenças de intensidade entre blocos retangulares), o algoritmo é sensível a texturas e padrões que “parecem” o suficiente com um rosto do ponto de vista desses filtros, mesmo sem qualquer semântica real. Além disso, o Haar Cascade tende a funcionar bem apenas para <strong>faces frontais</strong>, sendo degradado por variações de pose, oclusão parcial ou iluminação muito diferente daquela presente nas imagens de treinamento originais.</p>
+<p><strong>Quando utilizar:</strong> Haar Cascade continua sendo uma escolha razoável quando há restrição severa de poder computacional (ex.: dispositivos embarcados) e a aplicação tolera uma taxa moderada de falsos positivos. Para aplicações mais exigentes, os detectores modernos baseados em redes neurais profundas — apresentados adiante — reduzem drasticamente esse tipo de erro.</p>
+</div>
+</div>
+</section>
+<section id="detecção-de-objetos-caixas-delimitadoras-iou-e-nms" class="level2" data-number="8.7">
+<h2 data-number="8.7" class="anchored" data-anchor-id="detecção-de-objetos-caixas-delimitadoras-iou-e-nms"><span class="header-section-number">8.7</span> Detecção de Objetos: Caixas Delimitadoras, IoU e NMS</h2>
+<p>Praticamente todo detector de objetos — do Haar Cascade aos modelos modernos baseados em redes neurais profundas — expressa suas detecções como <strong>caixas delimitadoras</strong> (<em>bounding boxes</em>), tipicamente representadas por quatro números: <span class="math inline">\((x_{min}, y_{min}, x_{max}, y_{max})\)</span>.</p>
+<section id="intersection-over-union-iou" class="level3" data-number="8.7.1">
+<h3 data-number="8.7.1" class="anchored" data-anchor-id="intersection-over-union-iou"><span class="header-section-number">8.7.1</span> Intersection over Union (IoU)</h3>
+<p>Para avaliar o quão bem uma caixa detectada coincide com a localização real de um objeto — ou o quanto duas detecções se sobrepõem — utiliza-se a métrica <strong>IoU</strong>:</p>
+<p><span class="math display">\[
+\mathrm{IoU}(A, B) = \frac{\text{área}(A \cap B)}{\text{área}(A \cup B)},
+\qquad \mathrm{IoU} \in [0, 1].
+\]</span></p>
+<p>Um IoU de 1 indica sobreposição perfeita; um IoU de 0 indica caixas completamente disjuntas. Na prática, é comum considerar uma detecção “correta” quando seu IoU com a localização real (<em>ground truth</em>) excede um limiar, tipicamente 0,5.</p>
+</section>
+<section id="supressão-de-não-máximos-nms" class="level3" data-number="8.7.2">
+<h3 data-number="8.7.2" class="anchored" data-anchor-id="supressão-de-não-máximos-nms"><span class="header-section-number">8.7.2</span> Supressão de Não-Máximos (NMS)</h3>
+<p>Detectores do tipo <em>sliding window</em> (como o Haar Cascade) tipicamente produzem <strong>múltiplas detecções sobrepostas</strong> para o mesmo objeto — em posições e escalas ligeiramente diferentes, todas com alta confiança. A <strong>supressão de não-máximos</strong> elimina essa redundância:</p>
+<ol type="1">
+<li>Ordena-se as detecções por confiança (pontuação), da maior para a menor;</li>
+<li>Seleciona-se a detecção de maior confiança e descarta-se todas as demais cujo IoU com ela exceda um limiar;</li>
+<li>Repete-se o processo com as detecções restantes, até que nenhuma sobre.</li>
+</ol>
+<div id="cell-fig-08-iou-nms" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> calcular_iou(caixa_a, caixa_b):</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    xA <span class="op">=</span> <span class="bu">max</span>(caixa_a[<span class="dv">0</span>], caixa_b[<span class="dv">0</span>])<span class="op">;</span> yA <span class="op">=</span> <span class="bu">max</span>(caixa_a[<span class="dv">1</span>], caixa_b[<span class="dv">1</span>])</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    xB <span class="op">=</span> <span class="bu">min</span>(caixa_a[<span class="dv">2</span>], caixa_b[<span class="dv">2</span>])<span class="op">;</span> yB <span class="op">=</span> <span class="bu">min</span>(caixa_a[<span class="dv">3</span>], caixa_b[<span class="dv">3</span>])</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    intersecao <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, xB <span class="op">-</span> xA) <span class="op">*</span> <span class="bu">max</span>(<span class="dv">0</span>, yB <span class="op">-</span> yA)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    area_a <span class="op">=</span> (caixa_a[<span class="dv">2</span>] <span class="op">-</span> caixa_a[<span class="dv">0</span>]) <span class="op">*</span> (caixa_a[<span class="dv">3</span>] <span class="op">-</span> caixa_a[<span class="dv">1</span>])</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    area_b <span class="op">=</span> (caixa_b[<span class="dv">2</span>] <span class="op">-</span> caixa_b[<span class="dv">0</span>]) <span class="op">*</span> (caixa_b[<span class="dv">3</span>] <span class="op">-</span> caixa_b[<span class="dv">1</span>])</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> intersecao <span class="op">/</span> <span class="bu">float</span>(area_a <span class="op">+</span> area_b <span class="op">-</span> intersecao <span class="op">+</span> <span class="fl">1e-9</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> supressao_nao_maximos(caixas, pontuacoes, limiar_iou<span class="op">=</span><span class="fl">0.4</span>):</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    ordem <span class="op">=</span> np.argsort(pontuacoes)[::<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    mantidas <span class="op">=</span> []</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    ordem <span class="op">=</span> <span class="bu">list</span>(ordem)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">len</span>(ordem) <span class="op">&gt;</span> <span class="dv">0</span>:</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        atual <span class="op">=</span> ordem.pop(<span class="dv">0</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        mantidas.append(atual)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        ordem <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> ordem <span class="cf">if</span> calcular_iou(caixas[atual], caixas[i]) <span class="op">&lt;</span> limiar_iou]</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mantidas</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>caixas <span class="op">=</span> np.array([</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">50</span>, <span class="dv">50</span>, <span class="dv">150</span>, <span class="dv">150</span>], [<span class="dv">60</span>, <span class="dv">55</span>, <span class="dv">155</span>, <span class="dv">145</span>], [<span class="dv">58</span>, <span class="dv">60</span>, <span class="dv">160</span>, <span class="dv">150</span>],</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">300</span>, <span class="dv">300</span>, <span class="dv">400</span>, <span class="dv">420</span>], [<span class="dv">310</span>, <span class="dv">305</span>, <span class="dv">395</span>, <span class="dv">415</span>],</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>pontuacoes <span class="op">=</span> np.array([<span class="fl">0.90</span>, <span class="fl">0.75</span>, <span class="fl">0.60</span>, <span class="fl">0.95</span>, <span class="fl">0.70</span>])</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>mantidas <span class="op">=</span> supressao_nao_maximos(caixas, pontuacoes, limiar_iou<span class="op">=</span><span class="fl">0.4</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Caixas antes do NMS: </span><span class="sc">{</span><span class="bu">len</span>(caixas)<span class="sc">}</span><span class="ss"> | Caixas após o NMS: </span><span class="sc">{</span><span class="bu">len</span>(mantidas)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IoU entre a 1ª e a 2ª caixa: </span><span class="sc">{</span>calcular_iou(caixas[<span class="dv">0</span>], caixas[<span class="dv">1</span>])<span class="sc">:.3f}</span><span class="ss">"</span>)</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="fl">4.5</span>))</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, c <span class="kw">in</span> <span class="bu">enumerate</span>(caixas):</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">0</span>].add_patch(patches.Rectangle((c[<span class="dv">0</span>], c[<span class="dv">1</span>]), c[<span class="dv">2</span>]<span class="op">-</span>c[<span class="dv">0</span>], c[<span class="dv">3</span>]<span class="op">-</span>c[<span class="dv">1</span>], fill<span class="op">=</span><span class="va">False</span>, edgecolor<span class="op">=</span><span class="st">"#dc2626"</span>, linewidth<span class="op">=</span><span class="dv">2</span>))</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">0</span>].text(c[<span class="dv">0</span>], c[<span class="dv">1</span>]<span class="op">-</span><span class="dv">5</span>, <span class="ss">f"</span><span class="sc">{</span>pontuacoes[i]<span class="sc">:.2f}</span><span class="ss">"</span>, color<span class="op">=</span><span class="st">"#dc2626"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].set_xlim(<span class="dv">0</span>, <span class="dv">450</span>)<span class="op">;</span> ax[<span class="dv">0</span>].set_ylim(<span class="dv">450</span>, <span class="dv">0</span>)<span class="op">;</span> ax[<span class="dv">0</span>].set_title(<span class="st">"Antes do NMS"</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> mantidas:</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    c <span class="op">=</span> caixas[i]</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">1</span>].add_patch(patches.Rectangle((c[<span class="dv">0</span>], c[<span class="dv">1</span>]), c[<span class="dv">2</span>]<span class="op">-</span>c[<span class="dv">0</span>], c[<span class="dv">3</span>]<span class="op">-</span>c[<span class="dv">1</span>], fill<span class="op">=</span><span class="va">False</span>, edgecolor<span class="op">=</span><span class="st">"#16a34a"</span>, linewidth<span class="op">=</span><span class="dv">2</span>))</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">1</span>].text(c[<span class="dv">0</span>], c[<span class="dv">1</span>]<span class="op">-</span><span class="dv">5</span>, <span class="ss">f"</span><span class="sc">{</span>pontuacoes[i]<span class="sc">:.2f}</span><span class="ss">"</span>, color<span class="op">=</span><span class="st">"#16a34a"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].set_xlim(<span class="dv">0</span>, <span class="dv">450</span>)<span class="op">;</span> ax[<span class="dv">1</span>].set_ylim(<span class="dv">450</span>, <span class="dv">0</span>)<span class="op">;</span> ax[<span class="dv">1</span>].set_title(<span class="st">"Depois do NMS"</span>)</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Caixas antes do NMS: 5 | Caixas após o NMS: 2
+IoU entre a 1ª e a 2ª caixa: 0.775</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-iou-nms" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-iou-nms-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-iou-nms-output-2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-iou-nms-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.6: Efeito da Supressão de Não-Máximos (NMS): múltiplas detecções redundantes (esquerda) são reduzidas a uma detecção por objeto (direita).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Nota</span>🧠 Por que funciona? — NMS como “faxina” pós-detecção
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>O NMS não melhora a qualidade individual de cada detecção — ele apenas remove redundância. Sua eficácia depende diretamente do limiar de IoU escolhido: um limiar muito baixo pode eliminar detecções de objetos genuinamente próximos entre si (dois rostos lado a lado, por exemplo); um limiar muito alto pode deixar passar múltiplas caixas para o mesmo objeto. Esse é exatamente o tipo de ajuste fino que, no Haar Cascade, ajudaria a reduzir — mas não eliminaria — o falso positivo observado na seção anterior, caso ele fosse detectado repetidamente em escalas próximas.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="segmentação-visual-semântica-de-instâncias-e-panóptica" class="level2" data-number="8.8">
+<h2 data-number="8.8" class="anchored" data-anchor-id="segmentação-visual-semântica-de-instâncias-e-panóptica"><span class="header-section-number">8.8</span> Segmentação Visual: Semântica, de Instâncias e Panóptica</h2>
+<p>Uma caixa delimitadora localiza um objeto de forma aproximada — mas não diz exatamente quais pixels pertencem a ele. A <strong>segmentação visual</strong> resolve essa limitação, atribuindo um rótulo a <strong>cada pixel</strong> da imagem. Três paradigmas são amplamente utilizados, e a distinção entre eles é uma fonte comum de confusão:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Paradigma</th>
+<th>Pergunta que responde</th>
+<th>Distingue objetos individuais da mesma classe?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Semântica</strong></td>
+<td>“A que classe pertence cada pixel?”</td>
+<td>Não — todos os pixels de “pessoa” recebem o mesmo rótulo, mesmo que sejam pessoas diferentes</td>
+</tr>
+<tr class="even">
+<td><strong>De instâncias</strong></td>
+<td>“Quais pixels pertencem a cada objeto individual?”</td>
+<td>Sim — mas tipicamente apenas para classes “contáveis” (objetos), ignorando o fundo</td>
+</tr>
+<tr class="odd">
+<td><strong>Panóptica</strong></td>
+<td>Combinação das duas anteriores</td>
+<td>Sim — cada pixel recebe uma classe semântica <strong>e</strong>, quando aplicável, um identificador de instância</td>
+</tr>
+</tbody>
+</table>
+<p>A segmentação semântica trata a imagem inteira, incluindo regiões de fundo não contáveis (céu, grama, estrada); a segmentação de instâncias foca em objetos discretos e contáveis, distinguindo cada ocorrência; a segmentação panóptica, formalizada em 2019, unifica os dois paradigmas em uma única representação.</p>
+<p>Antes do amplo uso de redes neurais profundas — que serão apresentadas no Capítulo 9 — versões simplificadas de segmentação semântica e de instâncias já eram possíveis com técnicas clássicas, como demonstrado a seguir.</p>
+<div id="cell-fig-08-segmentacao-classica" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>img_moedas <span class="op">=</span> skdata.coins()</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>limiar <span class="op">=</span> threshold_otsu(img_moedas)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>mascara_bin <span class="op">=</span> img_moedas <span class="op">&gt;</span> limiar</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Limpeza morfológica: remove ruído e pequenos artefatos da limiarização</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>mascara_limpa <span class="op">=</span> opening(mascara_bin, disk(<span class="dv">3</span>))</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>mascara_limpa <span class="op">=</span> remove_small_objects(mascara_limpa, max_size<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Segmentação semântica: apenas "moeda" x "fundo"</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>mascara_semantica <span class="op">=</span> (mascara_limpa.astype(np.uint8)) <span class="op">*</span> <span class="dv">255</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Segmentação de instâncias: cada componente conectado recebe um rótulo distinto</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>rotulos_instancias <span class="op">=</span> label(mascara_limpa)</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Instâncias (moedas individuais) identificadas: </span><span class="sc">{</span>rotulos_instancias<span class="sc">.</span><span class="bu">max</span>()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    [img_moedas, mascara_semantica, rotulos_instancias],</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original"</span>, <span class="st">"Segmentação Semântica</span><span class="ch">\n</span><span class="st">(moeda x fundo)"</span>, <span class="st">"Segmentação de Instâncias</span><span class="ch">\n</span><span class="st">(cada moeda rotulada)"</span>],</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">3.5</span>)</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Instâncias (moedas individuais) identificadas: 26</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-08-segmentacao-classica" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-segmentacao-classica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap08.py.pt_files/figure-html/fig-08-segmentacao-classica-output-2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-segmentacao-classica-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;8.7: Segmentação clássica (não baseada em aprendizado profundo): máscara semântica (moeda x fundo) via limiarização de Otsu, e segmentação de instâncias via rotulagem de componentes conectados.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Nota</span>🧠 Por que funciona? — E onde a abordagem clássica esbarra
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A limiarização de Otsu (Capítulo 4) mais limpeza morfológica funciona bem aqui porque as moedas têm contraste consistente com o fundo e não se tocam de forma significativa — condições favoráveis. A rotulagem de componentes conectados então separa “instâncias” apenas por estarem espacialmente desconectadas na máscara binária.</p>
+<p>Essa abordagem, no entanto, <strong>não escala</strong>: ela falha imediatamente diante de objetos da mesma classe que se sobrepõem parcialmente (a rotulagem de componentes os fundiria em uma única instância), de classes com aparência muito variável (não há um único limiar de intensidade capaz de separar “gato” de “não-gato” em fotos naturais), ou de cenas com múltiplas classes semanticamente distintas simultaneamente. É exatamente essa lacuna que os modelos de segmentação baseados em redes neurais profundas — capazes de aprender a nção de “objeto” e “classe” diretamente dos dados, em vez de depender de contraste de intensidade — vêm preencher, como será estudado no Capítulo 9.</p>
+<p>A <strong>segmentação panóptica</strong> completa o quadro: ela aplicaria a segmentação semântica ao fundo (regiões não contáveis, se houvesse alguma nesta imagem) e a segmentação de instâncias às moedas, combinando ambos os resultados em um único mapa consistente.</p>
+</div>
+</div>
+</section>
+<section id="visão-geral-de-modelos-modernos" class="level2" data-number="8.9">
+<h2 data-number="8.9" class="anchored" data-anchor-id="visão-geral-de-modelos-modernos"><span class="header-section-number">8.9</span> Visão Geral de Modelos Modernos</h2>
+<p>As técnicas clássicas apresentadas neste capítulo — Haar Cascade, IoU/NMS e segmentação por limiarização — foram, em grande parte, substituídas ou complementadas por modelos baseados em redes neurais profundas, capazes de aprender diretamente dos dados quais características são relevantes para cada tarefa. A tabela a seguir situa os principais modelos, sem aprofundar seu treinamento — o que será feito no <strong>Capítulo 9</strong>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Modelo</th>
+<th>Tarefa</th>
+<th>Ideia Central</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>YOLO</strong> (<em>You Only Look Once</em>)</td>
+<td>Detecção de objetos</td>
+<td>Trata a detecção como um único problema de regressão: uma rede prevê, em uma única passada, todas as caixas delimitadoras e classes da imagem — priorizando velocidade</td>
+</tr>
+<tr class="even">
+<td><strong>Faster R-CNN</strong></td>
+<td>Detecção de objetos</td>
+<td>Utiliza uma sub-rede (<em>Region Proposal Network</em>) para propor regiões candidatas, refinadas por uma segunda rede — priorizando precisão em detrimento de velocidade</td>
+</tr>
+<tr class="odd">
+<td><strong>SSD</strong> (<em>Single Shot Detector</em>)</td>
+<td>Detecção de objetos</td>
+<td>Similar ao YOLO em filosofia (detecção em passada única), avaliando caixas em múltiplas escalas de um mapa de características</td>
+</tr>
+<tr class="even">
+<td><strong>U-Net</strong></td>
+<td>Segmentação semântica</td>
+<td>Arquitetura em “U”, com um caminho de codificação (reduz resolução, extrai contexto) e um caminho de decodificação simétrico (recupera resolução espacial), popular especialmente em imagens médicas</td>
+</tr>
+<tr class="odd">
+<td><strong>Mask R-CNN</strong></td>
+<td>Segmentação de instâncias</td>
+<td>Estende o Faster R-CNN adicionando um ramo que prediz, para cada caixa detectada, uma máscara de pixels precisa do objeto</td>
+</tr>
+<tr class="even">
+<td><strong>Segment Anything (SAM)</strong></td>
+<td>Segmentação promptable</td>
+<td>Modelo de segmentação de propósito geral, capaz de segmentar qualquer objeto indicado por um ponto, caixa ou texto, sem re-treinamento específico para cada nova classe</td>
+</tr>
+</tbody>
+</table>
+<p>Note o padrão histórico: <strong>Faster R-CNN → Mask R-CNN</strong> ilustra como um detector de caixas é naturalmente estendido para produzir máscaras de segmentação — a mesma progressão conceitual, de caixa para pixel, que motivou a seção de segmentação deste capítulo.</p>
+</section>
+<section id="limitações-das-abordagens-clássicas-e-motivação-para-o-deep-learning" class="level2" data-number="8.10">
+<h2 data-number="8.10" class="anchored" data-anchor-id="limitações-das-abordagens-clássicas-e-motivação-para-o-deep-learning"><span class="header-section-number">8.10</span> Limitações das Abordagens Clássicas e Motivação para o Deep Learning</h2>
+<p>Os três problemas explorados neste capítulo — correspondência, detecção e segmentação — foram resolvidos, historicamente, por técnicas que dependem de padrões projetados manualmente:</p>
+<ul>
+<li>O <strong>ORB</strong> depende de descritores binários pré-definidos, eficazes para encontrar o <em>mesmo</em> padrão sob transformações geométricas simples, mas não para reconhecer objetos de uma <em>categoria</em> nunca antes vista;</li>
+<li>O <strong>Haar Cascade</strong> depende de filtros retangulares genéricos, o que o torna sensível a falsos positivos (como observado experimentalmente neste capítulo) e restrito a categorias de objetos com aparência razoavelmente rígida (faces frontais);</li>
+<li>A <strong>segmentação clássica</strong> por limiarização depende de contraste de intensidade favorável, e não generaliza para classes semanticamente complexas ou cenas com múltiplas categorias sobrepostas.</li>
+</ul>
+<p>Em todos os três casos, o “gargalo” é o mesmo já identificado ao final do <strong>Capítulo 7</strong>: descritores artesanais carregam suposições fixas sobre o que é relevante em uma imagem, suposições que não se sustentam diante da enorme variabilidade do mundo real — pose, iluminação, oclusão, escala e, sobretudo, a diversidade semântica de milhares de categorias de objetos.</p>
+<p>O <strong>Capítulo 9</strong>, capítulo final desta parte, apresenta as <strong>Redes Neurais Convolucionais (CNNs)</strong> — a mudança de paradigma que permite a um sistema <strong>aprender</strong>, diretamente dos dados de treinamento, quais características extrair em cada nível de abstração, eliminando a necessidade de desenhar manualmente filtros como os do ORB ou do Haar Cascade. Os próprios modelos modernos apresentados na tabela anterior — YOLO, Faster R-CNN, U-Net, Mask R-CNN e SAM — são, em sua essência, diferentes arquiteturas construídas sobre esse mesmo princípio.</p>
+</section>
+<section id="resumo" class="level2" data-number="8.11">
+<h2 data-number="8.11" class="anchored" data-anchor-id="resumo"><span class="header-section-number">8.11</span> Resumo</h2>
+<p>Neste capítulo, o problema de reconhecimento de padrões do Capítulo 7 foi estendido de imagens isoladas para cenas completas, ao longo de três frentes:</p>
+<ul>
+<li><strong>Correspondência de características:</strong> detectores e descritores locais (como o <strong>ORB</strong>) permitem encontrar o mesmo padrão em imagens diferentes; a <strong>homografia</strong>, estimada de forma robusta com <strong>RANSAC</strong>, modela a transformação de perspectiva entre as duas vistas, mesmo na presença de correspondências incorretas;</li>
+<li><strong>Detecção de objetos:</strong> o <strong>Haar Cascade</strong> localiza objetos de uma categoria genérica combinando características retangulares simples, imagem integral e uma cascata de classificadores fracos — com limitações evidentes de falsos positivos e restrição a poses frontais; <strong>IoU</strong> e <strong>NMS</strong> são ferramentas essenciais, comuns a praticamente todo detector, para avaliar e refinar caixas delimitadoras;</li>
+<li><strong>Segmentação visual:</strong> os paradigmas <strong>semântico</strong>, <strong>de instâncias</strong> e <strong>panóptico</strong> respondem perguntas complementares sobre a atribuição de classes a nível de pixel; uma versão clássica (limiarização + rotulagem de componentes conectados) foi demonstrada, evidenciando suas limitações diante de cenas mais complexas;</li>
+<li><strong>Modelos modernos:</strong> YOLO, Faster R-CNN, SSD, U-Net, Mask R-CNN e SAM resolvem essas mesmas tarefas aprendendo características diretamente dos dados, superando as limitações das abordagens artesanais apresentadas neste capítulo.</li>
+</ul>
+</section>
+<section id="uso-do-notebooklm-como-tutor-complementar" class="level2" data-number="8.12">
+<h2 data-number="8.12" class="anchored" data-anchor-id="uso-do-notebooklm-como-tutor-complementar"><span class="header-section-number">8.12</span> 🤖 Uso do NotebookLM como Tutor Complementar</h2>
+<p>Nesta edição, o uso do <strong>NotebookLM</strong> é incentivado como ferramenta complementar de aprendizagem. Baseado em inteligência artificial, o sistema utiliza exclusivamente os documentos fornecidos pelo autor como fonte de conhecimento, produzindo respostas alinhadas ao conteúdo e à abordagem adotada ao longo deste capítulo.</p>
+<div class="callout callout-style-default callout-important no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Importante</span>🎓 Estude com o Tutor Inteligente
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><a href="https://notebooklm.google.com/">🚀 ACESSAR NOTEBOOKLM: CAPÍTULO 08</a></p>
+<section id="aviso-sobre-conteúdo-gerado-por-ia" class="level4 unnumbered">
+<h4 class="unnumbered anchored" data-anchor-id="aviso-sobre-conteúdo-gerado-por-ia">⚠️ Aviso sobre Conteúdo Gerado por IA</h4>
+<p>Embora seja uma ferramenta valiosa de apoio aos estudos, o NotebookLM pode eventualmente produzir respostas incompletas, imprecisas ou incorretas. Recomenda-se validar as informações consultando o material do capítulo, livros, artigos científicos e outras fontes acadêmicas confiáveis. Sempre que possível, execute e experimente os exemplos práticos apresentados ao longo do texto para consolidar a compreensão dos conceitos.</p>
+</section>
+</div>
+</div>
+</section>
+<section id="lista-de-exercícios" class="level2" data-number="8.13">
+<h2 data-number="8.13" class="anchored" data-anchor-id="lista-de-exercícios"><span class="header-section-number">8.13</span> Lista de Exercícios</h2>
+<section id="exercício-1-robustez-do-orb-a-transformações-básico" class="level3" data-number="8.13.1">
+<h3 data-number="8.13.1" class="anchored" data-anchor-id="exercício-1-robustez-do-orb-a-transformações-básico"><span class="header-section-number">8.13.1</span> Exercício 1: Robustez do ORB a Transformações (Básico)</h3>
+<p><strong>Contexto:</strong> O Projeto Prático 1 aplicou uma rotação de 25°, escala de 0,8 e uma pequena translação à imagem original para gerar a “cena sintética”.</p>
+<p><strong>Desafio:</strong> Repita o experimento variando <strong>apenas o ângulo de rotação</strong> para os valores <span class="math inline">\(\{0°, 45°, 90°, 135°, 180°\}\)</span>, mantendo escala e translação fixas. Para cada ângulo, registre o número de correspondências totais e o número de inliers após o RANSAC.</p>
+<p><strong>Saída esperada:</strong> Uma tabela ou gráfico relacionando o ângulo de rotação ao número de inliers, com uma frase indicando se o ORB manteve-se robusto em todos os ângulos testados.</p>
+<p><strong>Dica:</strong> Reutilize a função <code>cv2.getRotationMatrix2D</code>, alterando apenas o segundo argumento (ângulo); o restante do pipeline (ORB, <code>BFMatcher</code>, <code>findHomography</code>) permanece igual.</p>
+</section>
+<section id="exercício-2-ajustando-o-haar-cascade-intermediário" class="level3" data-number="8.13.2">
+<h3 data-number="8.13.2" class="anchored" data-anchor-id="exercício-2-ajustando-o-haar-cascade-intermediário"><span class="header-section-number">8.13.2</span> Exercício 2: Ajustando o Haar Cascade (Intermediário)</h3>
+<p><strong>Contexto:</strong> A detecção de faces produziu um falso positivo sobre uma região do traje espacial, além da detecção correta do rosto.</p>
+<p><strong>Desafio:</strong> Experimente diferentes combinações dos parâmetros <code>scaleFactor</code> (ex.: 1.05, 1.1, 1.2, 1.3) e <code>minNeighbors</code> (ex.: 3, 5, 8, 12) do método <code>detectMultiScale</code>, registrando, para cada combinação, quantas regiões foram detectadas e se o falso positivo persiste.</p>
+<p><strong>Saída esperada:</strong> Uma tabela com as combinações testadas e o número de detecções obtidas, e uma conclusão sobre qual combinação eliminou o falso positivo sem descartar a detecção correta do rosto — se isso for possível.</p>
+<p><strong>Dica:</strong> Aumentar <code>minNeighbors</code> tende a reduzir falsos positivos, mas também pode eliminar detecções corretas; existe um compromisso entre as duas taxas de erro, similar ao já discutido em avaliação de classificadores no Capítulo 7.</p>
+</section>
+<section id="exercício-3-iou-e-nms-em-um-cenário-mais-denso-intermediáriodesafio" class="level3" data-number="8.13.3">
+<h3 data-number="8.13.3" class="anchored" data-anchor-id="exercício-3-iou-e-nms-em-um-cenário-mais-denso-intermediáriodesafio"><span class="header-section-number">8.13.3</span> Exercício 3: IoU e NMS em um Cenário Mais Denso (Intermediário/Desafio)</h3>
+<p><strong>Contexto:</strong> O exemplo de NMS deste capítulo utilizou apenas 5 caixas sintéticas, agrupadas em 2 objetos.</p>
+<p><strong>Desafio:</strong> Gere um conjunto de 20 caixas sintéticas, distribuídas aleatoriamente em 4 a 5 “objetos” (grupos de caixas sobrepostas, com pontuações de confiança aleatórias entre 0,5 e 1,0). Aplique a função <code>supressao_nao_maximos</code> com pelo menos três limiares de IoU diferentes (por exemplo, 0.2, 0.4, 0.6) e compare visualmente o resultado.</p>
+<p><strong>Saída esperada:</strong> Três figuras (uma por limiar de IoU testado), mostrando as caixas mantidas após o NMS em cada caso, e uma breve análise de como o limiar afeta o número final de detecções.</p>
+<p><strong>Dica:</strong> Para gerar caixas sobrepostas de forma controlada, sorteie um “centro” para cada objeto e, a partir dele, gere de 3 a 5 caixas com pequenas perturbações de posição e tamanho.</p>
+</section>
+<section id="exercício-4-do-mosaico-de-texturas-à-segmentação-desafio" class="level3" data-number="8.13.4">
+<h3 data-number="8.13.4" class="anchored" data-anchor-id="exercício-4-do-mosaico-de-texturas-à-segmentação-desafio"><span class="header-section-number">8.13.4</span> Exercício 4: Do Mosaico de Texturas à Segmentação (Desafio)</h3>
+<p><strong>Contexto:</strong> No Exercício 4 do Capítulo 7, um mosaico de texturas foi classificado bloco a bloco com o classificador <code>knn_textura</code>, antecipando a ideia de segmentação.</p>
+<p><strong>Desafio:</strong> Utilizando o mesmo mosaico de texturas (ou gerando um novo), produza um mapa de segmentação <strong>semântica</strong> (um rótulo de classe por bloco, como no Capítulo 7) e, em seguida, aplique a função <code>label</code> do <code>scikit-image</code> sobre esse mapa para obter uma segmentação de <strong>instâncias</strong> (blocos vizinhos da mesma classe agrupados formam uma única instância; blocos não-adjacentes da mesma classe formam instâncias separadas).</p>
+<p><strong>Saída esperada:</strong> Três imagens lado a lado: o mosaico original, o mapa de segmentação semântica (uma cor por classe de textura) e o mapa de segmentação de instâncias (uma cor por instância conectada), exibidas com <code>mm.show</code>.</p>
+<p><strong>Dica:</strong> A função <code>label</code> do <code>skimage.measure</code> aceita diretamente uma matriz de rótulos inteiros (não apenas máscaras binárias) e atribuirá um identificador distinto a cada componente conectado de mesmo valor.</p>
+</section>
+</section>
+<section id="próximos-passos" class="level2" data-number="8.14">
+<h2 data-number="8.14" class="anchored" data-anchor-id="próximos-passos"><span class="header-section-number">8.14</span> Próximos Passos</h2>
+<p>Este capítulo percorreu três problemas centrais de Visão Computacional — correspondência de características, detecção de objetos e segmentação — utilizando exclusivamente técnicas clássicas: descritores binários projetados manualmente (ORB), filtros retangulares e cascatas de classificadores fracos (Haar Cascade), e limiarização de intensidade (segmentação clássica). Em cada caso, experimentos concretos revelaram as limitações dessas abordagens: sensibilidade a falsos positivos, restrição a categorias rígidas de objetos, e incapacidade de generalizar para cenas semanticamente complexas.</p>
+<p>O <strong>Capítulo 9</strong>, que encerra esta parte do livro, apresenta a solução que a área encontrou para essas limitações: as <strong>Redes Neurais Convolucionais</strong>. Em vez de projetar manualmente características — como os filtros Haar ou os pares de pixels comparados pelo BRIEF — uma CNN <strong>aprende automaticamente</strong>, a partir de milhares de exemplos, quais padrões visuais, em cada nível de abstração, são relevantes para a tarefa. O capítulo explica os blocos fundamentais de uma CNN (convolução, pooling, treinamento e transferência de aprendizado) e mostra como esses mesmos três problemas — classificação, detecção e segmentação — são resolvidos por modelos pré-treinados, antes de encerrar o livro integrando esses conceitos a aplicações de realidade aumentada, fotogrametria e visão estereoscópica.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiada");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiada");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../cap07/cap07.py.pt.html" class="pagination-link" aria-label="Classificação de Imagens e Reconhecimento de Padrões">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Classificação de Imagens e Reconhecimento de Padrões</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../referencias.html" class="pagination-link" aria-label="Referências">
+        <span class="nav-page-text">Referências</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

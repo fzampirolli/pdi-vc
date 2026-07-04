@@ -1,0 +1,106 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_04 🔴 Histograma de Orientações de uma Célula HOG</h2>
+<p>A função <code>hog</code> do <code>scikit-image</code>, empregada no projeto de classificação de dígitos, divide a imagem em pequenas <strong>células</strong> e, para cada uma, constrói um histograma das orientações do gradiente ponderado pela magnitude — exatamente a etapa central descrita na seção sobre o descritor HOG do capítulo.</p>
+<p>Você foi encarregado de implementar esse cálculo para uma única célula, a partir dos valores de magnitude e orientação do gradiente <strong>já calculados</strong> para cada pixel da célula (dispensando o cálculo das derivadas parciais).</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões:</strong> Ler os inteiros <em>n</em> (a célula tem <em>n</em> × <em>n</em> pixels) e <em>B</em> (número de compartimentos do histograma).</li>
+<li><strong>Magnitudes:</strong> Ler <em>n</em> linhas com <em>n</em> valores reais cada, representando |\nabla <em>f</em>(<em>x</em>,<em>y</em>)| para cada pixel da célula.</li>
+<li><strong>Orientações:</strong> Ler mais <em>n</em> linhas com <em>n</em> valores reais cada, representando \theta(<em>x</em>,<em>y</em>) em <strong>graus</strong>, já convertido para o intervalo <strong>não sinalizado</strong> [0^\circ, 180^\circ), como convencionalmente utilizado pelo HOG.</li>
+<li><strong>Compartimentos:</strong> Os <em>B</em> compartimentos cobrem [0^\circ, 180^\circ) em faixas iguais de largura 180/<em>B</em> graus. Um pixel com orientação \theta pertence ao compartimento \lfloor \theta / (180/<em>B</em>) \rfloor; se esse índice for igual a <em>B</em> (possível apenas quando \theta é exatamente 180^\circ, o que não deve ocorrer pela diretriz do item 3), utilize o compartimento <em>B</em>-1.</li>
+<li><strong>Histograma bruto:</strong> Para cada pixel, acumule sua <strong>magnitude</strong> (não sua contagem) no compartimento correspondente: <em>H</em>[<em>b</em>] = ∑_(<em>x</em>,<em>y</em>)\, :\, bin(\theta(<em>x</em>,<em>y</em>)) = <em>b</em> |\nabla <em>f</em>(<em>x</em>,<em>y</em>)|.</li>
+<li><strong>Normalização L2:</strong> Após construir <em>H</em>, normalize-o para obter \hat <em>H</em>: \hat <em>H</em>[<em>b</em>] = (<em>H</em>[<em>b</em>])/(√(∑_j=0)^B-1) <em>H</em>[<em>j</em>]^2 + \epsilon, \qquad \epsilon = 10^-6.</li>
+<li><strong>Saída:</strong> Imprimir o histograma bruto <em>H</em> (arredondado a 2 casas decimais) em uma linha, seguido do histograma normalizado \hat <em>H</em> (arredondado a 4 casas decimais) em outra linha, ambos com os <em>B</em> valores separados por espaço, na ordem dos compartimentos.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Binning não sinalizado:</strong> o intervalo de orientações é [0,180), não [0,360) — gradientes em direções opostas (diferença de 180^\circ) contribuem para o <strong>mesmo</strong> compartimento, convenção padrão do HOG para detecção de objetos.</li>
+<li><strong>Acumulação por magnitude, não por contagem:</strong> o histograma pondera cada pixel por sua magnitude de gradiente, não simplesmente conta quantos pixels caem em cada compartimento.</li>
+<li><strong>Constante de estabilização:</strong> o \epsilon = 10^-6 no denominador da normalização evita divisão por zero quando a célula é completamente homogênea (todas as magnitudes nulas).</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Etapa</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Magnitude do gradiente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pondera a contribuição de cada pixel — bordas fortes pesam mais que ruído fraco</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Orientação não sinalizada</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Torna o descritor invariante à polaridade do contraste (claro→escuro vs. escuro→claro)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Histograma por célula</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resume a distribuição local de bordas em um vetor compacto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Normalização L2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reduz a sensibilidade do descritor a variações globais de iluminação e contraste</td>
+</tr>
+</tbody>
+</table>
+<p>A concatenação dos histogramas normalizados de todas as células da imagem — não implementada neste exercício — forma o vetor de características HOG completo, utilizado como entrada do classificador k-NN no projeto do capítulo.</p>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>n</em> e <em>B</em>.</li>
+<li>Próximas <em>n</em> linhas: <em>n</em> magnitudes reais cada.</li>
+<li>Próximas <em>n</em> linhas: <em>n</em> orientações reais (graus, [0,180)) cada.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: os <em>B</em> valores do histograma bruto, arredondados a 2 casas decimais.</li>
+<li>Linha 2: os <em>B</em> valores do histograma normalizado, arredondados a 4 casas decimais.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+1.0 2.0<br/>
+3.0 4.0<br/>
+10 100<br/>
+170 20</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5.00 5.00<br/>
+0.7071 0.7071</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Bin de largura 90°: [0,90) e [90,180); magnitudes 1 e 4 caem no bin 0, 2 e 3 no bin 1.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 4<br/>
+0.0 0.0<br/>
+0.0 0.0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.00 0.00 0.00 0.00<br/>
+0.0000 0.0000 0.0000 0.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Célula homogênea: \epsilon evita divisão por zero.</td>
+</tr>
+</tbody>
+</table>
+</div></div>
