@@ -1,0 +1,195 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_03 🟢 Imagem Integral: Somas Retangulares em Tempo Constante</h2>
+<p>O Haar Cascade avalia milhares de características retangulares por janela, em múltiplas posições e escalas — algo inviável em tempo real se cada retângulo exigisse somar seus pixels um a um. A <strong>imagem integral</strong>, definida na seção sobre Haar Cascade, resolve esse problema: uma vez pré-computada, a soma de intensidades de <strong>qualquer</strong> região retangular é obtida com apenas quatro consultas e três operações aritméticas, independentemente do tamanho do retângulo.</p>
+<p>Você foi encarregado de implementar essa estrutura do zero: primeiro, calcular a imagem integral a partir da imagem original; em seguida, respondê-la para consultas retangulares arbitrárias.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler as dimensões <em>H</em> × <em>W</em> da imagem e seus <em>H</em> × <em>W</em> valores inteiros de intensidade.</li>
+<li><strong>Imagem integral:</strong> Calcular, para cada posição (<em>i</em>,<em>j</em>) (indexação a partir de 0, <code>[linha][coluna]</code>), II(<em>i</em>,<em>j</em>) = ∑_i' \le <em>i</em>,\ <em>j</em>' \le <em>j</em> <em>I</em>(<em>i</em>', <em>j</em>'), ou seja, a soma de todos os pixels acima e à esquerda de (<em>i</em>,<em>j</em>), incluindo a própria posição.</li>
+<li><strong>Consultas:</strong> Ler o inteiro <em>Q</em> e, em seguida, <em>Q</em> linhas, cada uma com quatro inteiros <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 — os cantos superior-esquerdo e inferior-direito de um retângulo, <strong>ambos inclusivos</strong>, com 0 \le <em>x</em>_1 \le <em>x</em>_2 &lt; <em>W</em> e 0 \le <em>y</em>_1 \le <em>y</em>_2 &lt; <em>H</em>.</li>
+<li><strong>Soma retangular em O(1):</strong> Para cada consulta, calcular a soma de intensidades dentro do retângulo usando exclusivamente valores já presentes em II (sem percorrer os pixels originais): <em>S</em>(<em>x</em>_1,<em>y</em>_1,<em>x</em>_2,<em>y</em>_2) = II(<em>y</em>_2,<em>x</em>_2) - II(<em>y</em>_2, <em>x</em>_1-1) - II(<em>y</em>_1-1, <em>x</em>_2) + II(<em>y</em>_1-1, <em>x</em>_1-1), tratando qualquer termo com índice de linha ou coluna igual a -1 como 0.</li>
+<li><strong>Saída:</strong> Primeiro, imprimir a imagem integral completa — <em>H</em> linhas com <em>W</em> inteiros cada. Em seguida, para cada consulta, imprimir um único inteiro: a soma da região correspondente.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Não recalcule por força bruta:</strong> a resposta a cada consulta deve usar a fórmula de quatro termos sobre II, não uma soma direta dos pixels do retângulo (ainda que o resultado numérico seja o mesmo, o objetivo do exercício é justamente essa técnica).</li>
+<li><strong>Retângulos com coordenadas inclusivas:</strong> (<em>x</em>_1,<em>y</em>_1) e (<em>x</em>_2,<em>y</em>_2) pertencem à região somada.</li>
+<li><strong>Tratamento de borda:</strong> ao consultar II com índice -1 (quando <em>x</em>_1=0 ou <em>y</em>_1=0), utilize o valor 0.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel no Haar Cascade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Imagem integral II</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pré-computada uma única vez por imagem, em tempo <em>O</em>(HW)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Consulta em O(1)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Cada característica Haar (diferença entre somas de regiões retangulares) é avaliada com poucas operações, independentemente da área do retângulo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Escalabilidade</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">É essa constância que viabiliza avaliar milhares de características, em múltiplas posições e escalas, em tempo real</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Princípio de inclusão-exclusão</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Os quatro termos da fórmula somam a região desejada e subtraem exatamente as áreas contadas em excesso</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>H</em> e <em>W</em>.</li>
+<li>Próximas <em>H</em> linhas: <em>W</em> inteiros cada (imagem original).</li>
+<li>Próxima linha: Inteiro <em>Q</em>.</li>
+<li>Próximas <em>Q</em> linhas: quatro inteiros <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>H</em> linhas com <em>W</em> inteiros cada (a imagem integral).</li>
+<li><em>Q</em> linhas, uma por consulta, com a soma da região correspondente.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 3<br/>
+4 5 6<br/>
+7 8 9<br/>
+1<br/>
+0 0 2 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 3 6<br/>
+5 12 21<br/>
+12 27 45<br/>
+45</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">A consulta cobre a imagem inteira; a soma coincide com II(2,2) e com a soma de todos os 9 valores.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 3<br/>
+4 5 6<br/>
+7 8 9<br/>
+2<br/>
+1 1 2 2<br/>
+0 0 1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 3 6<br/>
+5 12 21<br/>
+12 27 45<br/>
+28<br/>
+12</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">A primeira consulta usa os quatro termos da fórmula; a segunda coincide diretamente com II(1,1), pois começa na origem.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-08-sim-ep03">
+<div id="sim-ep0803" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Imagem Integral</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 consulta em 4 termos</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha o retângulo (i,j) inferior-direito da consulta, sempre a partir da origem (0,0) — a região destacada usa apenas o valor de II nesse canto.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">canto inferior-direito da consulta</label>
+<span id="ep0803_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(2,2)</span>
+</div>
+<input id="ep0803_sl" max="8" min="0" step="1" style="width:100%;" type="range" value="8"/>
+</div>
+<div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;">
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Imagem original I (3×3)</div>
+<div id="ep0803_grid" style="display:grid;grid-template-columns:repeat(3,48px);gap:3px;"></div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Imagem integral II (3×3)</div>
+<div id="ep0803_ii" style="display:grid;grid-template-columns:repeat(3,48px);gap:3px;"></div>
+</div>
+</div>
+<div id="ep0803_debug" style="margin-top:18px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var I = [[1,2,3],[4,5,6],[7,8,9]];
+    var II = [[0,0,0],[0,0,0],[0,0,0]];
+    for(var i=0;i<3;i++) for(var j=0;j<3;j++){
+      II[i][j] = I[i][j] +
+        (i>0?II[i-1][j]:0) + (j>0?II[i][j-1]:0) - (i>0&&j>0?II[i-1][j-1]:0);
+    }
+
+    var slEl = root.querySelector('#ep0803_sl');
+    var vlEl = root.querySelector('#ep0803_vl');
+    var gridEl = root.querySelector('#ep0803_grid');
+    var iiEl = root.querySelector('#ep0803_ii');
+    var dbg = root.querySelector('#ep0803_debug');
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i2 = Math.floor(pos/3), j2 = pos%3;
+      vlEl.textContent = '('+i2+','+j2+')';
+      gridEl.innerHTML = ''; iiEl.innerHTML = '';
+      for(var r=0;r<3;r++){
+        for(var c=0;c<3;c++){
+          var dentro = (r<=i2 && c<=j2);
+          var d1 = document.createElement('div');
+          d1.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentro ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d1.textContent = I[r][c];
+          gridEl.appendChild(d1);
+
+          var destaqueII = (r===i2 && c===j2);
+          var d2 = document.createElement('div');
+          d2.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (destaqueII ? 'background:#dbeafe;border:2px solid #2980b9;font-weight:bold;color:#0d47a1;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d2.textContent = II[r][c];
+          iiEl.appendChild(d2);
+        }
+      }
+      dbg.textContent = 'Consulta de (0,0) a ('+i2+','+j2+')  →  soma = II('+i2+','+j2+') = '+II[i2][j2];
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0803');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div>
+</div>
+</div></div>

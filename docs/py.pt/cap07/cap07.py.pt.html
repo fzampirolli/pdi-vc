@@ -1433,7 +1433,7 @@ Figura&nbsp;7.10: Comparação de acurácia entre descritores de pixels brutos e
 <span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    acuracias_medias.append(scores.mean())</span>
 <span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>melhor_k <span class="op">=</span> <span class="bu">list</span>(valores_k)[<span class="bu">int</span>(np.argmax(acuracias_medias))]</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Melhor valor de k encontrado: </span><span class="sc">{</span>melhor_k<span class="sc">}</span><span class="ss"> (acurácia média = </span><span class="sc">{</span><span class="bu">max</span>(acuracias_medias)<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Melhor valor de k encontrado: </span><span class="sc">{</span>melhor_k<span class="sc">}</span><span class="ss"> (acurácia média=</span><span class="sc">{</span><span class="bu">max</span>(acuracias_medias)<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
 <span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
 <span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>plt.plot(<span class="bu">list</span>(valores_k), acuracias_medias, marker<span class="op">=</span><span class="st">"o"</span>, color<span class="op">=</span><span class="st">"#4f46e5"</span>)</span>
@@ -1464,66 +1464,67 @@ Figura&nbsp;7.11: Acurácia média por validação cruzada (5 partições) em fu
 <section id="o-compromisso-entre-viés-e-variância-diagnóstico-de-overfitting-e-underfitting" class="level3" data-number="7.9.2">
 <h3 data-number="7.9.2" class="anchored" data-anchor-id="o-compromisso-entre-viés-e-variância-diagnóstico-de-overfitting-e-underfitting"><span class="header-section-number">7.9.2</span> O Compromisso entre Viés e Variância: Diagnóstico de Overfitting e Underfitting</h3>
 <p>A escolha do hiperparâmetro <span class="math inline">\(k\)</span> no classificador <span class="math inline">\(k\)</span>-NN dita diretamente a complexidade geométrica da fronteira de decisão. Avaliar o desempenho do modelo exclusivamente sobre o conjunto de dados de treinamento é um erro metodológico clássico que mascara a incapacidade de generalização do algoritmo. Quando <span class="math inline">\(k\)</span> assume valores muito pequenos (como <span class="math inline">\(k=1\)</span>), a fronteira de decisão molda-se perfeitamente aos ruídos e às peculiaridades das amostras de treino, atingindo uma acurácia próxima de 100% nesse conjunto, mas falhando severamente diante de dados inéditos — fenômeno conhecido como <strong>sobreajuste</strong> (<em>overfitting</em>). Por outro lado, se <span class="math inline">\(k\)</span> for excessivamente grande, o modelo perde sua sensibilidade local e passa a prever apenas a classe majoritária da região global, resultando em um <strong>subajuste</strong> (<em>underfitting</em>).</p>
-<p>A <strong><span class="quarto-unresolved-ref">?fig-07-overfitting-analysis</span></strong> ilustra o monitoramento sistemático dessas duas forças: ao contrastarmos as curvas de aprendizado do treino e do teste ao longo do espectro de vizinhos, torna-se possível delimitar a zona ideal de operação onde o modelo atinge o melhor compromisso entre viés e variância, maximizando a acurácia de teste.</p>
-<div id="cecb798a" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-07-overfitting-analysis</span></span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Análise de overfitting: comparação da acurácia entre treino e teste para diferentes valores de k"</span></span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">#| output: true</span></span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.neighbors <span class="im">import</span> KNeighborsClassifier</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> accuracy_score</span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Análise de overfitting para diferentes k</span></span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>k_values <span class="op">=</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">16</span>)</span>
-<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>train_scores <span class="op">=</span> []</span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>test_scores <span class="op">=</span> []</span>
-<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k <span class="kw">in</span> k_values:</span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    knn <span class="op">=</span> KNeighborsClassifier(n_neighbors<span class="op">=</span>k)</span>
-<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    knn.fit(X_treino, y_treino)</span>
-<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    train_acc <span class="op">=</span> accuracy_score(y_treino, knn.predict(X_treino))</span>
-<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    test_acc <span class="op">=</span> accuracy_score(y_teste, knn.predict(X_teste))</span>
-<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    train_scores.append(train_acc)</span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    test_scores.append(test_acc)</span>
-<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualizar</span></span>
-<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
-<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>plt.plot(k_values, train_scores, <span class="st">'o-'</span>, label<span class="op">=</span><span class="st">'Acurácia no Treino'</span>, color<span class="op">=</span><span class="st">'#6366f1'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, markersize<span class="op">=</span><span class="dv">8</span>)</span>
-<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>plt.plot(k_values, test_scores, <span class="st">'s-'</span>, label<span class="op">=</span><span class="st">'Acurácia no Teste'</span>, color<span class="op">=</span><span class="st">'#f97316'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, markersize<span class="op">=</span><span class="dv">8</span>)</span>
-<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'k (número de vizinhos)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
-<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Acurácia'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
-<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Análise de Overfitting: Treino vs Teste'</span>, fontsize<span class="op">=</span><span class="dv">14</span>, fontweight<span class="op">=</span><span class="st">'bold'</span>)</span>
-<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>plt.legend(fontsize<span class="op">=</span><span class="dv">11</span>)</span>
-<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>plt.grid(alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
-<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Destacar regiões de overfitting e underfitting</span></span>
-<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">1</span>, <span class="dv">3</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'red'</span>, label<span class="op">=</span><span class="st">'Overfitting (k pequeno)'</span>)</span>
-<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">12</span>, <span class="dv">15</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'blue'</span>, label<span class="op">=</span><span class="st">'Underfitting (k grande)'</span>)</span>
-<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">4</span>, <span class="dv">11</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'green'</span>, label<span class="op">=</span><span class="st">'Região ideal'</span>)</span>
-<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontrar melhor k</span></span>
-<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>melhor_k_teste <span class="op">=</span> k_values[np.argmax(test_scores)]</span>
-<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span>melhor_k_teste, color<span class="op">=</span><span class="st">'#22c55e'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, </span>
-<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f'melhor k (teste) = </span><span class="sc">{</span>melhor_k_teste<span class="sc">}</span><span class="ss">'</span>, linewidth<span class="op">=</span><span class="dv">2</span>)</span>
-<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">🔍 Análise de Overfitting:"</span>)</span>
-<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k pequeno (1-3): alta acurácia no treino, baixa no teste → OVERFITTING"</span>)</span>
-<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k médio (4-11): equilíbrio entre treino e teste → IDEAL"</span>)</span>
-<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k grande (12-15): baixa acurácia em ambos → UNDERFITTING"</span>)</span>
-<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Melhor k para este problema: k=</span><span class="sc">{</span>melhor_k_teste<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A <strong><a href="#fig-07-overfitting-analysis" class="quarto-xref">Figura&nbsp;<span>7.12</span></a></strong> ilustra o monitoramento sistemático dessas duas forças: ao contrastarmos as curvas de aprendizado do treino e do teste ao longo do espectro de vizinhos, torna-se possível delimitar a zona ideal de operação onde o modelo atinge o melhor compromisso entre viés e variância, maximizando a acurácia de teste.</p>
+<div id="cell-fig-07-overfitting-analysis" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.neighbors <span class="im">import</span> KNeighborsClassifier</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> accuracy_score</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Análise de overfitting para diferentes k</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>k_values <span class="op">=</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">16</span>)</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>train_scores <span class="op">=</span> []</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>test_scores <span class="op">=</span> []</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k <span class="kw">in</span> k_values:</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    knn <span class="op">=</span> KNeighborsClassifier(n_neighbors<span class="op">=</span>k)</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    knn.fit(X_treino, y_treino)</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    train_acc <span class="op">=</span> accuracy_score(y_treino, knn.predict(X_treino))</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    test_acc <span class="op">=</span> accuracy_score(y_teste, knn.predict(X_teste))</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    train_scores.append(train_acc)</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    test_scores.append(test_acc)</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualizar</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>plt.plot(k_values, train_scores, <span class="st">'o-'</span>, label<span class="op">=</span><span class="st">'Acurácia no Treino'</span>, </span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>         color<span class="op">=</span><span class="st">'#6366f1'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, markersize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>plt.plot(k_values, test_scores, <span class="st">'s-'</span>, label<span class="op">=</span><span class="st">'Acurácia no Teste'</span>, </span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>         color<span class="op">=</span><span class="st">'#f97316'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, markersize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'k (número de vizinhos)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Acurácia'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Análise de Overfitting: Treino vs Teste'</span>, fontsize<span class="op">=</span><span class="dv">14</span>, fontweight<span class="op">=</span><span class="st">'bold'</span>)</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>plt.legend(fontsize<span class="op">=</span><span class="dv">11</span>)</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>plt.grid(alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Destacar regiões de overfitting e underfitting</span></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">1</span>, <span class="dv">3</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'red'</span>, label<span class="op">=</span><span class="st">'Overfitting (k pequeno)'</span>)</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">12</span>, <span class="dv">15</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'blue'</span>, label<span class="op">=</span><span class="st">'Underfitting (k grande)'</span>)</span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>plt.axvspan(<span class="dv">4</span>, <span class="dv">11</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, color<span class="op">=</span><span class="st">'green'</span>, label<span class="op">=</span><span class="st">'Região ideal'</span>)</span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontrar melhor k</span></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>melhor_k_teste <span class="op">=</span> k_values[np.argmax(test_scores)]</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span>melhor_k_teste, color<span class="op">=</span><span class="st">'#22c55e'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, </span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f'melhor k (teste) = </span><span class="sc">{</span>melhor_k_teste<span class="sc">}</span><span class="ss">'</span>, linewidth<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">🔍 Análise de Overfitting:"</span>)</span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k pequeno (1-3): alta acurácia no treino, baixa no teste → OVERFITTING"</span>)</span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k médio (4-11): equilíbrio entre treino e teste → IDEAL"</span>)</span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"   - k grande (12-15): baixa acurácia em ambos → UNDERFITTING"</span>)</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Melhor k para este problema: k=</span><span class="sc">{</span>melhor_k_teste<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="cap07.py.pt_files/figure-html/cell-15-output-1.png" class="img-fluid figure-img"></p>
+<div id="fig-07-overfitting-analysis" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-overfitting-analysis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap07.py.pt_files/figure-html/fig-07-overfitting-analysis-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-overfitting-analysis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.12: Análise de overfitting: comparação da acurácia entre treino e teste para diferentes valores de k
+</figcaption>
 </figure>
 </div>
 </div>
@@ -1542,7 +1543,7 @@ Figura&nbsp;7.11: Acurácia média por validação cruzada (5 partições) em fu
 <section id="projeto-prático-2-classificação-de-texturas-com-descritores-lbp" class="level2" data-number="7.10">
 <h2 data-number="7.10" class="anchored" data-anchor-id="projeto-prático-2-classificação-de-texturas-com-descritores-lbp"><span class="header-section-number">7.10</span> Projeto Prático 2: Classificação de Texturas com Descritores LBP</h2>
 <p>No <strong>Capítulo 6</strong>, a variância local de textura foi utilizada para <strong>detectar</strong> anomalias em superfícies industriais — uma tarefa binária de “conforme” ou “defeituoso”. Este projeto estende essa ideia para uma tarefa de <strong>classificação multi-classe</strong>: dado um recorte de textura, identificar a qual categoria ele pertence, utilizando o descritor LBP combinado a um classificador k-NN.</p>
-<p>Para garantir a reprodutibilidade do experimento sem depender de imagens externas, três classes de textura são geradas sinteticamente: <strong>granular</strong> (ruído gaussiano suavizado), <strong>listrada</strong> (padrão periódico) e <strong>manchada</strong> (regiões circulares de intensidade variável). A <a href="#fig-07-texturas-amostra" class="quarto-xref">Figura&nbsp;<span>7.12</span></a> mostra exemplos de cada classe.</p>
+<p>Para garantir a reprodutibilidade do experimento sem depender de imagens externas, três classes de textura são geradas sinteticamente: <strong>granular</strong> (ruído gaussiano suavizado), <strong>listrada</strong> (padrão periódico) e <strong>manchada</strong> (regiões circulares de intensidade variável). A <a href="#fig-07-texturas-amostra" class="quarto-xref">Figura&nbsp;<span>7.13</span></a> mostra exemplos de cada classe.</p>
 <div id="cell-fig-07-texturas-amostra" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1579,7 +1580,7 @@ Figura&nbsp;7.11: Acurácia média por validação cruzada (5 partições) em fu
 <img src="cap07.py.pt_files/figure-html/fig-07-texturas-amostra-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-texturas-amostra-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;7.12: Amostras sintéticas das três classes de textura utilizadas no experimento de classificação.
+Figura&nbsp;7.13: Amostras sintéticas das três classes de textura utilizadas no experimento de classificação.
 </figcaption>
 </figure>
 </div>
@@ -1587,7 +1588,7 @@ Figura&nbsp;7.12: Amostras sintéticas das três classes de textura utilizadas n
 </div>
 <section id="extração-do-descritor-lbp-e-treinamento-do-classificador" class="level3" data-number="7.10.1">
 <h3 data-number="7.10.1" class="anchored" data-anchor-id="extração-do-descritor-lbp-e-treinamento-do-classificador"><span class="header-section-number">7.10.1</span> Extração do Descritor LBP e Treinamento do Classificador</h3>
-<p>Para cada textura, calcula-se o LBP uniforme e constrói-se um histograma normalizado dos códigos obtidos — esse histograma é o vetor de características utilizado pelo k-NN. A <a href="#fig-07-lbp-confusao" class="quarto-xref">Figura&nbsp;<span>7.13</span></a> mostra a matriz de confusão do classificador treinado.</p>
+<p>Para cada textura, calcula-se o LBP uniforme e constrói-se um histograma normalizado dos códigos obtidos — esse histograma é o vetor de características utilizado pelo k-NN. A <a href="#fig-07-lbp-confusao" class="quarto-xref">Figura&nbsp;<span>7.14</span></a> mostra a matriz de confusão do classificador treinado.</p>
 <div id="cell-fig-07-lbp-confusao" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> descritor_lbp(img, P<span class="op">=</span><span class="dv">8</span>, R<span class="op">=</span><span class="dv">1</span>, bins<span class="op">=</span><span class="dv">10</span>):</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    lbp <span class="op">=</span> local_binary_pattern(img, P<span class="op">=</span>P, R<span class="op">=</span>R, method<span class="op">=</span><span class="st">"uniform"</span>)</span>
@@ -1639,7 +1640,7 @@ Figura&nbsp;7.12: Amostras sintéticas das três classes de textura utilizadas n
 <img src="cap07.py.pt_files/figure-html/fig-07-lbp-confusao-output-2.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-lbp-confusao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;7.13: Matriz de confusão do classificador k-NN treinado com descritores LBP para as três classes de textura sintética.
+Figura&nbsp;7.14: Matriz de confusão do classificador k-NN treinado com descritores LBP para as três classes de textura sintética.
 </figcaption>
 </figure>
 </div>
@@ -1966,16 +1967,19 @@ weighted avg       1.00      1.00      1.00        54
 <span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
 <span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ Ambiente pronto. Morph: 1.1.2 | TestSuite: 1.1.2</code></pre>
+</div>
 </div>
 </section>
 <section id="executando-os-testes" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="executando-os-testes">Executando os Testes</h4>
 <p>Para rodar os testes, execute <code>TestSuite("EP07_01.extensão").run()</code> numa nova célula, trocando a extensão pela da linguagem usada (<code>.py</code>, <code>.java</code>, <code>.c</code>, <code>.cpp</code>, <code>.js</code> ou <code>.r</code>). O sistema baixa os casos de teste do GitHub, executa o programa e calcula a nota automaticamente.</p>
 <p>Para testar código Python diretamente, sem salvar arquivo, use <code>run_code(codigo)</code> passando o código como string numa variável <code>codigo</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>codigo <span class="op">=</span> <span class="st">"""</span></span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="st"># ... seu código aqui ...</span></span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_01"</span>).run_code(codigo)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>codigo <span class="op">=</span> <span class="st">"""</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="st"># ... seu código aqui ...</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_01"</span>).run_code(codigo)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="ep07_01-classificador-k-nn-passo-a-passo" class="level3" data-number="7.16.9">
@@ -2100,12 +2104,103 @@ Total classe 1: 1</td>
 </tr>
 </tbody>
 </table>
+<div id="cell-fig-07-sim-ep01" class="cell">
+<div id="fig-07-sim-ep01" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="sim-ep0701" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+  <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+    <span>🎮 Simulador: Classificador k-NN Passo a Passo</span>
+    <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 votação majoritária</span>
+  </div>
+  <div style="padding:20px;background:white;">
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★).</p>
+    <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:bold;color:#2980b9;">k (número de vizinhos)</label>
+        <span id="ep0701_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">3</span>
+      </div>
+      <input id="ep0701_sl" style="width:100%;accent-color:#2980b9;" max="7" min="1" step="2" type="range" value="3">
+    </div>
+    <div id="ep0701_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+    <div id="ep0701_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var query = {x:1, y:1};
+    var pontos = [
+      {nome:"A", x:0, y:0, r:0},
+      {nome:"B", x:1, y:0, r:0},
+      {nome:"C", x:5, y:5, r:1},
+      {nome:"D", x:6, y:5, r:1},
+      {nome:"E", x:2, y:2, r:0},
+      {nome:"F", x:4, y:4, r:1},
+      {nome:"G", x:0, y:2, r:0},
+      {nome:"H", x:6, y:3, r:1}
+    ];
+    pontos.forEach(function(p){ p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2); });
+    pontos.sort(function(a,b){ return a.d - b.d; });
+
+    var slEl = root.querySelector('#ep0701_sl');
+    var vlEl = root.querySelector('#ep0701_vl');
+    var cards = root.querySelector('#ep0701_cards');
+    var dbg = root.querySelector('#ep0701_debug');
+
+    function render(){
+      var k = parseInt(slEl.value);
+      vlEl.textContent = k;
+      cards.innerHTML = '';
+      var votos = [0, 0];
+      pontos.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(2)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
+        cards.appendChild(div);
+      });
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0701');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.15: Simulador: Classificador k-NN Passo a Passo
+</figcaption>
+</figure>
+</div>
+</div>
 <div id="5936f887" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_01.py</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_01.py</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP07_01.py</code></pre>
+</div>
 </div>
 <div id="8e502b2a" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_01.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_1.cases
+❌ Não foi possível baixar EP07_01.cases</pre>
+</div>
 </div>
 </section>
 </section>
@@ -2231,12 +2326,99 @@ Revocacao: indefinida</td>
 </tr>
 </tbody>
 </table>
+<div id="cell-fig-07-sim-ep02" class="cell">
+<div id="fig-07-sim-ep02" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="sim-ep0702" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+  <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+    <span>🎮 Simulador: Precisão x Revocação</span>
+    <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 linha de produção</span>
+  </div>
+  <div style="padding:20px;background:white;">
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha um cenário de inspeção e observe como acurácia, precisão e revocação reagem de forma diferente.</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+      <button id="ep0702_b1" class="ep0702_btn">Cenário A: erros equilibrados</button>
+      <button id="ep0702_b2" class="ep0702_btn">Cenário B: muitos falsos negativos</button>
+      <button id="ep0702_b3" class="ep0702_btn">Cenário C: nenhum defeito real</button>
+    </div>
+    <div id="ep0702_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;"></div>
+    <div id="ep0702_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+  </div>
+</div>
+<style>
+  #sim-ep0702 .ep0702_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0702 .ep0702_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+</style>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var cenarios = {
+      A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
+      B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
+      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
+    };
+    var cards = root.querySelector('#ep0702_cards');
+    var dbg = root.querySelector('#ep0702_debug');
+    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+
+    function render(key){
+      Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
+      var dados = cenarios[key];
+      var VP=0,FP=0,FN=0,VN=0;
+      cards.innerHTML = '';
+      dados.forEach(function(d, i){
+        if(d.y===1 && d.p===1) VP++;
+        else if(d.y===0 && d.p===1) FP++;
+        else if(d.y===1 && d.p===0) FN++;
+        else VN++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f9fafb;border:1px solid #e5e7eb;';
+        div.innerHTML = '<div style="font-weight:700;">Peça '+(i+1)+'</div><div>real='+d.y+', prev='+d.p+'</div>';
+        cards.appendChild(div);
+      });
+      var N = dados.length;
+      var acc = ((VP+VN)/N).toFixed(4);
+      var prec = (VP+FP)>0 ? (VP/(VP+FP)).toFixed(4) : 'indefinida';
+      var rev = (VP+FN)>0 ? (VP/(VP+FN)).toFixed(4) : 'indefinida';
+      dbg.textContent = 'VP='+VP+' FP='+FP+' FN='+FN+' VN='+VN+'  |  Acuracia='+acc+'  Precisao='+prec+'  Revocacao='+rev;
+    }
+    botoes.A.addEventListener('click', function(){ render('A'); });
+    botoes.B.addEventListener('click', function(){ render('B'); });
+    botoes.C.addEventListener('click', function(){ render('C'); });
+    render('A');
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0702');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.16: Simulador: Precisão x Revocação
+</figcaption>
+</figure>
+</div>
+</div>
 <div id="1354863b" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP07_02.py</code></pre>
+</div>
 </div>
 <div id="20f33c49" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_02.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_2.cases
+❌ Não foi possível baixar EP07_02.cases</pre>
+</div>
 </div>
 </section>
 </section>
@@ -2348,12 +2530,91 @@ Revocacao: indefinida</td>
 </tr>
 </tbody>
 </table>
+<div id="cell-fig-07-sim-ep03" class="cell">
+<div id="fig-07-sim-ep03" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="8">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="sim-ep0703" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+  <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+    <span>🎮 Simulador: Código LBP de uma Vizinhança 3×3</span>
+    <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 P=8, R=1</span>
+  </div>
+  <div style="padding:20px;background:white;">
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro e observe o código LBP resultante.</p>
+    <div id="ep0703_grid" style="display:grid;grid-template-columns:repeat(3,60px);gap:4px;justify-content:center;margin-bottom:16px;"></div>
+    <div id="ep0703_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var valores = [[90,90,90],[10,50,10],[90,90,90]];
+    var grid = root.querySelector('#ep0703_grid');
+    var dbg = root.querySelector('#ep0703_debug');
+    var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+
+    function render(){
+      grid.innerHTML = '';
+      for(var r=0;r<3;r++){
+        for(var c=0;c<3;c++){
+          (function(r,c){
+            var v = valores[r][c];
+            var div = document.createElement('div');
+            var central = (r===1 && c===1);
+            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+            div.textContent = v;
+            if(!central){
+              div.addEventListener('click', function(){
+                valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                render();
+              });
+            }
+            grid.appendChild(div);
+          })(r,c);
+        }
+      }
+      var gc = valores[1][1];
+      var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
+      var lbp = 0;
+      bits.forEach(function(b,p){ lbp += b * Math.pow(2,p); });
+      var trans = 0;
+      for(var i=0;i<8;i++){ if(bits[i] !== bits[(i+1)%8]) trans++; }
+      var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
+      dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
+    }
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0703');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.17: Simulador: Codigo LBP
+</figcaption>
+</figure>
+</div>
+</div>
 <div id="e9e9b16d" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_03.py</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_03.py</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP07_03.py</code></pre>
+</div>
 </div>
 <div id="c30c87ae" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_03.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_3.cases
+❌ Não foi possível baixar EP07_03.cases</pre>
+</div>
 </div>
 </section>
 </section>
@@ -2471,12 +2732,102 @@ H[b] = \sum_{(x,y)\, :\, \text{bin}(\theta(x,y)) = b} |\nabla f(x,y)|.
 </tr>
 </tbody>
 </table>
+<div id="cell-fig-07-sim-ep04" class="cell">
+<div id="fig-07-sim-ep04" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="11">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="sim-ep0704" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+  <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+    <span>🎮 Simulador: Histograma de Orientações de uma Célula</span>
+    <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 4 pixels fixos</span>
+  </div>
+  <div style="padding:20px;background:white;">
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o número de compartimentos (B) e observe como a mesma célula (magnitudes e orientações fixas) é redistribuída.</p>
+    <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:bold;color:#2980b9;">Número de compartimentos (B)</label>
+        <span id="ep0704_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">2</span>
+      </div>
+      <input id="ep0704_sl" style="width:100%;accent-color:#2980b9;" max="6" min="2" step="1" type="range" value="2">
+    </div>
+    <div id="ep0704_bars" style="display:flex;gap:6px;align-items:flex-end;height:120px;justify-content:center;margin-bottom:12px;"></div>
+    <div id="ep0704_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var pixels = [
+      {mag:1.0, ang:10}, {mag:2.0, ang:100},
+      {mag:3.0, ang:170}, {mag:4.0, ang:20}
+    ];
+    var slEl = root.querySelector('#ep0704_sl');
+    var vlEl = root.querySelector('#ep0704_vl');
+    var bars = root.querySelector('#ep0704_bars');
+    var dbg = root.querySelector('#ep0704_debug');
+
+    function render(){
+      var B = parseInt(slEl.value);
+      vlEl.textContent = B;
+      var largura = 180/B;
+      var H = new Array(B).fill(0);
+      pixels.forEach(function(p){
+        var b = Math.min(Math.floor(p.ang/largura), B-1);
+        H[b] += p.mag;
+      });
+      var maxH = Math.max.apply(null, H.concat([0.001]));
+      bars.innerHTML = '';
+      H.forEach(function(v, i){
+        var col = document.createElement('div');
+        col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+        var barra = document.createElement('div');
+        var altura = Math.round((v/maxH)*90) + 4;
+        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
+        var label = document.createElement('div');
+        label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
+        label.textContent = v.toFixed(2);
+        col.appendChild(barra);
+        col.appendChild(label);
+        bars.appendChild(col);
+      });
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
+      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0704');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.18: Simulador: Histograma HOG de uma Celula
+</figcaption>
+</figure>
+</div>
+</div>
 <div id="08dbf999" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_04.py</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_04.py</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP07_04.py</code></pre>
+</div>
 </div>
 <div id="2037352e" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_04.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_4.cases
+❌ Não foi possível baixar EP07_04.cases</pre>
+</div>
 </div>
 </section>
 </section>
@@ -2601,12 +2952,105 @@ Acuracia: 1.0000</td>
 </tr>
 </tbody>
 </table>
+<div id="cell-fig-07-sim-ep05" class="cell">
+<div id="fig-07-sim-ep05" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="14">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+
+<div id="sim-ep0705" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+  <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+    <span>🎮 Simulador: k-NN sobre Histogramas de Textura</span>
+    <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟣 pipeline completo</span>
+  </div>
+  <div style="padding:20px;background:white;">
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha a métrica de distância e observe como a amostra de teste (★) é classificada entre três protótipos de textura.</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+      <button id="ep0705_be" class="ep0705_btn">Euclidiana</button>
+      <button id="ep0705_bm" class="ep0705_btn">Manhattan</button>
+    </div>
+    <div id="ep0705_cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>
+    <div id="ep0705_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+  </div>
+</div>
+<style>
+  #sim-ep0705 .ep0705_btn { font-size:11px;padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0705 .ep0705_btn.ativo { background:#7c3aed;color:#fff;border-color:#7c3aed; }
+</style>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var protos = [
+      {nome:"granular", h:[0.30,0.30,0.40]},
+      {nome:"listrada", h:[0.70,0.10,0.20]},
+      {nome:"manchada", h:[0.20,0.60,0.20]}
+    ];
+    var teste = {h:[0.35,0.28,0.37]};
+    var cards = root.querySelector('#ep0705_cards');
+    var dbg = root.querySelector('#ep0705_debug');
+    var be = root.querySelector('#ep0705_be');
+    var bm = root.querySelector('#ep0705_bm');
+
+    function dist(u, v, metrica){
+      var s = 0;
+      for(var i=0;i<u.length;i++){
+        if(metrica === 'euclidiana') s += (u[i]-v[i])*(u[i]-v[i]);
+        else s += Math.abs(u[i]-v[i]);
+      }
+      return metrica === 'euclidiana' ? Math.sqrt(s) : s;
+    }
+
+    function render(metrica){
+      be.classList.toggle('ativo', metrica==='euclidiana');
+      bm.classList.toggle('ativo', metrica==='manhattan');
+      cards.innerHTML = '';
+      var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
+      var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
+      distancias.forEach(function(d){
+        var ok = d.d === minD;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
+        div.innerHTML = '<div style="font-weight:700;">'+d.nome+'</div><div style="font-family:monospace;margin-top:4px;">d='+d.d.toFixed(4)+'</div>' +
+          (ok ? '<div style="font-weight:700;">★ mais próximo</div>' : '');
+        cards.appendChild(div);
+      });
+      var vencedor = distancias.reduce(function(a,b){ return b.d < a.d ? b : a; });
+      dbg.textContent = 'métrica=' + metrica + '  |  classe prevista (k=1) = ' + vencedor.nome;
+    }
+    be.addEventListener('click', function(){ render('euclidiana'); });
+    bm.addEventListener('click', function(){ render('manhattan'); });
+    render('euclidiana');
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0705');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;7.19: Simulador: Pipeline k-NN com escolha de metrica
+</figcaption>
+</figure>
+</div>
+</div>
 <div id="a2187d71" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP07_05.py</code></pre>
+</div>
 </div>
 <div id="d121621d" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_05.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_5.cases
+❌ Não foi possível baixar EP07_05.cases</pre>
+</div>
 </div>
 
 
