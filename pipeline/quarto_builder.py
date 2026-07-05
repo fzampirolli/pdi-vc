@@ -57,6 +57,9 @@ from typing import Optional
 import nbformat
 import os
 import re
+import ast
+from nbclient import NotebookClient
+from playwright.sync_api import sync_playwright
 
 from .config import (
     Combo, UI_STRINGS, LOCALES, LANGUAGES,
@@ -716,7 +719,6 @@ execute:
 </style>''', encoding='utf-8')
         print(f'  ✓ Criado CSL padrão: {csl_path}')
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
@@ -799,8 +801,48 @@ def _screenshot_html_cells_old(qdir: Path, all_root: Path):
                 finally:
                     tmp_html.unlink(missing_ok=True)
 
+def extract_html(cell_source):
+    # Remove magic commands antes do parse
+    lines = cell_source.split('\n')
+    clean_lines = []
+    for line in lines:
+        if not line.strip().startswith('%'):
+            clean_lines.append(line)
+    
+    clean_source = '\n'.join(clean_lines)
+    
+    try:
+        tree = ast.parse(clean_source)
 
-def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0): 
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "HTML"
+                and len(node.args) == 1
+            ):
+                arg = node.args[0]
+
+                # HTML("""...""")
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    return arg.value
+
+                # HTML(f"""...""")
+                if isinstance(arg, ast.JoinedStr):
+                    parts = []
+                    for v in arg.values:
+                        if isinstance(v, ast.Constant):
+                            parts.append(v.value)
+                        else:
+                            # Expressões {x}
+                            parts.append("{expr}")
+                    return "".join(parts)
+
+    except SyntaxError:
+        # Fallback: extração manual
+        return NotImplemented
+    
+def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
     """Lê notebooks ORIGINAIS de all/ para gerar screenshots."""
     from playwright.sync_api import sync_playwright
 
@@ -816,7 +858,9 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
             for cell in nb.cells:
                 if cell.cell_type != 'code':
                     continue
-                if 'HTML("""' not in cell.source and "HTML('''" not in cell.source:
+
+                html_content = extract_html(cell.source)
+                if html_content is None:
                     continue
 
                 label = None
@@ -825,6 +869,7 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                     if m:
                         label = m.group(1)
                         break
+
                 if not label:
                     continue
 
@@ -833,18 +878,55 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                     print(f'  ✓ Screenshot já existe: {png_path.name}')
                     continue
 
-                m = re.search(r'HTML\("""(.*?)"""\)', cell.source, re.DOTALL)
-                if not m:
-                    m = re.search(r"HTML\('''(.*?)'''\)", cell.source, re.DOTALL)
-                if not m:
-                    continue
-
-                html_content = m.group(1)
-                tmp_html = qdir / f'_tmp_{label}.html'
-                tmp_html.write_text(f'''<!DOCTYPE html>
+                # Modificação: Extrair apenas o fluxograma (última aba)
+                # O fluxograma está no painel com id "{PREFIX}-p-4"
+                # Precisamos encontrar o prefixo usado no HTML
+                prefix_match = re.search(r'PREFIX\s*=\s*"([^"]+)"', cell.source)
+                if prefix_match:
+                    prefix = prefix_match.group(1)
+                else:
+                    # Fallback: usar o padrão se não encontrar
+                    prefix = "lbl2"
+                
+                # Extrair apenas o SVG do fluxograma (última aba)
+                svg_match = re.search(r'<svg[^>]*>.*?</svg>', html_content, re.DOTALL)
+                if svg_match:
+                    svg_content = svg_match.group(0)
+                    
+                    # Criar HTML com apenas o SVG do fluxograma
+                    final_html = f'''<!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<style>body {{ margin: 0; background: white; }}</style>
-</head><body>{html_content}</body></html>''', encoding='utf-8')
+<style>
+    body {{ margin: 0; background: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; }}
+    svg {{ max-width: 100%; height: auto; }}
+</style>
+</head><body>
+{svg_content}
+</body></html>'''
+                else:
+                    # Se não encontrar SVG, usar o HTML completo mas mostrando apenas a última aba
+                    # Modificar o HTML para mostrar apenas a última aba por padrão
+                    final_html = html_content
+                    # Forçar a última aba a ficar ativa
+                    final_html = final_html.replace(
+                        'active" data-idx="4"',
+                        'active" data-idx="4" style="display:block !important;"'
+                    )
+                    # Esconder as outras abas
+                    for i in range(5):
+                        if i != 4:
+                            final_html = final_html.replace(
+                                f'id="{prefix}-p-{i}"',
+                                f'id="{prefix}-p-{i}" style="display:none !important;"'
+                            )
+                    # Adicionar estilo para remover as tabs
+                    final_html = final_html.replace(
+                        f'<div class="{prefix}-tabs"',
+                        f'<div class="{prefix}-tabs" style="display:none;"'
+                    )
+
+                tmp_html = qdir / f'_tmp_{label}.html'
+                tmp_html.write_text(final_html, encoding='utf-8')
 
                 try:
                     with sync_playwright() as p:
@@ -852,7 +934,7 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
 
                         # 1ª passagem: mede as dimensões reais do conteúdo
                         page = browser.new_page(viewport={'width': 900, 'height': 600},
-                                                device_scale_factor=scale) # = 2.0 é melhor
+                                                device_scale_factor=scale)
                         page.goto(f'file://{tmp_html.resolve()}')
                         page.wait_for_timeout(1500)
 
@@ -861,16 +943,16 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                             height: document.body.scrollHeight
                         })''')
 
-                        real_w = max(dims['width'],  1)
+                        real_w = max(dims['width'], 1)
                         real_h = max(dims['height'], 1)
 
                         # 2ª passagem: viewport exato → screenshot sem corte
                         page.set_viewport_size({'width': real_w, 'height': real_h})
-                        page.wait_for_timeout(300)   # re-render após resize
+                        page.wait_for_timeout(300)  # re-render após resize
                         page.screenshot(path=str(png_path), full_page=False)
 
                         browser.close()
-                    print(f'  📸 Screenshot: {png_path.name}')
+                    print(f'  📸 Screenshot do fluxograma: {png_path.name}')
                 except Exception as e:
                     print(f'  ⚠ Falha screenshot {label}: {e}')
                 finally:
@@ -900,9 +982,6 @@ def _fix_html_outputs_for_pdf(nb_root: Path):
             if modified:
                 nbformat.write(nb, nb_path)
                 print(f'  ✓ HTML outputs limpos: {fname}')
-        
-from nbclient import NotebookClient
-from playwright.sync_api import sync_playwright
 
 def _capture_html_output_as_png(html_content: str, out_path: Path,
                                   width: int = 900, height: int = 600) -> bool:
@@ -937,9 +1016,35 @@ def _capture_html_output_as_png(html_content: str, out_path: Path,
     finally:
         tmp_html.unlink(missing_ok=True)
 
+def _verify_and_fix_screenshots(qdir: Path, all_root: Path = Path('all')):
+    """Verifica e corrige o caminho das imagens."""
+    
+    # A imagem deve estar em: all/cap04/imagens/fig-04-algoritmo-rotulagem2.png
+    img_path = all_root / 'cap04' / 'imagens' / 'fig-04-algoritmo-rotulagem2.png'
+    
+    print(f'  ℹ Verificando imagem: {img_path}')
+    print(f'  ℹ Existe? {img_path.exists()}')
+    
+    if not img_path.exists():
+        # Tentar encontrar em outro local
+        alt_path = qdir / 'cap04' / 'imagens' / 'fig-04-algoritmo-rotulagem2.png'
+        print(f'  ℹ Procurando em: {alt_path}')
+        print(f'  ℹ Existe? {alt_path.exists()}')
+        
+        if alt_path.exists():
+            # Copiar para o local correto
+            img_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(alt_path, img_path)
+            print(f'  ✓ Imagem copiada para: {img_path}')
+    
+    return img_path.exists()
+                 
 def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
 
     nb_root = qdir.parent.parent / qdir.name
+    import re
+
+    HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
 
     for nb_path in nb_root.rglob('*.ipynb'):
         real_path = nb_path.resolve()
@@ -956,11 +1061,11 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 cap_guess = part
                 break
 
+                
         for cell in nb.cells:
-            if cell.cell_type != 'code' or (
-                'HTML("""' not in cell.source and "HTML('''" not in cell.source
-            ):
+            if cell.cell_type != 'code' or not HTML_TRIPLE_RE.search(cell.source):
                 continue
+            
             m_label = re.search(r'#\|\s*label:\s*(\S+)', cell.source)
             if not m_label or not cap_guess:
                 continue
@@ -985,9 +1090,7 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 executed_nb = None
 
         for idx, cell in enumerate(nb.cells):
-            if cell.cell_type != 'code' or (
-                'HTML("""' not in cell.source and "HTML('''" not in cell.source
-            ):
+            if cell.cell_type != 'code' or not HTML_TRIPLE_RE.search(cell.source):
                 new_cells.append(cell)
                 continue
 
@@ -1225,7 +1328,6 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
 
     _rename_pdf(qdir, combo_name, file_key)
 
-
 def _fix_tex_cover(qdir: Path):
     cover_abs_file = qdir / '.cover_abs'
     if not cover_abs_file.exists():
@@ -1462,7 +1564,6 @@ def _fix_tex_cover(qdir: Path):
     tex_path.write_text(content, encoding='utf-8')
     print(f'  ✓ .tex patcheado: {tex_path.name}')
 
-
 def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
     # Cria arquivo sentinela para testsuite.py detectar ambiente Quarto
     sentinela = qdir / '.quarto_render'
@@ -1506,16 +1607,38 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
           env['QUARTO_FMT'] = f  
 
           if f == 'pdf':
-              nb_root = qdir.parent.parent / qdir.name
-              _screenshot_html_cells(qdir, all_root)
-              _fix_html_outputs_for_pdf(nb_root)
-              _patch_html_cells_for_pdf(qdir, all_root)
-              env['QUARTO_FMT'] = 'pdf'
-              # Quarto gera o .tex com keep-tex:true antes de compilar;
-              # rodamos quarto render --to latex primeiro para obter o .tex,
-              # patcheamos, depois compilamos manualmente com lualatex.
-              _render_pdf_with_patched_tex(qdir, env)
-              continue  # pula o subprocess.run genérico abaixo
+            nb_root = qdir.parent.parent / qdir.name
+            
+            # 1. PRIMEIRO: gerar todos os screenshots
+            print('  📸 Gerando screenshots...')
+            _screenshot_html_cells(qdir, all_root, scale=2.0)
+            
+            # 2. SEGUNDO: verificar se as imagens existem
+            print('  🔍 Verificando imagens...')
+            _verify_and_fix_screenshots(qdir, all_root)
+            
+            # 3. TERCEIRO: aplicar o patch nos notebooks
+            print('  📝 Aplicando patch nos notebooks...')
+            _fix_html_outputs_for_pdf(nb_root)
+            _patch_html_cells_for_pdf(qdir, all_root)
+            
+            # 4. QUARTO: renderizar o PDF
+            print('  📄 Renderizando PDF...')
+            env['QUARTO_FMT'] = 'pdf'
+            _render_pdf_with_patched_tex(qdir, env)
+            continue
+            
+            #   if f == 'pdf':
+            #       nb_root = qdir.parent.parent / qdir.name
+            #       _screenshot_html_cells(qdir, all_root)
+            #       _fix_html_outputs_for_pdf(nb_root)
+            #       _patch_html_cells_for_pdf(qdir, all_root)
+            #       env['QUARTO_FMT'] = 'pdf'
+            #       # Quarto gera o .tex com keep-tex:true antes de compilar;
+            #       # rodamos quarto render --to latex primeiro para obter o .tex,
+            #       # patcheamos, depois compilamos manualmente com lualatex.
+            #       _render_pdf_with_patched_tex(qdir, env)
+            #       continue  # pula o subprocess.run genérico abaixo
 
           print(f'  $ cd {qdir.name} && quarto render --to {f}')
           try:
