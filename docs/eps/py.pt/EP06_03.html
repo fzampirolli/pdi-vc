@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP06_03 — EP06_03 🟠 Normalização de Fundo por Divisão (Correção de Iluminação)</title>
+  <title>EP06_03 — EP06_03 🟡 Classificação de Marcações em Folhas de Resposta (OMR)</title>
   <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -84,81 +84,86 @@ div.csl-indent {
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:80ch">
-<h3 class="anchored" data-anchor-id="ep06_03-normalização-de-fundo-por-divisão-correção-de-iluminação" data-number="6.12.3"><span class="header-section-number">6.12.3</span> EP06_03 🟠 Normalização de Fundo por Divisão (Correção de Iluminação)</h3>
-<p>Um formulário foi fotografado com o celular sob luz de mesa, gerando um gradiente de iluminação: um lado da folha aparece bem mais claro que o outro. A limiarização direta por Otsu falharia, pois um único limiar global não separa corretamente texto de fundo em toda a página. A solução, apresentada no capítulo, é <strong>normalizar o fundo</strong>: dividir a imagem original por uma versão fortemente suavizada de si mesma (o fundo estimado), cancelando as variações lentas de iluminação antes da binarização.</p>
-<p>Neste exercício, o fundo suavizado (equivalente à saída de <code>cv2.GaussianBlur</code> com <span class="math inline">\(\sigma\)</span> grande) <strong>já é fornecido</strong>, junto com a imagem original — sua tarefa é implementar exatamente a etapa de divisão e reescalonamento que produz <code>img_norm</code>.</p>
-<section class="level4" data-number="6.12.3.1" id="diretrizes-de-implementação-2">
-<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-2" data-number="6.12.3.1"><span class="header-section-number">6.12.3.1</span> 📋 Diretrizes de Implementação</h4>
+<h3 class="anchored" data-anchor-id="ep06_03-classificação-de-marcações-em-folhas-de-resposta-omr" data-number="6.11.3"><span class="header-section-number">6.11.3</span> EP06_03 🟡 Classificação de Marcações em Folhas de Resposta (OMR)</h3>
+<p>Após a retificação da folha e a segmentação dos quadros de respostas, o MCTest estima, para cada bolha, um <strong>grau de preenchimento</strong>, representado por um valor entre <span class="math inline">\(0\)</span> e <span class="math inline">\(100\)</span>. A partir desses valores, o sistema deve determinar automaticamente a alternativa marcada, identificando também questões em branco e casos de múltiplas marcações.</p>
+<p>Neste exercício, você implementará essa etapa de decisão do <em>pipeline</em> de OMR. A classificação depende de um limiar de preenchimento: pequenas variações nesse valor podem alterar o resultado da leitura automática.</p>
+<section class="level4" data-number="6.11.3.1" id="diretrizes-de-implementação-2">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-2" data-number="6.11.3.1"><span class="header-section-number">6.11.3.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Dimensões:</strong> Ler os inteiros <span class="math inline">\(L\)</span> (linhas) e <span class="math inline">\(C\)</span> (colunas).</li>
-<li><strong>Imagem original:</strong> Ler os <span class="math inline">\(L \times C\)</span> valores inteiros da matriz <code>img</code> (intensidades entre 0 e 255).</li>
-<li><strong>Fundo estimado:</strong> Ler os <span class="math inline">\(L \times C\)</span> valores inteiros da matriz <code>bg</code> (intensidades entre 0 e 255, sempre estritamente maiores que zero).</li>
-<li><strong>Normalização:</strong> Para cada posição <span class="math inline">\((i,j)\)</span>, calcular <span class="math display">\[
-\text{valor}(i,j) = \frac{\text{img}(i,j)}{\text{bg}(i,j)} \times 255.
-\]</span></li>
-<li><strong>Arredondamento:</strong> Arredondar o resultado para o inteiro mais próximo (arredondamento padrão, <em>round half away from zero</em> — valores com fração exatamente <span class="math inline">\(0{,}5\)</span> arredondam para cima em módulo).</li>
-<li><strong>Saturação:</strong> Após o arredondamento, limitar (<em>clip</em>) o valor ao intervalo <span class="math inline">\([0, 255]\)</span>.</li>
-<li><strong>Saída:</strong> Exibir a matriz <code>img_norm</code> resultante, com dimensões <span class="math inline">\(L \times C\)</span>.</li>
+<li><strong>Parâmetros:</strong> Ler os inteiros <span class="math inline">\(Q\)</span> (número de questões) e <span class="math inline">\(K\)</span> (número de alternativas por questão, com <span class="math inline">\(2 \le K \le 26\)</span>) e o limiar de preenchimento <span class="math inline">\(\mathrm{Th}\)</span> (número real entre <span class="math inline">\(0\)</span> e <span class="math inline">\(100\)</span>).</li>
+<li><strong>Graus de preenchimento:</strong> Para cada uma das <span class="math inline">\(Q\)</span> questões, ler os <span class="math inline">\(K\)</span> valores reais correspondentes às alternativas <code>A</code>, <code>B</code>, <code>C</code>, …, na ordem de entrada.</li>
+<li><strong>Contagem de marcações:</strong> Para cada questão, contar quantas alternativas possuem grau de preenchimento <strong>estritamente maior</strong> que <span class="math inline">\(\mathrm{Th}\)</span>.</li>
+<li><strong>Classificação:</strong>
+<ul>
+<li>Se nenhuma alternativa exceder <span class="math inline">\(\mathrm{Th}\)</span>, classificar a questão como <code>BRANCO</code>.</li>
+<li>Se exatamente uma alternativa exceder <span class="math inline">\(\mathrm{Th}\)</span>, imprimir a letra correspondente (<code>A</code>, <code>B</code>, <code>C</code>, …).</li>
+<li>Se duas ou mais alternativas excederem <span class="math inline">\(\mathrm{Th}\)</span>, classificar a questão como <code>DUPLA_MARCACAO</code>.</li>
+</ul></li>
+<li><strong>Saída por questão:</strong> Imprimir, na ordem de leitura, a classificação de cada questão.</li>
+<li><strong>Totais:</strong> Ao final, imprimir o número de questões <code>OK</code> (uma única marcação), <code>BRANCO</code> e <code>DUPLA_MARCACAO</code>.</li>
 </ol>
 </section>
-<section class="level4" data-number="6.12.3.2" id="restrições-computacionais-2">
-<h4 class="anchored" data-anchor-id="restrições-computacionais-2" data-number="6.12.3.2"><span class="header-section-number">6.12.3.2</span> 📌 Restrições Computacionais</h4>
+<section class="level4" data-number="6.11.3.2" id="restrições-computacionais-2">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-2" data-number="6.11.3.2"><span class="header-section-number">6.11.3.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Divisor sempre positivo:</strong> a entrada garante <span class="math inline">\(\text{bg}(i,j) &gt; 0\)</span> para todo <span class="math inline">\((i,j)\)</span> — não é necessário tratar divisão por zero.</li>
-<li><strong>Ordem das operações:</strong> arredondar <strong>primeiro</strong>, saturar <strong>depois</strong>. Um valor como <span class="math inline">\(382{,}5\)</span> deve ser arredondado para <span class="math inline">\(383\)</span> e só então saturado para <span class="math inline">\(255\)</span>.</li>
-<li><strong>Independência por pixel:</strong> cada posição é normalizada isoladamente, sem depender de vizinhos.</li>
+<li><strong>Comparação estrita:</strong> apenas valores maiores que <span class="math inline">\(\mathrm{Th}\)</span> são considerados marcações válidas; valores exatamente iguais ao limiar não devem ser contabilizados.</li>
+<li><strong>Letras das alternativas:</strong> o índice <span class="math inline">\(0\)</span> corresponde à alternativa <code>A</code>, o índice <span class="math inline">\(1\)</span> à alternativa <code>B</code> e assim sucessivamente.</li>
+<li><strong>Múltiplas marcações:</strong> sempre que duas ou mais alternativas excederem o limiar, a classificação deve ser <code>DUPLA_MARCACAO</code>, independentemente dos respectivos graus de preenchimento.</li>
 </ul>
 </section>
-<section class="level4" data-number="6.12.3.3" id="fundamentação-teórica-2">
-<h4 class="anchored" data-anchor-id="fundamentação-teórica-2" data-number="6.12.3.3"><span class="header-section-number">6.12.3.3</span> 🧠 Fundamentação Teórica</h4>
+<section class="level4" data-number="6.11.3.3" id="fundamentação-teórica-2">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-2" data-number="6.11.3.3"><span class="header-section-number">6.11.3.3</span> 🧠 Fundamentação Teórica</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 50%"/>
-<col style="width: 50%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
 </colgroup>
 <thead>
 <tr class="header">
 <th>Situação</th>
-<th>Efeito da normalização</th>
+<th>Classificação</th>
+<th>Interpretação</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\text{img}(i,j) = \text{bg}(i,j)\)</span></td>
-<td>Resultado <span class="math inline">\(= 255\)</span> (região de fundo puro, “branqueada”)</td>
+<td>Exatamente uma alternativa acima do limiar</td>
+<td>Letra da alternativa</td>
+<td>Resposta válida</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\text{img}(i,j) \ll \text{bg}(i,j)\)</span></td>
-<td>Resultado próximo de <span class="math inline">\(0\)</span> (traço escuro, texto preservado como escuro)</td>
+<td>Nenhuma alternativa acima do limiar</td>
+<td><code>BRANCO</code></td>
+<td>Questão não respondida</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(\text{img}(i,j) &gt; \text{bg}(i,j)\)</span></td>
-<td>Resultado <span class="math inline">\(&gt; 255\)</span>, saturado em <span class="math inline">\(255\)</span></td>
-</tr>
-<tr class="even">
-<td>Gradiente de luz (bg variando espacialmente)</td>
-<td>Cancelado pela divisão local — o limiar de Otsu volta a funcionar globalmente</td>
+<td>Duas ou mais alternativas acima do limiar</td>
+<td><code>DUPLA_MARCACAO</code></td>
+<td>Resposta ambígua</td>
 </tr>
 </tbody>
 </table>
-<p>Ao dividir cada pixel pelo valor local do fundo suavizado, sombras e variações lentas de iluminação — que afetam igualmente pixel e vizinhança — são canceladas, restando apenas o contraste relativo entre o traço (texto) e o papel ao seu redor.</p>
+<p>O limiar de preenchimento controla a sensibilidade do algoritmo. Valores muito baixos tendem a aumentar o número de <code>DUPLA_MARCACAO</code>, enquanto valores muito altos podem aumentar a quantidade de questões classificadas como <code>BRANCO</code>.</p>
 </section>
-<section class="level4" data-number="6.12.3.4" id="especificação-de-entrada-e-saída-vpl-2">
-<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-2" data-number="6.12.3.4"><span class="header-section-number">6.12.3.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<section class="level4" data-number="6.11.3.4" id="especificação-de-entrada-e-saída-vpl-2">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-2" data-number="6.11.3.4"><span class="header-section-number">6.11.3.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiro <span class="math inline">\(L\)</span>.</li>
-<li>Linha 2: Inteiro <span class="math inline">\(C\)</span>.</li>
-<li>Próximas <span class="math inline">\(L\)</span> linhas: elementos inteiros da matriz <code>img</code>.</li>
-<li>Próximas <span class="math inline">\(L\)</span> linhas: elementos inteiros da matriz <code>bg</code>.</li>
+<li>Linha 1: Inteiro <span class="math inline">\(Q\)</span>.</li>
+<li>Linha 2: Inteiro <span class="math inline">\(K\)</span>.</li>
+<li>Linha 3: Número real <span class="math inline">\(\mathrm{Th}\)</span>.</li>
+<li>Próximas <span class="math inline">\(Q\)</span> linhas: <span class="math inline">\(K\)</span> números reais, correspondentes aos graus de preenchimento das alternativas.</li>
+<li>Linha 1: Inteiro <span class="math inline">\(Q\)</span> e <span class="math inline">\(K\)</span>.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li>Matriz <code>img_norm</code> em <span class="math inline">\(L\)</span> linhas e <span class="math inline">\(C\)</span> colunas, valores separados por espaço.</li>
+<li><span class="math inline">\(Q\)</span> linhas, cada uma contendo a classificação da respectiva questão.</li>
+<li>Linha final: <code>OK: x  BRANCO: y  DUPLA_MARCACAO: z</code>.</li>
 </ul>
 </section>
-<section class="level4" data-number="6.12.3.5" id="exemplos-2">
-<h4 class="anchored" data-anchor-id="exemplos-2" data-number="6.12.3.5"><span class="header-section-number">6.12.3.5</span> 📌 Exemplos</h4>
+<section class="level4" data-number="6.11.3.5" id="exemplos-2">
+<h4 class="anchored" data-anchor-id="exemplos-2" data-number="6.11.3.5"><span class="header-section-number">6.11.3.5</span> 📌 Exemplos</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%"/>
@@ -174,59 +179,49 @@ div.csl-indent {
 </thead>
 <tbody>
 <tr class="odd">
-<td>2<br/>
-2<br/>
-60 120<br/>
-180 40<br/>
-100 100<br/>
-200 80</td>
-<td>153 255<br/>
-230 128</td>
-<td><span class="math inline">\(120/100\times255=306\to\)</span> satura em <span class="math inline">\(255\)</span>; <span class="math inline">\(180/200\times255=229{,}5\to230\)</span> (arredonda para cima); <span class="math inline">\(40/80\times255=127{,}5\to128\)</span>.</td>
+<td>3<br/>
+4<br/>
+50<br/>
+10 85 5 12<br/>
+20 15 18 22<br/>
+90 88 10 5</td>
+<td>B<br/>
+BRANCO<br/>
+DUPLA_MARCACAO<br/>
+OK: 1 BRANCO: 1 DUPLA_MARCACAO: 1</td>
+<td>Na primeira questão apenas <code>B</code> supera o limiar; na segunda nenhuma alternativa o supera; na terceira, <code>A</code> e <code>B</code> excedem o limiar.</td>
 </tr>
 <tr class="even">
 <td>1<br/>
-3<br/>
-30 60 90<br/>
-60 60 60</td>
-<td>128 255 255</td>
-<td><span class="math inline">\(30/60\times255=127{,}5\to128\)</span>; os demais excedem 255 e saturam.</td>
+2<br/>
+50.0<br/>
+50 50</td>
+<td>BRANCO<br/>
+OK: 0 BRANCO: 1 DUPLA_MARCACAO: 0</td>
+<td>Valores iguais ao limiar não são considerados marcações válidas.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-06-sim-ep03">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="9" id="fig-06-sim-ep03">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="112" id="fig-06-sim-ep03">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-06-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0603" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Normalização de Fundo por Divisão</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 img/bg × 255</span>
+<span>🎮 Simulador: Classificação de Marcações OMR</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 4 alternativas</span>
 </div>
 <div style="padding:20px;background:white;">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o gradiente de fundo (esquerda x direita) e observe como a normalização cancela a variação de iluminação.</p>
-<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#c2410c;">Intensidade do fundo à esquerda (bg_esq)</label>
-<span id="ep0603_vl" style="font-family:monospace;font-weight:bold;color:#c2410c;">100</span>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o grau de preenchimento de cada bolha (A–D) e o limiar, e observe a classificação da questão.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+<label style="font-size:12px;font-weight:bold;color:#a16207;">Limiar de preenchimento (Th)</label>
+<span id="ep0603_vth" style="font-family:monospace;font-weight:bold;color:#a16207;">50</span>
 </div>
-<input id="ep0603_sl" max="220" min="40" step="5" style="width:100%;accent-color:#c2410c;" type="range" value="100"/>
+<input id="ep0603_th" max="100" min="0" step="1" style="width:100%;accent-color:#a16207;" type="range" value="50"/>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
-<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">img (original)</p>
-<div id="ep0603_g_img" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
-</div>
-<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">bg (fundo suavizado)</p>
-<div id="ep0603_g_bg" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
-</div>
-<div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">img_norm (saída)</p>
-<div id="ep0603_g_out" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
-</div>
-</div>
-<div id="ep0603_debug" style="margin-top:16px;background:#ffedd5;border-radius:8px;padding:10px;border:1px solid #fdba74;font-family:monospace;font-size:11px;color:#9a3412;text-align:center;"></div>
+<div id="ep0603_bubbles" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;"></div>
+<div id="ep0603_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:12px;color:#1565c0;text-align:center;"></div>
 </div>
 </div>
 <script>
@@ -234,48 +229,41 @@ div.csl-indent {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var linha_img = [90, 90, 90, 90];
-    var slEl = root.querySelector('#ep0603_sl');
-    var vlEl = root.querySelector('#ep0603_vl');
-    var gImg = root.querySelector('#ep0603_g_img');
-    var gBg  = root.querySelector('#ep0603_g_bg');
-    var gOut = root.querySelector('#ep0603_g_out');
-    var dbg  = root.querySelector('#ep0603_debug');
+    var letras = ['A','B','C','D'];
+    var valores = [10, 85, 5, 12];
+    var thEl = root.querySelector('#ep0603_th'), vthEl = root.querySelector('#ep0603_vth');
+    var box = root.querySelector('#ep0603_bubbles');
+    var dbg = root.querySelector('#ep0603_debug');
 
-    function roundHalfAway(x){
-      return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
-    }
-    function cellStyle(v){
-      var g = Math.max(0, Math.min(255, v));
-      return 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:9px;font-weight:bold;font-family:monospace;border:1px solid #ccc;' +
-             'background:rgb('+g+','+g+','+g+');color:'+(g>140?'#000':'#fff')+';';
-    }
+    box.innerHTML = '';
+    var sliders = [];
+    letras.forEach(function(L, i){
+      var col = document.createElement('div');
+      col.style.cssText = 'text-align:center;';
+      col.innerHTML = '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+L+'</div>' +
+        '<input type="range" min="0" max="100" step="1" value="'+valores[i]+'" style="width:100%;accent-color:#7c3aed;" id="ep0603_b'+i+'">' +
+        '<div id="ep0603_v'+i+'" style="font-family:monospace;font-size:11px;margin-top:4px;">'+valores[i]+'%</div>';
+      box.appendChild(col);
+      sliders.push(col.querySelector('#ep0603_b'+i));
+    });
 
     function render(){
-      var bgEsq = parseInt(slEl.value);
-      vlEl.textContent = bgEsq;
-      // gradiente linear de bgEsq até 200 na direita, 4 colunas
-      var bg = [];
-      for(var j=0;j<4;j++){
-        bg.push(Math.round(bgEsq + (200-bgEsq)*j/3));
-      }
-      gImg.innerHTML=''; gBg.innerHTML=''; gOut.innerHTML='';
-      var out = [];
-      for(var j=0;j<4;j++){
-        var v = linha_img[j]/bg[j]*255;
-        var r = roundHalfAway(v);
-        var sat = Math.max(0, Math.min(255, r));
-        out.push(sat);
-        var ci = document.createElement('div'); ci.style.cssText = cellStyle(linha_img[j]); ci.textContent = linha_img[j];
-        gImg.appendChild(ci);
-        var cb = document.createElement('div'); cb.style.cssText = cellStyle(bg[j]); cb.textContent = bg[j];
-        gBg.appendChild(cb);
-        var co = document.createElement('div'); co.style.cssText = cellStyle(sat); co.textContent = sat;
-        gOut.appendChild(co);
-      }
-      dbg.textContent = 'bg = [' + bg.join(', ') + ']  |  img_norm = [' + out.join(', ') + ']';
+      var th = parseFloat(thEl.value);
+      vthEl.textContent = th.toFixed(0);
+      var marcadas = [];
+      sliders.forEach(function(s, i){
+        var v = parseFloat(s.value);
+        root.querySelector('#ep0603_v'+i).textContent = v.toFixed(0) + '%';
+        if(v > th) marcadas.push(letras[i]);
+      });
+      var resultado;
+      if(marcadas.length === 0) resultado = 'BRANCO';
+      else if(marcadas.length === 1) resultado = marcadas[0];
+      else resultado = 'DUPLA_MARCACAO (' + marcadas.join(',') + ')';
+      dbg.textContent = 'Classificacao da questao: ' + resultado;
     }
-    slEl.addEventListener('input', render);
+    sliders.forEach(function(s){ s.addEventListener('input', render); });
+    thEl.addEventListener('input', render);
     render();
   }
   function tryInit(){
@@ -287,24 +275,26 @@ div.csl-indent {
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-06-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 6.21: Simulador: Normalização de Fundo por Divisão
+Figura 6.21: Simulador: Classificação de Marcações OMR
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="921b6c78">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a aria-hidden="true" href="#cb43-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_03.py</span>
-<span id="cb43-2"><a aria-hidden="true" href="#cb43-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="77f9eb2b">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a aria-hidden="true" href="#cb44-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_03.py</span>
+<span id="cb44-2"><a aria-hidden="true" href="#cb44-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP06_03.py</code></pre>
+<pre><code>Overwriting EP06_03.py</code></pre>
 </div>
 </div>
-<div class="cell" id="6435256e">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a aria-hidden="true" href="#cb45-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_03.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="69ec15f2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a aria-hidden="true" href="#cb46-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_03.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap06/casos/EP06_03.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap06/cap6/EP6_3.cases
-❌ Não foi possível baixar EP06_03.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP06_03.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP06_03.cases
+
+🔍 Testando Python: EP06_03.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP06_03.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
@@ -830,7 +820,7 @@ window.Quarto = {
       const h = maiorContorno.maxr - maiorContorno.minr + 1;
       const ratio = w / h;
       if (ratio > 1.5 || ratio < 0.67) {
-        warnBox.innerHTML = '<div class="qr_warn">⚠️ O maior contorno quadrado detectado incorporou uma linha horizontal da folha, distorcendo a bounding box. Isso ocorre porque sebox(' + k + ') funde módulos do QR Code com elementos adjacentes. Na prática, o algoritmo MCTest usa critérios adicionais (área mínima e proximidade com a borda superior) para evitar essa situação. Reduza k para obter o recorte correto.</div>';
+        warnBox.innerHTML = '<div class="qr_warn">⚠️ O maior contorno quadrado detectado incorporou uma linha horizontal da folha, distorcendo a bounding box. Isso ocorre porque sebox(' + k + ') funde módulos do QRCode com elementos adjacentes. Na prática, o algoritmo MCTest usa critérios adicionais (área mínima e proximidade com a borda superior) para evitar essa situação. Reduza k para obter o recorte correto.</div>';
       } else {
         warnBox.innerHTML = '';
       }
@@ -842,7 +832,7 @@ window.Quarto = {
       'sebox(0) = 3×3 — fechamento leve, preserva módulos finos',
       'sebox(1) = 5×5 — fechamento médio, ideal para segmentar o QRCode',
       'sebox(2) = 7×7 — começa a fundir módulos adjacentes',
-      'sebox(3) = 9×9 — destrói a estrutura do QR Code'
+      'sebox(3) = 9×9 — destrói a estrutura do QRCode'
     ];
     document.getElementById('qr_kDesc').textContent = kDescs[k] || '';
 
@@ -1094,6 +1084,162 @@ window.Quarto = {
 </script>
 <script>
 (function(){
+
+function init(root){
+
+if(!root) return;
+if(root.dataset.ready==="1") return;
+root.dataset.ready="1";
+
+var dx=root.querySelector("#ep0601_dx");
+var dy=root.querySelector("#ep0601_dy");
+var sz=root.querySelector("#ep0601_sz");
+
+var vdx=root.querySelector("#ep0601_vdx");
+var vdy=root.querySelector("#ep0601_vdy");
+var vsz=root.querySelector("#ep0601_vsz");
+
+var gRef=root.querySelector("#ep0601_ref");
+var gPred=root.querySelector("#ep0601_pred");
+var gMix=root.querySelector("#ep0601_mix");
+
+var dbg=root.querySelector("#ep0601_dbg");
+
+var N=10;
+
+var ref={x:2,y:2,w:6,h:6};
+
+function inside(x,y,r){
+return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h;
+}
+
+function pixel(color){
+
+var d=document.createElement("div");
+
+d.style.width="24px";
+d.style.height="24px";
+d.style.border="1px solid #ddd";
+d.style.boxSizing="border-box";
+d.style.background=color;
+
+return d;
+
+}
+
+function classe(i){
+
+if(i>=0.90) return "Excelente";
+if(i>=0.75) return "Muito boa";
+if(i>=0.50) return "Aceitável";
+return "Ruim";
+
+}
+
+function render(){
+
+vdx.innerHTML=dx.value;
+vdy.innerHTML=dy.value;
+vsz.innerHTML=sz.value;
+
+gRef.innerHTML="";
+gPred.innerHTML="";
+gMix.innerHTML="";
+
+var pred={
+x:ref.x+parseInt(dx.value),
+y:ref.y+parseInt(dy.value),
+w:parseInt(sz.value),
+h:parseInt(sz.value)
+};
+
+var inter=0;
+var uniao=0;
+
+for(var y=0;y<N;y++){
+
+for(var x=0;x<N;x++){
+
+var r=inside(x,y,ref);
+var p=inside(x,y,pred);
+
+gRef.appendChild(pixel(r?"#7fdc92":"white"));
+gPred.appendChild(pixel(p?"#7fbfff":"white"));
+
+if(r&&p){
+gMix.appendChild(pixel("#9b59b6"));
+inter++;
+}
+else if(r){
+gMix.appendChild(pixel("#7fdc92"));
+uniao++;
+}
+else if(p){
+gMix.appendChild(pixel("#7fbfff"));
+uniao++;
+}
+else{
+gMix.appendChild(pixel("white"));
+}
+
+if(r&&p) uniao++;
+
+}
+
+}
+
+var iou=inter/uniao;
+
+dbg.innerHTML=
+"<b>Interseção</b> = "+inter+
+" pixels &nbsp;&nbsp;&nbsp;"+
+"<b>União</b> = "+uniao+
+" pixels"+
+"<br><br>"+
+"IoU = <b>"+inter+" / "+uniao+
+" = "+iou.toFixed(4)+"</b>"+
+"<br><br>"+
+"<span style='font-weight:bold;color:#1565c0;'>"+
+classe(iou)+
+"</span>";
+
+}
+
+dx.oninput=render;
+dy.oninput=render;
+sz.oninput=render;
+
+render();
+
+}
+
+function tryInit(){
+
+var all=document.querySelectorAll('[id="sim-ep0601"]');
+
+if(all.length===0) return false;
+
+init(all[all.length-1]);
+
+return true;
+
+}
+
+var t=0;
+
+var id=setInterval(function(){
+
+t++;
+
+if(tryInit() || t>20)
+clearInterval(id);
+
+},50);
+
+})();
+</script>
+<script>
+(function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
@@ -1104,10 +1250,10 @@ window.Quarto = {
       {nome:"Rasura", A:50, P:60},
       {nome:"Ponto", A:10, P:0}
     ];
-    var slEl = root.querySelector('#ep0601_sl');
-    var vlEl = root.querySelector('#ep0601_vl');
-    var cards = root.querySelector('#ep0601_cards');
-    var dbg = root.querySelector('#ep0601_debug');
+    var slEl = root.querySelector('#ep0602_sl');
+    var vlEl = root.querySelector('#ep0602_vl');
+    var cards = root.querySelector('#ep0602_cards');
+    var dbg = root.querySelector('#ep0602_debug');
 
     function render(){
       var th = parseFloat(slEl.value);
@@ -1133,7 +1279,56 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0601');
+    var root = document.getElementById('sim-ep0602');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var letras = ['A','B','C','D'];
+    var valores = [10, 85, 5, 12];
+    var thEl = root.querySelector('#ep0603_th'), vthEl = root.querySelector('#ep0603_vth');
+    var box = root.querySelector('#ep0603_bubbles');
+    var dbg = root.querySelector('#ep0603_debug');
+
+    box.innerHTML = '';
+    var sliders = [];
+    letras.forEach(function(L, i){
+      var col = document.createElement('div');
+      col.style.cssText = 'text-align:center;';
+      col.innerHTML = '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+L+'</div>' +
+        '<input type="range" min="0" max="100" step="1" value="'+valores[i]+'" style="width:100%;accent-color:#7c3aed;" id="ep0603_b'+i+'">' +
+        '<div id="ep0603_v'+i+'" style="font-family:monospace;font-size:11px;margin-top:4px;">'+valores[i]+'%</div>';
+      box.appendChild(col);
+      sliders.push(col.querySelector('#ep0603_b'+i));
+    });
+
+    function render(){
+      var th = parseFloat(thEl.value);
+      vthEl.textContent = th.toFixed(0);
+      var marcadas = [];
+      sliders.forEach(function(s, i){
+        var v = parseFloat(s.value);
+        root.querySelector('#ep0603_v'+i).textContent = v.toFixed(0) + '%';
+        if(v > th) marcadas.push(letras[i]);
+      });
+      var resultado;
+      if(marcadas.length === 0) resultado = 'BRANCO';
+      else if(marcadas.length === 1) resultado = marcadas[0];
+      else resultado = 'DUPLA_MARCACAO (' + marcadas.join(',') + ')';
+      dbg.textContent = 'Classificacao da questao: ' + resultado;
+    }
+    sliders.forEach(function(s){ s.addEventListener('input', render); });
+    thEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0603');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1145,10 +1340,10 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var base = [-10.5, 2.3, 2.3];
-    var slEl = root.querySelector('#ep0602_sl');
-    var vlEl = root.querySelector('#ep0602_vl');
-    var ptsEl = root.querySelector('#ep0602_pts');
-    var dbg = root.querySelector('#ep0602_debug');
+    var slEl = root.querySelector('#ep0604_sl');
+    var vlEl = root.querySelector('#ep0604_vl');
+    var ptsEl = root.querySelector('#ep0604_pts');
+    var dbg = root.querySelector('#ep0604_debug');
 
     function median(arr){
       var a = arr.slice().sort(function(x,y){return x-y;});
@@ -1180,7 +1375,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0602');
+    var root = document.getElementById('sim-ep0604');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1192,12 +1387,12 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var linha_img = [90, 90, 90, 90];
-    var slEl = root.querySelector('#ep0603_sl');
-    var vlEl = root.querySelector('#ep0603_vl');
-    var gImg = root.querySelector('#ep0603_g_img');
-    var gBg  = root.querySelector('#ep0603_g_bg');
-    var gOut = root.querySelector('#ep0603_g_out');
-    var dbg  = root.querySelector('#ep0603_debug');
+    var slEl = root.querySelector('#ep0605_sl');
+    var vlEl = root.querySelector('#ep0605_vl');
+    var gImg = root.querySelector('#ep0605_g_img');
+    var gBg  = root.querySelector('#ep0605_g_bg');
+    var gOut = root.querySelector('#ep0605_g_out');
+    var dbg  = root.querySelector('#ep0605_debug');
 
     function roundHalfAway(x){
       return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
@@ -1236,7 +1431,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0603');
+    var root = document.getElementById('sim-ep0605');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1247,13 +1442,13 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var slDef = root.querySelector('#ep0604_sl_def');
-    var vlDef = root.querySelector('#ep0604_vl_def');
-    var slT   = root.querySelector('#ep0604_sl_t');
-    var vlT   = root.querySelector('#ep0604_vl_t');
-    var gTex  = root.querySelector('#ep0604_g_tex');
-    var gMask = root.querySelector('#ep0604_g_mask');
-    var dbg   = root.querySelector('#ep0604_debug');
+    var slDef = root.querySelector('#ep0606_sl_def');
+    var vlDef = root.querySelector('#ep0606_vl_def');
+    var slT   = root.querySelector('#ep0606_sl_t');
+    var vlT   = root.querySelector('#ep0606_vl_t');
+    var gTex  = root.querySelector('#ep0606_g_tex');
+    var gMask = root.querySelector('#ep0606_g_mask');
+    var dbg   = root.querySelector('#ep0606_debug');
 
     function roundHalfAway(x){
       return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
@@ -1310,7 +1505,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0604');
+    var root = document.getElementById('sim-ep0606');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1326,14 +1521,14 @@ window.Quarto = {
     // cap representa a peça já deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
     var cap = [[0,50,50],[0,50,90],[0,50,50]];
 
-    var slDx = root.querySelector('#ep0605_sl_dx');
-    var vlDx = root.querySelector('#ep0605_vl_dx');
-    var slT  = root.querySelector('#ep0605_sl_t');
-    var vlT  = root.querySelector('#ep0605_vl_t');
-    var gRef = root.querySelector('#ep0605_g_ref');
-    var gAlin= root.querySelector('#ep0605_g_alin');
-    var gMask= root.querySelector('#ep0605_g_mask');
-    var dbg  = root.querySelector('#ep0605_debug');
+    var slDx = root.querySelector('#ep0607_sl_dx');
+    var vlDx = root.querySelector('#ep0607_vl_dx');
+    var slT  = root.querySelector('#ep0607_sl_t');
+    var vlT  = root.querySelector('#ep0607_vl_t');
+    var gRef = root.querySelector('#ep0607_g_ref');
+    var gAlin= root.querySelector('#ep0607_g_alin');
+    var gMask= root.querySelector('#ep0607_g_mask');
+    var dbg  = root.querySelector('#ep0607_debug');
 
     function cellStyle(g, w, extra){
       return 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:bold;font-family:monospace;border:1px solid #ccc;' +
@@ -1381,7 +1576,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0605');
+    var root = document.getElementById('sim-ep0607');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();

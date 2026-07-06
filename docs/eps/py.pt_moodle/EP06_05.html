@@ -3,28 +3,28 @@
 📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_05.html</a>
 <br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_05 🟣 Pipeline de Inspeção Industrial: Registro por Translação e Subtração</h2>
-<p>Em uma linha de produção, uma câmera fixa fotografa cada peça que passa pela esteira, comparando-a a uma imagem de referência sem defeitos. O problema: pequenas vibrações da esteira deslocam a peça em relação à posição de referência a cada captura. Se a subtração de imagens for aplicada diretamente, sem correção, o deslocamento por si só já gera diferenças enormes — <strong>falsos positivos</strong> que mascaram os defeitos reais.</p>
-<p>Este é o exercício mais completo do capítulo: você deve <strong>primeiro registrar</strong> (alinhar geometricamente) a imagem capturada usando um deslocamento conhecido (dx, dy), fornecido por um sensor de posição da esteira, e <strong>só então aplicar a subtração</strong> com limiarização, exatamente como descrito na seção de inspeção industrial.</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_05 🟠 Normalização de Fundo por Divisão (Correção de Iluminação)</h2>
+<p>Um formulário foi fotografado sob iluminação não uniforme, fazendo com que um lado da folha apareça mais claro que o outro. Nessas condições, a limiarização global por Otsu pode produzir resultados insatisfatórios, pois um único limiar não separa adequadamente texto e fundo em toda a imagem. A solução apresentada no capítulo consiste em <strong>normalizar o fundo</strong>, dividindo a imagem original por uma versão fortemente suavizada de si mesma, que representa a iluminação de baixa frequência.</p>
+<p>Neste exercício, a imagem original e o fundo suavizado (equivalente ao resultado de um <code>cv2.GaussianBlur</code> com σ elevado) já são fornecidos. Sua tarefa é implementar a etapa de normalização que produz a imagem corrigida.</p>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Dimensões e parâmetros:</strong> Ler <em>L</em>, <em>C</em> (dimensões das imagens), o deslocamento inteiro conhecido dx, dy (podendo ser negativos) e o limiar de detecção <em>T</em> (inteiro).</li>
-<li><strong>Imagens:</strong> Ler a matriz de referência (<code>ref</code>, <em>L</em>× <em>C</em>, sem defeitos) e a matriz capturada (<code>cap</code>, <em>L</em>× <em>C</em>, possivelmente deslocada e com defeito).</li>
-<li><strong>Registro por translação:</strong> Construir a imagem alinhada <code>alin</code> aplicando o deslocamento (dx,dy) recebido: alin(<em>i</em>,<em>j</em>) = cap(<em>i</em>+dy,\; <em>j</em>+dx), se (<em>i</em>+dy,\ <em>j</em>+dx) ∈ [0,<em>L</em>)×[0,<em>C</em>); 0, caso contrário</li>
-<li><strong>Preenchimento de borda:</strong> As posições que “saem” da imagem capturada após o deslocamento recebem o valor <strong>0</strong> (zero-padding — fora do campo de visão da câmera; <strong>note que este exercício usa zero, diferente da replicação de borda do EP06_04</strong>).</li>
-<li><strong>Diferença absoluta:</strong> Calcular, pixel a pixel, diff(<em>i</em>,<em>j</em>) = |ref(<em>i</em>,<em>j</em>) - alin(<em>i</em>,<em>j</em>)|</li>
-<li><strong>Limiarização:</strong> Definir <em>m</em>áscara(<em>i</em>,<em>j</em>) = 1 se diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>; caso contrário, <em>m</em>áscara(<em>i</em>,<em>j</em>) = 0.</li>
-<li><strong>Saída:</strong> Nesta ordem — (a) a matriz <code>alin</code> (<em>L</em>× <em>C</em>); (b) a máscara de defeito (<em>L</em>× <em>C</em>); (c) uma última linha com o total de pixels classificados como defeituosos.</li>
+<li><strong>Dimensões:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas).</li>
+<li><strong>Imagem original:</strong> Ler os <em>L</em> × <em>C</em> valores inteiros da matriz <code>img</code> (intensidades entre 0 e 255).</li>
+<li><strong>Fundo estimado:</strong> Ler os <em>L</em> × <em>C</em> valores inteiros da matriz <code>bg</code> (intensidades entre 0 e 255, sempre estritamente maiores que zero).</li>
+<li><strong>Normalização:</strong> Para cada posição (<em>i</em>,<em>j</em>), calcular valor(<em>i</em>,<em>j</em>)=
+\fracimg(<em>i</em>,<em>j</em>)bg(<em>i</em>,<em>j</em>)×255.</li>
+<li><strong>Arredondamento:</strong> Arredondar o resultado para o inteiro mais próximo (<em>round half away from zero</em>, com <code>np.floor(img + 0.5)</code>).</li>
+<li><strong>Saturação:</strong> Limitar o valor obtido ao intervalo [0,255].</li>
+<li><strong>Saída:</strong> Imprimir a matriz <code>img_norm</code> resultante.</li>
 </ol>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Zero-padding, não replicação:</strong> posições fora dos limites da imagem capturada, após o deslocamento, valem exatamente 0 — este é o ponto que mais diferencia este exercício do EP06_04.</li>
-<li><strong>Comparação estrita:</strong> diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>.</li>
-<li><strong>Sinal de (dx,dy):</strong> o deslocamento pode ser positivo ou negativo; a fórmula do passo 3 deve ser aplicada literalmente, sem inverter os sinais.</li>
-<li><strong>Todos os valores são inteiros:</strong> não há arredondamento nesta etapa.</li>
+<li><strong>Divisão por zero:</strong> a entrada garante bg(<em>i</em>,<em>j</em>)&gt;0 em todas as posições.</li>
+<li><strong>Ordem das operações:</strong> primeiro arredondar, depois aplicar a saturação.</li>
+<li><strong>Processamento independente:</strong> cada pixel deve ser normalizado individualmente, sem utilizar informações dos pixels vizinhos.</li>
 </ul>
 </div>
 <div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
@@ -32,30 +32,30 @@
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
-<th style="padding:10px;border:1px solid #ddd;">Etapa omitida</th>
-<th style="padding:10px;border:1px solid #ddd;">Consequência</th>
+<th style="padding:10px;border:1px solid #ddd;">Situação</th>
+<th style="padding:10px;border:1px solid #ddd;">Efeito da normalização</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pular o registro geométrico</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A borda inteira da imagem (introduzida pelo deslocamento) é marcada como “defeito” — falso positivo sistemático</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)=bg(<em>i</em>,<em>j</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resultado igual a 255, correspondente ao fundo normalizado.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Registro com (dx,dy) incorreto</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Peça e referência ficam desalinhadas; a subtração detecta contornos deslocados, não defeitos reais</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)<bg(<em>i,<em>j</em>)</bg(<em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resultado menor que 255, preservando regiões mais escuras, como texto.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limiar <em>T</em> muito baixo</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ruído de captura (variações de 1–2 níveis de cinza) é confundido com defeito</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)&gt;bg(<em>i</em>,<em>j</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resultado superior a 255, posteriormente saturado.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limiar <em>T</em> muito alto</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Defeitos sutis deixam de ser detectados</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fundo com iluminação não uniforme</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A divisão reduz as variações lentas de iluminação, tornando a imagem mais homogênea.</td>
 </tr>
 </tbody>
 </table>
-<p>O registro geométrico e a subtração são etapas complementares: o primeiro garante que ambas as imagens representem exatamente a mesma cena no mesmo referencial espacial; o segundo isola o que realmente mudou entre elas — idealmente, apenas os defeitos.</p>
+<p>A divisão pelo fundo estimado reduz os efeitos da iluminação não uniforme e preserva o contraste entre o primeiro plano e o fundo, facilitando as etapas posteriores de segmentação.</p>
 </div>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
@@ -63,16 +63,12 @@
 <ul>
 <li>Linha 1: Inteiro <em>L</em>.</li>
 <li>Linha 2: Inteiro <em>C</em>.</li>
-<li>Linha 3: Dois inteiros dx e dy, separados por espaço.</li>
-<li>Linha 4: Inteiro <em>T</em>.</li>
-<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <code>ref</code>.</li>
-<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <code>cap</code>.</li>
+<li>Próximas <em>L</em> linhas: elementos da matriz <code>img</code>.</li>
+<li>Próximas <em>L</em> linhas: elementos da matriz <code>bg</code>.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li><em>L</em> linhas com a matriz <code>alin</code>.</li>
-<li><em>L</em> linhas com a máscara de defeito (0/1).</li>
-<li>Última linha: <code>Total de pixels defeituosos: X</code>.</li>
+<li>Matriz <code>img_norm</code>, com <em>L</em> linhas e <em>C</em> colunas, contendo valores inteiros separados por espaço.</li>
 </ul>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
@@ -87,78 +83,56 @@
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
-3<br/>
-1 0<br/>
-30<br/>
-50 50 50<br/>
-50 50 50<br/>
-50 50 50<br/>
-0 50 50<br/>
-0 50 90<br/>
-0 50 50</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 50 0<br/>
-50 90 0<br/>
-50 50 0<br/>
-0 0 1<br/>
-0 1 1<br/>
-0 0 1<br/>
-Total de pixels defeituosos: 4</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">dx=1 desloca a leitura uma coluna à direita; a última coluna de <code>alin</code> fica sem correspondência (vira 0) e é sistematicamente marcada; o defeito real (90) também é detectado.</td>
-</tr>
-<tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
 2<br/>
-0 0<br/>
-20<br/>
-10 10<br/>
-10 10<br/>
-10 10<br/>
-10 60</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 10<br/>
-10 60<br/>
-0 0<br/>
-0 1<br/>
-Total de pixels defeituosos: 1</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Sem deslocamento (dx=dy=0): <code>alin</code> é idêntica a <code>cap</code>; apenas o defeito real (60) é detectado.</td>
+60 120<br/>
+180 40<br/>
+100 100<br/>
+200 80</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">153 255<br/>
+230 128</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Valores superiores a 255 devem ser saturados; 180/200×255=229,5 resulta em 230 após o arredondamento.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+3<br/>
+30 60 90<br/>
+60 60 60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">128 255 255</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Apenas o primeiro valor permanece abaixo de 255 após a normalização.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-06-sim-ep05">
 <div id="sim-ep0605" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Registro por Translação + Subtração</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟣 |ref − alin(dx,dy)| &gt; T</span>
+<span>🎮 Simulador: Normalização de Fundo por Divisão</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 img/bg × 255</span>
 
 </div><div style="padding:20px;background:white;">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o deslocamento da esteira (dx) e o limiar T. Observe como a borda "fantasma" some quando dx=0.</p>
-<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-<label style="font-size:12px;font-weight:bold;color:#6d28d9;">Deslocamento horizontal (dx)</label>
-<span id="ep0605_vl_dx" style="font-family:monospace;font-weight:bold;color:#6d28d9;">1</span>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o gradiente de fundo (esquerda x direita) e observe como a normalização cancela a variação de iluminação.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#c2410c;">Intensidade do fundo à esquerda (bg_esq)</label>
+<span id="ep0605_vl" style="font-family:monospace;font-weight:bold;color:#c2410c;">100</span>
 </div>
-<input id="ep0605_sl_dx" max="2" min="-2" step="1" style="width:100%;" type="range" value="1"/>
-<div style="display:flex;justify-content:space-between;margin:10px 0 4px;">
-<label style="font-size:12px;font-weight:bold;color:#6d28d9;">Limiar T</label>
-<span id="ep0605_vl_t" style="font-family:monospace;font-weight:bold;color:#6d28d9;">30</span>
-</div>
-<input id="ep0605_sl_t" max="100" min="0" step="5" style="width:100%;" type="range" value="30"/>
+<input id="ep0605_sl" max="220" min="40" step="5" style="width:100%;" type="range" value="100"/>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
 <div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">ref</p>
-<div id="ep0605_g_ref" style="display:grid;grid-template-columns:repeat(3,40px);gap:3px;justify-content:center;"></div>
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">img (original)</p>
+<div id="ep0605_g_img" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
 </div>
 <div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">alin (registrada)</p>
-<div id="ep0605_g_alin" style="display:grid;grid-template-columns:repeat(3,40px);gap:3px;justify-content:center;"></div>
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">bg (fundo suavizado)</p>
+<div id="ep0605_g_bg" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
 </div>
 <div style="text-align:center;background:white;border:1px solid #eee;padding:12px;border-radius:12px;">
-<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">máscara</p>
-<div id="ep0605_g_mask" style="display:grid;grid-template-columns:repeat(3,40px);gap:3px;justify-content:center;"></div>
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;">img_norm (saída)</p>
+<div id="ep0605_g_out" style="display:grid;grid-template-columns:repeat(4,40px);gap:3px;justify-content:center;"></div>
 </div>
 </div>
-<div id="ep0605_debug" style="margin-top:16px;background:#ede9fe;border-radius:8px;padding:10px;border:1px solid #c4b5fd;font-family:monospace;font-size:11px;color:#5b21b6;text-align:center;"></div>
+<div id="ep0605_debug" style="margin-top:16px;background:#ffedd5;border-radius:8px;padding:10px;border:1px solid #fdba74;font-family:monospace;font-size:11px;color:#9a3412;text-align:center;"></div>
 </div>
 <script>
 
@@ -166,63 +140,48 @@ Total de pixels defeituosos: 1</td>
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var N = 3;
-    var ref = [[50,50,50],[50,50,50],[50,50,50]];
-    // cap representa a peça já deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
-    var cap = [[0,50,50],[0,50,90],[0,50,50]];
-
-    var slDx = root.querySelector('#ep0605_sl_dx');
-    var vlDx = root.querySelector('#ep0605_vl_dx');
-    var slT  = root.querySelector('#ep0605_sl_t');
-    var vlT  = root.querySelector('#ep0605_vl_t');
-    var gRef = root.querySelector('#ep0605_g_ref');
-    var gAlin= root.querySelector('#ep0605_g_alin');
-    var gMask= root.querySelector('#ep0605_g_mask');
+    var linha_img = [90, 90, 90, 90];
+    var slEl = root.querySelector('#ep0605_sl');
+    var vlEl = root.querySelector('#ep0605_vl');
+    var gImg = root.querySelector('#ep0605_g_img');
+    var gBg  = root.querySelector('#ep0605_g_bg');
+    var gOut = root.querySelector('#ep0605_g_out');
     var dbg  = root.querySelector('#ep0605_debug');
 
-    function cellStyle(g, w, extra){
-      return 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:bold;font-family:monospace;border:1px solid #ccc;' +
-        'background:rgb('+g+','+g+','+g+');color:'+(g>140?'#000':'#fff')+';' + (extra||'');
+    function roundHalfAway(x){
+      return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
+    }
+    function cellStyle(v){
+      var g = Math.max(0, Math.min(255, v));
+      return 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:9px;font-weight:bold;font-family:monospace;border:1px solid #ccc;' +
+             'background:rgb('+g+','+g+','+g+');color:'+(g>140?'#000':'#fff')+';';
     }
 
     function render(){
-      var dx = parseInt(slDx.value);
-      var T  = parseInt(slT.value);
-      vlDx.textContent = dx;
-      vlT.textContent = T;
-      gRef.innerHTML=''; gAlin.innerHTML=''; gMask.innerHTML='';
-      var alin = [], mask = [], total = 0;
-      for(var i=0;i<N;i++){
-        var rowA=[], rowM=[];
-        for(var j=0;j<N;j++){
-          var pj = j + dx;
-          var v = (pj>=0 && pj<N) ? cap[i][pj] : 0;
-          rowA.push(v);
-          var diff = Math.abs(ref[i][j] - v);
-          var m = diff > T ? 1 : 0;
-          if(m) total++;
-          rowM.push(m);
-        }
-        alin.push(rowA); mask.push(rowM);
+      var bgEsq = parseInt(slEl.value);
+      vlEl.textContent = bgEsq;
+      // gradiente linear de bgEsq até 200 na direita, 4 colunas
+      var bg = [];
+      for(var j=0;j<4;j++){
+        bg.push(Math.round(bgEsq + (200-bgEsq)*j/3));
       }
-      for(var i=0;i<N;i++){
-        for(var j=0;j<N;j++){
-          var cr = document.createElement('div'); cr.style.cssText = cellStyle(ref[i][j]); cr.textContent = ref[i][j];
-          gRef.appendChild(cr);
-          var ca = document.createElement('div'); ca.style.cssText = cellStyle(alin[i][j]); ca.textContent = alin[i][j];
-          gAlin.appendChild(ca);
-          var m = mask[i][j];
-          var cm = document.createElement('div');
-          cm.style.cssText = 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:bold;font-family:monospace;' +
-            (m ? 'background:#fecaca;color:#7f1d1d;border:1px solid #f87171;' : 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;');
-          cm.textContent = m;
-          gMask.appendChild(cm);
-        }
+      gImg.innerHTML=''; gBg.innerHTML=''; gOut.innerHTML='';
+      var out = [];
+      for(var j=0;j<4;j++){
+        var v = linha_img[j]/bg[j]*255;
+        var r = roundHalfAway(v);
+        var sat = Math.max(0, Math.min(255, r));
+        out.push(sat);
+        var ci = document.createElement('div'); ci.style.cssText = cellStyle(linha_img[j]); ci.textContent = linha_img[j];
+        gImg.appendChild(ci);
+        var cb = document.createElement('div'); cb.style.cssText = cellStyle(bg[j]); cb.textContent = bg[j];
+        gBg.appendChild(cb);
+        var co = document.createElement('div'); co.style.cssText = cellStyle(sat); co.textContent = sat;
+        gOut.appendChild(co);
       }
-      dbg.textContent = 'dx=' + dx + '  |  T=' + T + '  |  Total de pixels defeituosos: ' + total + '/9';
+      dbg.textContent = 'bg = [' + bg.join(', ') + ']  |  img_norm = [' + out.join(', ') + ']';
     }
-    slDx.addEventListener('input', render);
-    slT.addEventListener('input', render);
+    slEl.addEventListener('input', render);
     render();
   }
   function tryInit(){

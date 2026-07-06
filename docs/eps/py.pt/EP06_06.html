@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP06_01 — EP06_01 🟢 Avaliação de Segmentação por IoU ( Intersection over Union )</title>
+  <title>EP06_06 — EP06_06 🔴 Mapa de Variância Local para Detecção de Textura</title>
   <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -84,54 +84,45 @@ div.csl-indent {
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:80ch">
-<h3 class="anchored" data-anchor-id="ep06_01-avaliação-de-segmentação-por-iou-intersection-over-union" data-number="6.11.1"><span class="header-section-number">6.11.1</span> EP06_01 🟢 Avaliação de Segmentação por IoU (<em>Intersection over Union</em>)</h3>
-<p>Ao longo deste capítulo, diversas etapas do <em>pipeline</em> produzem <strong>máscaras binárias</strong>, como na segmentação de documentos, na localização de <em>QRCodes</em> e na detecção de defeitos. Para avaliar objetivamente a qualidade dessas segmentações, é necessário compará-las com uma máscara de referência (<em>ground truth</em>).</p>
-<p>Uma das métricas mais utilizadas para esse fim é a <strong>IoU</strong> (<em>Intersection over Union</em>, ou Interseção sobre União), definida como a razão entre a área de interseção e a área de união de duas máscaras binárias. Quanto maior o valor da IoU, maior a concordância entre a segmentação produzida pelo algoritmo e a referência.</p>
-<section class="level4" data-number="6.11.1.1" id="diretrizes-de-implementação">
-<h4 class="anchored" data-anchor-id="diretrizes-de-implementação" data-number="6.11.1.1"><span class="header-section-number">6.11.1.1</span> 📋 Diretrizes de Implementação</h4>
+<h3 class="anchored" data-anchor-id="ep06_06-mapa-de-variância-local-para-detecção-de-textura" data-number="6.11.6"><span class="header-section-number">6.11.6</span> EP06_06 🔴 Mapa de Variância Local para Detecção de Textura</h3>
+<p>Uma fábrica de tecidos precisa inspecionar rolos de pano em tempo real, sem dispor de uma imagem de referência — cada rolo apresenta pequenas variações naturais. Nessa situação, a estratégia apresentada no capítulo consiste em analisar a <strong>homogeneidade local da textura</strong>: regiões uniformes apresentam baixa variância de intensidade em pequenas vizinhanças, enquanto riscos, manchas e falhas de fabricação produzem aumentos locais dessa variância.</p>
+<p>Neste exercício, você implementará o núcleo desse método, calculando a variância local em uma janela deslizante e gerando uma máscara binária que identifica as regiões cuja variância excede um limiar.</p>
+<section class="level4" data-number="6.11.6.1" id="diretrizes-de-implementação-5">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-5" data-number="6.11.6.1"><span class="header-section-number">6.11.6.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Dimensões:</strong> Ler os inteiros <span class="math inline">\(L\)</span> (número de linhas) e <span class="math inline">\(C\)</span> (número de colunas).</li>
-<li><strong>Máscara de referência:</strong> Ler os <span class="math inline">\(L \times C\)</span> elementos binários (0 ou 1) da matriz <code>ref</code>.</li>
-<li><strong>Máscara predita:</strong> Ler os <span class="math inline">\(L \times C\)</span> elementos binários (0 ou 1) da matriz <code>pred</code>.</li>
-<li><strong>Interseção:</strong> Contar o número de posições <span class="math inline">\((i,j)\)</span> para as quais <code>ref[i][j] = 1</code> e <code>pred[i][j] = 1</code>.</li>
-<li><strong>União:</strong> Contar o número de posições <span class="math inline">\((i,j)\)</span> para as quais <code>ref[i][j] = 1</code> ou <code>pred[i][j] = 1</code>.</li>
-<li><strong>Caso degenerado:</strong> Se a união for igual a <span class="math inline">\(0\)</span>, definir <span class="math inline">\(\mathrm{IoU}=1{,}0\)</span>, pois ambas as máscaras são vazias.</li>
-<li><strong>Cálculo:</strong> Caso a união seja maior que zero, calcular</li>
-</ol>
-<p><span class="math display">\[
-\mathrm{IoU}=
-\frac{|\mathrm{Intersecao}|}
-{|\mathrm{Uniao}|}.
-\]</span></p>
-<ol start="8" type="1">
-<li><strong>Classificação:</strong> Determinar a classificação qualitativa utilizando o valor de IoU <strong>antes</strong> do arredondamento.</li>
-<li><strong>Arredondamento:</strong> Exibir a IoU com quatro casas decimais.</li>
-<li><strong>Saída:</strong> Imprimir, nessa ordem, a interseção, a união, a IoU e a classificação.</li>
+<li><p><strong>Dimensões e parâmetros:</strong> Ler os inteiros <span class="math inline">\(L\)</span>, <span class="math inline">\(C\)</span>, <span class="math inline">\(k\)</span> (tamanho da janela, sempre ímpar) e <span class="math inline">\(T\)</span> (limiar de variância).</p></li>
+<li><p><strong>Imagem:</strong> Ler os <span class="math inline">\(L \times C\)</span> valores inteiros da matriz de textura (intensidades entre 0 e 255).</p></li>
+<li><p><strong>Tratamento das bordas:</strong> Quando a janela ultrapassar os limites da imagem, utilizar <strong>replicação de borda</strong>, isto é, repetir o valor do pixel válido mais próximo.</p></li>
+<li><p><strong>Média local:</strong> Para cada posição <span class="math inline">\((i,j)\)</span>, calcular <span class="math display">\[
+\mu(i,j)=
+\frac{1}{k^2}
+\sum_{(p,q)\in\text{janela}}
+\text{textura}(p,q).
+\]</span></p></li>
+<li><p><strong>Variância local:</strong> Calcular a variância populacional da janela, <span class="math display">\[
+\sigma^2(i,j)=
+\frac{1}{k^2}
+\sum_{(p,q)\in\text{janela}}
+\left(\text{textura}(p,q)-\mu(i,j)\right)^2,
+\]</span> ou, de forma equivalente, <span class="math display">\[
+\sigma^2(i,j)=\overline{x^2}-\mu(i,j)^2,
+\]</span> em que <span class="math inline">\(\overline{x^2}\)</span> representa a média dos quadrados das intensidades.</p></li>
+<li><p><strong>Arredondamento:</strong> Arredondar a variância para o inteiro mais próximo (<em>round half away from zero</em>, com <code>np.floor(res_norm + 0.5)</code>).</p></li>
+<li><p><strong>Limiarização:</strong> Definir <span class="math inline">\(\text{máscara}(i,j)=1\)</span> se a variância arredondada for <strong>estritamente maior</strong> que <span class="math inline">\(T\)</span>; caso contrário, definir <span class="math inline">\(\text{máscara}(i,j)=0\)</span>.</p></li>
+<li><p><strong>Saída:</strong> Imprimir a máscara binária resultante.</p></li>
 </ol>
 </section>
-<section class="level4" data-number="6.11.1.2" id="restrições-computacionais">
-<h4 class="anchored" data-anchor-id="restrições-computacionais" data-number="6.11.1.2"><span class="header-section-number">6.11.1.2</span> 📌 Restrições Computacionais</h4>
+<section class="level4" data-number="6.11.6.2" id="restrições-computacionais-5">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-5" data-number="6.11.6.2"><span class="header-section-number">6.11.6.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li>Se a união for igual a <span class="math inline">\(0\)</span>, não deve ser realizada a divisão; a IoU deve ser definida como <span class="math inline">\(1{,}0\)</span>.</li>
-<li>As faixas de classificação utilizam comparações não estritas (<span class="math inline">\(\geq\)</span>).</li>
-<li>A classificação deve ser realizada utilizando o valor da IoU em precisão completa, antes do arredondamento para exibição.</li>
+<li><strong>Replicação de borda:</strong> utilizar o valor do pixel válido mais próximo sempre que a janela ultrapassar os limites da imagem.</li>
+<li><strong>Variância populacional:</strong> utilizar denominador <span class="math inline">\(k^2\)</span>, nunca <span class="math inline">\(k^2-1\)</span>.</li>
+<li><strong>Comparação estrita:</strong> a máscara deve ser calculada utilizando a condição <span class="math inline">\(\sigma^2_{\text{arred}}&gt;T\)</span>.</li>
+<li><strong>Janela ímpar:</strong> o valor de <span class="math inline">\(k\)</span> é sempre ímpar, garantindo um pixel central.</li>
 </ul>
 </section>
-<section class="level4" data-number="6.11.1.3" id="fundamentação-teórica">
-<h4 class="anchored" data-anchor-id="fundamentação-teórica" data-number="6.11.1.3"><span class="header-section-number">6.11.1.3</span> 🧠 Fundamentação Teórica</h4>
-<p>A IoU é definida por</p>
-<p><span class="math display">\[
-\mathrm{IoU}=
-\frac{|R\cap P|}
-{|R\cup P|},
-\]</span></p>
-<p>em que:</p>
-<ul>
-<li><span class="math inline">\(R\)</span> representa o conjunto de pixels pertencentes à máscara de referência;</li>
-<li><span class="math inline">\(P\)</span> representa o conjunto de pixels pertencentes à máscara predita;</li>
-<li><span class="math inline">\(|R\cap P|\)</span> corresponde ao número de pixels pertencentes simultaneamente às duas máscaras;</li>
-<li><span class="math inline">\(|R\cup P|\)</span> corresponde ao número de pixels pertencentes a pelo menos uma das máscaras.</li>
-</ul>
+<section class="level4" data-number="6.11.6.3" id="fundamentação-teórica-5">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-5" data-number="6.11.6.3"><span class="header-section-number">6.11.6.3</span> 🧠 Fundamentação Teórica</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%"/>
@@ -140,56 +131,53 @@ div.csl-indent {
 </colgroup>
 <thead>
 <tr class="header">
-<th>Faixa de IoU</th>
-<th>Classificação</th>
+<th>Situação</th>
+<th>Variância local</th>
 <th>Interpretação</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\mathrm{IoU}\geq0{,}90\)</span></td>
-<td><code>EXCELENTE</code></td>
-<td>Concordância muito elevada entre as máscaras.</td>
+<td>Região uniforme</td>
+<td>Baixa</td>
+<td>Intensidades semelhantes na vizinhança.</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(0{,}70\leq\mathrm{IoU}&lt;0{,}90\)</span></td>
-<td><code>BOM</code></td>
-<td>Pequenas diferenças entre as máscaras.</td>
+<td>Região contendo defeito</td>
+<td>Alta</td>
+<td>A presença de intensidades distintas aumenta a dispersão dos valores.</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(0{,}50\leq\mathrm{IoU}&lt;0{,}70\)</span></td>
-<td><code>ACEITAVEL</code></td>
-<td>Concordância parcial entre as máscaras.</td>
+<td>Janela pequena</td>
+<td>Maior sensibilidade a detalhes e ruído</td>
+<td>Detecta alterações localizadas.</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\mathrm{IoU}&lt;0{,}50\)</span></td>
-<td><code>RUIM</code></td>
-<td>Baixa concordância entre as máscaras.</td>
+<td>Janela grande</td>
+<td>Resposta mais suave</td>
+<td>Evidencia defeitos maiores, porém reduz a precisão de sua localização.</td>
 </tr>
 </tbody>
 </table>
-<p>A IoU depende apenas da sobreposição entre as máscaras e, portanto, é independente do tamanho da imagem.</p>
+<p>A variância local mede a dispersão das intensidades em uma vizinhança. Regiões homogêneas apresentam baixa variância, enquanto alterações na textura aumentam essa medida, permitindo identificar possíveis defeitos por meio de uma simples limiarização.</p>
 </section>
-<section class="level4" data-number="6.11.1.4" id="especificação-de-entrada-e-saída-vpl">
-<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl" data-number="6.11.1.4"><span class="header-section-number">6.11.1.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<section class="level4" data-number="6.11.6.4" id="especificação-de-entrada-e-saída-vpl-5">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-5" data-number="6.11.6.4"><span class="header-section-number">6.11.6.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: inteiro <span class="math inline">\(L\)</span>.</li>
-<li>Linha 2: inteiro <span class="math inline">\(C\)</span>.</li>
-<li>Próximas <span class="math inline">\(L\)</span> linhas: elementos binários (0 ou 1) da matriz <code>ref</code>.</li>
-<li>Próximas <span class="math inline">\(L\)</span> linhas: elementos binários (0 ou 1) da matriz <code>pred</code>.</li>
+<li>Linha 1: Inteiro <span class="math inline">\(L\)</span>.</li>
+<li>Linha 2: Inteiro <span class="math inline">\(C\)</span>.</li>
+<li>Linha 3: Inteiro <span class="math inline">\(k\)</span> (ímpar).</li>
+<li>Linha 4: Inteiro <span class="math inline">\(T\)</span>.</li>
+<li>Próximas <span class="math inline">\(L\)</span> linhas: elementos inteiros da matriz de textura.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li>Linha 1: <code>Intersecao: X</code></li>
-<li>Linha 2: <code>Uniao: Y</code></li>
-<li>Linha 3: <code>IoU: Z</code></li>
-<li>Linha 4: <code>Classificacao: NOME</code></li>
+<li>Máscara binária (valores 0 ou 1), com <span class="math inline">\(L\)</span> linhas e <span class="math inline">\(C\)</span> colunas.</li>
 </ul>
-<p>O valor de <code>IoU</code> deve ser impresso com quatro casas decimais.</p>
 </section>
-<section class="level4" data-number="6.11.1.5" id="exemplos">
-<h4 class="anchored" data-anchor-id="exemplos" data-number="6.11.1.5"><span class="header-section-number">6.11.1.5</span> 📌 Exemplos</h4>
+<section class="level4" data-number="6.11.6.5" id="exemplos-5">
+<h4 class="anchored" data-anchor-id="exemplos-5" data-number="6.11.6.5"><span class="header-section-number">6.11.6.5</span> 📌 Exemplos</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%"/>
@@ -205,261 +193,163 @@ div.csl-indent {
 </thead>
 <tbody>
 <tr class="odd">
-<td>2<br/>
-2<br/>
-1 1<br/>
-0 0<br/>
-1 0<br/>
-0 0</td>
-<td>Intersecao: 1<br/>
-Uniao: 2<br/>
-IoU: 0.5000<br/>
-Classificacao: ACEITAVEL</td>
-<td>A metade da região de referência foi corretamente segmentada.</td>
+<td>3<br/>
+3<br/>
+3<br/>
+50<br/>
+10 10 10<br/>
+10 10 10<br/>
+10 90 10</td>
+<td>0 0 0<br/>
+1 1 1<br/>
+1 1 1</td>
+<td>O defeito aumenta a variância em todas as janelas que o contêm.</td>
 </tr>
 <tr class="even">
 <td>2<br/>
 2<br/>
-0 0<br/>
-0 0<br/>
-0 0<br/>
+3<br/>
+5<br/>
+100 100<br/>
+100 100</td>
+<td>0 0<br/>
 0 0</td>
-<td>Intersecao: 0<br/>
-Uniao: 0<br/>
-IoU: 1.0000<br/>
-Classificacao: EXCELENTE</td>
-<td>Ambas as máscaras são vazias; por convenção, <span class="math inline">\(\mathrm{IoU}=1{,}0\)</span>.</td>
+<td>A textura é uniforme; a variância é nula em toda a imagem.</td>
 </tr>
 </tbody>
 </table>
-<div class="cell" id="cell-fig-06-sim-ep01">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="106" id="fig-06-sim-ep01">
+<div class="cell" id="cell-fig-06-sim-ep06">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="121" id="fig-06-sim-ep06">
 <figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-06-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="sim-ep0601" style="background:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div aria-describedby="fig-06-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0606" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: IoU (Intersection over Union)</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">
-IoU = |A∩B| / |A∪B|
-</span>
+<span>🎮 Simulador: Variância Local (Detecção de Textura)</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 σ² = média(x²) − média(x)²</span>
 </div>
 <div style="padding:20px;background:white;">
-<p style="font-size:11px;color:#777;text-align:center;">
-Desloque e redimensione a máscara predita.
-</p>
-<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
-<div style="display:flex;justify-content:space-between;">
-<label style="font-size:12px;font-weight:bold;color:#2980b9;">Deslocamento horizontal</label>
-<span id="ep0601_vdx" style="font-family:monospace;font-weight:bold;color:#2980b9;">0</span>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o valor do "defeito" central e o limiar T; observe como a janela 3×3 espalha a detecção pela vizinhança (borda replicada).</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+<label style="font-size:12px;font-weight:bold;color:#dc2626;">Intensidade do defeito (posição central)</label>
+<span id="ep0606_vl_def" style="font-family:monospace;font-weight:bold;color:#dc2626;">90</span>
 </div>
-<input id="ep0601_dx" max="3" min="-3" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="0"/>
-<div style="display:flex;justify-content:space-between;margin-top:12px;">
-<label style="font-size:12px;font-weight:bold;color:#8e44ad;">Deslocamento vertical</label>
-<span id="ep0601_vdy" style="font-family:monospace;font-weight:bold;color:#8e44ad;">0</span>
+<input id="ep0606_sl_def" max="255" min="10" step="5" style="width:100%;accent-color:#dc2626;" type="range" value="90"/>
+<div style="display:flex;justify-content:space-between;margin:10px 0 4px;">
+<label style="font-size:12px;font-weight:bold;color:#dc2626;">Limiar T</label>
+<span id="ep0606_vl_t" style="font-family:monospace;font-weight:bold;color:#dc2626;">50</span>
 </div>
-<input id="ep0601_dy" max="3" min="-3" step="1" style="width:100%;accent-color:#8e44ad;" type="range" value="0"/>
-<div style="display:flex;justify-content:space-between;margin-top:12px;">
-<label style="font-size:12px;font-weight:bold;color:#16a34a;">Lado do quadrado</label>
-<span id="ep0601_vsz" style="font-family:monospace;font-weight:bold;color:#16a34a;">6</span>
+<input id="ep0606_sl_t" max="2000" min="0" step="10" style="width:100%;accent-color:#dc2626;" type="range" value="50"/>
 </div>
-<input id="ep0601_sz" max="8" min="2" step="1" style="width:100%;accent-color:#16a34a;" type="range" value="6"/>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Textura (3×3)</p>
+<div id="ep0606_g_tex" style="display:grid;grid-template-columns:repeat(3,44px);gap:4px;justify-content:center;"></div>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
-<div style="text-align:center;">
-<p style="font-size:11px;font-weight:bold;">Referência</p>
-<div id="ep0601_ref" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
-</div>
-<div style="text-align:center;">
-<p style="font-size:11px;font-weight:bold;">Predita</p>
-<div id="ep0601_pred" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
-</div>
-<div style="text-align:center;">
-<p style="font-size:11px;font-weight:bold;">Sobreposição</p>
-<div id="ep0601_mix" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Máscara de Defeito</p>
+<div id="ep0606_g_mask" style="display:grid;grid-template-columns:repeat(3,44px);gap:4px;justify-content:center;"></div>
 </div>
 </div>
-<div id="ep0601_dbg" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:12px;border:1px solid #bbdefb;font-family:monospace;font-size:12px;text-align:center;">
-</div>
+<div id="ep0606_debug" style="margin-top:20px;background:#fee2e2;border-radius:8px;padding:10px;border:1px solid #fca5a5;font-family:monospace;font-size:11px;color:#991b1b;text-align:center;"></div>
 </div>
 </div>
 <script>
 (function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var slDef = root.querySelector('#ep0606_sl_def');
+    var vlDef = root.querySelector('#ep0606_vl_def');
+    var slT   = root.querySelector('#ep0606_sl_t');
+    var vlT   = root.querySelector('#ep0606_vl_t');
+    var gTex  = root.querySelector('#ep0606_g_tex');
+    var gMask = root.querySelector('#ep0606_g_mask');
+    var dbg   = root.querySelector('#ep0606_debug');
 
-function init(root){
+    function roundHalfAway(x){
+      return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
+    }
+    function clampIdx(v, n){ return Math.max(0, Math.min(n-1, v)); }
 
-if(!root) return;
-if(root.dataset.ready==="1") return;
-root.dataset.ready="1";
-
-var dx=root.querySelector("#ep0601_dx");
-var dy=root.querySelector("#ep0601_dy");
-var sz=root.querySelector("#ep0601_sz");
-
-var vdx=root.querySelector("#ep0601_vdx");
-var vdy=root.querySelector("#ep0601_vdy");
-var vsz=root.querySelector("#ep0601_vsz");
-
-var gRef=root.querySelector("#ep0601_ref");
-var gPred=root.querySelector("#ep0601_pred");
-var gMix=root.querySelector("#ep0601_mix");
-
-var dbg=root.querySelector("#ep0601_dbg");
-
-var N=10;
-
-var ref={x:2,y:2,w:6,h:6};
-
-function inside(x,y,r){
-return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h;
-}
-
-function pixel(color){
-
-var d=document.createElement("div");
-
-d.style.width="24px";
-d.style.height="24px";
-d.style.border="1px solid #ddd";
-d.style.boxSizing="border-box";
-d.style.background=color;
-
-return d;
-
-}
-
-function classe(i){
-
-if(i>=0.90) return "Excelente";
-if(i>=0.75) return "Muito boa";
-if(i>=0.50) return "Aceitável";
-return "Ruim";
-
-}
-
-function render(){
-
-vdx.innerHTML=dx.value;
-vdy.innerHTML=dy.value;
-vsz.innerHTML=sz.value;
-
-gRef.innerHTML="";
-gPred.innerHTML="";
-gMix.innerHTML="";
-
-var pred={
-x:ref.x+parseInt(dx.value),
-y:ref.y+parseInt(dy.value),
-w:parseInt(sz.value),
-h:parseInt(sz.value)
-};
-
-var inter=0;
-var uniao=0;
-
-for(var y=0;y<N;y++){
-
-for(var x=0;x<N;x++){
-
-var r=inside(x,y,ref);
-var p=inside(x,y,pred);
-
-gRef.appendChild(pixel(r?"#7fdc92":"white"));
-gPred.appendChild(pixel(p?"#7fbfff":"white"));
-
-if(r&&p){
-gMix.appendChild(pixel("#9b59b6"));
-inter++;
-}
-else if(r){
-gMix.appendChild(pixel("#7fdc92"));
-uniao++;
-}
-else if(p){
-gMix.appendChild(pixel("#7fbfff"));
-uniao++;
-}
-else{
-gMix.appendChild(pixel("white"));
-}
-
-if(r&&p) uniao++;
-
-}
-
-}
-
-var iou=inter/uniao;
-
-dbg.innerHTML=
-"<b>Interseção</b> = "+inter+
-" pixels &nbsp;&nbsp;&nbsp;"+
-"<b>União</b> = "+uniao+
-" pixels"+
-"<br><br>"+
-"IoU = <b>"+inter+" / "+uniao+
-" = "+iou.toFixed(4)+"</b>"+
-"<br><br>"+
-"<span style='font-weight:bold;color:#1565c0;'>"+
-classe(iou)+
-"</span>";
-
-}
-
-dx.oninput=render;
-dy.oninput=render;
-sz.oninput=render;
-
-render();
-
-}
-
-function tryInit(){
-
-var all=document.querySelectorAll('[id="sim-ep0601"]');
-
-if(all.length===0) return false;
-
-init(all[all.length-1]);
-
-return true;
-
-}
-
-var t=0;
-
-var id=setInterval(function(){
-
-t++;
-
-if(tryInit() || t>20)
-clearInterval(id);
-
-},50);
-
+    function render(){
+      var defeito = parseInt(slDef.value);
+      var T = parseInt(slT.value);
+      vlDef.textContent = defeito;
+      vlT.textContent = T;
+      var N = 3;
+      var tex = [[10,10,10],[10,10,10],[10,defeito,10]];
+      gTex.innerHTML=''; gMask.innerHTML='';
+      var mask = [];
+      for(var i=0;i<N;i++){
+        var row=[];
+        for(var j=0;j<N;j++){
+          var vals=[];
+          for(var di=-1; di<=1; di++){
+            for(var dj=-1; dj<=1; dj++){
+              var pi = clampIdx(i+di, N), pj = clampIdx(j+dj, N);
+              vals.push(tex[pi][pj]);
+            }
+          }
+          var mean = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+          var meanSq = vals.reduce(function(a,b){return a+b*b;},0)/vals.length;
+          var varr = meanSq - mean*mean;
+          var varRound = roundHalfAway(varr);
+          row.push(varRound > T ? 1 : 0);
+        }
+        mask.push(row);
+      }
+      for(var i=0;i<N;i++){
+        for(var j=0;j<N;j++){
+          var g = tex[i][j];
+          var ct = document.createElement('div');
+          ct.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:bold;font-family:monospace;border:1px solid #ccc;background:rgb('+g+','+g+','+g+');color:'+(g>140?'#000':'#fff')+';';
+          ct.textContent = g;
+          gTex.appendChild(ct);
+          var m = mask[i][j];
+          var cm = document.createElement('div');
+          cm.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:12px;font-weight:bold;font-family:monospace;' +
+            (m ? 'background:#fecaca;color:#7f1d1d;border:1px solid #f87171;' : 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;');
+          cm.textContent = m;
+          gMask.appendChild(cm);
+        }
+      }
+      var total = mask.flat().reduce(function(a,b){return a+b;},0);
+      dbg.textContent = 'defeito=' + defeito + '  |  T=' + T + '  |  Pixels marcados: ' + total + '/9';
+    }
+    slDef.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0606');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
 })();
 </script>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-06-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 6.19: Simulador: IoU entre máscara de referência e máscara predita
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-06-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 6.24: Simulador: Mapa de Variância Local para Detecção de Textura
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="7ec70239">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a aria-hidden="true" href="#cb38-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_01.py</span>
-<span id="cb38-2"><a aria-hidden="true" href="#cb38-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="9c87477b">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a aria-hidden="true" href="#cb53-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_06.py</span>
+<span id="cb53-2"><a aria-hidden="true" href="#cb53-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP06_01.py</code></pre>
+<pre><code>Overwriting EP06_06.py</code></pre>
 </div>
 </div>
-<div class="cell" id="333f6be1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a aria-hidden="true" href="#cb40-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_01.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="d555e098">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a aria-hidden="true" href="#cb55-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_06.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP06_01.cases já existe em casos/
-📋 5 caso(s) carregado(s) de casos/EP06_01.cases
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP06_06.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP06_06.cases
 
-🔍 Testando Python: EP06_01.py
-<span style="color:#f39c12;font-weight:500">⚠️ EP06_01.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
+🔍 Testando Python: EP06_06.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP06_06.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>

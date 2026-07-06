@@ -3,78 +3,100 @@
 📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_01.html</a>
 <br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_01 🟢 Filtro de Marcadores por Circularidade</h2>
-<p>No sistema <strong>MCTest</strong>, após o fechamento morfológico e a extração de contornos externos (<code>cv2.findContours</code>), a folha de respostas digitalizada produz <strong>dezenas de componentes candidatos</strong>: os quatro discos pretos de referência, mas também manchas de tinta, bordas de caixas de texto e ruídos da digitalização. Antes de prosseguir para a retificação por perspectiva, o sistema precisa <strong>descartar tudo que não seja um disco</strong>.</p>
-<p>Você foi encarregado de implementar exatamente esse filtro: dado um conjunto de candidatos, cada um descrito por sua área <em>A</em> e seu perímetro <em>P</em> (já calculados por <code>cv2.contourArea</code> e <code>cv2.arcLength</code>), calcule a circularidade de cada um e decida quem sobrevive.</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_01 🟢 Avaliação de Segmentação por IoU ( Intersection over Union )</h2>
+<p>Ao longo deste capítulo, diversas etapas do <em>pipeline</em> produzem <strong>máscaras binárias</strong>, como na segmentação de documentos, na localização de <em>QRCodes</em> e na detecção de defeitos. Para avaliar objetivamente a qualidade dessas segmentações, é necessário compará-las com uma máscara de referência (<em>ground truth</em>).</p>
+<p>Uma das métricas mais utilizadas para esse fim é a <strong>IoU</strong> (<em>Intersection over Union</em>, ou Interseção sobre União), definida como a razão entre a área de interseção e a área de união de duas máscaras binárias. Quanto maior o valor da IoU, maior a concordância entre a segmentação produzida pelo algoritmo e a referência.</p>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Quantidade:</strong> Ler o inteiro <em>N</em> (número de candidatos) e o limiar de circularidade <em>C</em>_limiar (número real).</li>
-<li><strong>Dados de cada candidato:</strong> Para cada um dos <em>N</em> candidatos, ler a área <em>A</em> (inteiro) e o perímetro <em>P</em> (número real).</li>
-<li><strong>Circularidade:</strong> Calcular, para cada candidato, <em>C</em> = (4\pi <em>A</em>)/(<em>P</em>^2) usando o valor de \pi com precisão total de ponto flutuante (não aproximar por 3,14).</li>
-<li><strong>Caso degenerado:</strong> Se <em>P</em> = 0, o candidato deve ser classificado diretamente como <code>REJEITADO</code>, sem realizar a divisão.</li>
-<li><strong>Classificação:</strong> Se <em>C</em> &gt; <em>C</em>_limiar, o candidato é <code>ACEITO</code>; caso contrário, é <code>REJEITADO</code>.</li>
-<li><strong>Arredondamento para exibição:</strong> Arredondar <em>C</em> para 4 casas decimais (arredondamento padrão, <em>round half away from zero</em>) apenas na hora de imprimir.</li>
-<li><strong>Saída:</strong> Para cada candidato, na ordem de entrada, imprimir o valor de <em>C</em> arredondado seguido da classificação. Ao final, imprimir o total de candidatos aceitos.</li>
+<li><strong>Dimensões:</strong> Ler os inteiros <em>L</em> (número de linhas) e <em>C</em> (número de colunas).</li>
+<li><strong>Máscara de referência:</strong> Ler os <em>L</em> × <em>C</em> elementos binários (0 ou 1) da matriz <code>ref</code>.</li>
+<li><strong>Máscara predita:</strong> Ler os <em>L</em> × <em>C</em> elementos binários (0 ou 1) da matriz <code>pred</code>.</li>
+<li><strong>Interseção:</strong> Contar o número de posições (<em>i</em>,<em>j</em>) para as quais <code>ref[i][j] = 1</code> e <code>pred[i][j] = 1</code>.</li>
+<li><strong>União:</strong> Contar o número de posições (<em>i</em>,<em>j</em>) para as quais <code>ref[i][j] = 1</code> ou <code>pred[i][j] = 1</code>.</li>
+<li><strong>Caso degenerado:</strong> Se a união for igual a 0, definir IoU=1,0, pois ambas as máscaras são vazias.</li>
+<li><strong>Cálculo:</strong> Caso a união seja maior que zero, calcular</li>
+</ol>
+<p>IoU=
+\frac|Intersecao|
+|Uniao|.</p>
+<ol start="8" type="1">
+<li><strong>Classificação:</strong> Determinar a classificação qualitativa utilizando o valor de IoU <strong>antes</strong> do arredondamento.</li>
+<li><strong>Arredondamento:</strong> Exibir a IoU com quatro casas decimais.</li>
+<li><strong>Saída:</strong> Imprimir, nessa ordem, a interseção, a união, a IoU e a classificação.</li>
 </ol>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Comparação estrita:</strong> o critério usa <em>C</em> &gt; <em>C</em>_limiar (a igualdade não é suficiente para aceitar).</li>
-<li><strong>Proteção de divisão por zero:</strong> perímetro nulo implica rejeição automática, independentemente da área.</li>
-<li><strong>Precisão:</strong> utilize a constante \pi da biblioteca padrão (ex.: <code>math.pi</code>), nunca uma aproximação truncada.</li>
-<li><strong>Arredondamento:</strong> aplicado somente na exibição de <em>C</em>; a comparação com <em>C</em>_limiar deve ser feita com o valor de precisão total, <strong>antes</strong> do arredondamento.</li>
+<li>Se a união for igual a 0, não deve ser realizada a divisão; a IoU deve ser definida como 1,0.</li>
+<li>As faixas de classificação utilizam comparações não estritas (≥).</li>
+<li>A classificação deve ser realizada utilizando o valor da IoU em precisão completa, antes do arredondamento para exibição.</li>
 </ul>
 </div>
 <div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<p>A IoU é definida por</p>
+<p>IoU=
+\frac|<em>R</em>\cap <em>P</em>|
+|<em>R</em>\cup <em>P</em>|,</p>
+<p>em que:</p>
+<ul>
+<li><em>R</em> representa o conjunto de pixels pertencentes à máscara de referência;</li>
+<li><em>P</em> representa o conjunto de pixels pertencentes à máscara predita;</li>
+<li>|<em>R</em>\cap <em>P</em>| corresponde ao número de pixels pertencentes simultaneamente às duas máscaras;</li>
+<li>|<em>R</em>\cup <em>P</em>| corresponde ao número de pixels pertencentes a pelo menos uma das máscaras.</li>
+</ul>
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
-<th style="padding:10px;border:1px solid #ddd;">Forma</th>
-<th style="padding:10px;border:1px solid #ddd;">Circularidade <em>C</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Faixa de IoU</th>
+<th style="padding:10px;border:1px solid #ddd;">Classificação</th>
 <th style="padding:10px;border:1px solid #ddd;">Interpretação</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Círculo perfeito</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em> = 1,0</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Área e perímetro na proporção ideal</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU≥0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>EXCELENTE</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Concordância muito elevada entre as máscaras.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quadrado</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em> \approx 0,785</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Levemente abaixo de 1 — cantos “desperdiçam” perímetro</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,70≤IoU&lt;0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>BOM</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequenas diferenças entre as máscaras.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Forma alongada ou irregular</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em> \ll 1</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Perímetro grande para pouca área — provável ruído ou rasura</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,50≤IoU&lt;0,70</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>ACEITAVEL</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Concordância parcial entre as máscaras.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>P</em> = 0</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">indefinido</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contorno degenerado (ponto isolado) — sempre rejeitado</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU&lt;0,50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>RUIM</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Baixa concordância entre as máscaras.</td>
 </tr>
 </tbody>
 </table>
-<p>A circularidade é invariante à escala e à rotação, o que a torna um descritor robusto para distinguir discos de referência de outros elementos impressos na folha, sem depender de modelos de aprendizado.</p>
+<p>A IoU depende apenas da sobreposição entre as máscaras e, portanto, é independente do tamanho da imagem.</p>
 </div>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiro <em>N</em>.</li>
-<li>Linha 2: Número real <em>C</em>_limiar.</li>
-<li>Próximas <em>N</em> linhas: dois valores por linha — área <em>A</em> (inteiro) e perímetro <em>P</em> (real), separados por espaço.</li>
+<li>Linha 1: inteiro <em>L</em>.</li>
+<li>Linha 2: inteiro <em>C</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos binários (0 ou 1) da matriz <code>ref</code>.</li>
+<li>Próximas <em>L</em> linhas: elementos binários (0 ou 1) da matriz <code>pred</code>.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li><em>N</em> linhas, cada uma no formato <code>C ACEITO</code> ou <code>C REJEITADO</code>, com <em>C</em> arredondado para 4 casas decimais.</li>
-<li>Última linha: <code>Total aceitos: X</code>.</li>
+<li>Linha 1: <code>Intersecao: X</code></li>
+<li>Linha 2: <code>Uniao: Y</code></li>
+<li>Linha 3: <code>IoU: Z</code></li>
+<li>Linha 4: <code>Classificacao: NOME</code></li>
 </ul>
+<p>O valor de <code>IoU</code> deve ser impresso com quatro casas decimais.</p>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
@@ -88,93 +110,206 @@
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
-0.6<br/>
-78 31.4<br/>
-100 40<br/>
-50 60</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.9941 ACEITO<br/>
-0.7854 ACEITO<br/>
-0.1745 REJEITADO<br/>
-Total aceitos: 2</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Círculo quase perfeito, quadrado e forma alongada.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+1 1<br/>
+0 0<br/>
+1 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Intersecao: 1<br/>
+Uniao: 2<br/>
+IoU: 0.5000<br/>
+Classificacao: ACEITAVEL</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">A metade da região de referência foi corretamente segmentada.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
-0.9<br/>
-10 0</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.0000 REJEITADO<br/>
-Total aceitos: 0</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Perímetro nulo: rejeição direta, sem divisão por zero.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+0 0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Intersecao: 0<br/>
+Uniao: 0<br/>
+IoU: 1.0000<br/>
+Classificacao: EXCELENTE</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Ambas as máscaras são vazias; por convenção, IoU=1,0.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-06-sim-ep01">
-<div id="sim-ep0601" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div id="sim-ep0601" style="background:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Filtro de Marcadores por Circularidade</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 C = 4πA / P²</span>
+<span>🎮 Simulador: IoU (Intersection over Union)</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">
+IoU = |A∩B| / |A∪B|
+</span>
 
 </div><div style="padding:20px;background:white;">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o limiar e observe quais candidatos (discos, quadrados e formas irregulares) sobrevivem ao filtro.</p>
+<p style="font-size:11px;color:#777;text-align:center;">
+Desloque e redimensione a máscara predita.
+</p>
 <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#2980b9;">Limiar de circularidade (C_limiar)</label>
-<span id="ep0601_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">0.60</span>
+<div style="display:flex;justify-content:space-between;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Deslocamento horizontal</label>
+<span id="ep0601_vdx" style="font-family:monospace;font-weight:bold;color:#2980b9;">0</span>
 </div>
-<input id="ep0601_sl" max="0.99" min="0.05" step="0.01" style="width:100%;" type="range" value="0.60"/>
+<input id="ep0601_dx" max="3" min="-3" step="1" style="width:100%;" type="range" value="0"/>
+<div style="display:flex;justify-content:space-between;margin-top:12px;">
+<label style="font-size:12px;font-weight:bold;color:#8e44ad;">Deslocamento vertical</label>
+<span id="ep0601_vdy" style="font-family:monospace;font-weight:bold;color:#8e44ad;">0</span>
 </div>
-<div id="ep0601_cards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;"></div>
-<div id="ep0601_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<input id="ep0601_dy" max="3" min="-3" step="1" style="width:100%;" type="range" value="0"/>
+<div style="display:flex;justify-content:space-between;margin-top:12px;">
+<label style="font-size:12px;font-weight:bold;color:#16a34a;">Lado do quadrado</label>
+<span id="ep0601_vsz" style="font-family:monospace;font-weight:bold;color:#16a34a;">6</span>
+</div>
+<input id="ep0601_sz" max="8" min="2" step="1" style="width:100%;" type="range" value="6"/>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+<div style="text-align:center;">
+<p style="font-size:11px;font-weight:bold;">Referência</p>
+<div id="ep0601_ref" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;">
+<p style="font-size:11px;font-weight:bold;">Predita</p>
+<div id="ep0601_pred" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;">
+<p style="font-size:11px;font-weight:bold;">Sobreposição</p>
+<div id="ep0601_mix" style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;justify-content:center;"></div>
+</div>
+</div>
+<div id="ep0601_dbg" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:12px;border:1px solid #bbdefb;font-family:monospace;font-size:12px;text-align:center;">
+</div>
 </div>
 <script>
+(function initSimEp0601() {
+  var container = document.getElementById('sim-ep0601');
+  if (!container) { setTimeout(initSimEp0601, 100); return; }
 
-(function(){
-  function init(root){
-    if(!root || root.dataset.init) return;
-    root.dataset.init = "1";
-    var candidatos = [
-      {nome:"Disco", A:78, P:31.4},
-      {nome:"Quadrado", A:100, P:40},
-      {nome:"Retângulo", A:60, P:44},
-      {nome:"Rasura", A:50, P:60},
-      {nome:"Ponto", A:10, P:0}
-    ];
-    var slEl = root.querySelector('#ep0601_sl');
-    var vlEl = root.querySelector('#ep0601_vl');
-    var cards = root.querySelector('#ep0601_cards');
-    var dbg = root.querySelector('#ep0601_debug');
+var dx=document.getElementById('ep0601_dx');
+var dy=document.getElementById('ep0601_dy');
+var sz=document.getElementById('ep0601_sz');
 
-    function render(){
-      var th = parseFloat(slEl.value);
-      vlEl.textContent = th.toFixed(2);
-      cards.innerHTML = '';
-      var aceitos = 0;
-      candidatos.forEach(function(c){
-        var C = (c.P === 0) ? 0 : (4*Math.PI*c.A)/(c.P*c.P);
-        var ok = c.P !== 0 && C > th;
-        if(ok) aceitos++;
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
-          (ok ? 'background:#dcfce7;border:1px solid #86efac;color:#166534;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;');
-        div.innerHTML = '<div style="font-weight:700;">'+c.nome+'</div>' +
-          '<div style="font-family:monospace;margin:4px 0;">A='+c.A+'<br>P='+c.P+'</div>' +
-          '<div style="font-family:monospace;font-weight:700;">C='+C.toFixed(4)+'</div>' +
-          '<div style="font-weight:700;">'+(ok?'ACEITO':'REJEITADO')+'</div>';
-        cards.appendChild(div);
-      });
-      dbg.textContent = 'C_limiar=' + th.toFixed(2) + '  |  Candidatos aceitos: ' + aceitos + '/' + candidatos.length;
-    }
-    slEl.addEventListener('input', render);
-    render();
-  }
-  function tryInit(){
-    var root = document.getElementById('sim-ep0601');
-    if(root) init(root); else setTimeout(tryInit, 200);
-  }
-  tryInit();
+var vdx=document.getElementById('ep0601_vdx');
+var vdy=document.getElementById('ep0601_vdy');
+var vsz=document.getElementById('ep0601_vsz');
+
+var gRef=document.getElementById('ep0601_ref');
+var gPred=document.getElementById('ep0601_pred');
+var gMix=document.getElementById('ep0601_mix');
+
+var dbg=document.getElementById('ep0601_dbg');
+
+var N=10;
+
+var ref={x:2,y:2,w:6,h:6};
+
+function inside(x,y,r){
+return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h;
+}
+
+function pixel(color){
+
+var d=document.createElement("div");
+
+d.style.width="24px";
+d.style.height="24px";
+d.style.border="1px solid #ddd";
+d.style.boxSizing="border-box";
+d.style.background=color;
+
+return d;
+
+}
+
+function classe(i){
+
+if(i>=0.90) return "Excelente";
+if(i>=0.75) return "Muito boa";
+if(i>=0.50) return "Aceitável";
+return "Ruim";
+
+}
+
+function render(){
+
+vdx.innerHTML=dx.value;
+vdy.innerHTML=dy.value;
+vsz.innerHTML=sz.value;
+
+gRef.innerHTML="";
+gPred.innerHTML="";
+gMix.innerHTML="";
+
+var pred={
+x:ref.x+parseInt(dx.value),
+y:ref.y+parseInt(dy.value),
+w:parseInt(sz.value),
+h:parseInt(sz.value)
+};
+
+var inter=0;
+var uniao=0;
+
+for(var y=0;y<N;y++){
+
+for(var x=0;x<N;x++){
+
+var r=inside(x,y,ref);
+var p=inside(x,y,pred);
+
+gRef.appendChild(pixel(r?"#7fdc92":"white"));
+gPred.appendChild(pixel(p?"#7fbfff":"white"));
+
+if(r&&p){
+gMix.appendChild(pixel("#9b59b6"));
+inter++;
+}
+else if(r){
+gMix.appendChild(pixel("#7fdc92"));
+uniao++;
+}
+else if(p){
+gMix.appendChild(pixel("#7fbfff"));
+uniao++;
+}
+else{
+gMix.appendChild(pixel("white"));
+}
+
+if(r&&p) uniao++;
+
+}
+
+}
+
+var iou=inter/uniao;
+
+dbg.innerHTML=
+"<b>Interseção</b> = "+inter+
+" pixels &nbsp;&nbsp;&nbsp;"+
+"<b>União</b> = "+uniao+
+" pixels"+
+"<br><br>"+
+"IoU = <b>"+inter+" / "+uniao+
+" = "+iou.toFixed(4)+"</b>"+
+"<br><br>"+
+"<span style='font-weight:bold;color:#1565c0;'>"+
+classe(iou)+
+"</span>";
+
+}
+
+dx.oninput=render;
+dy.oninput=render;
+sz.oninput=render;
+
+render();
+
+
 })();
-
 </script>
 </div>
 </div>

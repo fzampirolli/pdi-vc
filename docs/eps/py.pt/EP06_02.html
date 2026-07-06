@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP06_02 — EP06_02 🟡 Estimador de Inclinação por Mediana Angular ( Deskew )</title>
+  <title>EP06_02 — EP06_02 🟢 Filtro de Marcadores por Circularidade</title>
   <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -84,88 +84,95 @@ div.csl-indent {
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:80ch">
-<h3 class="anchored" data-anchor-id="ep06_02-estimador-de-inclinação-por-mediana-angular-deskew" data-number="6.12.2"><span class="header-section-number">6.12.2</span> EP06_02 🟡 Estimador de Inclinação por Mediana Angular (<em>Deskew</em>)</h3>
-<p>Uma folha de prova foi digitalizada ligeiramente torta — o técnico do laboratório amassou o papel ao colocá-lo no <em>scanner</em>. O algoritmo de <em>deskew</em> do capítulo já executou a detecção de bordas com Canny e a Transformada de Hough Linear, obtendo uma lista de retas candidatas. Cada reta contribui com um ângulo estimado (em graus), calculado a partir do parâmetro <span class="math inline">\(\theta\)</span> da reta:</p>
-<p><span class="math display">\[
-\text{ângulo} = \text{rad2deg}(\theta) - 90.
-\]</span></p>
-<p>Nem toda reta detectada é confiável: algumas correspondem a ruídos, sombras de digitalização ou traços isolados de texto, produzindo ângulos muito distantes da inclinação real do documento. Sua tarefa é reproduzir exatamente a etapa de estimação robusta usada no capítulo: <strong>filtrar</strong> os ângulos plausíveis e <strong>combiná-los pela mediana</strong>, medida estatística resistente a valores discrepantes (<em>outliers</em>).</p>
-<section class="level4" data-number="6.12.2.1" id="diretrizes-de-implementação-1">
-<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-1" data-number="6.12.2.1"><span class="header-section-number">6.12.2.1</span> 📋 Diretrizes de Implementação</h4>
+<h3 class="anchored" data-anchor-id="ep06_02-filtro-de-marcadores-por-circularidade" data-number="6.11.2"><span class="header-section-number">6.11.2</span> EP06_02 🟢 Filtro de Marcadores por Circularidade</h3>
+<p>Após a segmentação de uma imagem, é comum que diversos componentes conexos sejam identificados. Em aplicações como a retificação de documentos, apenas alguns desses componentes correspondem aos marcadores de referência utilizados para o alinhamento da imagem. Um critério frequentemente empregado para selecionar esses marcadores é a <strong>circularidade</strong>, que mede o quão próxima a forma de um componente está de um círculo.</p>
+<p>Neste exercício, cada componente é descrito por sua área <span class="math inline">\(A\)</span> e seu perímetro <span class="math inline">\(P\)</span>. O objetivo é calcular sua circularidade e decidir, a partir de um limiar fornecido, se o componente deve ser aceito ou rejeitado como candidato a marcador.</p>
+<section class="level4" data-number="6.11.2.1" id="diretrizes-de-implementação-1">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-1" data-number="6.11.2.1"><span class="header-section-number">6.11.2.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Quantidade:</strong> Ler o inteiro <span class="math inline">\(M\)</span> (número de retas detectadas pela Transformada de Hough).</li>
-<li><strong>Ângulos:</strong> Ler os <span class="math inline">\(M\)</span> ângulos, em graus, podendo ser positivos, negativos ou fracionários.</li>
-<li><strong>Filtragem:</strong> Manter apenas os ângulos que satisfaçam <strong>estritamente</strong> <span class="math inline">\(-45 &lt; \text{ângulo} &lt; 45\)</span>, descartando os demais.</li>
-<li><strong>Ausência de candidatos válidos:</strong> Se, após a filtragem, nenhum ângulo restar, o <em>pipeline</em> não deve tentar corrigir a imagem — imprimir exatamente <code>SEM_CORRECAO</code>, sem calcular ângulo algum.</li>
-<li><strong>Mediana:</strong> Caso existam ângulos válidos, ordená-los e calcular a mediana:
+<li><strong>Quantidade:</strong> Ler o inteiro <span class="math inline">\(N\)</span> (número de candidatos) e o limiar de circularidade <span class="math inline">\(C_{\text{limiar}}\)</span> (número real).</li>
+<li><strong>Dados dos candidatos:</strong> Para cada um dos <span class="math inline">\(N\)</span> candidatos, ler a área <span class="math inline">\(A\)</span> (inteiro) e o perímetro <span class="math inline">\(P\)</span> (número real).</li>
+<li><strong>Circularidade:</strong> Calcular <span class="math inline">\(C=\frac{4\pi A}{P^2}\)</span>, em que:</li>
+</ol>
 <ul>
-<li>Se a quantidade de valores filtrados for ímpar, a mediana é o valor central da lista ordenada.</li>
-<li>Se for par, a mediana é a média aritmética dos dois valores centrais.</li>
-</ul></li>
-<li><strong>Saída:</strong> Arredondar a mediana para 2 casas decimais (arredondamento padrão, <em>round half away from zero</em>) e imprimir esse valor.</li>
+<li><span class="math inline">\(A\)</span> é a área do componente;</li>
+<li><span class="math inline">\(P\)</span> é o perímetro do componente;</li>
+<li><span class="math inline">\(C\)</span> é a circularidade.</li>
+</ul>
+<ol start="4" type="1">
+<li><strong>Caso degenerado:</strong> Se <span class="math inline">\(P=0\)</span>, considerar <span class="math inline">\(C=0\)</span> e classificar diretamente o candidato como <code>REJEITADO</code>.</li>
+<li><strong>Classificação:</strong> Se <span class="math inline">\(C&gt;C_{\text{limiar}}\)</span>, classificar o candidato como <code>ACEITO</code>; caso contrário, classificá-lo como <code>REJEITADO</code>.</li>
+<li><strong>Arredondamento:</strong> Exibir o valor de <span class="math inline">\(C\)</span> com quatro casas decimais.</li>
+<li><strong>Saída:</strong> Para cada candidato, imprimir o valor de <span class="math inline">\(C\)</span> seguido da classificação. Ao final, imprimir o número total de candidatos aceitos.</li>
 </ol>
 </section>
-<section class="level4" data-number="6.12.2.2" id="restrições-computacionais-1">
-<h4 class="anchored" data-anchor-id="restrições-computacionais-1" data-number="6.12.2.2"><span class="header-section-number">6.12.2.2</span> 📌 Restrições Computacionais</h4>
+<section class="level4" data-number="6.11.2.2" id="restrições-computacionais-1">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-1" data-number="6.11.2.2"><span class="header-section-number">6.11.2.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Intervalo aberto:</strong> ângulos exatamente iguais a <span class="math inline">\(-45\)</span> ou <span class="math inline">\(45\)</span> <strong>não</strong> entram no cálculo (correspondem tipicamente a bordas verticais/horizontais espúrias).</li>
-<li><strong>Precisão intermediária:</strong> a mediana deve ser calculada com precisão total; o arredondamento ocorre apenas na saída final.</li>
-<li><strong>Robustez:</strong> a mediana — e não a média — é utilizada propositalmente, pois é pouco sensível a poucos ângulos discrepantes remanescentes no conjunto filtrado.</li>
+<li>Utilizar a constante <span class="math inline">\(\pi\)</span> da biblioteca padrão da linguagem (por exemplo, <code>math.pi</code>), sem aproximações.</li>
+<li>A comparação deve ser realizada com o valor de <span class="math inline">\(C\)</span> em precisão completa, antes do arredondamento para exibição.</li>
+<li>O critério de aceitação é estrito (<span class="math inline">\(C&gt;C_{\text{limiar}}\)</span>).</li>
+<li>Se <span class="math inline">\(P=0\)</span>, a divisão não deve ser realizada.</li>
 </ul>
 </section>
-<section class="level4" data-number="6.12.2.3" id="fundamentação-teórica-1">
-<h4 class="anchored" data-anchor-id="fundamentação-teórica-1" data-number="6.12.2.3"><span class="header-section-number">6.12.2.3</span> 🧠 Fundamentação Teórica</h4>
+<section class="level4" data-number="6.11.2.3" id="fundamentação-teórica-1">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-1" data-number="6.11.2.3"><span class="header-section-number">6.11.2.3</span> 🧠 Fundamentação Teórica</h4>
+<p>A circularidade é um descritor geométrico definido por <span class="math inline">\(C=\frac{4\pi A}{P^2}\)</span>, em que:</p>
+<ul>
+<li><span class="math inline">\(A\)</span> é a área do componente;</li>
+<li><span class="math inline">\(P\)</span> é o perímetro do componente;</li>
+<li><span class="math inline">\(C\)</span> é a circularidade.</li>
+</ul>
+<p>Para um círculo perfeito, <span class="math inline">\(C=1\)</span>. À medida que a forma se torna mais alongada ou irregular, o perímetro cresce mais rapidamente que a área, reduzindo o valor de <span class="math inline">\(C\)</span>.</p>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
-</colgroup>
 <thead>
 <tr class="header">
-<th>Situação</th>
-<th>Efeito sobre a mediana</th>
-<th>Por que a mediana e não a média?</th>
+<th>Forma</th>
+<th style="text-align: right;">Circularidade aproximada</th>
+<th>Interpretação</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Maioria dos ângulos concentrada perto do valor real</td>
-<td>Mediana ≈ inclinação real</td>
-<td>Reflete o valor “central” típico</td>
+<td>Círculo</td>
+<td style="text-align: right;"><span class="math inline">\(1{,}0000\)</span></td>
+<td>Forma circular.</td>
 </tr>
 <tr class="even">
-<td>Poucos ângulos espúrios (sombras, ruído)</td>
-<td>Pouco ou nenhum efeito</td>
-<td>Outliers isolados não deslocam a mediana</td>
+<td>Quadrado</td>
+<td style="text-align: right;"><span class="math inline">\(0{,}7854\)</span></td>
+<td>Forma aproximadamente compacta.</td>
 </tr>
 <tr class="odd">
-<td>Ângulos fora de <span class="math inline">\((-45°,45°)\)</span></td>
-<td>Descartados antes do cálculo</td>
-<td>Evita confundir bordas verticais com inclinação do texto</td>
+<td>Forma alongada ou irregular</td>
+<td style="text-align: right;"><span class="math inline">\(C\ll1\)</span></td>
+<td>Baixa circularidade.</td>
 </tr>
 <tr class="even">
-<td>Nenhum ângulo válido</td>
-<td>Sem correção aplicada</td>
-<td>Preserva a imagem original em vez de aplicar uma rotação arbitrária</td>
+<td><span class="math inline">\(P=0\)</span></td>
+<td style="text-align: right;"><span class="math inline">\(0\)</span> (convenção adotada)</td>
+<td>Contorno degenerado.</td>
 </tr>
 </tbody>
 </table>
+<p>A circularidade é invariante à translação, à rotação e à escala, sendo amplamente utilizada para distinguir componentes aproximadamente circulares de outros formatos.</p>
 </section>
-<section class="level4" data-number="6.12.2.4" id="especificação-de-entrada-e-saída-vpl-1">
-<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-1" data-number="6.12.2.4"><span class="header-section-number">6.12.2.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<section class="level4" data-number="6.11.2.4" id="especificação-de-entrada-e-saída-vpl-1">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-1" data-number="6.11.2.4"><span class="header-section-number">6.11.2.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiro <span class="math inline">\(M\)</span>.</li>
-<li>Linha 2: <span class="math inline">\(M\)</span> valores reais (ângulos em graus), separados por espaço.</li>
+<li>Linha 1: inteiro <span class="math inline">\(N\)</span>.</li>
+<li>Linha 2: número real <span class="math inline">\(C_{\text{limiar}}\)</span>.</li>
+<li>Próximas <span class="math inline">\(N\)</span> linhas: área <span class="math inline">\(A\)</span> (inteiro) e perímetro <span class="math inline">\(P\)</span> (real), separados por espaço.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li>Uma única linha: o ângulo estimado com 2 casas decimais, <strong>ou</strong> a palavra <code>SEM_CORRECAO</code> caso nenhum ângulo seja válido.</li>
+<li>Uma linha para cada candidato, no formato <code>C ACEITO</code> ou <code>C REJEITADO</code>, com <span class="math inline">\(C\)</span> apresentado com quatro casas decimais.</li>
+<li>Última linha: <code>Total aceitos: X</code>.</li>
 </ul>
 </section>
-<section class="level4" data-number="6.12.2.5" id="exemplos-1">
-<h4 class="anchored" data-anchor-id="exemplos-1" data-number="6.12.2.5"><span class="header-section-number">6.12.2.5</span> 📌 Exemplos</h4>
+<section class="level4" data-number="6.11.2.5" id="exemplos-1">
+<h4 class="anchored" data-anchor-id="exemplos-1" data-number="6.11.2.5"><span class="header-section-number">6.11.2.5</span> 📌 Exemplos</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%"/>
@@ -181,39 +188,47 @@ div.csl-indent {
 </thead>
 <tbody>
 <tr class="odd">
-<td>5<br/>
--50 -10.5 2.3 2.3 47</td>
-<td>2.30</td>
-<td>Ângulos <span class="math inline">\(-50\)</span> e <span class="math inline">\(47\)</span> descartados (fora do intervalo aberto); mediana de <span class="math inline">\(\{-10{,}5;\ 2{,}3;\ 2{,}3\}\)</span> é <span class="math inline">\(2{,}3\)</span>.</td>
+<td>3<br/>
+0.6<br/>
+78 31.4<br/>
+100 40<br/>
+50 60</td>
+<td>0.9941 ACEITO<br/>
+0.7854 ACEITO<br/>
+0.1745 REJEITADO<br/>
+Total aceitos: 2</td>
+<td>Candidato aproximadamente circular, forma compacta e forma alongada.</td>
 </tr>
 <tr class="even">
-<td>4<br/>
--46 50 45 -45</td>
-<td>SEM_CORRECAO</td>
-<td>Todos os quatro ângulos estão fora do intervalo aberto <span class="math inline">\((-45,45)\)</span> — inclusive as fronteiras <span class="math inline">\(\pm45\)</span>.</td>
+<td>1<br/>
+0.9<br/>
+10 0</td>
+<td>0.0000 REJEITADO<br/>
+Total aceitos: 0</td>
+<td>Perímetro nulo: contorno degenerado.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-06-sim-ep02">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6" id="fig-06-sim-ep02">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="109" id="fig-06-sim-ep02">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-06-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0602" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Mediana Angular (Deskew)</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 mediana(-45° &lt; θ &lt; 45°)</span>
+<span>🎮 Simulador: Filtro de Marcadores por Circularidade</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 C = 4πA / P²</span>
 </div>
 <div style="padding:20px;background:white;">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Arraste os pontos de ruído para fora ou para dentro do intervalo válido e veja como a mediana permanece estável.</p>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o limiar e observe quais candidatos (discos, quadrados e formas irregulares) sobrevivem ao filtro.</p>
 <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
 <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#7c3aed;">Ângulo do ruído extra (grau)</label>
-<span id="ep0602_vl" style="font-family:monospace;font-weight:bold;color:#7c3aed;">47</span>
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Limiar de circularidade (C_limiar)</label>
+<span id="ep0602_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">0.60</span>
 </div>
-<input id="ep0602_sl" max="80" min="-80" step="1" style="width:100%;accent-color:#7c3aed;" type="range" value="47"/>
+<input id="ep0602_sl" max="0.99" min="0.05" step="0.01" style="width:100%;accent-color:#2980b9;" type="range" value="0.60"/>
 </div>
-<div id="ep0602_pts" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;"></div>
-<div id="ep0602_debug" style="background:#ede9fe;border-radius:8px;padding:10px;border:1px solid #c4b5fd;font-family:monospace;font-size:11px;color:#5b21b6;text-align:center;"></div>
+<div id="ep0602_cards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;"></div>
+<div id="ep0602_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
 </div>
 <script>
@@ -221,37 +236,37 @@ div.csl-indent {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var base = [-10.5, 2.3, 2.3];
+    var candidatos = [
+      {nome:"Disco", A:78, P:31.4},
+      {nome:"Quadrado", A:100, P:40},
+      {nome:"Retângulo", A:60, P:44},
+      {nome:"Rasura", A:50, P:60},
+      {nome:"Ponto", A:10, P:0}
+    ];
     var slEl = root.querySelector('#ep0602_sl');
     var vlEl = root.querySelector('#ep0602_vl');
-    var ptsEl = root.querySelector('#ep0602_pts');
+    var cards = root.querySelector('#ep0602_cards');
     var dbg = root.querySelector('#ep0602_debug');
 
-    function median(arr){
-      var a = arr.slice().sort(function(x,y){return x-y;});
-      var n = a.length;
-      if(n===0) return null;
-      var mid = Math.floor(n/2);
-      return (n%2===1) ? a[mid] : (a[mid-1]+a[mid])/2;
-    }
-
     function render(){
-      var extra = parseFloat(slEl.value);
-      vlEl.textContent = extra;
-      var todos = base.concat([extra, -50]);
-      var validos = todos.filter(function(a){ return a > -45 && a < 45; });
-      ptsEl.innerHTML = '';
-      todos.forEach(function(a){
-        var ok = a > -45 && a < 45;
+      var th = parseFloat(slEl.value);
+      vlEl.textContent = th.toFixed(2);
+      cards.innerHTML = '';
+      var aceitos = 0;
+      candidatos.forEach(function(c){
+        var C = (c.P === 0) ? 0 : (4*Math.PI*c.A)/(c.P*c.P);
+        var ok = c.P !== 0 && C > th;
+        if(ok) aceitos++;
         var div = document.createElement('div');
-        div.style.cssText = 'padding:8px 12px;border-radius:8px;font-family:monospace;font-size:12px;font-weight:700;' +
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
           (ok ? 'background:#dcfce7;border:1px solid #86efac;color:#166534;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;');
-        div.textContent = a + '°';
-        ptsEl.appendChild(div);
+        div.innerHTML = '<div style="font-weight:700;">'+c.nome+'</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">A='+c.A+'<br>P='+c.P+'</div>' +
+          '<div style="font-family:monospace;font-weight:700;">C='+C.toFixed(4)+'</div>' +
+          '<div style="font-weight:700;">'+(ok?'ACEITO':'REJEITADO')+'</div>';
+        cards.appendChild(div);
       });
-      var med = median(validos);
-      dbg.textContent = 'Válidos: [' + validos.join(', ') + ']  |  Mediana estimada: ' +
-        (med===null ? 'SEM_CORRECAO' : med.toFixed(2)+'°');
+      dbg.textContent = 'C_limiar=' + th.toFixed(2) + '  |  Candidatos aceitos: ' + aceitos + '/' + candidatos.length;
     }
     slEl.addEventListener('input', render);
     render();
@@ -265,24 +280,26 @@ div.csl-indent {
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-06-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 6.20: Simulador: Estimador de Inclinação por Mediana Angular
+Figura 6.20: Simulador: Filtro de Marcadores por Circularidade
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="23eb668d">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a aria-hidden="true" href="#cb40-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_02.py</span>
-<span id="cb40-2"><a aria-hidden="true" href="#cb40-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="3fa44953">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a aria-hidden="true" href="#cb41-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_02.py</span>
+<span id="cb41-2"><a aria-hidden="true" href="#cb41-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP06_02.py</code></pre>
+<pre><code>Overwriting EP06_02.py</code></pre>
 </div>
 </div>
-<div class="cell" id="93e653ed">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a aria-hidden="true" href="#cb42-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="c6a858e1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a aria-hidden="true" href="#cb43-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap06/casos/EP06_02.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap06/cap6/EP6_2.cases
-❌ Não foi possível baixar EP06_02.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP06_02.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP06_02.cases
+
+🔍 Testando Python: EP06_02.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP06_02.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
@@ -808,7 +825,7 @@ window.Quarto = {
       const h = maiorContorno.maxr - maiorContorno.minr + 1;
       const ratio = w / h;
       if (ratio > 1.5 || ratio < 0.67) {
-        warnBox.innerHTML = '<div class="qr_warn">⚠️ O maior contorno quadrado detectado incorporou uma linha horizontal da folha, distorcendo a bounding box. Isso ocorre porque sebox(' + k + ') funde módulos do QR Code com elementos adjacentes. Na prática, o algoritmo MCTest usa critérios adicionais (área mínima e proximidade com a borda superior) para evitar essa situação. Reduza k para obter o recorte correto.</div>';
+        warnBox.innerHTML = '<div class="qr_warn">⚠️ O maior contorno quadrado detectado incorporou uma linha horizontal da folha, distorcendo a bounding box. Isso ocorre porque sebox(' + k + ') funde módulos do QRCode com elementos adjacentes. Na prática, o algoritmo MCTest usa critérios adicionais (área mínima e proximidade com a borda superior) para evitar essa situação. Reduza k para obter o recorte correto.</div>';
       } else {
         warnBox.innerHTML = '';
       }
@@ -820,7 +837,7 @@ window.Quarto = {
       'sebox(0) = 3×3 — fechamento leve, preserva módulos finos',
       'sebox(1) = 5×5 — fechamento médio, ideal para segmentar o QRCode',
       'sebox(2) = 7×7 — começa a fundir módulos adjacentes',
-      'sebox(3) = 9×9 — destrói a estrutura do QR Code'
+      'sebox(3) = 9×9 — destrói a estrutura do QRCode'
     ];
     document.getElementById('qr_kDesc').textContent = kDescs[k] || '';
 
@@ -1072,6 +1089,162 @@ window.Quarto = {
 </script>
 <script>
 (function(){
+
+function init(root){
+
+if(!root) return;
+if(root.dataset.ready==="1") return;
+root.dataset.ready="1";
+
+var dx=root.querySelector("#ep0601_dx");
+var dy=root.querySelector("#ep0601_dy");
+var sz=root.querySelector("#ep0601_sz");
+
+var vdx=root.querySelector("#ep0601_vdx");
+var vdy=root.querySelector("#ep0601_vdy");
+var vsz=root.querySelector("#ep0601_vsz");
+
+var gRef=root.querySelector("#ep0601_ref");
+var gPred=root.querySelector("#ep0601_pred");
+var gMix=root.querySelector("#ep0601_mix");
+
+var dbg=root.querySelector("#ep0601_dbg");
+
+var N=10;
+
+var ref={x:2,y:2,w:6,h:6};
+
+function inside(x,y,r){
+return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h;
+}
+
+function pixel(color){
+
+var d=document.createElement("div");
+
+d.style.width="24px";
+d.style.height="24px";
+d.style.border="1px solid #ddd";
+d.style.boxSizing="border-box";
+d.style.background=color;
+
+return d;
+
+}
+
+function classe(i){
+
+if(i>=0.90) return "Excelente";
+if(i>=0.75) return "Muito boa";
+if(i>=0.50) return "Aceitável";
+return "Ruim";
+
+}
+
+function render(){
+
+vdx.innerHTML=dx.value;
+vdy.innerHTML=dy.value;
+vsz.innerHTML=sz.value;
+
+gRef.innerHTML="";
+gPred.innerHTML="";
+gMix.innerHTML="";
+
+var pred={
+x:ref.x+parseInt(dx.value),
+y:ref.y+parseInt(dy.value),
+w:parseInt(sz.value),
+h:parseInt(sz.value)
+};
+
+var inter=0;
+var uniao=0;
+
+for(var y=0;y<N;y++){
+
+for(var x=0;x<N;x++){
+
+var r=inside(x,y,ref);
+var p=inside(x,y,pred);
+
+gRef.appendChild(pixel(r?"#7fdc92":"white"));
+gPred.appendChild(pixel(p?"#7fbfff":"white"));
+
+if(r&&p){
+gMix.appendChild(pixel("#9b59b6"));
+inter++;
+}
+else if(r){
+gMix.appendChild(pixel("#7fdc92"));
+uniao++;
+}
+else if(p){
+gMix.appendChild(pixel("#7fbfff"));
+uniao++;
+}
+else{
+gMix.appendChild(pixel("white"));
+}
+
+if(r&&p) uniao++;
+
+}
+
+}
+
+var iou=inter/uniao;
+
+dbg.innerHTML=
+"<b>Interseção</b> = "+inter+
+" pixels &nbsp;&nbsp;&nbsp;"+
+"<b>União</b> = "+uniao+
+" pixels"+
+"<br><br>"+
+"IoU = <b>"+inter+" / "+uniao+
+" = "+iou.toFixed(4)+"</b>"+
+"<br><br>"+
+"<span style='font-weight:bold;color:#1565c0;'>"+
+classe(iou)+
+"</span>";
+
+}
+
+dx.oninput=render;
+dy.oninput=render;
+sz.oninput=render;
+
+render();
+
+}
+
+function tryInit(){
+
+var all=document.querySelectorAll('[id="sim-ep0601"]');
+
+if(all.length===0) return false;
+
+init(all[all.length-1]);
+
+return true;
+
+}
+
+var t=0;
+
+var id=setInterval(function(){
+
+t++;
+
+if(tryInit() || t>20)
+clearInterval(id);
+
+},50);
+
+})();
+</script>
+<script>
+(function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
@@ -1082,10 +1255,10 @@ window.Quarto = {
       {nome:"Rasura", A:50, P:60},
       {nome:"Ponto", A:10, P:0}
     ];
-    var slEl = root.querySelector('#ep0601_sl');
-    var vlEl = root.querySelector('#ep0601_vl');
-    var cards = root.querySelector('#ep0601_cards');
-    var dbg = root.querySelector('#ep0601_debug');
+    var slEl = root.querySelector('#ep0602_sl');
+    var vlEl = root.querySelector('#ep0602_vl');
+    var cards = root.querySelector('#ep0602_cards');
+    var dbg = root.querySelector('#ep0602_debug');
 
     function render(){
       var th = parseFloat(slEl.value);
@@ -1111,7 +1284,56 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0601');
+    var root = document.getElementById('sim-ep0602');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var letras = ['A','B','C','D'];
+    var valores = [10, 85, 5, 12];
+    var thEl = root.querySelector('#ep0603_th'), vthEl = root.querySelector('#ep0603_vth');
+    var box = root.querySelector('#ep0603_bubbles');
+    var dbg = root.querySelector('#ep0603_debug');
+
+    box.innerHTML = '';
+    var sliders = [];
+    letras.forEach(function(L, i){
+      var col = document.createElement('div');
+      col.style.cssText = 'text-align:center;';
+      col.innerHTML = '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+L+'</div>' +
+        '<input type="range" min="0" max="100" step="1" value="'+valores[i]+'" style="width:100%;accent-color:#7c3aed;" id="ep0603_b'+i+'">' +
+        '<div id="ep0603_v'+i+'" style="font-family:monospace;font-size:11px;margin-top:4px;">'+valores[i]+'%</div>';
+      box.appendChild(col);
+      sliders.push(col.querySelector('#ep0603_b'+i));
+    });
+
+    function render(){
+      var th = parseFloat(thEl.value);
+      vthEl.textContent = th.toFixed(0);
+      var marcadas = [];
+      sliders.forEach(function(s, i){
+        var v = parseFloat(s.value);
+        root.querySelector('#ep0603_v'+i).textContent = v.toFixed(0) + '%';
+        if(v > th) marcadas.push(letras[i]);
+      });
+      var resultado;
+      if(marcadas.length === 0) resultado = 'BRANCO';
+      else if(marcadas.length === 1) resultado = marcadas[0];
+      else resultado = 'DUPLA_MARCACAO (' + marcadas.join(',') + ')';
+      dbg.textContent = 'Classificacao da questao: ' + resultado;
+    }
+    sliders.forEach(function(s){ s.addEventListener('input', render); });
+    thEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0603');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1123,10 +1345,10 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var base = [-10.5, 2.3, 2.3];
-    var slEl = root.querySelector('#ep0602_sl');
-    var vlEl = root.querySelector('#ep0602_vl');
-    var ptsEl = root.querySelector('#ep0602_pts');
-    var dbg = root.querySelector('#ep0602_debug');
+    var slEl = root.querySelector('#ep0604_sl');
+    var vlEl = root.querySelector('#ep0604_vl');
+    var ptsEl = root.querySelector('#ep0604_pts');
+    var dbg = root.querySelector('#ep0604_debug');
 
     function median(arr){
       var a = arr.slice().sort(function(x,y){return x-y;});
@@ -1158,7 +1380,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0602');
+    var root = document.getElementById('sim-ep0604');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1170,12 +1392,12 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var linha_img = [90, 90, 90, 90];
-    var slEl = root.querySelector('#ep0603_sl');
-    var vlEl = root.querySelector('#ep0603_vl');
-    var gImg = root.querySelector('#ep0603_g_img');
-    var gBg  = root.querySelector('#ep0603_g_bg');
-    var gOut = root.querySelector('#ep0603_g_out');
-    var dbg  = root.querySelector('#ep0603_debug');
+    var slEl = root.querySelector('#ep0605_sl');
+    var vlEl = root.querySelector('#ep0605_vl');
+    var gImg = root.querySelector('#ep0605_g_img');
+    var gBg  = root.querySelector('#ep0605_g_bg');
+    var gOut = root.querySelector('#ep0605_g_out');
+    var dbg  = root.querySelector('#ep0605_debug');
 
     function roundHalfAway(x){
       return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
@@ -1214,7 +1436,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0603');
+    var root = document.getElementById('sim-ep0605');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1225,13 +1447,13 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var slDef = root.querySelector('#ep0604_sl_def');
-    var vlDef = root.querySelector('#ep0604_vl_def');
-    var slT   = root.querySelector('#ep0604_sl_t');
-    var vlT   = root.querySelector('#ep0604_vl_t');
-    var gTex  = root.querySelector('#ep0604_g_tex');
-    var gMask = root.querySelector('#ep0604_g_mask');
-    var dbg   = root.querySelector('#ep0604_debug');
+    var slDef = root.querySelector('#ep0606_sl_def');
+    var vlDef = root.querySelector('#ep0606_vl_def');
+    var slT   = root.querySelector('#ep0606_sl_t');
+    var vlT   = root.querySelector('#ep0606_vl_t');
+    var gTex  = root.querySelector('#ep0606_g_tex');
+    var gMask = root.querySelector('#ep0606_g_mask');
+    var dbg   = root.querySelector('#ep0606_debug');
 
     function roundHalfAway(x){
       return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
@@ -1288,7 +1510,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0604');
+    var root = document.getElementById('sim-ep0606');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -1304,14 +1526,14 @@ window.Quarto = {
     // cap representa a peça já deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
     var cap = [[0,50,50],[0,50,90],[0,50,50]];
 
-    var slDx = root.querySelector('#ep0605_sl_dx');
-    var vlDx = root.querySelector('#ep0605_vl_dx');
-    var slT  = root.querySelector('#ep0605_sl_t');
-    var vlT  = root.querySelector('#ep0605_vl_t');
-    var gRef = root.querySelector('#ep0605_g_ref');
-    var gAlin= root.querySelector('#ep0605_g_alin');
-    var gMask= root.querySelector('#ep0605_g_mask');
-    var dbg  = root.querySelector('#ep0605_debug');
+    var slDx = root.querySelector('#ep0607_sl_dx');
+    var vlDx = root.querySelector('#ep0607_vl_dx');
+    var slT  = root.querySelector('#ep0607_sl_t');
+    var vlT  = root.querySelector('#ep0607_vl_t');
+    var gRef = root.querySelector('#ep0607_g_ref');
+    var gAlin= root.querySelector('#ep0607_g_alin');
+    var gMask= root.querySelector('#ep0607_g_mask');
+    var dbg  = root.querySelector('#ep0607_debug');
 
     function cellStyle(g, w, extra){
       return 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:bold;font-family:monospace;border:1px solid #ccc;' +
@@ -1359,7 +1581,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0605');
+    var root = document.getElementById('sim-ep0607');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
