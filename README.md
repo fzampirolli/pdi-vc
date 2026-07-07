@@ -57,70 +57,84 @@ via API Anthropic. As traduções ficam em cache (`.cache/`) e só são rechamad
 ```
 pdi-vc/
 │
-├── all/                          ← ✏️  FONTES — editar APENAS aqui
-│   └── capXX/
-│       ├── capXX.ipynb           ← conteúdo principal (Python + Português)
-│       ├── capXX.EPs.ipynb       ← exercícios práticos com TestSuite
-│       ├── imagens/              ← figuras estáticas + screenshots de simuladores
-│       │   ├── fig-XX-nome.png   ← gerado automaticamente pelo Playwright
-│       │   └── ...
-│       └── casos/                ← casos de teste para o TestSuite
-│           ├── EP01_01.cases
-│           └── ...
+├── all/                          ← ✏️ FONTES — editar APENAS aqui
+│   ├── _cap00/                   ← propostas, prompts e rascunhos de capítulos
+│   └── capXX/                    (do cap01 ao cap09)
+│       ├── capXX.ipynb           ← conteúdo principal (Teoria)
+│       ├── capXX.EPs.ipynb       ← enunciados e códigos dos Exercícios Práticos[cite: 1]
+│       ├── imagens/              ← badges, figuras estáticas e setups dos capítulos[cite: 1]
+│       └── casos/                ← arquivos de teste (.cases) para validação dos EPs[cite: 1]
 │
-├── gen/                          ← 🤖  GERADO — não editar manualmente
-│   ├── py.pt/capXX/              ← Python + Português (passthrough)
-│   ├── py.en/capXX/              ← Python + English  (texto traduzido)
-│   ├── cpp.pt/capXX/             ← C++ + Português   (código traduzido)
-│   ├── quarto/                   ← pasta Quarto auto-suficiente por versão
-│   │   └── py.pt/
-│   │       ├── _quarto.yml       ← gerado pelo pipeline
-│   │       ├── capXX -> gen/py.pt/capXX  (symlink)
-│   │       └── includes -> includes/     (symlink)
-│   └── book/                     ← saída final
-│       ├── py.pt/
-│       │   ├── livro.pt.py.pdf
-│       │   └── *.html
-│       └── eps/                  ← EPs extraídos individualmente
-│           └── py.pt/
-│               ├── EP01_01.html
-│               ├── EP01_02.html
-│               └── ...
+├── gen/                          ← 🤖 GERADO — não editar manualmente[cite: 1]
+│   ├── py.pt/                    ← notebooks processados em Python/Português[cite: 1]
+│   │   └── capXX/                ← notebooks finais e links de imagens[cite: 1]
+│   └── quarto/                   ← ambiente de compilação do Quarto[cite: 1]
+│       └── py.pt/                ← estrutura organizada com _quarto.yml para o build[cite: 1]
+│           └── book/             ← saída final da renderização local (PDF e HTMLs)[cite: 1]
 │
-├── notebooks_alunos/             ← 📦  distribuição para alunos
-│   └── capXX/
-│       ├── capXX_aluno.ipynb
-│       ├── capXX.EPs_aluno.ipynb
-│       ├── imagens/
-│       └── casos/
+├── docs/                         ← 🌐 DEPLOY — pasta para publicação estática (GitHub Pages)[cite: 1]
+│   ├── index.html                ← página inicial do site do livro[cite: 1]
+│   ├── py.pt/                    ← versão web completa do livro (HTMLs, PDFs, imagens)[cite: 1]
+│   └── eps/                      ← Exercícios Práticos extraídos individualmente[cite: 1]
+│       ├── py.pt/                ← formato HTML para visualização direta[cite: 1]
+│       └── py.pt_moodle/         ← formato HTML otimizado para o Moodle[cite: 1]
 │
-├── pipeline/                     ← motor de geração
-│   ├── config.py                 ← registro de langs/locales
-│   ├── cache.py                  ← cache de traduções em disco
-│   ├── translators.py            ← CodeTranslator + TextTranslator (via API)
-│   ├── notebook_processor.py     ← lê fonte, traduz, emite notebook filtrado
-│   ├── quarto_builder.py         ← monta pasta Quarto + geração de PDF
-│   ├── bib.py                    ← parser BibTeX + formatação ABNT
-│   └── index_builder.py          ← gera gen/book/index.html
+├── notebooks_alunos/             ← 📦 DISTRIBUIÇÃO — material limpo para os estudantes[cite: 1]
+│   └── capXX/                    
+│       ├── capXX_aluno.ipynb     ← teoria com lacunas/atividades[cite: 1]
+│       ├── capXX.EPs_aluno.ipynb ← templates dos EPs para implementação[cite: 1]
+│       ├── imagens/              ← imagens necessárias para rodar localmente[cite: 1]
+│       └── casos/                ← casos de teste abertos[cite: 1]
 │
-├── includes/                     ← assets compartilhados
-│   ├── preamble.tex              ← pacotes LaTeX para PDF (emoji, fontes…)
-│   ├── abnt.csl                  ← estilo de citação ABNT
-│   ├── emoji-filter.lua          ← filtro Pandoc: converte emojis → \emoji{}
-│   └── prefacio.qmd              ← prefácio do livro (suporta placeholders)
+├── pipeline/                     ← ⚙️ MOTOR — scripts do pipeline de compilação[cite: 1]
+│   ├── config.py                 ← configurações gerais do projeto[cite: 1]
+│   ├── cache.py                  ← gerenciamento de cache de processamento[cite: 1]
+│   ├── notebook_processor.py     ← processador e limpador das células dos notebooks[cite: 1]
+│   ├── quarto_builder.py         ← orquestrador do build via Quarto[cite: 1]
+│   ├── index_builder.py          ← gerador automático de índices do site[cite: 1]
+│   └── translators.py            ← gerenciador de tradução e chamadas de API[cite: 1]
 │
-├── morph/
-│   ├── morph.py                  ← biblioteca de PDI desenvolvida pelos autores
-│   └── testsuite.py              ← validador automático de EPs
+├── includes/                     ← 🎨 ASSETS — elementos compartilhados de estilização[cite: 1]
+│   ├── preamble.tex / .html      ← preâmbulos de configuração LaTeX e HTML[cite: 1]
+│   ├── abnt.csl                  ← especificação de estilo de citação ABNT[cite: 1]
+│   ├── emoji-filter.lua          ← filtro Pandoc para conversão de emojis[cite: 1]
+│   └── prefacio.qmd              ← rascunho/metadados do prefácio[cite: 1]
 │
-├── dev.py                        ← 🔑  CLI principal (watch + build)
-├── extrair_eps.py                ← extrai cada EP em HTML individual
-├── gerar_livro.py                ← CLI alternativo (batch)
-├── gerar_notebooks_alunos.py     ← gera notebooks_alunos/
-├── run.sh                        ← build rápido de PDF (limpa cache + make pdf)
-├── Makefile                      ← atalhos de desenvolvimento
-├── references.bib                ← referências bibliográficas (ABNT)
-└── requirements.txt              ← dependências Python
+├── morph/                        ← 📦 BIBLIOTECA — core de PDI e testes do projeto[cite: 1]
+│   ├── morph.py / morph-large.py ← implementações de morfologia e PDI[cite: 1]
+│   └── testsuite.py              ← framework de testes automáticos para os EPs[cite: 1]
+│
+├── runs/                         ← 📊 MODELOS — saídas e pesos de treinamento do YOLO[cite: 1]
+│   └── detect/                   ← matrizes de confusão, curvas F1/PR e pesos (best.pt)[cite: 1]
+│
+├── dev.py                        ← CLI principal de desenvolvimento[cite: 1]
+├── ep_tools.py                   ← utilitários para manipulação e extração dos EPs[cite: 1]
+├── gerar_livro.py                ← script de geração em lote do livro[cite: 1]
+├── gerar_notebooks_alunos.py     ← script que limpa e gera a pasta dos alunos[cite: 1]
+├── run.sh / limpar.sh            ← scripts Bash para automação e limpeza de build[cite: 1]
+├── Makefile                      ← atalhos de comandos rápidos[cite: 1]
+├── references.bib                ← base de dados bibliográfica BibTeX[cite: 1]
+└── requirements.txt              ← dependências Python do projeto[cite: 1]
+```
+
+
+## 🌐 Documentação e Artefatos Gerados (`docs/`)
+
+A pasta `docs/` funciona como a raiz para o *deploy* estático (como GitHub Pages [fzampirolli.github.io/pdi-vc/](https://fzampirolli.github.io/pdi-vc/)) e concentra os resultados finais do *pipeline* de compilação:
+
+```text
+docs/
+├── index.html                 # Página inicial da documentação/livro web
+├── capa_girassol1.png         # Asset visual da capa do livro
+│
+├── eps/                       # Exercícios Práticos (EPs) extraídos individualmente
+│   ├── py.pt/                 # EPs do Cap 1 ao 9 em formato HTML autônomo
+│   └── py.pt_moodle/          # EPs formatados especificamente para importação no Moodle
+│
+└── py.pt/                     # Estrutura completa do livro renderizado
+    ├── book-latex/            # Arquivos fontes, PDFs e figuras geradas via LaTeX
+    ├── cap01/ até cap09/      # Capítulos convertidos em HTML com seus respectivos outputs/gráficos
+    └── site_libs/             # Bibliotecas estáticas de suporte (Bootstrap, Quarto Search, etc.)
 ```
 
 ### Metadados das células
@@ -146,15 +160,15 @@ Exemplo:
 
 ### Simuladores interativos
 
-Células com `HTML("""...""")` são simuladores interativos. O pipeline trata automaticamente:
+Células com `HTML("""...""")` são simuladores interativos. O *pipeline* trata automaticamente:
 
 - **HTML**: exibe o simulador normalmente
-- **PDF**: substitui por screenshot PNG gerado via Playwright (salvo em `all/capXX/imagens/`)
+- **PDF**: substitui por *screenshot* PNG gerado via `Playwright` (salvo em `all/capXX/imagens/`)
 
 Os PNGs são gerados na primeira execução e reutilizados nas seguintes.
 Para regenerar, apague o PNG correspondente em `all/capXX/imagens/`.
 
-Padrão de label obrigatório para simuladores:
+Padrão de *label* obrigatório para simuladores:
 ```python
 #| label: fig-XX-nome-do-simulador
 #| fig-cap: "Descrição para a legenda"
@@ -163,26 +177,38 @@ from IPython.display import HTML
 HTML("""...""")
 ```
 
-### Convenções de labels Quarto
+---
+
+### Convenções de *labels* Quarto
 
 ```markdown
-# Figura
+# Figura (Abaixo da imagem, sem espaço)
 ![](imagens/exemplo.png){#fig-01-exemplo width=70%}
-Citar: @fig-01-exemplo
 
-# Equação
+Citar no texto: Veja a @fig-01-exemplo.
+
+# Equação (Na mesma linha do fechamento dos blocos $$)
 $$f(x) = g(x)$$ {#eq-01-nome}
-Citar: @eq-01-nome
 
-# Tabela
+Citar no texto: Conforme a @eq-01-nome.
+
+# Tabela (Alinhado à sintaxe de cross-reference do Quarto)
 | A | B |
 |---|---|
-: Legenda {#tbl-01-dados}
+
+: Legenda da Tabela {#tbl-01-dados}
+
+Citar no texto: Dados na @tbl-01-dados.
+
 ```
 
-**Atenção:**  labels de figura no Quarto não podem ter maiúsculas.
+⚠️ **Atenção sobre *Labels* (Figuras, Tabelas e Equações):**
+* **Apenas minúsculas:** O Quarto não aceita letras maiúsculas ou underscores (`_`) em IDs de referência cruzada (ex: use `{#fig-01-exemplo}`, nunca `{#fig-01-Exemplo}`).
+* **Regra de nomenclatura:** `{#prefixo-CAPITULO-nome}` — inclua sempre o número do capítulo com dois dígitos (ex: `01`, `02`) para garantir a consistência no sumário e na indexação geral do livro.
 
-**Regra:** `{#prefixo-CAPITULO-nome}` — sempre com número do capítulo.
+🚫 **Restrição Crítica do *Pipeline* PDF (`quarto render --to pdf`):**
+* O motor LaTeX/Pandoc falhará ao compilar se houver blocos de código formatados (`inline code` com crases, ex: `mm.show`) dentro de legendas (`captions`) de figuras ou tabelas.
+* **Como corrigir:** Remova as crases nas legendas e use formatação de texto comum ou itálico simples (ex: *mm.show*).
 
 ---
 
@@ -282,33 +308,71 @@ make clean-gen      # apaga só gen/ e docs/
 
 ---
 
-## Adicionar nova linguagem de programação
+## 🌐 Adicionar Nova Linguagem de Programação
 
-**1.** Edite `pipeline/config.py`:
+**1.** Edite o arquivo `pipeline/config.py` e adicione a nova linguagem dentro do dicionário literal `LANGUAGES`:
+
 ```python
-LANGUAGES['java'] = Language('java', 'Java', '.java', base=False)
-```
-
-**2.** Gere:
-```bash
-python dev.py --once --langs py,cpp,java --locales pt --render html
-```
-
-## Adicionar novo idioma
-
-**1.** Edite `pipeline/config.py`:
-```python
-LOCALES['de'] = Locale('de', 'Deutsch', 'de', base=False)
-UI_STRINGS['de'] = {
-    'book_subtitle': 'Praxisorientierter Ansatz mit {lang_label}',
-    'part_1': 'Teil I — PDI-Grundlagen',
-    # ...
+LANGUAGES: dict[str, Language] = {
+    'py':   Language('py',   'Python', '.py',  base=True,  quarto_engine='python'),
+    'cpp':  Language('cpp',  'C++',    '.cpp', base=False, quarto_engine='python'),
+    'java': Language('java', 'Java',   '.java',base=False, quarto_engine='python'),
+    'c':    Language('c',    'C',      '.c',   base=False, quarto_engine='python'),
+    'rs':   Language('rs',   'Rust',   '.rs',  base=False, quarto_engine='python'), # ← Exemplo
 }
+
 ```
 
-**2.** Gere:
+⚙️ **Nota de Implementação:** Após registrar no `config.py`, você deve implementar a respectiva estratégia de tradução de sintaxe de código em `pipeline/translators.py`.
+
+**2.** Teste a compilação gerando os artefatos com a nova linguagem:
+
+```bash
+python dev.py --once --langs py,cpp,rs --locales pt --render html
+
+```
+
+---
+
+## 🌍 Adicionar Novo Idioma (Locale)
+
+**1.** Edite o arquivo `pipeline/config.py` para incluir o novo idioma no dicionário `LOCALES` e seu respectivo mapeamento de interface em `UI_STRINGS`:
+
+```python
+LOCALES: dict[str, Locale] = {
+    'pt': Locale('pt', 'Português', 'pt',    base=True),
+    'en': Locale('en', 'English',   'en',    base=False),
+    # ...
+    'de': Locale('de', 'Deutsch',   'de',    base=False), # ← Adicionar aqui
+}
+
+```
+
+No mesmo arquivo, adicione o bloco de tradução das chaves de interface em `UI_STRINGS`:
+
+```python
+UI_STRINGS: dict[str, dict[str, str]] = {
+    'pt': { ... },
+    'en': { ... },
+    # ...
+    'de': {
+        'book_subtitle':   'Praxisorientierter Ansatz mit {lang_label}',
+        'part_1':          'Teil I — PDI-Grundlagen',
+        'part_2':          'Teil II — Computer Vision',
+        'references_title':'Literaturverzeichnis',
+        'exercises_label': 'Übungen',
+        'note_code':       '{lang_label}-Code',
+        'welcome':         'Willkommen im Lehrbuch für PDI und Computer Vision — Version {lang_label} / Deutsch.',
+    },
+}
+
+```
+
+**2.** Teste a compilação incluindo o novo idioma nos alvos de renderização:
+
 ```bash
 python dev.py --once --langs py --locales pt,en,de --render html
+
 ```
 
 ---
