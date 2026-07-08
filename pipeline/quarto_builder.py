@@ -521,6 +521,7 @@ format:
       body-width: 1100px
       sidebar-width: 250px
       margin-width: 250px
+    favicon: includes/favicon.ico
     toc: true
     toc-depth: 3
     number-sections: true
