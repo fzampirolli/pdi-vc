@@ -88,7 +88,430 @@ div.csl-indent {
 <p>Nos exercícios anteriores, as grandezas intermediárias do <em>pipeline</em> de processamento de imagens — como áreas, perímetros, variâncias e deslocamentos — foram fornecidas diretamente ou calculadas a partir de matrizes numéricas, sem a necessidade de bibliotecas especializadas de Visão Computacional. Neste exercício de encerramento do capítulo, essa restrição é removida de forma intencional: será utilizada a biblioteca <strong>OpenCV</strong> (<code>cv2</code>) para localizar e decodificar um <em>QRCode</em> real presente em uma cena.</p>
 <p>A proposta reproduz um fluxo simplificado de sistemas empregados em inspeção visual, automação industrial e leitura automática de documentos. Para manter a entrada de dados acessível ao contexto educacional, o carregamento da imagem será integrado à biblioteca didática <code>morph</code>, por meio da função <code>mm.readImg</code>.</p>
 <p>A cena é fornecida no formato <strong>PGM ASCII (P2)</strong> e contém um único <em>QRCode</em> válido, além de diversos <strong>objetos distratores</strong>, como retângulos, regiões de ruído texturizado e blocos isolados. A segmentação baseada apenas em propriedades geométricas — como área e formato aproximadamente quadrado — é necessária para reduzir o espaço de busca, mas não é suficiente para identificar o código correto. A confirmação final será realizada exclusivamente pela tentativa de decodificação utilizando <code>cv2.QRCodeDetector</code>, procedimento compatível com aplicações reais de reconhecimento automático.</p>
-<hr/>
+<section class="level4" data-number="6.11.8.1" id="diretrizes-de-implementação-7">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-7" data-number="6.11.8.1"><span class="header-section-number">6.11.8.1</span> 📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><p><strong>Leitura das dimensões e parâmetros</strong></p>
+<p>Ler, nesta ordem, por meio da entrada padrão:</p>
+<ul>
+<li>uma linha contendo o número de linhas <span class="math inline">\(L\)</span>;</li>
+<li>uma linha contendo o número de colunas <span class="math inline">\(C\)</span>;</li>
+<li>uma linha contendo os quatro parâmetros do algoritmo separados por espaço:
+<ul>
+<li>limiar de binarização <span class="math inline">\(T\)</span> (inteiro);</li>
+<li>área mínima <span class="math inline">\(A_{\text{min}}\)</span> (inteiro);</li>
+<li>tolerância de aspecto <span class="math inline">\(\text{tol}\)</span> (real);</li>
+<li>margem <span class="math inline">\(M\)</span> (inteiro, em pixels).</li>
+</ul></li>
+</ul></li>
+<li><p><strong>Carregamento da imagem</strong></p>
+<p>Utilizar a função didática</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a aria-hidden="true" href="#cb63-1" tabindex="-1"></a>f <span class="op">=</span> mm.readImg(L, C)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<p>para ler os <span class="math inline">\(L \times C\)</span> valores da imagem em tons de cinza, obtendo um <em>array</em> NumPy do tipo <code>uint8</code>.</p></li>
+<li><p><strong>Binarização</strong></p>
+<p>Aplicar limiarização binária invertida utilizando o limiar <span class="math inline">\(T\)</span>. Todo pixel da imagem original com intensidade estritamente maior que <span class="math inline">\(T\)</span> deve ser convertido para 255, enquanto os demais devem assumir o valor 0.</p></li>
+<li><p><strong>Detecção de contornos</strong></p>
+<p>Extrair os componentes conectados externos utilizando</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a aria-hidden="true" href="#cb64-1" tabindex="-1"></a>cv2.findContours(...)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<p>com os parâmetros:</p>
+<ul>
+<li><code>cv2.RETR_EXTERNAL</code>;</li>
+<li><code>cv2.CHAIN_APPROX_SIMPLE</code>.</li>
+</ul></li>
+<li><p><strong>Filtragem geométrica</strong></p>
+<p>Para cada contorno encontrado:</p>
+<ul>
+<li><p>calcular o retângulo delimitador <code>(x, y, w, h)</code> por meio de <code>cv2.boundingRect</code>;</p></li>
+<li><p>manter apenas os candidatos que satisfaçam simultaneamente:</p>
+<p><strong>Área mínima</strong></p>
+<p><span class="math display">\[
+w \times h &gt; A_{\text{min}}
+\]</span></p>
+<p><strong>Razão de aspecto</strong></p>
+<p><span class="math display">\[
+\left|\frac{w}{h}-1\right| \le \text{tol}
+\]</span></p></li>
+</ul></li>
+<li><p><strong>Ordenação dos candidatos</strong></p>
+<p>Ordenar os candidatos pela área do retângulo delimitador</p>
+<p><span class="math display">\[
+w \times h
+\]</span></p>
+<p>em ordem decrescente.</p>
+<p>Em caso de empate, preservar a ordem originalmente retornada por <code>cv2.findContours</code>.</p></li>
+<li><p><strong>Verificação por decodificação</strong></p>
+<p>Para cada candidato, seguindo a ordem estabelecida:</p>
+<ul>
+<li>expandir o retângulo em <span class="math inline">\(M\)</span> pixels nas quatro direções;</li>
+<li>limitar os índices para permanecerem dentro da imagem;</li>
+<li>extrair o recorte diretamente da imagem original <code>f</code>;</li>
+<li>aplicar</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a aria-hidden="true" href="#cb65-1" tabindex="-1"></a>cv2.QRCodeDetector().detectAndDecode(...)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<p>sobre esse recorte.</p></li>
+<li><p><strong>Critério de parada</strong></p>
+<p>Interromper imediatamente o processamento quando o primeiro candidato produzir uma <em>string</em> decodificada não vazia.</p></li>
+<li><p><strong>Caso não encontrado</strong></p>
+<p>Se nenhum candidato for decodificado com sucesso, imprimir exatamente:</p>
+<pre><code>QRCODE_NAO_ENCONTRADO</code></pre></li>
+<li><p><strong>Saída (caso encontrado)</strong></p>
+<p>Imprimir duas linhas.</p>
+<p>Primeira linha:</p>
+<pre><code>linha coluna altura largura</code></pre>
+<p>utilizando o retângulo delimitador <strong>original</strong>, antes da expansão pela margem <span class="math inline">\(M\)</span>.</p>
+<p>Segunda linha:</p>
+<pre><code>texto_decodificado</code></pre></li>
+</ol>
+</section>
+<section class="level4" data-number="6.11.8.2" id="restrições-computacionais-7">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-7" data-number="6.11.8.2"><span class="header-section-number">6.11.8.2</span> 📌 Restrições Computacionais</h4>
+<ul>
+<li>Utilizar funções do OpenCV para realizar a binarização, a detecção de contornos, o cálculo do retângulo delimitador e a decodificação do QRCode.</li>
+<li>A filtragem geométrica deve ocorrer obrigatoriamente antes da etapa de decodificação.</li>
+<li>Utilizar exclusivamente o limiar fixo <span class="math inline">\(T\)</span> fornecido na entrada. Não é permitido utilizar métodos automáticos de limiarização, como Otsu ou limiarização adaptativa.</li>
+<li>Garantir que os recortes enviados ao decodificador permaneçam dentro dos limites da imagem.</li>
+</ul>
+</section>
+<section class="level4" data-number="6.11.8.3" id="fundamentação-teórica-7">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-7" data-number="6.11.8.3"><span class="header-section-number">6.11.8.3</span> 🧠 Fundamentação Teórica</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%"/>
+<col style="width: 47%"/>
+<col style="width: 41%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Etapa</th>
+<th>Papel no pipeline</th>
+<th>Consequência se omitida</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Filtragem geométrica</strong></td>
+<td>Reduz o espaço de busca selecionando apenas regiões compatíveis com a geometria esperada de um QRCode.</td>
+<td>O decodificador processaria todos os contornos, incluindo ruídos e objetos distratores.</td>
+</tr>
+<tr class="even">
+<td><strong>Decodificação</strong></td>
+<td>Confirma semanticamente se o candidato contém um QRCode válido.</td>
+<td>Objetos geometricamente semelhantes poderiam ser classificados incorretamente como QRCode.</td>
+</tr>
+<tr class="odd">
+<td><strong>Margem <span class="math inline">\(M\)</span></strong></td>
+<td>Preserva a <em>quiet zone</em> ao redor do código, facilitando sua detecção.</td>
+<td>A ausência dessa margem pode impedir o alinhamento e a leitura correta do código.</td>
+</tr>
+</tbody>
+</table>
+<p>Este exercício integra conceitos estudados ao longo do capítulo em um único <em>pipeline</em> de Visão Computacional. A segmentação reduz o conjunto de regiões candidatas por meio de características geométricas, enquanto a etapa de decodificação valida o conteúdo da região utilizando um algoritmo especializado de reconhecimento.</p>
+</section>
+<section class="level4" data-number="6.11.8.4" id="especificação-de-entrada-e-saída-vpl-7">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-7" data-number="6.11.8.4"><span class="header-section-number">6.11.8.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<section class="level5" data-number="6.11.8.4.1" id="estrutura-de-entrada">
+<h5 class="anchored" data-anchor-id="estrutura-de-entrada" data-number="6.11.8.4.1"><span class="header-section-number">6.11.8.4.1</span> Estrutura de Entrada</h5>
+<pre><code>L
+C
+T A_min tol M
+[matriz da imagem]</code></pre>
+</section>
+<section class="level5" data-number="6.11.8.4.2" id="estrutura-de-saída-sucesso">
+<h5 class="anchored" data-anchor-id="estrutura-de-saída-sucesso" data-number="6.11.8.4.2"><span class="header-section-number">6.11.8.4.2</span> Estrutura de Saída (Sucesso)</h5>
+<pre><code>linha coluna altura largura
+texto_decodificado</code></pre>
+</section>
+<section class="level5" data-number="6.11.8.4.3" id="estrutura-de-saída-falha">
+<h5 class="anchored" data-anchor-id="estrutura-de-saída-falha" data-number="6.11.8.4.3"><span class="header-section-number">6.11.8.4.3</span> Estrutura de Saída (Falha)</h5>
+<pre><code>QRCODE_NAO_ENCONTRADO</code></pre>
+</section>
+</section>
+<section class="level4" data-number="6.11.8.5" id="arquivos-de-referência-.pgm">
+<h4 class="anchored" data-anchor-id="arquivos-de-referência-.pgm" data-number="6.11.8.5"><span class="header-section-number">6.11.8.5</span> 📌 Arquivos de Referência (.pgm)</h4>
+<p>Para fins de validação, depuração local e análise de matrizes reais de pixels, os arquivos de imagem gerados no padrão ASCII P2 encontram-se disponíveis no diretório do projeto. Você pode utilizá-los para testar em decodificados do seu celular a aderência do seu código (salvar *.pgm localmente para visualizar):</p>
+<ul>
+<li>📥 <strong><a href="https://github.com/fzampirolli/pdi-vc/blob/master/all/cap06/dados/EP08/Caso1_Normal.pgm">Caso 1: Padrão Normal</a></strong> – Contém um único código perfeitamente centralizado com distratores geométricos simples na periferia.</li>
+<li>📥 <strong><a href="https://github.com/fzampirolli/pdi-vc/blob/master/all/cap06/dados/EP08/Caso2_Complexo.pgm">Caso 2: Cenário Complexo</a></strong> – Apresenta maior densidade de ruído texturizado e múltiplos distratores candidatos que testam os limites da filtragem por aspecto.</li>
+<li>📥 <strong><a href="https://github.com/fzampirolli/pdi-vc/blob/master/all/cap06/dados/EP08/Caso3_MensagemSecreta.pgm">Caso 3: Mensagem Expandida</a></strong> – Contém um QRCode estruturado a partir de uma cadeia de caracteres de maior comprimento, gerando maior densidade de módulos internos.</li>
+<li>📥 <strong><a href="https://github.com/fzampirolli/pdi-vc/blob/master/all/cap06/dados/EP08/Caso4_Excelente.pgm">Caso 4: Geometria Compacta</a></strong> – Avalia o comportamento do pipeline sob condições otimizadas de contraste e posicionamento limítrofe.</li>
+<li>📥 <strong><a href="https://github.com/fzampirolli/pdi-vc/blob/master/all/cap06/dados/EP08/Caso5_Nao_Encontrado.pgm">Caso 5: Cenário de Exclusão</a></strong> – Imagem composta puramente por elementos distratores de alta área, projetada para validar o comportamento de falha controlada do programa.</li>
+</ul>
+<div class="cell" id="cell-fig-06-sim-ep08">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="123" id="fig-06-sim-ep08">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-06-sim-ep08-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0608" style="background-color:#f8fafc;border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f1f5f9;padding:10px 16px;font-size:12px;color:#475569;border-bottom:1px solid #e2e8f0;font-weight:500;">
+    📋 Simulador do Pipeline do EP06_08 — Segmentação e Decodificação de QRCode
+  </div>
+<div style="padding: 15px; background-color: #fafafa;">
+<p style="margin: 0 0 15px 0; font-size: 14px; color: #64748b; line-height: 1.5;">
+      Ajuste interativamente os parâmetros de entrada do algoritmo (A_min e tol) para verificar quais componentes são filtrados geometricamente e como o critério de parada por análise semântica interrompe a varredura da fila.
+    </p>
+<div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+<!-- Slider Area Minima -->
+<div style="flex:1;min-width:220px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+<label style="font-size:12px;font-weight:600;color:#475569;">Área mínima (A_min, px²)</label>
+<span id="ep0608_vl_amin" style="font-family:monospace;font-weight:700;color:#475569;background:#e2e8f0;padding:1px 6px;border-radius:4px;">250</span>
+</div>
+<input id="ep0608_sl_amin" max="3000" min="0" step="50" style="width:100%;accent-color:#94a3b8;cursor:pointer;" type="range" value="250"/>
+</div>
+<!-- Slider Tolerancia -->
+<div style="flex:1;min-width:220px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+<label style="font-size:12px;font-weight:600;color:#475569;">Tolerância de aspecto (tol)</label>
+<span id="ep0608_vl_tol" style="font-family:monospace;font-weight:700;color:#475569;background:#e2e8f0;padding:1px 6px;border-radius:4px;">0.22</span>
+</div>
+<input id="ep0608_sl_tol" max="1.0" min="0.05" step="0.01" style="width:100%;accent-color:#94a3b8;cursor:pointer;" type="range" value="0.22"/>
+</div>
+</div>
+<div style="display:flex;gap:24px;flex-wrap:wrap;">
+<!-- Canvas da Cena -->
+<div style="flex:1;min-width:260px;text-align:center;background:#ffffff;border:1px solid #e2e8f0;padding:16px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+<p style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:12px;letter-spacing:0.5px;">Visualização da Cena (Matriz f)</p>
+<canvas height="260" id="ep0608_canvas" style="border:1px solid #f1f5f9;border-radius:10px;background:#ffffff;" width="260"></canvas>
+</div>
+<!-- Lista de Candidatos -->
+<div style="flex:1;min-width:280px;background:#ffffff;border:1px solid #e2e8f0;padding:16px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+<p style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:12px;letter-spacing:0.5px;text-align:center;">Componentes Conectados na Fila</p>
+<div id="ep0608_lista" style="font-family:monospace;font-size:11px;display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+</div>
+<!-- Console de Saída VPL -->
+<div id="ep0608_debug" style="margin-top:20px;background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;font-family:monospace;font-size:12px;color:#334155;text-align:center;font-weight:600;line-height:1.5;"></div>
+</div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    // Estruturas de formas compatíveis com o motor de renderização interno anterior
+    var formas = [
+      {x: 145, y: 35,  w: 76, h: 76, tipo: "Componente QRCode Real", cor: "#cbd5e1", decodifica: true, padrao: "qr"},
+      {x: 35,  y: 145, w: 55, h: 68, tipo: "Falso QRCode (Assimétrico)", cor: "#e2e8f0", decodifica: false, padrao: "falso_qr"},
+      {x: 45,  y: 35,  w: 44, h: 44, tipo: "Círculo / Distrator", cor: "#f1f5f9", decodifica: false, padrao: "circulo"},
+      {x: 160, y: 175, w: 68, h: 26, tipo: "Retângulo Distrator", cor: "#e2e8f0", decodifica: false, padrao: "retangulo"},
+      {x: 65,  y: 220, w: 14, h: 14, tipo: "Ruído Isolado", cor: "#f8fafc", decodifica: false, padrao: "ruido"}
+    ];
+
+    var slA = root.querySelector('#ep0608_sl_amin');
+    var vlA = root.querySelector('#ep0608_vl_amin');
+    var slT = root.querySelector('#ep0608_sl_tol');
+    var vlT = root.querySelector('#ep0608_vl_tol');
+    var canvas = root.querySelector('#ep0608_canvas');
+    var ctx = canvas.getContext('2d');
+    var lista = root.querySelector('#ep0608_lista');
+    var dbg = root.querySelector('#ep0608_debug');
+
+    function desenhaForma(f, estado){
+      ctx.save();
+
+      // Definição das bordas baseadas em tons pastéis suaves do Tailwind
+      var corBorda = '#94a3b8';
+      if (estado === 'candidato_ok') corBorda = '#10b981';      // Emerald sólido
+      if (estado === 'candidato_falhou') corBorda = '#f43f5e';  // Rose sólido
+      if (estado === 'rejeitado') corBorda = '#cbd5e1';         // Cinza esmaecido
+
+      ctx.lineWidth = (estado === 'candidato_ok' || estado === 'candidato_falhou') ? 3 : 1.5;
+      ctx.strokeStyle = corBorda;
+
+      // Cores pastéis suaves para preenchimento de fundo dos objetos
+      if (estado === 'rejeitado') {
+        ctx.fillStyle = '#f8fafc';
+      } else {
+        if(f.padrao === 'qr') ctx.fillStyle = '#e2e8f0';
+        else if(f.padrao === 'retangulo') ctx.fillStyle = '#fffbeb';
+        else if(f.padrao === 'falso_qr') ctx.fillStyle = '#f0f9ff';
+        else ctx.fillStyle = '#fdf4ff';
+      }
+
+      if(f.padrao === 'circulo'){
+        ctx.beginPath();
+        ctx.arc(f.x + f.w/2, f.y + f.h/2, f.w/2, 0, 2 * Math.PI);
+        ctx.fill(); ctx.stroke();
+      } else {
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.strokeRect(f.x, f.y, f.w, f.h);
+
+        // Desenho didático das âncoras (Finder Patterns) clássicas do QRCode
+        if(f.padrao === 'qr' || f.padrao === 'falso_qr'){
+          var c = f.w / 5;
+          ctx.fillStyle = '#ffffff';
+          [[f.x + 3, f.y + 3], [f.x + f.w - c - 3, f.y + 3], [f.x + 3, f.y + f.h - c - 3]].forEach(function(p){
+            ctx.fillRect(p[0], p[1], c, c);
+            ctx.strokeRect(p[0], p[1], c, c);
+          });
+
+          ctx.fillStyle = (f.padrao === 'qr') ? '#334155' : '#64748b';
+          [[f.x + 5, f.y + 5], [f.x + f.w - c + 1, f.y + 5], [f.x + 5, f.y + f.h - c + 1]].forEach(function(p){
+            ctx.fillRect(p[0], p[1], c - 4, c - 4);
+          });
+        }
+      }
+      ctx.restore();
+    }
+
+    function render(){
+      var amin = parseInt(slA.value);
+      var tol = parseFloat(slT.value);
+      vlA.textContent = amin;
+      vlT.textContent = tol.toFixed(2);
+
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // Mapeia e calcula a área e a razão de aspecto para cada componente
+      var candidatos = formas.map(function(f){
+        var area = f.w * f.h;
+        var aspecto = f.w / f.h;
+        var passaArea = area > amin;
+        var passaAspecto = Math.abs(aspecto - 1.0) <= tol;
+        return {f: f, area: area, aspecto: aspecto, passa: passaArea && passaAspecto};
+      }).sort(function(a, b){ return b.area - a.area; }); // Ordenação decrescente regulamentar
+
+      lista.innerHTML = '';
+      var encontrado = null;
+      var flagParada = false;
+
+      candidatos.forEach(function(c){
+        var estado, texto, bgBox, txBox;
+
+        if(!c.passa){
+          estado = 'rejeitado';
+          texto = 'REJEITADO (Área = ' + c.area + ' px², Aspeto = ' + c.aspecto.toFixed(2) + ')';
+          bgBox = '#f1f5f9';
+          txBox = '#94a3b8';
+        } else if(flagParada){
+          estado = 'rejeitado';
+          texto = 'FILA INTERROMPIDA (Critério de Parada Ativo)';
+          bgBox = '#f8fafc';
+          txBox = '#cbd5e1';
+        } else if(c.f.decodifica){
+          estado = 'candidato_ok';
+          texto = 'SUCESSO: DECODIFICADO ✅';
+          bgBox = '#ecfdf5';
+          txBox = '#059669';
+          encontrado = c.f;
+          flagParada = true; // Ativa o break do laço especificado no enunciado
+        } else {
+          estado = 'candidato_falhou';
+          texto = 'GEOMETRIA OK ➔ FALHA NA DECODIFICAÇÃO ❌';
+          bgBox = '#fff5f5';
+          txBox = '#e11d48';
+        }
+
+        desenhaForma(c.f, estado);
+
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:8px 10px;border-radius:8px;background:' + bgBox + ';border:1px solid #edf2f7;color:' + txBox + ';display:flex;flex-direction:column;gap:2px;';
+
+        var nameSpan = document.createElement('strong');
+        nameSpan.style.fontSize = '11px';
+        nameSpan.textContent = c.f.tipo + ' (' + c.area + ' px²)';
+
+        var statusSpan = document.createElement('span');
+        statusSpan.style.fontSize = '10px';
+        statusSpan.style.opacity = '0.9';
+        statusSpan.textContent = texto;
+
+        div.appendChild(nameSpan);
+        div.appendChild(statusSpan);
+        lista.appendChild(div);
+      });
+
+      // Renderização do Bloco de Console VPL
+      if (encontrado) {
+        dbg.style.backgroundColor = '#ecfdf5';
+        dbg.style.borderColor = '#a7f3d0';
+        dbg.style.color = '#065f46';
+        dbg.innerHTML = '<div style="text-align:left;font-weight:700;color:#047857;margin-bottom:4px;">🟢 SAÍDA PADRÃO (VPL):</div>' +
+                        'y=' + encontrado.y + ' x=' + encontrado.x + ' h=' + encontrado.h + ' w=' + encontrado.w + '<br>' +
+                        '<span style="color:#065f46;font-weight:700;">"EP06_08 - PDI-VC | Parabens! Voce decodificou este QR Code!"</span>';
+      } else {
+        dbg.style.backgroundColor = '#fff5f5';
+        dbg.style.borderColor = '#fecaca';
+        dbg.style.color = '#991b1b';
+        dbg.innerHTML = '<div style="text-align:left;font-weight:700;color:#b91c1c;margin-bottom:4px;">🔴 SAÍDA PADRÃO (VPL):</div>' +
+                        'QRCODE_NAO_ENCONTRADO';
+      }
+    }
+
+    slA.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0608');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-06-sim-ep08-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 6.28: Simulador: Segmentação Geométrica + Verificação por Decodificação de QRCode
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell" id="9cd32066">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a aria-hidden="true" href="#cb72-1" tabindex="-1"></a><span class="op">%%</span>writefile EP06_08.py</span>
+<span id="cb72-2"><a aria-hidden="true" href="#cb72-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Overwriting EP06_08.py</code></pre>
+</div>
+</div>
+<div class="cell" id="a65eac37">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a aria-hidden="true" href="#cb74-1" tabindex="-1"></a>TestSuite(<span class="st">"EP06_08.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP06_08.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP06_08.cases
+
+🔍 Testando Python: EP06_08.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP06_08.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
+</div>
+</div>
+<div class="references csl-bib-body" data-entry-spacing="1" id="refs" role="list" style="display: none">
+<div class="csl-entry" id="ref-Bahdanau2015" role="listitem">
+BAHDANAU, Dzmitry; CHO, Kyunghyun; BENGIO, Yoshua. Neural Machine Translation by Jointly Learning to Align and Translate. <em>Em</em>: 2015. Disponível em: &lt;<a href="https://arxiv.org/abs/1409.0473">https://arxiv.org/abs/1409.0473</a>&gt;
+</div>
+<div class="csl-entry" id="ref-bergmann2019mvtec" role="listitem">
+BERGMANN, Paul <em>et al.</em> <a href="https://doi.org/10.1109/CVPR.2019.00982">MVTec AD – A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection</a>. <em>Em</em>: 2019.
+</div>
+<div class="csl-entry" id="ref-bradski2008learning" role="listitem">
+BRADSKI, Gary; KAEHLER, Adrian. <strong>Learning OpenCV: Computer vision with the OpenCV library</strong>. <em>[S.l.]</em>: " O’Reilly Media, Inc.", 2008.
+</div>
+<div class="csl-entry" id="ref-gonzalez2018digital" role="listitem">
+GONZALEZ, R. C.; WOODS, R. E. <strong>Digital Image Processing</strong>. 4th. ed. New York: Pearson, 2018.
+</div>
+<div class="csl-entry" id="ref-Smith2007" role="listitem">
+SMITH, Ray. <a href="https://doi.org/10.1109/ICDAR.2007.4376991">An Overview of the Tesseract OCR Engine</a>. <em>Em</em>: IEEE Computer Society, 2007.
+</div>
+<div class="csl-entry" id="ref-Smith2013" role="listitem">
+SMITH, Ray. <a href="https://doi.org/10.1117/12.2010051">History of the Tesseract OCR Engine: What Worked and What Didn’t</a>. <em>Em</em>: 2013.
+</div>
+<div class="csl-entry" id="ref-song2013noise" role="listitem">
+SONG, Kechen; YAN, Yunhui. <a href="https://doi.org/10.1016/j.apsusc.2013.09.002">A Noise Robust Method Based on Completed Local Binary Patterns for Hot-Rolled Steel Strip Surface Defects</a>. <strong>Applied Surface Science</strong>, v. 285, p. 858–864, 2013.
+</div>
+<div class="csl-entry" id="ref-szeliski2022" role="listitem">
+SZELISKI, Richard. <strong><a href="https://szeliski.org/Book/">Computer Vision: Algorithms and Applications</a></strong>. 2. ed. <em>[S.l.]</em>: Springer, 2022.
+</div>
+<div class="csl-entry" id="ref-tabernik2020segmentation" role="listitem">
+TABERNIK, Domen <em>et al.</em> <a href="https://doi.org/10.1007/s10845-019-01476-x">Segmentation-Based Deep-Learning Approach for Surface-Defect Detection</a>. <strong>Journal of Intelligent Manufacturing</strong>, v. 31, n. 3, p. 759–776, 2020.
+</div>
+<div class="csl-entry" id="ref-Vaswani2017" role="listitem">
+VASWANI, Ashish <em>et al.</em> Attention Is All You Need. <em>Em</em>: 2017. Disponível em: &lt;<a href="https://arxiv.org/abs/1706.03762">https://arxiv.org/abs/1706.03762</a>&gt;
+</div>
+<div class="csl-entry" id="ref-zampirolli2023mctest" role="listitem">
+ZAMPIROLLI, Francisco A. <strong>MCTest: Como Criar e Corrigir Exames Parametrizados</strong>. <em>[S.l.]</em>: Independente, 2023.
+</div>
+</div>
+</section>
 </div>
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
