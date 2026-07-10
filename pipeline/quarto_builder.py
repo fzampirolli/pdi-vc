@@ -190,6 +190,7 @@ class QuartoBuilder:
 
         yml = self._quarto_yml(combo, nb_root)
         (qdir / '_quarto.yml').write_text(yml, encoding='utf-8')
+        shutil.copy2(self.root / 'includes' / 'favicon.ico', qdir / 'favicon.ico')
         (qdir / 'fvextra.tex').write_text(
             r'\usepackage{fvextra}' + '\n'
             r'\DefineVerbatimEnvironment{Highlighting}{Verbatim}'
@@ -521,7 +522,7 @@ format:
       body-width: 1100px
       sidebar-width: 250px
       margin-width: 250px
-    favicon: includes/favicon.ico
+    favicon: favicon.ico
     toc: true
     toc-depth: 3
     number-sections: true
@@ -532,6 +533,7 @@ format:
     lang: {quarto_lang}
     include-in-header:
       text: |
+        <link rel="icon" type="image/x-icon" href="includes/favicon.ico">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
         <script>
@@ -1565,6 +1567,70 @@ def _fix_tex_cover(qdir: Path):
     tex_path.write_text(content, encoding='utf-8')
     print(f'  ✓ .tex patcheado: {tex_path.name}')
 
+def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
+    output_dir = qdir.parent.parent / 'book' / combo_name
+    target = output_dir / f'livro.{file_key}.pdf'
+
+    if not output_dir.exists():
+        print(f'  ⚠ output-dir não encontrado: {output_dir}')
+        return
+
+    candidates = sorted(output_dir.glob('*.pdf'))
+
+    if not candidates:
+        print(f'  ⚠ Nenhum PDF encontrado em {output_dir}')
+        print(f'    Conteúdo: {[p.name for p in output_dir.iterdir()]}')
+        return
+
+    candidates = [c for c in candidates if c != target]
+    if not candidates:
+        print(f'  ✓ PDF já existe com nome correto: {target}')
+        return
+
+    generated = max(candidates, key=lambda p: p.stat().st_mtime)
+    shutil.move(str(generated), str(target))
+    print(f'  ✓ PDF renomeado: {generated.name} → {target.name}')
+
+def _inject_favicon_into_generated_htmls(qdir: Path):
+    """
+    Varre a pasta final do livro e injeta o link do favicon.ico correto
+    com base na profundidade do arquivo HTML.
+    """
+    # Descobre onde a pasta final de build (gen/book/...) está localizada
+    combo_name = qdir.name
+    book_dir = qdir.parent.parent / 'book' / combo_name
+    
+    if not book_dir.exists():
+        return
+
+    print(f'  🔧 Ajustando favicon em todos os HTMLs de {book_dir.name}...')
+
+    # Copia o favicon.ico para a raiz da pasta final se não existir
+    fav_src = qdir / 'favicon.ico'
+    if fav_src.exists():
+        shutil.copy2(fav_src, book_dir / 'favicon.ico')
+
+    # Varre todos os arquivos .html gerados
+    for html_path in book_dir.rglob('*.html'):
+        text = html_path.read_text(encoding='utf-8')
+        
+        # Se já tiver alguma tag de favicon antiga inserida, removemos para evitar duplicatas
+        text = re.sub(r'<link rel="[^"]*icon"[^>]*>', '', text)
+        
+        # Calcula a distância do arquivo até a pasta raiz (book_dir)
+        # Se estiver na raiz (index.html), href="favicon.ico"
+        # Se estiver em cap01/, href="../favicon.ico"
+        # Se estiver em cap01/subfolder/, href="../../favicon.ico"
+        depth = len(html_path.relative_to(book_dir).parts) - 1
+        prefix = '../' * depth if depth > 0 else './'
+        
+        favicon_tag = f'<link rel="icon" type="image/x-icon" href="{prefix}favicon.ico">'
+        
+        # Injeta a tag logo após a abertura do <head>
+        if '<head>' in text and favicon_tag not in text:
+            text = text.replace('<head>', f'<head>\n  {favicon_tag}', 1)
+            html_path.write_text(text, encoding='utf-8')
+
 def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
     # Cria arquivo sentinela para testsuite.py detectar ambiente Quarto
     sentinela = qdir / '.quarto_render'
@@ -1663,6 +1729,7 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
                   else:
                     print(f'  ✓ html → gen/book/{combo_name}/')
                     _fix_spurious_closing_div(qdir, combo_name)
+                    _inject_favicon_into_generated_htmls(qdir)
 
 
           except FileNotFoundError:
@@ -1671,27 +1738,3 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
               print('  ⚠ Timeout ao renderizar (mais de 600 segundos)')
     finally:
         sentinela.unlink(missing_ok=True)
-
-def _rename_pdf(qdir: Path, combo_name: str, file_key: str):
-    output_dir = qdir.parent.parent / 'book' / combo_name
-    target = output_dir / f'livro.{file_key}.pdf'
-
-    if not output_dir.exists():
-        print(f'  ⚠ output-dir não encontrado: {output_dir}')
-        return
-
-    candidates = sorted(output_dir.glob('*.pdf'))
-
-    if not candidates:
-        print(f'  ⚠ Nenhum PDF encontrado em {output_dir}')
-        print(f'    Conteúdo: {[p.name for p in output_dir.iterdir()]}')
-        return
-
-    candidates = [c for c in candidates if c != target]
-    if not candidates:
-        print(f'  ✓ PDF já existe com nome correto: {target}')
-        return
-
-    generated = max(candidates, key=lambda p: p.stat().st_mtime)
-    shutil.move(str(generated), str(target))
-    print(f'  ✓ PDF renomeado: {generated.name} → {target.name}')

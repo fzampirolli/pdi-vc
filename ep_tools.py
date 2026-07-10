@@ -52,6 +52,7 @@ HTML_TEMPLATE = """\
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{ep_id} — {title}</title>
+  {favicon} 
   {styles}
 </head>
 <body class="ep-standalone">
@@ -186,10 +187,12 @@ def elements_to_html(elements: list[Tag]) -> str:
 
 def build_ep_html(ep: dict, styles: str, scripts: str, lang: str) -> str:
     content = elements_to_html(ep["elements"])
+    favicon_tag = '<link rel="icon" type="image/x-icon" href="../../favicon.ico">'
     return HTML_TEMPLATE.format(
         lang=lang,
         ep_id=ep["ep_id"],
         title=ep["title"],
+        favicon=favicon_tag,
         styles=styles,
         scripts=scripts,
         content=content,

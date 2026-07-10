@@ -142,6 +142,7 @@ class IndexBuilder:
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDI+VC — Livro Interativo</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
@@ -531,6 +532,12 @@ class IndexBuilder:
         if cover_src.exists():
             shutil.copy2(cover_src, cover_dst)
             print(f'  ✓ Capa copiada para {cover_dst}')
+
+        fav_src = self.root / 'includes' / 'favicon.ico'
+        fav_dst = self.book_dir / 'favicon.ico'
+        if fav_src.exists():
+            shutil.copy2(fav_src, fav_dst)
+            print(f'  ✓ Favicon copiado para {fav_dst}')
 
         html_content = self.generate_html(versions)
         self.index_path.write_text(html_content, encoding='utf-8')
