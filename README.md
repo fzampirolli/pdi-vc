@@ -61,60 +61,60 @@ pdi-vc/
 │   ├── _cap00/                   ← propostas, prompts e rascunhos de capítulos
 │   └── capXX/                    (do cap01 ao cap09)
 │       ├── capXX.ipynb           ← conteúdo principal (Teoria)
-│       ├── capXX.EPs.ipynb       ← enunciados e códigos dos Exercícios Práticos[cite: 1]
-│       ├── imagens/              ← badges, figuras estáticas e setups dos capítulos[cite: 1]
-│       └── casos/                ← arquivos de teste (.cases) para validação dos EPs[cite: 1]
+│       ├── capXX.EPs.ipynb       ← enunciados e códigos dos Exercícios Práticos
+│       ├── imagens/              ← badges, figuras estáticas e setups dos capítulos
+│       └── casos/                ← arquivos de teste (.cases) para validação dos EPs
 │
-├── gen/                          ← 🤖 GERADO — não editar manualmente[cite: 1]
-│   ├── py.pt/                    ← notebooks processados em Python/Português[cite: 1]
-│   │   └── capXX/                ← notebooks finais e links de imagens[cite: 1]
-│   └── quarto/                   ← ambiente de compilação do Quarto[cite: 1]
-│       └── py.pt/                ← estrutura organizada com _quarto.yml para o build[cite: 1]
-│           └── book/             ← saída final da renderização local (PDF e HTMLs)[cite: 1]
+├── gen/                          ← 🤖 GERADO — não editar manualmente
+│   ├── py.pt/                    ← notebooks processados em Python/Português
+│   │   └── capXX/                ← notebooks finais e links de imagens
+│   └── quarto/                   ← ambiente de compilação do Quarto
+│       └── py.pt/                ← estrutura organizada com _quarto.yml para o build
+│           └── book/             ← saída final da renderização local (PDF e HTMLs)
 │
-├── docs/                         ← 🌐 DEPLOY — pasta para publicação estática (GitHub Pages)[cite: 1]
-│   ├── index.html                ← página inicial do site do livro[cite: 1]
-│   ├── py.pt/                    ← versão web completa do livro (HTMLs, PDFs, imagens)[cite: 1]
-│   └── eps/                      ← Exercícios Práticos extraídos individualmente[cite: 1]
-│       ├── py.pt/                ← formato HTML para visualização direta[cite: 1]
-│       └── py.pt_moodle/         ← formato HTML otimizado para o Moodle[cite: 1]
+├── docs/                         ← 🌐 DEPLOY — pasta para publicação estática (GitHub Pages)
+│   ├── index.html                ← página inicial do site do livro
+│   ├── py.pt/                    ← versão web completa do livro (HTMLs, PDFs, imagens)
+│   └── eps/                      ← Exercícios Práticos extraídos individualmente
+│       ├── py.pt/                ← formato HTML para visualização direta
+│       └── py.pt_moodle/         ← formato HTML otimizado para o Moodle
 │
-├── notebooks_alunos/             ← 📦 DISTRIBUIÇÃO — material limpo para os estudantes[cite: 1]
+├── notebooks_alunos/             ← 📦 DISTRIBUIÇÃO — material limpo para os estudantes
 │   └── capXX/                    
-│       ├── capXX_aluno.ipynb     ← teoria com lacunas/atividades[cite: 1]
-│       ├── capXX.EPs_aluno.ipynb ← templates dos EPs para implementação[cite: 1]
-│       ├── imagens/              ← imagens necessárias para rodar localmente[cite: 1]
-│       └── casos/                ← casos de teste abertos[cite: 1]
+│       ├── capXX_aluno.ipynb     ← teoria com lacunas/atividades
+│       ├── capXX.EPs_aluno.ipynb ← templates dos EPs para implementação
+│       ├── imagens/              ← imagens necessárias para rodar localmente
+│       └── casos/                ← casos de teste abertos
 │
-├── pipeline/                     ← ⚙️ MOTOR — scripts do pipeline de compilação[cite: 1]
-│   ├── config.py                 ← configurações gerais do projeto[cite: 1]
-│   ├── cache.py                  ← gerenciamento de cache de processamento[cite: 1]
-│   ├── notebook_processor.py     ← processador e limpador das células dos notebooks[cite: 1]
-│   ├── quarto_builder.py         ← orquestrador do build via Quarto[cite: 1]
-│   ├── index_builder.py          ← gerador automático de índices do site[cite: 1]
-│   └── translators.py            ← gerenciador de tradução e chamadas de API[cite: 1]
+├── pipeline/                     ← ⚙️ MOTOR — scripts do pipeline de compilação
+│   ├── config.py                 ← configurações gerais do projeto
+│   ├── cache.py                  ← gerenciamento de cache de processamento
+│   ├── notebook_processor.py     ← processador e limpador das células dos notebooks
+│   ├── quarto_builder.py         ← orquestrador do build via Quarto
+│   ├── index_builder.py          ← gerador automático de índices do site
+│   └── translators.py            ← gerenciador de tradução e chamadas de API
 │
-├── includes/                     ← 🎨 ASSETS — elementos compartilhados de estilização[cite: 1]
-│   ├── preamble.tex / .html      ← preâmbulos de configuração LaTeX e HTML[cite: 1]
-│   ├── abnt.csl                  ← especificação de estilo de citação ABNT[cite: 1]
-│   ├── emoji-filter.lua          ← filtro Pandoc para conversão de emojis[cite: 1]
-│   └── prefacio.qmd              ← rascunho/metadados do prefácio[cite: 1]
+├── includes/                     ← 🎨 ASSETS — elementos compartilhados de estilização
+│   ├── preamble.tex / .html      ← preâmbulos de configuração LaTeX e HTML
+│   ├── abnt.csl                  ← especificação de estilo de citação ABNT
+│   ├── emoji-filter.lua          ← filtro Pandoc para conversão de emojis
+│   └── prefacio.qmd              ← rascunho/metadados do prefácio
 │
-├── morph/                        ← 📦 BIBLIOTECA — core de PDI e testes do projeto[cite: 1]
-│   ├── morph.py / morph-large.py ← implementações de morfologia e PDI[cite: 1]
-│   └── testsuite.py              ← framework de testes automáticos para os EPs[cite: 1]
+├── morph/                        ← 📦 BIBLIOTECA — core de PDI e testes do projeto
+│   ├── morph.py / morph-large.py ← implementações de morfologia e PDI
+│   └── testsuite.py              ← framework de testes automáticos para os EPs
 │
-├── runs/                         ← 📊 MODELOS — saídas e pesos de treinamento do YOLO[cite: 1]
-│   └── detect/                   ← matrizes de confusão, curvas F1/PR e pesos (best.pt)[cite: 1]
+├── runs/                         ← 📊 MODELOS — saídas e pesos de treinamento do YOLO
+│   └── detect/                   ← matrizes de confusão, curvas F1/PR e pesos (best.pt)
 │
-├── dev.py                        ← CLI principal de desenvolvimento[cite: 1]
-├── ep_tools.py                   ← utilitários para manipulação e extração dos EPs[cite: 1]
-├── gerar_livro.py                ← script de geração em lote do livro[cite: 1]
-├── gerar_notebooks_alunos.py     ← script que limpa e gera a pasta dos alunos[cite: 1]
-├── run.sh / limpar.sh            ← scripts Bash para automação e limpeza de build[cite: 1]
-├── Makefile                      ← atalhos de comandos rápidos[cite: 1]
-├── references.bib                ← base de dados bibliográfica BibTeX[cite: 1]
-└── requirements.txt              ← dependências Python do projeto[cite: 1]
+├── dev.py                        ← CLI principal de desenvolvimento
+├── ep_tools.py                   ← utilitários para manipulação e extração dos EPs
+├── gerar_livro.py                ← script de geração em lote do livro
+├── gerar_notebooks_alunos.py     ← script que limpa e gera a pasta dos alunos
+├── run.sh / limpar.sh            ← scripts Bash para automação e limpeza de build
+├── Makefile                      ← atalhos de comandos rápidos
+├── references.bib                ← base de dados bibliográfica BibTeX
+└── requirements.txt              ← dependências Python do projeto
 ```
 
 
