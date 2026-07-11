@@ -19,8 +19,8 @@ O **Capítulo 6** ("Inspeção Industrial e Análise de Documentos") estabelece 
 
 A sequência pedagógica da Parte II é fixa:
 
-* **Capítulo 6 – Inspeção Industrial e Análise de Documentos** *(já existente)*
-* **Capítulo 7 – Classificação de Imagens e Reconhecimento de Padrões** *(já existente — `cap07.ipynb`)*
+* **Capítulo 6 – Inspeção Industrial e Análise de Documentos** 
+* **Capítulo 7 – Classificação de Imagens e Reconhecimento de Padrões** 
 * **Capítulo 8 – Compreendendo Cenas: Correspondência de Características, Detecção e Segmentação**
 * **Capítulo 9 – Deep Learning para Visão Computacional**
 
