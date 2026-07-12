@@ -15,25 +15,18 @@ BASE="${IN%.*}"
 
 TMP="$(mktemp)"
 
-# Remove a sintaxe do Quarto
-sed \
-    -e '/^```{mermaid}/d' \
-    -e '/^```$/d' \
-    -e '/^%%|/d' \
-    "$IN" > "$TMP"
+# Remove a sintaxe do Quarto (uma única linha, sem risco de espaço após \)
+sed -e 's/\r$//' -e '/^```/d' -e '/^%%|/d' "$IN" > "$TMP"
+
+echo "Conteúdo filtrado (debug):"
+cat -A "$TMP"
+echo "---"
 
 echo "Gerando SVG..."
-mmdc \
-    -i "$TMP" \
-    -o "${BASE}.svg"
+mmdc -i "$TMP" -o "${BASE}.svg"
 
 echo "Gerando PNG (alta resolução)..."
-mmdc \
-    -i "$TMP" \
-    -o "${BASE}.png" \
-    -w 2200 \
-    -H 3000 \
-    -s 3
+mmdc -i "$TMP" -o "${BASE}.png" -w 2200 -H 3000 -s 3
 
 rm "$TMP"
 
