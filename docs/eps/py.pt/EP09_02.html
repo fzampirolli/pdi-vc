@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EP09_02 — EP09_02 🟢 Pooling Manual (Máximo e Média)</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+</head>
+<body class="ep-standalone">
+<div class="ep-container" style="margin:0 auto; max-width:80ch">
+<h3 class="anchored" data-anchor-id="ep09_02-pooling-manual-máximo-e-média" data-number="8.13.2"><span class="header-section-number">8.13.2</span> EP09_02 🟢 <em>Pooling</em> Manual (Máximo e Média)</h3>
+<p>Entre blocos convolucionais, a arquitetura típica de uma CNN intercala camadas de <strong><em>pooling</em></strong>, que reduzem a resolução espacial do mapa de características sem introduzir novos parâmetros treináveis — ao contrário da convolução, o <em>pooling</em> não tem pesos: ele apenas resume cada janela da entrada a um único valor, por um máximo ou por uma média.</p>
+<p>Você foi encarregado de implementar essa operação a partir de uma janela deslizante quadrada, sem sobreposição parcial nas bordas (apenas janelas completas), suportando os dois tipos mais comuns: <code>max</code> (preserva o valor mais saliente, tipicamente usado para reter bordas e texturas fortes) e <code>avg</code> (suaviza a região, preservando informação de intensidade média).</p>
+<section class="level4" data-number="8.13.2.1" id="diretrizes-de-implementação-1">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-1" data-number="8.13.2.1"><span class="header-section-number">8.13.2.1</span> 📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler as dimensões <span class="math inline">\(H \times W\)</span> do mapa de características de entrada e seus <span class="math inline">\(H \times W\)</span> valores reais.</li>
+<li><strong>Janela:</strong> Ler os inteiros <span class="math inline">\(k\)</span> (tamanho da janela quadrada <span class="math inline">\(k \times k\)</span>) e <span class="math inline">\(s\)</span> (<em>stride</em>).</li>
+<li><strong>Tipo:</strong> Ler uma <em>string</em>, <code>max</code> ou <code>avg</code>, indicando o tipo de <em>pooling</em>.</li>
+<li><strong>Sem preenchimento:</strong> Esta operação <strong>não</strong> utiliza <em>padding</em>; janelas que ultrapassariam a borda da entrada são descartadas.</li>
+<li><strong>Cálculo:</strong> Para cada posição de saída <span class="math inline">\((i,j)\)</span>, calcular o máximo ou a média dos <span class="math inline">\(k \times k\)</span> valores da janela correspondente, iniciando em <span class="math inline">\((i \cdot s,\, j \cdot s)\)</span>.</li>
+<li><strong>Dimensões de saída:</strong> <span class="math inline">\(O_h = \lfloor (H - k)/s \rfloor + 1\)</span> e <span class="math inline">\(O_w = \lfloor (W - k)/s \rfloor + 1\)</span>.</li>
+<li><strong>Saída:</strong> Imprimir <span class="math inline">\(O_h\)</span> e <span class="math inline">\(O_w\)</span> na primeira linha, seguidos de <span class="math inline">\(O_h\)</span> linhas com <span class="math inline">\(O_w\)</span> valores reais cada, formatados com 4 casas decimais.</li>
+</ol>
+</section>
+<section class="level4" data-number="8.13.2.2" id="restrições-computacionais-1">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-1" data-number="8.13.2.2"><span class="header-section-number">8.13.2.2</span> 📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Janela quadrada:</strong> <span class="math inline">\(k \times k\)</span>, sem suporte a janelas retangulares nesta versão.</li>
+<li><strong>Sem <em>padding</em>:</strong> apenas janelas inteiramente contidas na entrada são consideradas.</li>
+<li><strong><code>avg</code> usa divisão real:</strong> a média é sempre <span class="math inline">\(\text{soma}/k^2\)</span>, mesmo quando o resultado tem muitas casas decimais — arredonde apenas na formatação final, conforme a diretriz geral do capítulo.</li>
+<li><strong>Formatação:</strong> todos os valores de saída com exatamente 4 casas decimais.</li>
+</ul>
+</section>
+<section class="level4" data-number="8.13.2.3" id="fundamentação-teórica-1">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-1" data-number="8.13.2.3"><span class="header-section-number">8.13.2.3</span> 🧠 Fundamentação Teórica</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Elemento</th>
+<th>Papel na arquitetura</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><em>Pooling</em> máximo</td>
+<td>Preserva a ativação mais forte da janela; comum após camadas convolucionais para reter bordas e texturas salientes</td>
+</tr>
+<tr class="even">
+<td><em>Pooling</em> médio</td>
+<td>Suaviza a região, preservando a intensidade média; comum em camadas finais (<em>global average pooling</em>)</td>
+</tr>
+<tr class="odd">
+<td>Ausência de parâmetros</td>
+<td>Diferencia o <em>pooling</em> da convolução: reduz resolução espacial sem custo adicional de treinamento</td>
+</tr>
+<tr class="even">
+<td>Redução de resolução</td>
+<td>Contribui para a invariância a pequenas translações e para a redução do custo computacional das camadas seguintes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="level4" data-number="8.13.2.4" id="especificação-de-entrada-e-saída-vpl-1">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-1" data-number="8.13.2.4"><span class="header-section-number">8.13.2.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <span class="math inline">\(H\)</span> e <span class="math inline">\(W\)</span>.</li>
+<li>Próximas <span class="math inline">\(H\)</span> linhas: <span class="math inline">\(W\)</span> valores reais cada.</li>
+<li>Próxima linha: Inteiros <span class="math inline">\(k\)</span> e <span class="math inline">\(s\)</span>.</li>
+<li>Próxima linha: <code>max</code> ou <code>avg</code>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <span class="math inline">\(O_h\)</span> e <span class="math inline">\(O_w\)</span>.</li>
+<li>Próximas <span class="math inline">\(O_h\)</span> linhas: <span class="math inline">\(O_w\)</span> valores reais cada, formatados com 4 casas decimais.</li>
+</ul>
+</section>
+<section class="level4" data-number="8.13.2.5" id="exemplos-1">
+<h4 class="anchored" data-anchor-id="exemplos-1" data-number="8.13.2.5"><span class="header-section-number">8.13.2.5</span> 📌 Exemplos</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Entrada</th>
+<th>Saída</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+max</td>
+<td>2 2<br/>
+6.0000 4.0000<br/>
+4.0000 5.0000</td>
+<td><em>Pooling</em> máximo, janela <span class="math inline">\(2\times2\)</span>, <em>stride</em> 2.</td>
+</tr>
+<tr class="even">
+<td>4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+avg</td>
+<td>2 2<br/>
+3.7500 2.2500<br/>
+2.2500 2.2500</td>
+<td><em>Pooling</em> médio sobre as mesmas janelas.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-09-sim-ep02">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="8" id="fig-09-sim-ep02">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-09-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0902" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Pooling Manual</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 janela 2×2, stride 2</span>
+</div>
+<div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha o quadrante e o tipo de pooling para ver o valor resultante.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;justify-content:center;">
+<div style="flex:1;min-width:180px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Quadrante</label>
+<span id="ep0902_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(0,0)</span>
+</div>
+<input id="ep0902_sl" max="3" min="0" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="0"/>
+</div>
+<div style="display:flex;gap:8px;">
+<button id="ep0902_max" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #f0ad4e;background:#fff3cd;color:#7a5c00;font-weight:bold;font-size:11px;">max</button>
+<button id="ep0902_avg" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #ddd;background:#f3f4f6;color:#555;font-weight:bold;font-size:11px;">avg</button>
+</div>
+</div>
+<div style="display:flex;justify-content:center;">
+<div id="ep0902_grid" style="display:grid;grid-template-columns:repeat(4,48px);gap:3px;"></div>
+</div>
+<div id="ep0902_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var X = [[1,3,2,4],[5,6,1,2],[2,1,0,3],[4,2,5,1]];
+    var tipo = "max";
+
+    var slEl = root.querySelector('#ep0902_sl');
+    var vlEl = root.querySelector('#ep0902_vl');
+    var gridEl = root.querySelector('#ep0902_grid');
+    var dbg = root.querySelector('#ep0902_debug');
+    var btnMax = root.querySelector('#ep0902_max');
+    var btnAvg = root.querySelector('#ep0902_avg');
+
+    function estiloBotoes(){
+      btnMax.style.background = tipo==='max' ? '#fff3cd' : '#f3f4f6';
+      btnMax.style.borderColor = tipo==='max' ? '#f0ad4e' : '#ddd';
+      btnMax.style.color = tipo==='max' ? '#7a5c00' : '#555';
+      btnAvg.style.background = tipo==='avg' ? '#fff3cd' : '#f3f4f6';
+      btnAvg.style.borderColor = tipo==='avg' ? '#f0ad4e' : '#ddd';
+      btnAvg.style.color = tipo==='avg' ? '#7a5c00' : '#555';
+    }
+
+    function render(){
+      var q = parseInt(slEl.value);
+      var i = Math.floor(q/2)*2, j = (q%2)*2;
+      vlEl.textContent = '('+Math.floor(q/2)+','+(q%2)+')';
+      gridEl.innerHTML = '';
+      var valores = [];
+      for(var r=0;r<4;r++){
+        for(var c=0;c<4;c++){
+          var dentro = (r>=i && r<i+2 && c>=j && c<j+2);
+          var d = document.createElement('div');
+          d.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentro ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+          if(dentro) valores.push(X[r][c]);
+        }
+      }
+      var resultado = tipo === 'max' ? Math.max.apply(null, valores) : valores.reduce(function(a,b){return a+b;},0)/valores.length;
+      dbg.textContent = 'janela=['+valores.join(', ')+']  |  tipo='+tipo+'  →  resultado='+resultado.toFixed(4);
+      estiloBotoes();
+    }
+    slEl.addEventListener('input', render);
+    btnMax.addEventListener('click', function(){ tipo='max'; render(); });
+    btnAvg.addEventListener('click', function(){ tipo='avg'; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0902');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 8.11: Simulador: Pooling Manual (máximo vs. média)
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell" id="9e2c1aac">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a aria-hidden="true" href="#cb32-1" tabindex="-1"></a><span class="op">%%</span>writefile EP09_02.py</span>
+<span id="cb32-2"><a aria-hidden="true" href="#cb32-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Overwriting EP09_02.py</code></pre>
+</div>
+</div>
+<div class="cell" id="60840de7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a aria-hidden="true" href="#cb34-1" tabindex="-1"></a>TestSuite(<span class="st">"EP09_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_02.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_2.cases
+❌ Não foi possível baixar EP09_02.cases</pre>
+</div>
+</div>
+</section>
+</div>
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  const cap09_ENTRADA = [
+    [230,225,220,60,55,50,45,40],
+    [228,222,218,58,52,48,42,38],
+    [225,220,215,55,50,45,40,35],
+    [235,230,50,50,180,175,170,165],
+    [232,228,48,45,178,172,168,162],
+    [230,225,45,42,175,170,165,160],
+    [220,215,210,55,50,45,182,178],
+    [218,212,208,52,48,42,180,175]
+  ];
+
+  const cap09_KERNELS = {
+    identidade: {nome:"Identidade", k:[[0,0,0],[0,1,0],[0,0,0]], div:1},
+    bordas:     {nome:"Bordas (Sobel-h)", k:[[-1,0,1],[-2,0,2],[-1,0,1]], div:1},
+    blur:       {nome:"Borrão (média)", k:[[1,1,1],[1,1,1],[1,1,1]], div:9},
+    realce:     {nome:"Realce", k:[[0,-1,0],[-1,5,-1],[0,-1,0]], div:1}
+  };
+
+  let cap09_kernelAtual = cap09_KERNELS.bordas;
+  let cap09_saida = Array.from({length:6}, () => Array(6).fill(null));
+  let cap09_pos = {r:0, c:0};
+
+  const ctxEnt = document.getElementById("cap09_canvasEntrada").getContext("2d");
+  const ctxKer = document.getElementById("cap09_canvasKernel").getContext("2d");
+  const ctxSai = document.getElementById("cap09_canvasSaida").getContext("2d");
+
+  function cap09_corCinza(v){
+    const c = Math.max(0, Math.min(255, Math.round(v)));
+    return `rgb(${c},${c},${c})`;
+  }
+
+  function cap09_desenharEntrada(){
+    const tam = 30;
+    ctxEnt.clearRect(0,0,240,240);
+    for (let r=0;r<8;r++){
+      for (let c=0;c<8;c++){
+        ctxEnt.fillStyle = cap09_corCinza(cap09_ENTRADA[r][c]);
+        ctxEnt.fillRect(c*tam, r*tam, tam, tam);
+        ctxEnt.strokeStyle = "#e5e7eb";
+        ctxEnt.strokeRect(c*tam, r*tam, tam, tam);
+      }
+    }
+    ctxEnt.strokeStyle = "#dc2626";
+    ctxEnt.lineWidth = 3;
+    ctxEnt.strokeRect(cap09_pos.c*tam, cap09_pos.r*tam, tam*3, tam*3);
+    ctxEnt.lineWidth = 1;
+  }
+
+  function cap09_desenharKernel(){
+    const tam = 40;
+    ctxKer.clearRect(0,0,120,120);
+    const k = cap09_kernelAtual.k;
+    let maxAbs = 1;
+    for (let i=0;i<3;i++) for (let j=0;j<3;j++) maxAbs = Math.max(maxAbs, Math.abs(k[i][j]));
+    for (let i=0;i<3;i++){
+      for (let j=0;j<3;j++){
+        const val = k[i][j];
+        const intensidade = Math.round(128 + (val/maxAbs)*127);
+        ctxKer.fillStyle = cap09_corCinza(intensidade);
+        ctxKer.fillRect(j*tam, i*tam, tam, tam);
+        ctxKer.strokeStyle = "#9ca3af";
+        ctxKer.strokeRect(j*tam, i*tam, tam, tam);
+        ctxKer.fillStyle = Math.abs(val) > maxAbs/2 ? "#fff" : "#111827";
+        ctxKer.font = "12px monospace";
+        ctxKer.textAlign = "center";
+        ctxKer.fillText(val.toFixed(0), j*tam+tam/2, i*tam+tam/2+4);
+      }
+    }
+  }
+
+  function cap09_desenharSaida(){
+    const tam = 30;
+    ctxSai.clearRect(0,0,180,180);
+    for (let r=0;r<6;r++){
+      for (let c=0;c<6;c++){
+        const v = cap09_saida[r][c];
+        ctxSai.fillStyle = (v === null) ? "#f3f4f6" : cap09_corCinza(v);
+        ctxSai.fillRect(c*tam, r*tam, tam, tam);
+        ctxSai.strokeStyle = "#e5e7eb";
+        ctxSai.strokeRect(c*tam, r*tam, tam, tam);
+      }
+    }
+    if (cap09_pos.r < 6){
+      ctxSai.strokeStyle = "#dc2626";
+      ctxSai.lineWidth = 2;
+      ctxSai.strokeRect(cap09_pos.c*tam, cap09_pos.r*tam, tam, tam);
+      ctxSai.lineWidth = 1;
+    }
+  }
+
+  function cap09_calcularPosicao(r, c){
+    const k = cap09_kernelAtual.k, div = cap09_kernelAtual.div;
+    let soma = 0;
+    for (let i=0;i<3;i++) for (let j=0;j<3;j++) soma += cap09_ENTRADA[r+i][c+j] * k[i][j];
+    return soma / div;
+  }
+
+  function cap09_avancarPasso(){
+    if (cap09_pos.r >= 6) return;
+    cap09_saida[cap09_pos.r][cap09_pos.c] = cap09_calcularPosicao(cap09_pos.r, cap09_pos.c);
+    cap09_pos.c++;
+    if (cap09_pos.c >= 6){ cap09_pos.c = 0; cap09_pos.r++; }
+    cap09_render();
+  }
+
+  function cap09_calcularTudo(){
+    while (cap09_pos.r < 6) cap09_avancarPasso();
+  }
+
+  function cap09_resetar(){
+    cap09_saida = Array.from({length:6}, () => Array(6).fill(null));
+    cap09_pos = {r:0, c:0};
+    cap09_render();
+  }
+
+  function cap09_render(){
+    cap09_desenharEntrada();
+    cap09_desenharKernel();
+    cap09_desenharSaida();
+    document.getElementById("cap09_posTxt").textContent =
+      cap09_pos.r < 6 ? `(${cap09_pos.r}, ${cap09_pos.c})` : "concluído";
+  }
+
+  function cap09_selecionarKernel(nomeBtn, kernel){
+    cap09_kernelAtual = kernel;
+    ["cap09_btnIdentidade","cap09_btnBordas","cap09_btnBlur","cap09_btnRealce"].forEach(id => {
+      document.getElementById(id).classList.toggle("cap09_active", id === nomeBtn);
+    });
+    cap09_resetar();
+  }
+
+  document.getElementById("cap09_btnIdentidade").addEventListener("click", () => cap09_selecionarKernel("cap09_btnIdentidade", cap09_KERNELS.identidade));
+  document.getElementById("cap09_btnBordas").addEventListener("click", () => cap09_selecionarKernel("cap09_btnBordas", cap09_KERNELS.bordas));
+  document.getElementById("cap09_btnBlur").addEventListener("click", () => cap09_selecionarKernel("cap09_btnBlur", cap09_KERNELS.blur));
+  document.getElementById("cap09_btnRealce").addEventListener("click", () => cap09_selecionarKernel("cap09_btnRealce", cap09_KERNELS.realce));
+  document.getElementById("cap09_btnPasso").addEventListener("click", cap09_avancarPasso);
+  document.getElementById("cap09_btnTudo").addEventListener("click", cap09_calcularTudo);
+  document.getElementById("cap09_btnReset").addEventListener("click", cap09_resetar);
+
+  cap09_render();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var X = [[1,3,2,0],[0,1,4,1],[2,0,1,3],[1,2,0,1]];
+    var K = [[1,0],[0,-1]];
+    var bias = 0.5;
+    var outSize = 3; // (4-2)/1+1
+
+    var slEl = root.querySelector('#ep0901_sl');
+    var vlEl = root.querySelector('#ep0901_vl');
+    var gridEl = root.querySelector('#ep0901_grid');
+    var kernelEl = root.querySelector('#ep0901_kernel');
+    var dbg = root.querySelector('#ep0901_debug');
+
+    kernelEl.innerHTML = '';
+    for(var u=0;u<2;u++) for(var v=0;v<2;v++){
+      var kd = document.createElement('div');
+      kd.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#bbdefb;border:1px solid #64b5f6;border-radius:6px;font-family:monospace;font-weight:bold;color:#0d47a1;';
+      kd.textContent = K[u][v];
+      kernelEl.appendChild(kd);
+    }
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i = Math.floor(pos/outSize), j = pos%outSize;
+      vlEl.textContent = '('+i+','+j+')';
+      gridEl.innerHTML = '';
+      var soma = 0;
+      for(var r=0;r<4;r++){
+        for(var c=0;c<4;c++){
+          var dentroJanela = (r>=i && r<i+2 && c>=j && c<j+2);
+          var d = document.createElement('div');
+          d.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentroJanela ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+          if(dentroJanela) soma += X[r][c]*K[r-i][c-j];
+        }
+      }
+      var z = soma + bias;
+      var a = Math.max(0, z);
+      dbg.textContent = 'janela em ('+i+','+j+')  |  soma(X⊙K)='+soma.toFixed(2)+'  +  viés='+bias.toFixed(2)+'  =  z='+z.toFixed(2)+'  →  ReLU(z)='+a.toFixed(4);
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0901');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var X = [[1,3,2,4],[5,6,1,2],[2,1,0,3],[4,2,5,1]];
+    var tipo = "max";
+
+    var slEl = root.querySelector('#ep0902_sl');
+    var vlEl = root.querySelector('#ep0902_vl');
+    var gridEl = root.querySelector('#ep0902_grid');
+    var dbg = root.querySelector('#ep0902_debug');
+    var btnMax = root.querySelector('#ep0902_max');
+    var btnAvg = root.querySelector('#ep0902_avg');
+
+    function estiloBotoes(){
+      btnMax.style.background = tipo==='max' ? '#fff3cd' : '#f3f4f6';
+      btnMax.style.borderColor = tipo==='max' ? '#f0ad4e' : '#ddd';
+      btnMax.style.color = tipo==='max' ? '#7a5c00' : '#555';
+      btnAvg.style.background = tipo==='avg' ? '#fff3cd' : '#f3f4f6';
+      btnAvg.style.borderColor = tipo==='avg' ? '#f0ad4e' : '#ddd';
+      btnAvg.style.color = tipo==='avg' ? '#7a5c00' : '#555';
+    }
+
+    function render(){
+      var q = parseInt(slEl.value);
+      var i = Math.floor(q/2)*2, j = (q%2)*2;
+      vlEl.textContent = '('+Math.floor(q/2)+','+(q%2)+')';
+      gridEl.innerHTML = '';
+      var valores = [];
+      for(var r=0;r<4;r++){
+        for(var c=0;c<4;c++){
+          var dentro = (r>=i && r<i+2 && c>=j && c<j+2);
+          var d = document.createElement('div');
+          d.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentro ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+          if(dentro) valores.push(X[r][c]);
+        }
+      }
+      var resultado = tipo === 'max' ? Math.max.apply(null, valores) : valores.reduce(function(a,b){return a+b;},0)/valores.length;
+      dbg.textContent = 'janela=['+valores.join(', ')+']  |  tipo='+tipo+'  →  resultado='+resultado.toFixed(4);
+      estiloBotoes();
+    }
+    slEl.addEventListener('input', render);
+    btnMax.addEventListener('click', function(){ tipo='max'; render(); });
+    btnAvg.addEventListener('click', function(){ tipo='avg'; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0902');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var kEl = root.querySelector('#ep0903_k'), kvEl = root.querySelector('#ep0903_k_v');
+    var cinEl = root.querySelector('#ep0903_cin'), cinvEl = root.querySelector('#ep0903_cin_v');
+    var coutEl = root.querySelector('#ep0903_cout'), coutvEl = root.querySelector('#ep0903_cout_v');
+    var biasEl = root.querySelector('#ep0903_bias');
+    var dbg = root.querySelector('#ep0903_debug');
+    var LADO_ENTRADA = 32;
+
+    function render(){
+      var k = parseInt(kEl.value), cin = parseInt(cinEl.value), cout = parseInt(coutEl.value);
+      var bias = biasEl.checked ? 1 : 0;
+      kvEl.textContent = k+'×'+k; cinvEl.textContent = cin; coutvEl.textContent = cout;
+      var paramsConv = k*k*cin*cout + cout*bias;
+      var paramsFC = (LADO_ENTRADA*LADO_ENTRADA*cin)*cout + cout*bias;
+      var razao = (paramsFC/paramsConv).toFixed(1);
+      dbg.innerHTML =
+        'CONV: '+k+'×'+k+'×'+cin+'×'+cout+' + '+cout+'×'+bias+'  =  <b>'+paramsConv.toLocaleString('pt-BR')+' parâmetros</b><br>' +
+        'FC equivalente (entrada '+LADO_ENTRADA+'×'+LADO_ENTRADA+'×'+cin+' → '+cout+' saídas):  <b>'+paramsFC.toLocaleString('pt-BR')+' parâmetros</b><br>' +
+        '↳ a camada FC teria <b>'+razao+'×</b> mais parâmetros que a CONV equivalente, apesar de "ver" a mesma entrada.';
+    }
+    [kEl,cinEl,coutEl,biasEl].forEach(function(el){ el.addEventListener('input', render); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0903');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var dxEl = root.querySelector('#ep0904_dx'), dxvEl = root.querySelector('#ep0904_dx_v');
+    var tauEl = root.querySelector('#ep0904_tau'), tauvEl = root.querySelector('#ep0904_tau_v');
+    var boxA = root.querySelector('#ep0904_boxA'), boxB = root.querySelector('#ep0904_boxB');
+    var dbg = root.querySelector('#ep0904_debug');
+    var ESCALA = 10; // px por unidade
+    var A = {x1:5, y1:3, x2:15, y2:13, score:0.9};
+
+    function iou(a,b){
+      var ix1=Math.max(a.x1,b.x1), iy1=Math.max(a.y1,b.y1);
+      var ix2=Math.min(a.x2,b.x2), iy2=Math.min(a.y2,b.y2);
+      var iw=Math.max(0, ix2-ix1), ih=Math.max(0, iy2-iy1);
+      var inter = iw*ih;
+      var areaA=(a.x2-a.x1)*(a.y2-a.y1), areaB=(b.x2-b.x1)*(b.y2-b.y1);
+      return inter/(areaA+areaB-inter);
+    }
+
+    function render(){
+      var dx = parseInt(dxEl.value);
+      var tau = parseFloat(tauEl.value);
+      dxvEl.textContent = dx; tauvEl.textContent = tau.toFixed(2);
+      var B = {x1:5+dx, y1:3+dx*0.4, x2:15+dx, y2:13+dx*0.4, score:0.75};
+
+      boxA.style.left = (A.x1*ESCALA)+'px'; boxA.style.top = (A.y1*ESCALA)+'px';
+      boxA.style.width = ((A.x2-A.x1)*ESCALA)+'px'; boxA.style.height = ((A.y2-A.y1)*ESCALA)+'px';
+      boxB.style.left = (B.x1*ESCALA)+'px'; boxB.style.top = (B.y1*ESCALA)+'px';
+      boxB.style.width = ((B.x2-B.x1)*ESCALA)+'px'; boxB.style.height = ((B.y2-B.y1)*ESCALA)+'px';
+
+      var val = iou(A,B);
+      var suprimida = val > tau;
+      dbg.textContent = 'IoU(A,B) = '+val.toFixed(4)+'  |  τ = '+tau.toFixed(2)+'  →  candidata (vermelha) ' + (suprimida ? 'SUPRIMIDA' : 'MANTIDA');
+    }
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0904');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var slEl = root.querySelector('#ep0905_sl');
+    var vlEl = root.querySelector('#ep0905_vl');
+    var dbg = root.querySelector('#ep0905_debug');
+    var W_REF_PX = 140, H_REF_PX = 88;
+    var W_OBJ_PX = 180, H_OBJ_PX = 120;
+
+    function render(){
+      var lref = parseFloat(slEl.value);
+      vlEl.textContent = lref.toFixed(2);
+      var razao = lref / W_REF_PX;
+      var largObj = W_OBJ_PX * razao;
+      var altObj = H_OBJ_PX * razao;
+      dbg.textContent = 'razão = '+lref.toFixed(2)+' / '+W_REF_PX+'px = '+razao.toFixed(4)+' cm/px  →  objeto ≈ '+largObj.toFixed(2)+' x '+altObj.toFixed(2)+' cm';
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0905');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiada");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiada");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP03_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP03_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP03_07 🔍 Operador Laplaciano (w4) para Realce de Bordas</h2>
+<p>Em tomografias de alta resolução, a nitidez das bordas entre tecidos é crítica para diagnóstico. O <strong>operador Laplaciano</strong> é amplamente utilizado em <em>pipelines</em> de pré-processamento de imagens médicas para realçar automaticamente os contornos anatômicos antes da segmentação, evitando intervenção manual do radiologista.</p>
+<p>Ver na Figura 2.32 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas).</li>
+<li><strong>Dados:</strong> Ler a matriz de pixels <em>f</em>.</li>
+<li><strong>Laplaciano (w4):</strong> Para cada pixel <strong>interno</strong> (<em>i</em>,<em>j</em>) com 1 \le <em>i</em> &lt; <em>L</em>-1, 1 \le <em>j</em> &lt; <em>C</em>-1, calcular:</li>
+</ol>
+<p>\nabla^2 <em>f</em>(<em>i</em>,<em>j</em>) = <em>f</em>(<em>i</em>-1,<em>j</em>) + <em>f</em>(<em>i</em>+1,<em>j</em>) + <em>f</em>(<em>i</em>,<em>j</em>-1) + <em>f</em>(<em>i</em>,<em>j</em>+1) - 4 · <em>f</em>(<em>i</em>,<em>j</em>)</p>
+<ol start="4" type="1">
+<li><strong>Realce:</strong> Calcular a imagem realçada:</li>
+</ol>
+<p><em>g</em>(<em>i</em>,<em>j</em>) = clip(<em>f</em>(<em>i</em>,<em>j</em>) - \nabla^2 <em>f</em>(<em>i</em>,<em>j</em>))</p>
+<ol start="5" type="1">
+<li><strong>Borda:</strong> Pixels na borda são copiados diretamente: <em>g</em>(<em>i</em>,<em>j</em>) = <em>f</em>(<em>i</em>,<em>j</em>).</li>
+<li><strong>Saída:</strong> Exibir a matriz realçada <em>L</em> × <em>C</em>.</li>
+</ol>
+<hr/>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong><em>Kernel</em> w4:</strong> \beginbmatrix 0 &amp; 1 &amp; 0 \\ 1 &amp; -4 &amp; 1 \\ 0 &amp; 1 &amp; 0 \endbmatrix — apenas 4-vizinhos.</li>
+<li><strong>Saturação:</strong> clip(<em>x</em>) = \max(0, \min(255, <em>x</em>)) aplicado ao resultado do realce.</li>
+<li><strong>Sem arredondamento:</strong> O Laplaciano usa apenas somas/subtrações de inteiros.</li>
+</ul>
+<hr/>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Região</th>
+<th style="padding:10px;border:1px solid #ddd;">\nabla^2 <em>f</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Efeito do Realce</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Uniforme</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">\approx 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sem alteração</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Borda crescente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">&lt; 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel clareado</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Borda decrescente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">&gt; 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel escurecido</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linhas seguintes: Elementos da matriz original.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz realçada <em>L</em> × <em>C</em>.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+0 0 0<br/>
+0 100 0<br/>
+0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0<br/>
+0 255 0<br/>
+0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Pico isolado: lap=−400, g=100−(−400)=500 → clip=255</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+50 50 50<br/>
+50 50 50<br/>
+50 50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 50 50<br/>
+50 50 50<br/>
+50 50 50</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Região uniforme: Laplaciano=0, sem alteração</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-03-laplaciano-simulador">
+<style>
+.lp-cell{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;border-radius:4px;transition:background 0.1s,transform 0.12s,box-shadow 0.1s;}
+.lp-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 14px;text-align:center;}
+.lp-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 2px;}
+.lp-sublabel{font-size:10px;margin:0 0 8px;}
+.lp-grid{display:grid;grid-template-columns:repeat(5,36px);gap:3px;justify-content:center;margin-top:6px;}
+.lp-kbtn{padding:5px 13px;font-size:12px;border-radius:var(--border-radius-md);cursor:pointer;border:1.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);transition:all 0.15s;}
+.lp-kbtn.active{background:#FBEAF0;border-color:#993556;color:#72243E;font-weight:500;}
+</style>
+<h2 class="sr-only anchored" data-anchor-id="exemplos-6">Simulador do operador Laplaciano para realce de bordas: imagem original, laplaciano e resultado.</h2>
+<div style="max-width:700px;margin:0 auto;padding:8px 0 16px;">
+<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+<span style="font-size:12px;font-weight:500;color:var(--color-text-secondary);">Variante:</span>
+<button class="lp-kbtn active" id="lp-btn-v1">g = f − ∇²f <span style="font-weight:400;font-size:10px;">(realce padrão)</span></button>
+<button class="lp-kbtn" id="lp-btn-v2">g = f + ∇²f <span style="font-weight:400;font-size:10px;">(inverte sinal)</span></button>
+<button id="lp-btn-new" style="margin-left:auto;font-size:12px;padding:6px 12px;">🎲 Novo degrau</button>
+<div style="display:grid;grid-template-columns:1fr 28px 1fr;gap:6px;align-items:center;margin-bottom:8px;">
+<div class="lp-card">
+<p class="lp-label" style="color:var(--color-text-secondary);">① Imagem original f</p>
+<p class="lp-sublabel" style="color:var(--color-text-secondary);">degrau com ruído leve</p>
+<div class="lp-grid" id="lp-gf"></div>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--color-text-secondary);">→</div>
+<div class="lp-card" style="border:1.5px solid #185FA5;">
+<p class="lp-label" style="color:#185FA5;">③ Resultado g</p>
+<p class="lp-sublabel" id="lp-flabel" style="color:#185FA5;">g = f − ∇²f</p>
+<div class="lp-grid" id="lp-gr"></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 28px 1fr;gap:6px;align-items:center;margin-bottom:10px;">
+<div class="lp-card" style="border:1.5px solid #993556;">
+<p class="lp-label" style="color:#993556;">② Laplaciano ∇²f</p>
+<p class="lp-sublabel" style="color:#993556;">bordas detectadas (±128 shift)</p>
+<div class="lp-grid" id="lp-gl"></div>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--color-text-secondary);padding-top:0;"></div>
+<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 12px;font-size:11px;color:var(--color-text-secondary);line-height:1.8;font-family:var(--font-mono);">
+<div style="margin-bottom:4px;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Kernel w4</div>
+<div style="display:inline-grid;grid-template-columns:repeat(3,26px);gap:2px;margin-bottom:6px;">
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--color-background-primary);border-radius:3px;color:var(--color-text-secondary);">0</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#FBEAF0;border-radius:3px;color:#72243E;">+1</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--color-background-primary);border-radius:3px;color:var(--color-text-secondary);">0</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#FBEAF0;border-radius:3px;color:#72243E;">+1</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#993556;border-radius:3px;color:#fff;">−4</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#FBEAF0;border-radius:3px;color:#72243E;">+1</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--color-background-primary);border-radius:3px;color:var(--color-text-secondary);">0</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#FBEAF0;border-radius:3px;color:#72243E;">+1</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--color-background-primary);border-radius:3px;color:var(--color-text-secondary);">0</div>
+</div>
+<div style="font-size:10px;color:var(--color-text-secondary);">∇²f = T+B+L+R − 4·f</div>
+</div>
+</div>
+<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:8px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:8px;">
+<span style="font-size:11px;font-weight:500;color:var(--color-text-secondary);">Legenda</span>
+<div style="display:flex;align-items:center;gap:5px;"><div style="width:14px;height:14px;background:#FAEEDA;border:1.5px dashed #BA7517;border-radius:3px;"></div><span style="font-size:11px;color:var(--color-text-secondary);">4-vizinhos do kernel</span></div>
+<div style="display:flex;align-items:center;gap:5px;"><div style="width:14px;height:14px;background:#FAECE7;border:1.5px solid #993C1D;border-radius:3px;"></div><span style="font-size:11px;color:var(--color-text-secondary);">Pixel central inspecionado</span></div>
+<div style="display:flex;align-items:center;gap:5px;"><div style="width:14px;height:14px;background:#E1F5EE;border:1.5px solid #1D9E75;border-radius:3px;"></div><span style="font-size:11px;color:var(--color-text-secondary);">Borda — copiada sem filtro</span></div>
+</div>
+<div id="lp-debug" style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:var(--border-radius-md);padding:9px 14px;font-family:var(--font-mono);font-size:11px;color:#0C447C;text-align:center;min-height:36px;line-height:1.7;">
+    Passe o mouse sobre um pixel interno do resultado para detalhar a equação.
+  </div>
+</div>
+<script>
+
+(function(){
+  const R=5,C=5,N=25;
+  let px=[],lapV=[],lapA=[],rs=[];
+  let variant='subtract';
+
+  function gen(){
+    const sc=2+Math.floor(Math.random()*2);
+    const dark=40+Math.floor(Math.random()*30);
+    const light=160+Math.floor(Math.random()*40);
+    px=Array.from({length:N},(_,i)=>{
+      const c=i%C;
+      let v=c<sc?dark:light;
+      v+=Math.floor(Math.random()*14)-7;
+      return Math.max(0,Math.min(255,v));
+    });
+    calc();
+  }
+
+  function calc(){
+    lapV=new Array(N).fill(0);lapA=new Array(N).fill(0);rs=[...px];
+    for(let r=0;r<R;r++){
+      for(let c=0;c<C;c++){
+        const i=r*C+c;
+        if(r>=1&&r<R-1&&c>=1&&c<C-1){
+          const t=px[(r-1)*C+c],b=px[(r+1)*C+c],l=px[r*C+(c-1)],ri=px[r*C+(c+1)],f=px[i];
+          const lap=t+b+l+ri-4*f;
+          lapV[i]=lap;
+          lapA[i]=Math.max(0,Math.min(255,lap+128));
+          rs[i]=Math.max(0,Math.min(255,variant==='subtract'?f-lap:f+lap));
+        }
+      }
+    }
+  }
+
+  function tc(g){return g>140?'#111':'#eee';}
+
+  function highlightCross(tr,tc2,on){
+    const cells=document.getElementById('lp-gf').children;
+    for(let i=0;i<N;i++){
+      if(!cells[i])continue;
+      const p=px[i];
+      cells[i].style.background=`rgb(${p},${p},${p})`;cells[i].style.color=tc(p);cells[i].style.boxShadow='none';
+    }
+    if(on){
+      const ci=tr*C+tc2;
+      if(cells[ci]){cells[ci].style.background='#FAECE7';cells[ci].style.color='#712B13';cells[ci].style.boxShadow='0 0 0 2px #993C1D inset';}
+      [[tr-1,tc2],[tr+1,tc2],[tr,tc2-1],[tr,tc2+1]].forEach(([nr,nc])=>{
+        if(nr>=0&&nr<R&&nc>=0&&nc<C){const ni=nr*C+nc;if(cells[ni]){cells[ni].style.background='#FAEEDA';cells[ni].style.color='#633806';cells[ni].style.boxShadow='0 0 0 2px #BA7517 inset';}}
+      });
+    }
+  }
+
+  function resetDebug(){document.getElementById('lp-debug').innerText='Passe o mouse sobre um pixel interno do resultado para detalhar a equação.';}
+
+  function render(){
+    const gf=document.getElementById('lp-gf'),gl=document.getElementById('lp-gl'),gr=document.getElementById('lp-gr');
+    gf.innerHTML='';gl.innerHTML='';gr.innerHTML='';
+    document.getElementById('lp-flabel').innerText=variant==='subtract'?'g = f − ∇²f':'g = f + ∇²f';
+
+    for(let i=0;i<N;i++){
+      const r=Math.floor(i/C),c=i%C;
+      const p=px[i],lv=lapV[i],la=lapA[i],res=rs[i];
+      const border=(r===0||r===R-1||c===0||c===C-1);
+
+      const cf=document.createElement('div');cf.className='lp-cell';
+      cf.style.cssText=`background:rgb(${p},${p},${p});color:${tc(p)};border:0.5px solid rgba(128,128,128,0.15);`;
+      cf.innerText=p;gf.appendChild(cf);
+
+      const cl=document.createElement('div');cl.className='lp-cell';
+      if(border){cl.style.cssText=`background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);`;cl.innerText='—';}
+      else{cl.style.cssText=`background:rgb(${la},${la},${la});color:${tc(la)};border:0.5px solid rgba(128,128,128,0.15);`;cl.innerText=lv;}
+      gl.appendChild(cl);
+
+      const crr=document.createElement('div');crr.className='lp-cell';
+      if(border){
+        crr.style.cssText=`background:#E1F5EE;color:#085041;border:1.5px solid #1D9E75;`;
+        crr.onmouseenter=()=>{document.getElementById('lp-debug').innerHTML=`Pixel borda (${r},${c}): valor herdado sem cálculo → <b>${res}</b>`;};
+        crr.onmouseleave=resetDebug;
+      } else {
+        crr.style.cssText=`background:rgb(${res},${res},${res});color:${tc(res)};border:0.5px solid var(--color-border-tertiary);cursor:pointer;`;
+        crr.innerText=res;
+        const _r=r,_c=c,_p=p,_lv=lv,_res=res;
+        const _t=px[(_r-1)*C+_c],_b=px[(_r+1)*C+_c],_l=px[_r*C+(_c-1)],_ri=px[_r*C+(_c+1)];
+        crr.onmouseenter=()=>{
+          highlightCross(_r,_c,true);
+          crr.style.transform='scale(1.12)';crr.style.boxShadow='0 0 0 2px #185FA5 inset';
+          crr.style.background='#E6F1FB';crr.style.color='#0C447C';
+          const sign=variant==='subtract'?'−':'+';
+          document.getElementById('lp-debug').innerHTML=`∇²f = (${_t}+${_b}+${_l}+${_ri}) − 4·${_p} = <b>${_lv}</b> &nbsp;|&nbsp; g = clip(${_p} ${sign} ${_lv}) = <b>${_res}</b>`;
+        };
+        crr.onmouseleave=()=>{
+          highlightCross(_r,_c,false);
+          crr.style.transform='scale(1)';crr.style.boxShadow='none';
+          crr.style.background=`rgb(${_res},${_res},${_res})`;crr.style.color=tc(_res);
+          resetDebug();
+        };
+      }
+      crr.innerText=res;
+      gr.appendChild(crr);
+    }
+  }
+
+  function setVariant(v){
+    variant=v;
+    document.getElementById('lp-btn-v1').classList.toggle('active',v==='subtract');
+    document.getElementById('lp-btn-v2').classList.toggle('active',v==='add');
+    calc();render();
+  }
+
+  document.getElementById('lp-btn-v1').onclick=()=>setVariant('subtract');
+  document.getElementById('lp-btn-v2').onclick=()=>setVariant('add');
+  document.getElementById('lp-btn-new').onclick=()=>{gen();render();};
+  gen();render();
+})();
+
+</script>
+</div>
+</div>
+<div class="cell" id="ep0307_write">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a aria-hidden="true" href="#cb71-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_07.py</span>
+<span id="cb71-2"><a aria-hidden="true" href="#cb71-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP03_07.py</code></pre>
+</div>
+</div>
+<div class="cell" id="ep0307_test">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a aria-hidden="true" href="#cb73-1" tabindex="-1"></a>TestSuite(<span class="st">"EP03_07.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP03_07.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP03_07.cases
+
+🔍 Testando Python: EP03_07.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP03_07.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
+</div>
+</div>
+<hr/>
+</div>
+</div>

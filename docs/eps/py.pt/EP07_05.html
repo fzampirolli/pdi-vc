@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EP07_05 — EP07_05 🟣 Pipeline Completo: Descritores + k-NN + Avaliação Multi-Classe</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 1em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+</head>
+<body class="ep-standalone">
+<div class="ep-container" style="margin:0 auto; max-width:80ch">
+<h3 class="anchored" data-anchor-id="ep07_05-pipeline-completo-descritores-k-nn-avaliação-multi-classe" data-number="6.17.5"><span class="header-section-number">6.17.5</span> EP07_05 🟣 <em>Pipeline</em> Completo: Descritores + k-NN + Avaliação Multi-Classe</h3>
+<p>Este último exercício integra as três etapas centrais do capítulo em um único <em>pipeline</em>, reproduzindo em miniatura o <strong>Projeto Prático 2</strong> (classificação de texturas sintéticas por LBP): um conjunto de histogramas de descritores <strong>já extraídos</strong> (como se fossem histogramas LBP) é utilizado para treinar um classificador k-NN, que por sua vez é avaliado sobre um conjunto de teste independente por meio de uma matriz de confusão multi-classe.</p>
+<p>Diferentemente do EP07_01, aqui o espaço de características tem dimensão arbitrária <span class="math inline">\(H\)</span> (o tamanho do histograma), existem mais de duas classes, e a métrica de distância é um parâmetro de entrada — permitindo reproduzir o experimento de comparação de métricas discutido no capítulo.</p>
+<section class="level4" data-number="6.17.5.1" id="diretrizes-de-implementação-4">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-4" data-number="6.17.5.1"><span class="header-section-number">6.17.5.1</span> 📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Classes:</strong> Ler o inteiro <span class="math inline">\(C\)</span> (número de classes) seguido de <span class="math inline">\(C\)</span> nomes de classe (<em>strings</em> sem espaço), na ordem em que devem aparecer na matriz de confusão.</li>
+<li><strong>Configuração:</strong> Ler o inteiro <span class="math inline">\(H\)</span> (dimensão dos histogramas), a <em>string</em> <span class="math inline">\(M\)</span> (métrica: <code>euclidiana</code> ou <code>manhattan</code>) e o inteiro ímpar <span class="math inline">\(k\)</span>.</li>
+<li><strong>Treinamento:</strong> Ler o inteiro <span class="math inline">\(N\)</span> e, em seguida, <span class="math inline">\(N\)</span> linhas, cada uma contendo o nome da classe seguido de <span class="math inline">\(H\)</span> valores reais (o histograma de descritor).</li>
+<li><strong>Teste:</strong> Ler o inteiro <span class="math inline">\(Q\)</span> e, em seguida, <span class="math inline">\(Q\)</span> linhas, cada uma contendo o nome da classe <strong>real</strong> seguido de <span class="math inline">\(H\)</span> valores reais (o histograma de descritor da amostra de teste).</li>
+<li><strong>Distância:</strong> Para cada amostra de teste, calcule a distância a cada exemplo de treinamento usando a métrica <span class="math inline">\(M\)</span>: <span class="math display">\[
+d_{\text{euclidiana}}(u,v) = \sqrt{\sum_{j=1}^{H}(u_j-v_j)^2}, \qquad
+d_{\text{manhattan}}(u,v) = \sum_{j=1}^{H} |u_j - v_j|.
+\]</span></li>
+<li><strong>Classificação k-NN:</strong> Selecione os <span class="math inline">\(k\)</span> exemplos de treinamento mais próximos (desempate de distância pela ordem de leitura, como no EP07_01) e classifique pela classe majoritária entre eles. Em caso de <strong>empate de votação</strong> entre duas ou mais classes, escolha a que aparece <strong>primeiro</strong> na lista de classes do item 1.</li>
+<li><strong>Matriz de confusão:</strong> Construa uma matriz <span class="math inline">\(C \times C\)</span> em que a linha corresponde à classe real e a coluna à classe prevista, seguindo a ordem de classes do item 1.</li>
+<li><strong>Acurácia:</strong> Calcule a acurácia global como a razão entre acertos e <span class="math inline">\(Q\)</span>.</li>
+<li><strong>Saída:</strong> Para cada amostra de teste, na ordem de entrada, imprimir a classe prevista. Em seguida, imprimir a matriz de confusão (uma linha por classe real, valores separados por espaço, na ordem das classes). Por fim, imprimir a acurácia arredondada a 4 casas decimais.</li>
+</ol>
+</section>
+<section class="level4" data-number="6.17.5.2" id="restrições-computacionais-4">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-4" data-number="6.17.5.2"><span class="header-section-number">6.17.5.2</span> 📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Métrica selecionável:</strong> implemente ambas as distâncias; a métrica <span class="math inline">\(M\)</span> define qual é utilizada em toda a execução (não é possível misturar métricas na mesma chamada).</li>
+<li><strong>Desempate de votação determinístico:</strong> o critério do item 6 (ordem da lista de classes) deve ser seguido mesmo quando o empate envolve mais de duas classes.</li>
+<li><strong>Independência de treino e teste:</strong> não há necessidade de validar que as amostras de teste não aparecem no treino — assuma que a entrada é válida.</li>
+</ul>
+</section>
+<section class="level4" data-number="6.17.5.3" id="fundamentação-teórica-4">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-4" data-number="6.17.5.3"><span class="header-section-number">6.17.5.3</span> 🧠 Fundamentação Teórica</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Etapa do exercício</th>
+<th>Etapa correspondente no capítulo</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Histogramas de treino/teste já extraídos</td>
+<td><code>descritor_lbp</code> aplicado às texturas sintéticas</td>
+</tr>
+<tr class="even">
+<td>Distância euclidiana ou Manhattan</td>
+<td>Parâmetro <code>metric</code> do <code>KNeighborsClassifier</code></td>
+</tr>
+<tr class="odd">
+<td>Votação majoritária com <span class="math inline">\(k\)</span> vizinhos</td>
+<td><code>KNeighborsClassifier.predict</code></td>
+</tr>
+<tr class="even">
+<td>Matriz de confusão <span class="math inline">\(C\times C\)</span></td>
+<td><code>confusion_matrix</code> do <code>scikit-learn</code></td>
+</tr>
+<tr class="odd">
+<td>Acurácia global</td>
+<td><code>accuracy_score</code> do <code>scikit-learn</code></td>
+</tr>
+</tbody>
+</table>
+<p>Este exercício evidencia, de forma controlada, um resultado discutido no capítulo: a <strong>escolha da métrica de distância</strong> e do <strong>valor de <span class="math inline">\(k\)</span></strong> pode alterar a classe prevista para uma mesma amostra, mesmo mantendo fixo o descritor utilizado — reforçando que, no reconhecimento de padrões clássico, o descritor, a métrica e o classificador formam um sistema interdependente, e não peças isoladas.</p>
+</section>
+<section class="level4" data-number="6.17.5.4" id="especificação-de-entrada-e-saída-vpl-4">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-4" data-number="6.17.5.4"><span class="header-section-number">6.17.5.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: inteiro <span class="math inline">\(C\)</span> seguido de <span class="math inline">\(C\)</span> nomes de classe.</li>
+<li>Linha 2: inteiro <span class="math inline">\(H\)</span>, <em>string</em> <span class="math inline">\(M\)</span> e inteiro <span class="math inline">\(k\)</span>.</li>
+<li>Linha 3: inteiro <span class="math inline">\(N\)</span>.</li>
+<li>Próximas <span class="math inline">\(N\)</span> linhas: nome da classe seguido de <span class="math inline">\(H\)</span> reais.</li>
+<li>Próxima linha: inteiro <span class="math inline">\(Q\)</span>.</li>
+<li>Próximas <span class="math inline">\(Q\)</span> linhas: nome da classe real seguido de <span class="math inline">\(H\)</span> reais.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><span class="math inline">\(Q\)</span> linhas com a classe prevista de cada amostra de teste, na ordem de entrada.</li>
+<li><span class="math inline">\(C\)</span> linhas com a matriz de confusão (uma linha por classe real).</li>
+<li>Última linha: <code>Acuracia: &lt;valor&gt;</code>.</li>
+</ul>
+</section>
+<section class="level4" data-number="6.17.5.5" id="exemplos-4">
+<h4 class="anchored" data-anchor-id="exemplos-4" data-number="6.17.5.5"><span class="header-section-number">6.17.5.5</span> 📌 Exemplos</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Entrada (resumida)</th>
+<th>Saída</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2 granular listrada<br/>
+2 euclidiana 1<br/>
+4<br/>
+granular 0.9 0.1<br/>
+granular 0.8 0.2<br/>
+listrada 0.1 0.9<br/>
+listrada 0.2 0.8<br/>
+2<br/>
+granular 0.85 0.15<br/>
+listrada 0.15 0.85</td>
+<td>granular<br/>
+listrada<br/>
+1 0<br/>
+0 1<br/>
+Acuracia: 1.0000</td>
+<td>Com <span class="math inline">\(k=1\)</span>, cada teste é classificado pelo vizinho de treino mais próximo.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-07-sim-ep05">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="49" id="fig-07-sim-ep05">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0705" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: k-NN sobre Histogramas de Textura</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟣 pipeline completo</span>
+</div>
+<div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha a métrica de distância e observe como a amostra de teste (★) é classificada entre três protótipos de textura.</p>
+<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+<button class="ep0705_btn" id="ep0705_be">Euclidiana</button>
+<button class="ep0705_btn" id="ep0705_bm">Manhattan</button>
+</div>
+<div id="ep0705_cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>
+<div id="ep0705_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+</div>
+<style>
+  #sim-ep0705 .ep0705_btn { font-size:11px;padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0705 .ep0705_btn.ativo { background:#7c3aed;color:#fff;border-color:#7c3aed; }
+</style>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var protos = [
+      {nome:"granular", h:[0.30,0.30,0.40]},
+      {nome:"listrada", h:[0.70,0.10,0.20]},
+      {nome:"manchada", h:[0.20,0.60,0.20]}
+    ];
+    var teste = {h:[0.35,0.28,0.37]};
+    var cards = root.querySelector('#ep0705_cards');
+    var dbg = root.querySelector('#ep0705_debug');
+    var be = root.querySelector('#ep0705_be');
+    var bm = root.querySelector('#ep0705_bm');
+
+    function dist(u, v, metrica){
+      var s = 0;
+      for(var i=0;i<u.length;i++){
+        if(metrica === 'euclidiana') s += (u[i]-v[i])*(u[i]-v[i]);
+        else s += Math.abs(u[i]-v[i]);
+      }
+      return metrica === 'euclidiana' ? Math.sqrt(s) : s;
+    }
+
+    function render(metrica){
+      be.classList.toggle('ativo', metrica==='euclidiana');
+      bm.classList.toggle('ativo', metrica==='manhattan');
+      cards.innerHTML = '';
+      var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
+      var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
+      distancias.forEach(function(d){
+        var ok = d.d === minD;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
+        div.innerHTML = '<div style="font-weight:700;">'+d.nome+'</div><div style="font-family:monospace;margin-top:4px;">d='+d.d.toFixed(4)+'</div>' +
+          (ok ? '<div style="font-weight:700;">★ mais próximo</div>' : '');
+        cards.appendChild(div);
+      });
+      var vencedor = distancias.reduce(function(a,b){ return b.d < a.d ? b : a; });
+      dbg.textContent = 'métrica=' + metrica + '  |  classe prevista (k=1) = ' + vencedor.nome;
+    }
+    be.addEventListener('click', function(){ render('euclidiana'); });
+    bm.addEventListener('click', function(){ render('manhattan'); });
+    render('euclidiana');
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0705');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 6.20: Simulador: <em>Pipeline</em> k-NN com escolha de metrica
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell" id="a2187d71">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a aria-hidden="true" href="#cb40-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
+<span id="cb40-2"><a aria-hidden="true" href="#cb40-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Overwriting EP07_05.py</code></pre>
+</div>
+</div>
+<div class="cell" id="d121621d">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a aria-hidden="true" href="#cb42-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_05.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_5.cases
+❌ Não foi possível baixar EP07_05.cases</pre>
+</div>
+</div>
+</section>
+</div>
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var query = {x:1, y:1};
+    var pontos = [
+      {nome:"A", x:0, y:0, r:0},
+      {nome:"B", x:1, y:0, r:0},
+      {nome:"C", x:5, y:5, r:1},
+      {nome:"D", x:6, y:5, r:1},
+      {nome:"E", x:2, y:2, r:0},
+      {nome:"F", x:4, y:4, r:1},
+      {nome:"G", x:0, y:2, r:0},
+      {nome:"H", x:6, y:3, r:1}
+    ];
+    pontos.forEach(function(p){ p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2); });
+    pontos.sort(function(a,b){ return a.d - b.d; });
+
+    var slEl = root.querySelector('#ep0701_sl');
+    var vlEl = root.querySelector('#ep0701_vl');
+    var cards = root.querySelector('#ep0701_cards');
+    var dbg = root.querySelector('#ep0701_debug');
+
+    function render(){
+      var k = parseInt(slEl.value);
+      vlEl.textContent = k;
+      cards.innerHTML = '';
+      var votos = [0, 0];
+      pontos.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(2)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
+        cards.appendChild(div);
+      });
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0701');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var cenarios = {
+      A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
+      B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
+      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
+    };
+    var cards = root.querySelector('#ep0702_cards');
+    var dbg = root.querySelector('#ep0702_debug');
+    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+
+    function render(key){
+      Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
+      var dados = cenarios[key];
+      var VP=0,FP=0,FN=0,VN=0;
+      cards.innerHTML = '';
+      dados.forEach(function(d, i){
+        if(d.y===1 && d.p===1) VP++;
+        else if(d.y===0 && d.p===1) FP++;
+        else if(d.y===1 && d.p===0) FN++;
+        else VN++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f9fafb;border:1px solid #e5e7eb;';
+        div.innerHTML = '<div style="font-weight:700;">Peça '+(i+1)+'</div><div>real='+d.y+', prev='+d.p+'</div>';
+        cards.appendChild(div);
+      });
+      var N = dados.length;
+      var acc = ((VP+VN)/N).toFixed(4);
+      var prec = (VP+FP)>0 ? (VP/(VP+FP)).toFixed(4) : 'indefinida';
+      var rev = (VP+FN)>0 ? (VP/(VP+FN)).toFixed(4) : 'indefinida';
+      dbg.textContent = 'VP='+VP+' FP='+FP+' FN='+FN+' VN='+VN+'  |  Acuracia='+acc+'  Precisao='+prec+'  Revocacao='+rev;
+    }
+    botoes.A.addEventListener('click', function(){ render('A'); });
+    botoes.B.addEventListener('click', function(){ render('B'); });
+    botoes.C.addEventListener('click', function(){ render('C'); });
+    render('A');
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0702');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var valores = [[90,90,90],[10,50,10],[90,90,90]];
+    var grid = root.querySelector('#ep0703_grid');
+    var dbg = root.querySelector('#ep0703_debug');
+    var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+
+    function render(){
+      grid.innerHTML = '';
+      for(var r=0;r<3;r++){
+        for(var c=0;c<3;c++){
+          (function(r,c){
+            var v = valores[r][c];
+            var div = document.createElement('div');
+            var central = (r===1 && c===1);
+            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+            div.textContent = v;
+            if(!central){
+              div.addEventListener('click', function(){
+                valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                render();
+              });
+            }
+            grid.appendChild(div);
+          })(r,c);
+        }
+      }
+      var gc = valores[1][1];
+      var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
+      var lbp = 0;
+      bits.forEach(function(b,p){ lbp += b * Math.pow(2,p); });
+      var trans = 0;
+      for(var i=0;i<8;i++){ if(bits[i] !== bits[(i+1)%8]) trans++; }
+      var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
+      dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
+    }
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0703');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var pixels = [
+      {mag:1.0, ang:10}, {mag:2.0, ang:100},
+      {mag:3.0, ang:170}, {mag:4.0, ang:20}
+    ];
+    var slEl = root.querySelector('#ep0704_sl');
+    var vlEl = root.querySelector('#ep0704_vl');
+    var bars = root.querySelector('#ep0704_bars');
+    var dbg = root.querySelector('#ep0704_debug');
+
+    function render(){
+      var B = parseInt(slEl.value);
+      vlEl.textContent = B;
+      var largura = 180/B;
+      var H = new Array(B).fill(0);
+      pixels.forEach(function(p){
+        var b = Math.min(Math.floor(p.ang/largura), B-1);
+        H[b] += p.mag;
+      });
+      var maxH = Math.max.apply(null, H.concat([0.001]));
+      bars.innerHTML = '';
+      H.forEach(function(v, i){
+        var col = document.createElement('div');
+        col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+        var barra = document.createElement('div');
+        var altura = Math.round((v/maxH)*90) + 4;
+        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
+        var label = document.createElement('div');
+        label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
+        label.textContent = v.toFixed(2);
+        col.appendChild(barra);
+        col.appendChild(label);
+        bars.appendChild(col);
+      });
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
+      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0704');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var protos = [
+      {nome:"granular", h:[0.30,0.30,0.40]},
+      {nome:"listrada", h:[0.70,0.10,0.20]},
+      {nome:"manchada", h:[0.20,0.60,0.20]}
+    ];
+    var teste = {h:[0.35,0.28,0.37]};
+    var cards = root.querySelector('#ep0705_cards');
+    var dbg = root.querySelector('#ep0705_debug');
+    var be = root.querySelector('#ep0705_be');
+    var bm = root.querySelector('#ep0705_bm');
+
+    function dist(u, v, metrica){
+      var s = 0;
+      for(var i=0;i<u.length;i++){
+        if(metrica === 'euclidiana') s += (u[i]-v[i])*(u[i]-v[i]);
+        else s += Math.abs(u[i]-v[i]);
+      }
+      return metrica === 'euclidiana' ? Math.sqrt(s) : s;
+    }
+
+    function render(metrica){
+      be.classList.toggle('ativo', metrica==='euclidiana');
+      bm.classList.toggle('ativo', metrica==='manhattan');
+      cards.innerHTML = '';
+      var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
+      var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
+      distancias.forEach(function(d){
+        var ok = d.d === minD;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
+        div.innerHTML = '<div style="font-weight:700;">'+d.nome+'</div><div style="font-family:monospace;margin-top:4px;">d='+d.d.toFixed(4)+'</div>' +
+          (ok ? '<div style="font-weight:700;">★ mais próximo</div>' : '');
+        cards.appendChild(div);
+      });
+      var vencedor = distancias.reduce(function(a,b){ return b.d < a.d ? b : a; });
+      dbg.textContent = 'métrica=' + metrica + '  |  classe prevista (k=1) = ' + vencedor.nome;
+    }
+    be.addEventListener('click', function(){ render('euclidiana'); });
+    bm.addEventListener('click', function(){ render('manhattan'); });
+    render('euclidiana');
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0705');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    // Historgramas simplificados (4 compartimentos, ilustrativos) de cada bloco do mosaico
+    // e dos protótipos de cada classe -- valores qualitativos, apenas para fins didáticos.
+    var protos = {
+      granular: [[0.30,0.10,0.10,0.50],[0.28,0.12,0.11,0.49]],
+      listrada: [[0.10,0.35,0.35,0.20],[0.12,0.32,0.30,0.26]],
+      manchada: [[0.28,0.12,0.12,0.48],[0.31,0.09,0.10,0.50]],
+      xadrez:   [[0.10,0.05,0.55,0.30],[0.08,0.06,0.58,0.28]]
+    };
+    var cores = {granular:"#93c5fd", listrada:"#fca5a5", manchada:"#fcd34d", xadrez:"#86efac"};
+    var blocos = [
+      {rotulo:"granular", hist:[0.29,0.11,0.10,0.50]},
+      {rotulo:"listrada", hist:[0.11,0.33,0.33,0.23]},
+      {rotulo:"manchada", hist:[0.27,0.13,0.13,0.47]},
+      {rotulo:"xadrez",   hist:[0.09,0.06,0.56,0.29]},
+      {rotulo:"granular", hist:[0.31,0.09,0.09,0.51]},
+      {rotulo:"manchada", hist:[0.30,0.10,0.11,0.49]}
+    ];
+
+    function dist(u,v){
+      var s=0; for(var i=0;i<u.length;i++) s+=(u[i]-v[i])*(u[i]-v[i]);
+      return Math.sqrt(s);
+    }
+
+    function classificar(hist, k){
+      var candidatos = [];
+      Object.keys(protos).forEach(function(classe){
+        protos[classe].forEach(function(h, idx){
+          candidatos.push({classe:classe, d:dist(hist,h), ordem: idx});
+        });
+      });
+      candidatos.sort(function(a,b){ return a.d - b.d; });
+      var vizinhos = candidatos.slice(0,k);
+      var contagem = {};
+      vizinhos.forEach(function(v){ contagem[v.classe] = (contagem[v.classe]||0)+1; });
+      var ordemClasses = ["granular","listrada","manchada","xadrez"];
+      var melhor = null, melhorN = -1;
+      ordemClasses.forEach(function(c){
+        var n = contagem[c] || 0;
+        if(n > melhorN){ melhorN = n; melhor = c; }
+      });
+      return {predita: melhor, vizinhos: vizinhos};
+    }
+
+    var grid = root.querySelector('#ep0706_grid');
+    var sl = root.querySelector('#ep0706_sl');
+    var vl = root.querySelector('#ep0706_vl');
+    var dbg = root.querySelector('#ep0706_debug');
+
+    function render(){
+      var k = parseInt(sl.value);
+      vl.textContent = k;
+      grid.innerHTML = '';
+      var acertos = 0;
+
+      blocos.forEach(function(b, idx){
+        var res = classificar(b.hist, k);
+        var ok = (res.predita === b.rotulo);
+        if(ok) acertos++;
+
+        var card = document.createElement('div');
+        card.style.cssText = 'border-radius:10px;padding:10px;text-align:center;border:2px solid ' + (ok ? '#10b981' : '#f43f5e') + ';background:' + cores[b.rotulo] + '22;';
+
+        var amostra = document.createElement('div');
+        amostra.style.cssText = 'width:100%;height:40px;border-radius:6px;background:' + cores[b.rotulo] + ';margin-bottom:6px;';
+        card.appendChild(amostra);
+
+        var real = document.createElement('div');
+        real.style.cssText = 'font-size:10px;color:#555;';
+        real.textContent = 'Real: ' + b.rotulo;
+        card.appendChild(real);
+
+        var pred = document.createElement('div');
+        pred.style.cssText = 'font-size:11px;font-weight:bold;color:' + (ok ? '#059669' : '#e11d48') + ';';
+        pred.textContent = 'Predita: ' + res.predita + (ok ? ' ✅' : ' ❌');
+        card.appendChild(pred);
+
+        grid.appendChild(card);
+      });
+
+      var acc = (acertos / blocos.length).toFixed(4);
+      dbg.innerHTML = 'k=' + k + ' &nbsp;|&nbsp; Acertos: ' + acertos + '/' + blocos.length + ' &nbsp;|&nbsp; Acuracia: ' + acc;
+    }
+
+    sl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0706');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiada");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiada");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</body>
+</html>

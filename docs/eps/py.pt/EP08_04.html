@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EP08_04 — EP08_04 🟡 IoU e Supressão de Não-Máximos (NMS)</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+</head>
+<body class="ep-standalone">
+<div class="ep-container" style="margin:0 auto; max-width:80ch">
+<h3 class="anchored" data-anchor-id="ep08_04-iou-e-supressão-de-não-máximos-nms" data-number="7.15.4"><span class="header-section-number">7.15.4</span> EP08_04 🟡 IoU e Supressão de Não-Máximos (NMS)</h3>
+<p>A figura desta seção mostrou o efeito da Supressão de Não-Máximos sobre um conjunto de caixas produzidas por um detector do tipo <em>sliding window</em>: múltiplas detecções redundantes por objeto foram reduzidas a uma única caixa por objeto. Você foi encarregado de reimplementar, byte a byte, as duas funções que produziram aquele resultado — <code>calcular_iou</code> e <code>supressao_nao_maximos</code> — para confirmar, com suas próprias mãos, exatamente os números que o capítulo apresentou.</p>
+<section class="level4" data-number="7.15.4.1" id="diretrizes-de-implementação-3">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-3" data-number="7.15.4.1"><span class="header-section-number">7.15.4.1</span> 📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler o inteiro <span class="math inline">\(N\)</span> (número de caixas) e o real <span class="math inline">\(\tau\)</span> (limiar de IoU). Em seguida, ler <span class="math inline">\(N\)</span> linhas, cada uma com cinco reais <span class="math inline">\(x_{min}\ y_{min}\ x_{max}\ y_{max}\ \text{score}\)</span>.</li>
+<li><strong>Interseção sobre União:</strong> Para duas caixas <span class="math inline">\(A\)</span> e <span class="math inline">\(B\)</span>, <span class="math display">\[
+\mathrm{IoU}(A,B) = \frac{\text{área}(A \cap B)}{\text{área}(A) + \text{área}(B) - \text{área}(A \cap B)},
+\]</span> com área de interseção nula quando as caixas não se sobrepõem.</li>
+<li><strong>Algoritmo de NMS</strong> (exatamente como descrito no capítulo):
+<ol type="a">
+<li>Ordene as caixas por <code>score</code> decrescente (empates mantêm a ordem de leitura original).</li>
+<li>Selecione a caixa de maior pontuação entre as restantes; adicione-a à saída e remova-a da lista.</li>
+<li>Descarte, da lista restante, <strong>todas</strong> as caixas cujo IoU com a caixa selecionada seja <strong>maior ou igual</strong> a <span class="math inline">\(\tau\)</span> — apenas as caixas com <span class="math inline">\(\mathrm{IoU} &lt; \tau\)</span> permanecem candidatas.</li>
+<li>Repita (b)–(c) até que a lista de restantes esteja vazia.</li>
+</ol></li>
+<li><strong>Saída:</strong> Para cada caixa mantida, na ordem em que foi selecionada, imprimir seu índice original (posição de leitura, a partir de <span class="math inline">\(0\)</span>) e seu <code>score</code>, com 2 casas decimais. Ao final, imprimir <code>Total mantidas: X</code>.</li>
+</ol>
+</section>
+<section class="level4" data-number="7.15.4.2" id="restrições-computacionais-3">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-3" data-number="7.15.4.2"><span class="header-section-number">7.15.4.2</span> 📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Atenção ao sentido do limiar:</strong> ao contrário do que se poderia supor, uma caixa é <strong>suprimida</strong> quando <span class="math inline">\(\mathrm{IoU} \ge \tau\)</span> (não apenas quando <span class="math inline">\(\mathrm{IoU} &gt; \tau\)</span>) — siga exatamente esse critério, o mesmo do código de referência do capítulo.</li>
+<li><strong>Índices originais:</strong> a saída referencia a posição de leitura de cada caixa na entrada, não sua posição após a ordenação por <code>score</code>.</li>
+<li><strong>Área sem soma de 1 pixel:</strong> use área <span class="math inline">\(= (x_{max}-x_{min}) \times (y_{max}-y_{min})\)</span>, exatamente como no capítulo (sem o ajuste “+1” às vezes usado em outras convenções).</li>
+</ul>
+</section>
+<section class="level4" data-number="7.15.4.3" id="fundamentação-teórica-3">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-3" data-number="7.15.4.3"><span class="header-section-number">7.15.4.3</span> 🧠 Fundamentação Teórica</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Elemento</th>
+<th>Papel no pós-processamento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>IoU</td>
+<td>Quantifica a sobreposição espacial entre duas caixas delimitadoras</td>
+</tr>
+<tr class="even">
+<td><em>Sliding window</em> (Haar Cascade)</td>
+<td>Produz tipicamente várias detecções sobrepostas para o mesmo objeto, em posições e escalas próximas</td>
+</tr>
+<tr class="odd">
+<td>Limiar <span class="math inline">\(\tau\)</span></td>
+<td>Controla a agressividade da supressão: baixo demais funde objetos próximos; alto demais deixa passar redundâncias</td>
+</tr>
+<tr class="even">
+<td>Ordenação por <code>score</code></td>
+<td>Garante que, entre caixas redundantes, a de maior confiança sempre sobrevive</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="level4" data-number="7.15.4.4" id="especificação-de-entrada-e-saída-vpl-3">
+<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-3" data-number="7.15.4.4"><span class="header-section-number">7.15.4.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <span class="math inline">\(N\)</span> e real <span class="math inline">\(\tau\)</span>.</li>
+<li>Próximas <span class="math inline">\(N\)</span> linhas: cinco reais <span class="math inline">\(x_{min}\ y_{min}\ x_{max}\ y_{max}\ \text{score}\)</span>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Uma linha por caixa mantida, na ordem de seleção: <code>índice score</code> (score com 2 casas decimais).</li>
+<li>Última linha: <code>Total mantidas: X</code>.</li>
+</ul>
+</section>
+<section class="level4" data-number="7.15.4.5" id="exemplos-3">
+<h4 class="anchored" data-anchor-id="exemplos-3" data-number="7.15.4.5"><span class="header-section-number">7.15.4.5</span> 📌 Exemplos</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Entrada</th>
+<th>Saída</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>5 0.4<br/>
+50 50 150 150 0.90<br/>
+60 55 155 145 0.75<br/>
+58 60 160 150 0.60<br/>
+300 300 400 420 0.95<br/>
+310 305 395 415 0.70</td>
+<td>3 0.95<br/>
+0 0.90<br/>
+Total mantidas: 2</td>
+<td>Exatamente o exemplo da figura do capítulo: 5 caixas redundantes (2 objetos) tornam-se 2 detecções finais. O IoU entre a 1ª e a 2ª caixas é <span class="math inline">\(\approx 0{,}775\)</span>, bem acima de <span class="math inline">\(\tau=0{,}4\)</span>.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-08-sim-ep04">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="27" id="fig-08-sim-ep04">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0804" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: IoU e Supressão de Não-Máximos</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 supressão se IoU ≥ τ</span>
+</div>
+<div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">A caixa azul (score maior) já foi selecionada. Ajuste a sobreposição e o limiar τ para ver se a caixa vermelha (candidata) é suprimida.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#2980b9;">deslocamento da candidata</label><span id="ep0804_dx_v" style="font-family:monospace;font-weight:bold;color:#2980b9;">3</span></div>
+<input id="ep0804_dx" max="10" min="0" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="3"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#2980b9;">limiar τ</label><span id="ep0804_tau_v" style="font-family:monospace;font-weight:bold;color:#2980b9;">0.40</span></div>
+<input id="ep0804_tau" max="0.9" min="0.1" step="0.05" style="width:100%;accent-color:#2980b9;" type="range" value="0.4"/>
+</div>
+</div>
+<div style="position:relative;width:100%;height:160px;background:#fafafa;border:1px solid #ddd;border-radius:12px;margin-bottom:16px;">
+<div id="ep0804_boxA" style="position:absolute;border:2px solid #2980b9;background:rgba(41,128,185,0.25);border-radius:4px;"></div>
+<div id="ep0804_boxB" style="position:absolute;border:2px solid #e74c3c;background:rgba(231,76,60,0.25);border-radius:4px;"></div>
+</div>
+<div id="ep0804_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+</div>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var dxEl = root.querySelector('#ep0804_dx'), dxvEl = root.querySelector('#ep0804_dx_v');
+    var tauEl = root.querySelector('#ep0804_tau'), tauvEl = root.querySelector('#ep0804_tau_v');
+    var boxA = root.querySelector('#ep0804_boxA'), boxB = root.querySelector('#ep0804_boxB');
+    var dbg = root.querySelector('#ep0804_debug');
+    var ESCALA = 10;
+    var A = {x1:5, y1:3, x2:15, y2:13};
+
+    function iou(a,b){
+      var ix1=Math.max(a.x1,b.x1), iy1=Math.max(a.y1,b.y1);
+      var ix2=Math.min(a.x2,b.x2), iy2=Math.min(a.y2,b.y2);
+      var iw=Math.max(0, ix2-ix1), ih=Math.max(0, iy2-iy1);
+      var inter = iw*ih;
+      var areaA=(a.x2-a.x1)*(a.y2-a.y1), areaB=(b.x2-b.x1)*(b.y2-b.y1);
+      return inter/(areaA+areaB-inter);
+    }
+
+    function render(){
+      var dx = parseInt(dxEl.value);
+      var tau = parseFloat(tauEl.value);
+      dxvEl.textContent = dx; tauvEl.textContent = tau.toFixed(2);
+      var B = {x1:5+dx, y1:3+dx*0.4, x2:15+dx, y2:13+dx*0.4};
+
+      boxA.style.left = (A.x1*ESCALA)+'px'; boxA.style.top = (A.y1*ESCALA)+'px';
+      boxA.style.width = ((A.x2-A.x1)*ESCALA)+'px'; boxA.style.height = ((A.y2-A.y1)*ESCALA)+'px';
+      boxB.style.left = (B.x1*ESCALA)+'px'; boxB.style.top = (B.y1*ESCALA)+'px';
+      boxB.style.width = ((B.x2-B.x1)*ESCALA)+'px'; boxB.style.height = ((B.y2-B.y1)*ESCALA)+'px';
+
+      var val = iou(A,B);
+      var suprimida = val >= tau;
+      dbg.textContent = 'IoU(A,B) = '+val.toFixed(4)+'  |  τ = '+tau.toFixed(2)+'  →  candidata (vermelha) ' + (suprimida ? 'SUPRIMIDA (IoU ≥ τ)' : 'MANTIDA (IoU < τ)');
+    }
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0804');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 7.10: Simulador: IoU e Supressão de Não-Máximos
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell" id="c0bbf394">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a aria-hidden="true" href="#cb20-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_04.py</span>
+<span id="cb20-2"><a aria-hidden="true" href="#cb20-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Overwriting EP08_04.py</code></pre>
+</div>
+</div>
+<div class="cell" id="da4cefd3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a aria-hidden="true" href="#cb22-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_04.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap08/casos/EP08_04.cases
+📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap08/cap8/EP8_4.cases
+❌ Não foi possível baixar EP08_04.cases</pre>
+</div>
+</div>
+</section>
+</div>
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var A = [1,0,1,0,1,0,1,0];
+    var B = [1,0,1,0,1,0,1,1];
+
+    var aEl = root.querySelector('#ep0801_a');
+    var bEl = root.querySelector('#ep0801_b');
+    var dbg = root.querySelector('#ep0801_debug');
+
+    function estiloBit(v, destacado){
+      return 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-weight:bold;font-size:15px;cursor:pointer;user-select:none;' +
+        (destacado ? 'background:#fde2e1;border:2px solid #e74c3c;color:#a12;' : 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;');
+    }
+
+    function render(){
+      aEl.innerHTML = ''; bEl.innerHTML = '';
+      var dist = 0;
+      for(var k=0;k<8;k++){
+        var diff = A[k] !== B[k];
+        if(diff) dist++;
+        var da = document.createElement('div');
+        da.style.cssText = estiloBit(A[k], diff);
+        da.textContent = A[k];
+        aEl.appendChild(da);
+
+        var db = document.createElement('div');
+        db.style.cssText = estiloBit(B[k], diff);
+        db.textContent = B[k];
+        db.addEventListener('click', (function(idx){ return function(){ B[idx] = 1-B[idx]; render(); }; })(k));
+        bEl.appendChild(db);
+      }
+      dbg.textContent = 'A = '+A.join('')+'   B = '+B.join('')+'   →   distância de Hamming = '+dist;
+    }
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0801');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var pontos = [
+      {x:0,y:0,xp:0,yp:0},
+      {x:1,y:1,xp:2,yp:2},
+      {x:2,y:0,xp:4,yp:0},
+      {x:0,y:2,xp:0,yp:4},
+      {x:5,y:5,xp:1,yp:1}
+    ];
+
+    var slEl = root.querySelector('#ep0802_sl');
+    var vlEl = root.querySelector('#ep0802_vl');
+    var cards = root.querySelector('#ep0802_cards');
+    var dbg = root.querySelector('#ep0802_debug');
+
+    function render(){
+      var eps = parseFloat(slEl.value);
+      vlEl.textContent = eps.toFixed(2);
+      cards.innerHTML = '';
+      var inliers = 0;
+      pontos.forEach(function(p, i){
+        var px = 2*p.x, py = 2*p.y;
+        var erro = Math.sqrt((px-p.xp)*(px-p.xp) + (py-p.yp)*(py-p.yp));
+        var dentro = erro <= eps;
+        if(dentro) inliers++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? 'background:#dcfce7;border:1px solid #86efac;color:#14532d;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;');
+        div.innerHTML = '<div style="font-weight:700;">('+p.x+','+p.y+')→('+p.xp+','+p.yp+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">erro='+erro.toFixed(2)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'INLIER':'outlier')+'</div>';
+        cards.appendChild(div);
+      });
+      dbg.textContent = 'ε = '+eps.toFixed(2)+'  |  inliers = '+inliers+' de '+pontos.length;
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0802');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var I = [[1,2,3],[4,5,6],[7,8,9]];
+    var II = [[0,0,0],[0,0,0],[0,0,0]];
+    for(var i=0;i<3;i++) for(var j=0;j<3;j++){
+      II[i][j] = I[i][j] +
+        (i>0?II[i-1][j]:0) + (j>0?II[i][j-1]:0) - (i>0&&j>0?II[i-1][j-1]:0);
+    }
+
+    var slEl = root.querySelector('#ep0803_sl');
+    var vlEl = root.querySelector('#ep0803_vl');
+    var gridEl = root.querySelector('#ep0803_grid');
+    var iiEl = root.querySelector('#ep0803_ii');
+    var dbg = root.querySelector('#ep0803_debug');
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i2 = Math.floor(pos/3), j2 = pos%3;
+      vlEl.textContent = '('+i2+','+j2+')';
+      gridEl.innerHTML = ''; iiEl.innerHTML = '';
+      for(var r=0;r<3;r++){
+        for(var c=0;c<3;c++){
+          var dentro = (r<=i2 && c<=j2);
+          var d1 = document.createElement('div');
+          d1.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentro ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d1.textContent = I[r][c];
+          gridEl.appendChild(d1);
+
+          var destaqueII = (r===i2 && c===j2);
+          var d2 = document.createElement('div');
+          d2.style.cssText = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (destaqueII ? 'background:#dbeafe;border:2px solid #2980b9;font-weight:bold;color:#0d47a1;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d2.textContent = II[r][c];
+          iiEl.appendChild(d2);
+        }
+      }
+      dbg.textContent = 'Consulta de (0,0) a ('+i2+','+j2+')  →  soma = II('+i2+','+j2+') = '+II[i2][j2];
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0803');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var dxEl = root.querySelector('#ep0804_dx'), dxvEl = root.querySelector('#ep0804_dx_v');
+    var tauEl = root.querySelector('#ep0804_tau'), tauvEl = root.querySelector('#ep0804_tau_v');
+    var boxA = root.querySelector('#ep0804_boxA'), boxB = root.querySelector('#ep0804_boxB');
+    var dbg = root.querySelector('#ep0804_debug');
+    var ESCALA = 10;
+    var A = {x1:5, y1:3, x2:15, y2:13};
+
+    function iou(a,b){
+      var ix1=Math.max(a.x1,b.x1), iy1=Math.max(a.y1,b.y1);
+      var ix2=Math.min(a.x2,b.x2), iy2=Math.min(a.y2,b.y2);
+      var iw=Math.max(0, ix2-ix1), ih=Math.max(0, iy2-iy1);
+      var inter = iw*ih;
+      var areaA=(a.x2-a.x1)*(a.y2-a.y1), areaB=(b.x2-b.x1)*(b.y2-b.y1);
+      return inter/(areaA+areaB-inter);
+    }
+
+    function render(){
+      var dx = parseInt(dxEl.value);
+      var tau = parseFloat(tauEl.value);
+      dxvEl.textContent = dx; tauvEl.textContent = tau.toFixed(2);
+      var B = {x1:5+dx, y1:3+dx*0.4, x2:15+dx, y2:13+dx*0.4};
+
+      boxA.style.left = (A.x1*ESCALA)+'px'; boxA.style.top = (A.y1*ESCALA)+'px';
+      boxA.style.width = ((A.x2-A.x1)*ESCALA)+'px'; boxA.style.height = ((A.y2-A.y1)*ESCALA)+'px';
+      boxB.style.left = (B.x1*ESCALA)+'px'; boxB.style.top = (B.y1*ESCALA)+'px';
+      boxB.style.width = ((B.x2-B.x1)*ESCALA)+'px'; boxB.style.height = ((B.y2-B.y1)*ESCALA)+'px';
+
+      var val = iou(A,B);
+      var suprimida = val >= tau;
+      dbg.textContent = 'IoU(A,B) = '+val.toFixed(4)+'  |  τ = '+tau.toFixed(2)+'  →  candidata (vermelha) ' + (suprimida ? 'SUPRIMIDA (IoU ≥ τ)' : 'MANTIDA (IoU < τ)');
+    }
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0804');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var mask = [[1,0],[0,1]];
+    var conect = 8;
+    var CORES = ['#dbeafe', '#fde68a'];
+    var BORDAS = ['#2980b9', '#d97706'];
+
+    var btn4 = root.querySelector('#ep0805_c4');
+    var btn8 = root.querySelector('#ep0805_c8');
+    var gridEl = root.querySelector('#ep0805_grid');
+    var dbg = root.querySelector('#ep0805_debug');
+
+    function rotula(){
+      var H = mask.length, W = mask[0].length;
+      var labels = [[0,0],[0,0]];
+      var atual = 0;
+      var viz4 = [[-1,0],[1,0],[0,-1],[0,1]];
+      var viz8 = viz4.concat([[-1,-1],[-1,1],[1,-1],[1,1]]);
+      var viz = conect === 8 ? viz8 : viz4;
+      for(var i=0;i<H;i++){
+        for(var j=0;j<W;j++){
+          if(mask[i][j]===1 && labels[i][j]===0){
+            atual++;
+            var fila = [[i,j]];
+            labels[i][j] = atual;
+            while(fila.length){
+              var pos = fila.pop(); var r=pos[0], c=pos[1];
+              for(var k=0;k<viz.length;k++){
+                var nr=r+viz[k][0], nc=c+viz[k][1];
+                if(nr>=0 && nr<H && nc>=0 && nc<W && mask[nr][nc]===1 && labels[nr][nc]===0){
+                  labels[nr][nc] = atual;
+                  fila.push([nr,nc]);
+                }
+              }
+            }
+          }
+        }
+      }
+      return {labels: labels, k: atual};
+    }
+
+    function estiloBotoes(){
+      btn4.style.background = conect===4 ? '#fff3cd' : '#f3f4f6';
+      btn4.style.borderColor = conect===4 ? '#f0ad4e' : '#ddd';
+      btn4.style.color = conect===4 ? '#7a5c00' : '#555';
+      btn8.style.background = conect===8 ? '#fff3cd' : '#f3f4f6';
+      btn8.style.borderColor = conect===8 ? '#f0ad4e' : '#ddd';
+      btn8.style.color = conect===8 ? '#7a5c00' : '#555';
+    }
+
+    function render(){
+      var res = rotula();
+      gridEl.innerHTML = '';
+      for(var i=0;i<2;i++){
+        for(var j=0;j<2;j++){
+          var d = document.createElement('div');
+          var lab = res.labels[i][j];
+          var estilo = 'width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-weight:bold;font-size:14px;';
+          if(lab === 0){
+            estilo += 'background:#f3f4f6;border:1px solid #e5e7eb;color:#aaa;';
+          } else {
+            estilo += 'background:'+CORES[(lab-1)%2]+';border:2px solid '+BORDAS[(lab-1)%2]+';color:#333;';
+          }
+          d.style.cssText = estilo;
+          d.textContent = mask[i][j] + (lab? ' (r'+lab+')' : '');
+          gridEl.appendChild(d);
+        }
+      }
+      estiloBotoes();
+      dbg.textContent = 'conectividade = '+conect+'  →  '+res.k+' instância(s) encontrada(s)';
+    }
+    btn4.addEventListener('click', function(){ conect=4; render(); });
+    btn8.addEventListener('click', function(){ conect=8; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0805');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiada");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiada");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</body>
+</html>
