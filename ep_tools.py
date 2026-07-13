@@ -56,7 +56,7 @@ HTML_TEMPLATE = """\
   {styles}
 </head>
 <body class="ep-standalone">
-<div class="ep-container" style="margin:0 auto; max-width:80ch">
+<div class="ep-container" style="margin:0 auto; max-width:110ch">
 {content}
 </div>
 {scripts}
@@ -687,7 +687,7 @@ def find_container_span(html: str) -> tuple[int, int] | None:
 
         <div class="ep-container">
         →
-        <div class="ep-container" style="margin:0 auto; max-width:80ch">
+        <div class="ep-container" style="margin:0 auto; max-width:110ch">
 
     continuam sendo reconhecidas sem exigir alterações aqui.
     """
