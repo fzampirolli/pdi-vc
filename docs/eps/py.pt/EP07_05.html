@@ -206,7 +206,7 @@ Acuracia: 1.0000</td>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep05">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="49" id="fig-07-sim-ep05">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="14" id="fig-07-sim-ep05">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0705" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
@@ -284,20 +284,20 @@ Acuracia: 1.0000</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 7.20: Simulador: <em>Pipeline</em> k-NN com escolha de metrica
+Figura 7.21: Simulador: <em>Pipeline</em> k-NN com escolha de metrica
 </figcaption>
 </figure>
 </div>
 </div>
 <div class="cell" id="a2187d71">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a aria-hidden="true" href="#cb40-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
-<span id="cb40-2"><a aria-hidden="true" href="#cb40-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a aria-hidden="true" href="#cb53-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
+<span id="cb53-2"><a aria-hidden="true" href="#cb53-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_05.py</code></pre>
+<pre><code>Writing EP07_05.py</code></pre>
 </div>
 </div>
 <div class="cell" id="d121621d">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a aria-hidden="true" href="#cb42-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a aria-hidden="true" href="#cb55-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_05.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_5.cases
@@ -342,6 +342,116 @@ const typesetMath = (el) => {
 window.Quarto = {
   typesetMath
 };
+</script>
+<script>
+(function(){
+  const knn7_canvas = document.getElementById("knn7_canvas");
+  const knn7_ctx = knn7_canvas.getContext("2d");
+  const knn7_W = knn7_canvas.width, knn7_H = knn7_canvas.height;
+  const knn7_CELL = 10;
+
+  let knn7_currentLabel = 0; // 0 = azul, 1 = vermelho
+  let knn7_k = 3;
+  let knn7_points = [];
+
+  function knn7_defaultPoints(){
+    return [
+      {x:120,y:260,l:0},{x:150,y:230,l:0},{x:100,y:200,l:0},{x:160,y:290,l:0},
+      {x:90,y:250,l:0},{x:140,y:190,l:0},{x:175,y:250,l:0},{x:110,y:150,l:0},
+      {x:200,y:230,l:0},{x:130,y:310,l:0},
+      {x:480,y:100,l:1},{x:450,y:130,l:1},{x:500,y:160,l:1},{x:440,y:80,l:1},
+      {x:510,y:110,l:1},{x:470,y:60,l:1},{x:430,y:150,l:1},{x:520,y:190,l:1},
+      {x:490,y:220,l:1},{x:460,y:190,l:1},
+      {x:300,y:170,l:0},{x:320,y:190,l:1},{x:280,y:200,l:1},{x:310,y:150,l:0}
+    ];
+  }
+
+  function knn7_classify(x, y, k, pontos){
+    if (pontos.length === 0) return null;
+    const dists = pontos.map(p => ({
+      d: (p.x-x)*(p.x-x) + (p.y-y)*(p.y-y),
+      l: p.l
+    }));
+    dists.sort((a,b) => a.d - b.d);
+    const vizinhos = dists.slice(0, Math.min(k, dists.length));
+    let votos = [0, 0];
+    vizinhos.forEach(v => votos[v.l]++);
+    return votos[1] > votos[0] ? 1 : 0;
+  }
+
+  function knn7_render(){
+    knn7_ctx.clearRect(0, 0, knn7_W, knn7_H);
+
+    // Região de decisão (grade de baixa resolução)
+    for (let gy = 0; gy < knn7_H; gy += knn7_CELL){
+      for (let gx = 0; gx < knn7_W; gx += knn7_CELL){
+        const cx = gx + knn7_CELL/2, cy = gy + knn7_CELL/2;
+        const classe = knn7_points.length > 0 ? knn7_classify(cx, cy, knn7_k, knn7_points) : null;
+        if (classe === 0) knn7_ctx.fillStyle = "rgba(59,130,246,0.15)";
+        else if (classe === 1) knn7_ctx.fillStyle = "rgba(239,68,68,0.15)";
+        else knn7_ctx.fillStyle = "#ffffff";
+        knn7_ctx.fillRect(gx, gy, knn7_CELL, knn7_CELL);
+      }
+    }
+
+    // Pontos de treinamento
+    knn7_points.forEach(p => {
+      knn7_ctx.beginPath();
+      knn7_ctx.arc(p.x, p.y, 7, 0, 2*Math.PI);
+      knn7_ctx.fillStyle = p.l === 0 ? "#2563eb" : "#dc2626";
+      knn7_ctx.fill();
+      knn7_ctx.lineWidth = 1.5;
+      knn7_ctx.strokeStyle = "#ffffff";
+      knn7_ctx.stroke();
+    });
+
+    document.getElementById("knn7_nAzul").textContent = knn7_points.filter(p => p.l === 0).length;
+    document.getElementById("knn7_nVerm").textContent = knn7_points.filter(p => p.l === 1).length;
+    document.getElementById("knn7_kVal").textContent = knn7_k;
+  }
+
+  knn7_canvas.addEventListener("click", function(ev){
+    const rect = knn7_canvas.getBoundingClientRect();
+    const scaleX = knn7_canvas.width / rect.width;
+    const scaleY = knn7_canvas.height / rect.height;
+    const x = (ev.clientX - rect.left) * scaleX;
+    const y = (ev.clientY - rect.top) * scaleY;
+    knn7_points.push({x:x, y:y, l:knn7_currentLabel});
+    knn7_render();
+  });
+
+  document.getElementById("knn7_slider").addEventListener("input", function(ev){
+    knn7_k = parseInt(ev.target.value, 10);
+    document.getElementById("knn7_slVal").textContent = knn7_k;
+    knn7_render();
+  });
+
+  const knn7_btnAzul = document.getElementById("knn7_btnAzul");
+  const knn7_btnVerm = document.getElementById("knn7_btnVerm");
+
+  function knn7_setLabel(l){
+    knn7_currentLabel = l;
+    knn7_btnAzul.classList.toggle("knn7_active", l === 0);
+    knn7_btnVerm.classList.toggle("knn7_active", l === 1);
+  }
+
+  knn7_btnAzul.addEventListener("click", function(){ knn7_setLabel(0); });
+  knn7_btnVerm.addEventListener("click", function(){ knn7_setLabel(1); });
+
+  document.getElementById("knn7_btnLimpar").addEventListener("click", function(){
+    knn7_points = [];
+    knn7_render();
+  });
+
+  document.getElementById("knn7_btnReset").addEventListener("click", function(){
+    knn7_points = knn7_defaultPoints();
+    knn7_render();
+  });
+
+  knn7_setLabel(0);
+  knn7_points = knn7_defaultPoints();
+  knn7_render();
+})();
 </script>
 <script>
 (function(){

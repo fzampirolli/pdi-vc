@@ -13,7 +13,7 @@
 <p>Ler, por meio da entrada padrão, duas linhas contendo, respectivamente, o número de linhas <em>L</em> e o número de colunas <em>C</em> do mosaico (ambos múltiplos do tamanho de bloco <em>S</em>, com L=<em>C</em>).</p></li>
 <li><p><strong>Carregamento da imagem</strong></p>
 <p>Utilizar a função didática</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a aria-hidden="true" href="#cb43-1" tabindex="-1"></a>f <span class="op">=</span> mm.readImg(L, C)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a aria-hidden="true" href="#cb56-1" tabindex="-1"></a>f <span class="op">=</span> mm.readImg(L, C)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <p>para ler os <em>L</em> × <em>C</em> valores de intensidade (tons de cinza, <code>uint8</code>) do mosaico.</p></li>
 <li><p><strong>Parâmetros da grade</strong></p>
 <p>Ler o inteiro <em>G</em> (número de blocos por lado) e o inteiro <em>S</em> (tamanho do lado de cada bloco, em pixels), satisfazendo <em>L</em> = <em>C</em> = <em>G</em> × <em>S</em>.</p></li>
@@ -138,41 +138,41 @@ Acuracia: 1.0000</td>
 <li>📥 <strong>Caso 1 — Mosaico simples (<code>Caso1_Mosaico_Simples.pgm</code>)</strong>: grade 2×2 de blocos de 24×24 pixels, uma amostra de cada uma das quatro classes, com baixo ruído — útil para validar a leitura da imagem e a lógica de classificação em um cenário controlado.</li>
 <li>📥 <strong>Caso 2 — Mosaico misto (<code>Caso2_Mosaico_Misto.pgm</code>)</strong>: grade 3×3 de blocos de 16×16 pixels, com classes repetidas e maior variabilidade — cenário em que a confusão entre <strong>granular</strong> e <strong>manchada</strong> discutida na Fundamentação Teórica tende a se manifestar.</li>
 </ul>
-<p>A Figura 7.21 exibe os dois mosaicos, para inspeção visual antes da implementação.</p>
+<p>A Figura 7.22 exibe os dois mosaicos, para inspeção visual antes da implementação.</p>
 <div class="cell quarto-float quarto-figure quarto-figure-center anchored" id="fig-07-mosaicos-referencia">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-mosaicos-referencia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a aria-hidden="true" href="#cb45-1" tabindex="-1"></a><span class="im">import</span> os</span>
-<span id="cb45-2"><a aria-hidden="true" href="#cb45-2" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
-<span id="cb45-3"><a aria-hidden="true" href="#cb45-3" tabindex="-1"></a></span>
-<span id="cb45-4"><a aria-hidden="true" href="#cb45-4" tabindex="-1"></a><span class="co"># Em produção, estes arquivos devem estar em all/cap07/dados/EP06/*.pgm no repositório.</span></span>
-<span id="cb45-5"><a aria-hidden="true" href="#cb45-5" tabindex="-1"></a><span class="co"># Nesta demonstração, assume-se que já foram baixados/copiados para o diretório local.</span></span>
-<span id="cb45-6"><a aria-hidden="true" href="#cb45-6" tabindex="-1"></a><span class="kw">def</span> ler_pgm_p2(caminho):</span>
-<span id="cb45-7"><a aria-hidden="true" href="#cb45-7" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(caminho) <span class="im">as</span> f:</span>
-<span id="cb45-8"><a aria-hidden="true" href="#cb45-8" tabindex="-1"></a>        linhas <span class="op">=</span> [l <span class="cf">for</span> l <span class="kw">in</span> f.read().split() <span class="cf">if</span> l]</span>
-<span id="cb45-9"><a aria-hidden="true" href="#cb45-9" tabindex="-1"></a>    <span class="cf">assert</span> linhas[<span class="dv">0</span>] <span class="op">==</span> <span class="st">"P2"</span></span>
-<span id="cb45-10"><a aria-hidden="true" href="#cb45-10" tabindex="-1"></a>    C, L <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">1</span>]), <span class="bu">int</span>(linhas[<span class="dv">2</span>])</span>
-<span id="cb45-11"><a aria-hidden="true" href="#cb45-11" tabindex="-1"></a>    maxv <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">3</span>])</span>
-<span id="cb45-12"><a aria-hidden="true" href="#cb45-12" tabindex="-1"></a>    valores <span class="op">=</span> <span class="bu">list</span>(<span class="bu">map</span>(<span class="bu">int</span>, linhas[<span class="dv">4</span>:<span class="dv">4</span> <span class="op">+</span> L <span class="op">*</span> C]))</span>
-<span id="cb45-13"><a aria-hidden="true" href="#cb45-13" tabindex="-1"></a>    <span class="cf">return</span> np.array(valores, dtype<span class="op">=</span>np.uint8).reshape(L, C)</span>
-<span id="cb45-14"><a aria-hidden="true" href="#cb45-14" tabindex="-1"></a></span>
-<span id="cb45-15"><a aria-hidden="true" href="#cb45-15" tabindex="-1"></a>caso1 <span class="op">=</span> ler_pgm_p2(<span class="st">"Caso1_Mosaico_Simples.pgm"</span>)</span>
-<span id="cb45-16"><a aria-hidden="true" href="#cb45-16" tabindex="-1"></a>caso2 <span class="op">=</span> ler_pgm_p2(<span class="st">"Caso2_Mosaico_Misto.pgm"</span>)</span>
-<span id="cb45-17"><a aria-hidden="true" href="#cb45-17" tabindex="-1"></a></span>
-<span id="cb45-18"><a aria-hidden="true" href="#cb45-18" tabindex="-1"></a>mm.show(</span>
-<span id="cb45-19"><a aria-hidden="true" href="#cb45-19" tabindex="-1"></a>    [caso1, caso2],</span>
-<span id="cb45-20"><a aria-hidden="true" href="#cb45-20" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb45-21"><a aria-hidden="true" href="#cb45-21" tabindex="-1"></a>        <span class="st">"Caso 1: Mosaico Simples</span><span class="ch">\n</span><span class="st">(2x2 blocos, 1 amostra/classe)"</span>,</span>
-<span id="cb45-22"><a aria-hidden="true" href="#cb45-22" tabindex="-1"></a>        <span class="st">"Caso 2: Mosaico Misto</span><span class="ch">\n</span><span class="st">(3x3 blocos, classes repetidas)"</span>,</span>
-<span id="cb45-23"><a aria-hidden="true" href="#cb45-23" tabindex="-1"></a>    ],</span>
-<span id="cb45-24"><a aria-hidden="true" href="#cb45-24" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb45-25"><a aria-hidden="true" href="#cb45-25" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>),</span>
-<span id="cb45-26"><a aria-hidden="true" href="#cb45-26" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a aria-hidden="true" href="#cb58-1" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb58-2"><a aria-hidden="true" href="#cb58-2" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
+<span id="cb58-3"><a aria-hidden="true" href="#cb58-3" tabindex="-1"></a></span>
+<span id="cb58-4"><a aria-hidden="true" href="#cb58-4" tabindex="-1"></a><span class="co"># Em produção, estes arquivos devem estar em all/cap07/dados/EP06/*.pgm no repositório.</span></span>
+<span id="cb58-5"><a aria-hidden="true" href="#cb58-5" tabindex="-1"></a><span class="co"># Nesta demonstração, assume-se que já foram baixados/copiados para o diretório local.</span></span>
+<span id="cb58-6"><a aria-hidden="true" href="#cb58-6" tabindex="-1"></a><span class="kw">def</span> ler_pgm_p2(caminho):</span>
+<span id="cb58-7"><a aria-hidden="true" href="#cb58-7" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(caminho) <span class="im">as</span> f:</span>
+<span id="cb58-8"><a aria-hidden="true" href="#cb58-8" tabindex="-1"></a>        linhas <span class="op">=</span> [l <span class="cf">for</span> l <span class="kw">in</span> f.read().split() <span class="cf">if</span> l]</span>
+<span id="cb58-9"><a aria-hidden="true" href="#cb58-9" tabindex="-1"></a>    <span class="cf">assert</span> linhas[<span class="dv">0</span>] <span class="op">==</span> <span class="st">"P2"</span></span>
+<span id="cb58-10"><a aria-hidden="true" href="#cb58-10" tabindex="-1"></a>    C, L <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">1</span>]), <span class="bu">int</span>(linhas[<span class="dv">2</span>])</span>
+<span id="cb58-11"><a aria-hidden="true" href="#cb58-11" tabindex="-1"></a>    maxv <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">3</span>])</span>
+<span id="cb58-12"><a aria-hidden="true" href="#cb58-12" tabindex="-1"></a>    valores <span class="op">=</span> <span class="bu">list</span>(<span class="bu">map</span>(<span class="bu">int</span>, linhas[<span class="dv">4</span>:<span class="dv">4</span> <span class="op">+</span> L <span class="op">*</span> C]))</span>
+<span id="cb58-13"><a aria-hidden="true" href="#cb58-13" tabindex="-1"></a>    <span class="cf">return</span> np.array(valores, dtype<span class="op">=</span>np.uint8).reshape(L, C)</span>
+<span id="cb58-14"><a aria-hidden="true" href="#cb58-14" tabindex="-1"></a></span>
+<span id="cb58-15"><a aria-hidden="true" href="#cb58-15" tabindex="-1"></a>caso1 <span class="op">=</span> ler_pgm_p2(<span class="st">"Caso1_Mosaico_Simples.pgm"</span>)</span>
+<span id="cb58-16"><a aria-hidden="true" href="#cb58-16" tabindex="-1"></a>caso2 <span class="op">=</span> ler_pgm_p2(<span class="st">"Caso2_Mosaico_Misto.pgm"</span>)</span>
+<span id="cb58-17"><a aria-hidden="true" href="#cb58-17" tabindex="-1"></a></span>
+<span id="cb58-18"><a aria-hidden="true" href="#cb58-18" tabindex="-1"></a>mm.show(</span>
+<span id="cb58-19"><a aria-hidden="true" href="#cb58-19" tabindex="-1"></a>    [caso1, caso2],</span>
+<span id="cb58-20"><a aria-hidden="true" href="#cb58-20" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb58-21"><a aria-hidden="true" href="#cb58-21" tabindex="-1"></a>        <span class="st">"Caso 1: Mosaico Simples</span><span class="ch">\n</span><span class="st">(2x2 blocos, 1 amostra/classe)"</span>,</span>
+<span id="cb58-22"><a aria-hidden="true" href="#cb58-22" tabindex="-1"></a>        <span class="st">"Caso 2: Mosaico Misto</span><span class="ch">\n</span><span class="st">(3x3 blocos, classes repetidas)"</span>,</span>
+<span id="cb58-23"><a aria-hidden="true" href="#cb58-23" tabindex="-1"></a>    ],</span>
+<span id="cb58-24"><a aria-hidden="true" href="#cb58-24" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb58-25"><a aria-hidden="true" href="#cb58-25" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>),</span>
+<span id="cb58-26"><a aria-hidden="true" href="#cb58-26" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-error">
 <div class="ansi-escaped-output">
 <pre><span class="ansi-red-fg">---------------------------------------------------------------------------</span>
 <span class="ansi-red-fg">FileNotFoundError</span>                         Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[52]</span><span class="ansi-green-fg">, line 20</span>
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[17]</span><span class="ansi-green-fg">, line 20</span>
 <span class="ansi-green-fg">     16</span>     maxv = int(linhas[<span class="ansi-green-fg">3</span>])
 <span class="ansi-green-fg">     17</span>     valores = list(map(int, linhas[<span class="ansi-green-fg">4</span>:<span class="ansi-green-fg">4</span> + L * C]))
 <span class="ansi-green-fg">     18</span>     <span style="font-weight:bold;color:rgb(0,135,0)">return</span> np.array(valores, dtype=np.uint8).reshape(L, C)
@@ -182,7 +182,7 @@ Acuracia: 1.0000</td>
 <span class="ansi-green-fg">     22</span> 
 <span class="ansi-green-fg">     23</span> mm.show(
 
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[52]</span><span class="ansi-green-fg">, line 12</span>, in <span class="ansi-cyan-fg">ler_pgm_p2</span><span class="ansi-blue-fg">(caminho)</span>
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[17]</span><span class="ansi-green-fg">, line 12</span>, in <span class="ansi-cyan-fg">ler_pgm_p2</span><span class="ansi-blue-fg">(caminho)</span>
 <span class="ansi-green-fg">     11</span> <span style="font-weight:bold;color:rgb(0,135,0)">def</span> ler_pgm_p2(caminho):
 <span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">12</span>     <span style="font-weight:bold;color:rgb(0,135,0)">with</span> open(caminho) <span style="font-weight:bold;color:rgb(0,135,0)">as</span> f:
 <span class="ansi-green-fg">     13</span>         linhas = [l <span style="font-weight:bold;color:rgb(0,135,0)">for</span> l <span style="font-weight:bold;color:rgb(0,135,0)">in</span> f.read().split() <span style="font-weight:bold;color:rgb(0,135,0)">if</span> l]
@@ -194,7 +194,7 @@ Acuracia: 1.0000</td>
 </div>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-07-mosaicos-referencia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 7.21
+Figura 7.22
 </figcaption>
 </figure>
 </div>
