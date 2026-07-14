@@ -955,7 +955,7 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                         page.screenshot(path=str(png_path), full_page=False)
 
                         browser.close()
-                    print(f'  📸 Screenshot do fluxograma: {png_path.name}')
+                    print(f'  📸 Screenshot: {png_path.name}')
                 except Exception as e:
                     print(f'  ⚠ Falha screenshot {label}: {e}')
                 finally:
@@ -1145,6 +1145,23 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 except Exception as e:
                     print(f'  ⚠ Erro gerando PNG de {label}: {e}')
 
+            # if png_exists:
+            #     new_cells.append(nbformat.v4.new_markdown_cell(
+            #         '::: {.content-visible when-format="html"}'
+            #     ))
+            #     cell.outputs = []
+            #     cell.execution_count = None
+            #     new_cells.append(cell)
+            #     cap_str = fig_cap or label
+            #     new_cells.append(nbformat.v4.new_markdown_cell(':::'))
+            #     new_cells.append(nbformat.v4.new_markdown_cell(
+            #         f'::: {{.content-visible when-format="pdf"}}\n'
+            #         f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
+            #         f':::'
+            #     ))
+            #     modified = True
+            #     print(f'  ✓ Patch condicional: {label}')
+
             if png_exists:
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     '::: {.content-visible when-format="html"}'
@@ -1153,10 +1170,24 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 cell.execution_count = None
                 new_cells.append(cell)
                 cap_str = fig_cap or label
+
+                # Detecta automaticamente imagens em retrato (mais altas que largas,
+                # como fluxogramas) e reduz a largura no PDF para não estourar a altura
+                # da página.
+                width_attr = ''
+                try:
+                    from PIL import Image
+                    with Image.open(png_abs) as im:
+                        w, h = im.size
+                    if h > w:  # retrato
+                        width_attr = ' width=65%'
+                except Exception:
+                    pass
+
                 new_cells.append(nbformat.v4.new_markdown_cell(':::'))
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     f'::: {{.content-visible when-format="pdf"}}\n'
-                    f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
+                    f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}{width_attr}}}\n'
                     f':::'
                 ))
                 modified = True
@@ -1175,78 +1206,39 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
             nbformat.write(nb, nb_path)
             print(f'  ✓ Notebook patcheado: {nb_path.name}')
 
-def _patch_html_cells_for_pdf_old(qdir: Path, all_root: Path = Path('all')):
+def _autocrop_screenshots(all_root: Path, exclude: set = None) -> None:
+    """Remove bordas brancas sobrando dos PNGs de simuladores gerados via screenshot.
+    Roda depois de toda a geração/patch de imagens, antes da renderização do PDF.
+    """
+    from PIL import Image, ImageChops
 
-    nb_root = qdir.parent.parent / qdir.name
+    def _bbox_is_full(bbox, size, tol=3):
+        """Considera 'já cortado' se o bbox está a poucos pixels da borda total."""
+        l, t, r, b = bbox
+        w, h = size
+        return l <= tol and t <= tol and (w - r) <= tol and (h - b) <= tol
 
-    for nb_path in nb_root.rglob('*.ipynb'):
-        real_path = nb_path.resolve()
-        nb = nbformat.read(real_path, as_version=4)
-        modified = False
-        new_cells = []
+    exclude = exclude or set()
+    pngs = list(all_root.glob('cap*/imagens/*.png'))
+    changed = 0
 
-        for cell in nb.cells:
-            if cell.cell_type != 'code' or (
-                'HTML("""' not in cell.source and "HTML('''" not in cell.source
-            ):
-                new_cells.append(cell)
+    for png_path in pngs:
+        if png_path.name in exclude:
+            continue
+        try:
+            img = Image.open(png_path).convert('RGB')
+            bg = Image.new('RGB', img.size, img.getpixel((0, 0)))
+            diff = ImageChops.difference(img, bg)
+            diff = diff.point(lambda p: 255 if p > 8 else 0)
+            bbox = diff.getbbox()
+            if bbox is None or _bbox_is_full(bbox, img.size):
                 continue
+            img.crop(bbox).save(png_path)
+            changed += 1
+        except Exception as e:
+            print(f'    ⚠ Autocrop falhou em {png_path.name}: {e}')
 
-            label = None
-            fig_cap = None
-            for line in cell.source.splitlines():
-                m = re.match(r'#\|\s*label:\s*(\S+)', line)
-                if m:
-                    label = m.group(1)
-                m = re.match(r'#\|\s*fig-cap:\s*["\']?(.*?)["\']?\s*$', line)
-                if m:
-                    fig_cap = m.group(1).strip('"\'')
-
-            if not label:
-                cell.outputs = []
-                cell.execution_count = None
-                new_cells.append(cell)
-                continue
-
-            cap = None
-            for part in nb_path.parts:
-                if re.match(r'cap\d+', part):
-                    cap = part
-                    break
-
-            png_rel = f'imagens/{label}.png'
-            png_abs = all_root / cap / png_rel if cap else None
-            png_exists = png_abs and png_abs.exists()
-
-            if png_exists:
-                new_cells.append(nbformat.v4.new_markdown_cell(
-                    '::: {.content-visible when-format="html"}'
-                ))
-                cell.outputs = []
-                cell.execution_count = None
-                new_cells.append(cell)
-                cap_str = fig_cap or label
-                new_cells.append(nbformat.v4.new_markdown_cell(':::'))
-                new_cells.append(nbformat.v4.new_markdown_cell(
-                    f'::: {{.content-visible when-format="pdf"}}\n'
-                    f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
-                    f':::'
-                ))
-                modified = True
-                print(f'  ✓ Patch condicional: {label}')
-            else:
-                new_cells.append(nbformat.v4.new_markdown_cell(
-                    '::: {.content-visible when-format="html"}'
-                ))
-                new_cells.append(cell)
-                new_cells.append(nbformat.v4.new_markdown_cell(':::'))
-                modified = True
-                print(f'  ⚠ Patch sem imagem: {label}')
-
-        if modified:
-            nb.cells = new_cells
-            nbformat.write(nb, nb_path)
-            print(f'  ✓ Notebook patcheado: {nb_path.name}')
+    print(f'    ✂ {changed}/{len(pngs)} imagens ajustadas')
 
 def _render_pdf_with_patched_tex(qdir: Path, env: dict):
     combo_name = qdir.name
@@ -1689,7 +1681,12 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
             _fix_html_outputs_for_pdf(nb_root)
             _patch_html_cells_for_pdf(qdir, all_root)
             
+            # 3.5. Remover bordas brancas sobrando dos screenshots
+            print('  ✂ Aplicando autocrop nos screenshots...')
+            _autocrop_screenshots(all_root)
+            
             # 4. QUARTO: renderizar o PDF
+            print('  📄 Renderizando PDF...')
             print('  📄 Renderizando PDF...')
             env['QUARTO_FMT'] = 'pdf'
             _render_pdf_with_patched_tex(qdir, env)
