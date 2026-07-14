@@ -56,7 +56,7 @@ HTML_TEMPLATE = """\
   {styles}
 </head>
 <body class="ep-standalone">
-<div class="ep-container" style="margin:0 auto; max-width:110ch">
+<div class="ep-container" style="margin:0 auto; max-width:120ch">
 {content}
 </div>
 {scripts}
