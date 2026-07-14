@@ -1,0 +1,247 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_09.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_09.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_09 🗺️ Transformada de Distância e o “Miolo” do Objeto</h2>
+<p>Em <strong>robótica móvel</strong>, ao planejar uma rota dentro de um corredor, o robô quer saber não apenas <em>onde</em> existe espaço livre, mas também <strong>quão longe</strong> cada ponto livre está da parede mais próxima. Os caminhos mais seguros tendem a passar pelo “miolo” do corredor, longe dos obstáculos.</p>
+<p>A <strong>transformada de distância morfológica</strong> atribui a cada pixel um valor que representa sua distância até a borda mais próxima, segundo a métrica definida pelo elemento estruturante. Pixels próximos à borda recebem valores baixos, enquanto pixels mais internos recebem valores maiores. O pixel de valor máximo corresponde à região mais protegida do objeto, frequentemente associada ao seu centro morfológico.</p>
+<p>Ver na Figura 4.38 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões da imagem:</strong> ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas) da imagem <em>f</em>.</li>
+<li><strong>Dimensões de <em>B</em>:</strong> ler os inteiros <em>L</em>_<em>B</em> (linhas) e <em>C</em>_<em>B</em> (colunas) do elemento estruturante.</li>
+<li><strong>Elemento estruturante:</strong> ler a matriz <em>b</em>, contendo valor 0 no centro e valores negativos nas demais posições.</li>
+<li><strong>Imagem:</strong> ler a matriz binária <em>f</em> (valores 0 ou 1), linha a linha.</li>
+<li><strong>Preparação:</strong> multiplicar a imagem por <em>L</em>× <em>C</em>, garantindo que os pixels internos tenham valor inicial suficientemente alto para a propagação das distâncias.</li>
+<li><strong>Transformada de distância:</strong> calcular a matriz de distâncias utilizando o método <code>mm.dist1(f,b)</code>.</li>
+<li><strong>Saída:</strong> exibir a matriz resultante da transformada de distância.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li>Utilizar a implementação de erosão ponderada fornecida pela biblioteca.</li>
+<li>O elemento estruturante pode conter valores negativos arbitrários.</li>
+<li>A transformada deve ser obtida pela aplicação iterativa de erosões ponderadas até atingir um ponto fixo.</li>
+</ul>
+<p><strong>⚠️ Nota Crucial sobre Leitura de Matrizes:</strong> Como o elemento estruturante pode conter valores inteiros negativos (por exemplo, <code>-1</code> e <code>-99</code>), <strong>não utilize a função <code>mm.readImg</code> para ler a matriz <em>b</em></strong>. Essa função converte os dados para o tipo <code>uint8</code>, provocando <em>underflow</em> e corrompendo os valores negativos. Leia as <em>L</em>_<em>B</em> linhas de <em>b</em> manualmente utilizando o tipo padrão <code>int</code>. A imagem <em>f</em> pode continuar sendo lida normalmente por <code>mm.readImg</code>.</p>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto Visual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>dist(<em>y</em>,<em>x</em>)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distância morfológica até a borda mais próxima segundo a métrica definida por <em>b</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixels mais internos recebem valores maiores</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Valor máximo</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel mais distante da borda</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aproxima o centro morfológico do objeto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Elemento estruturante ponderado</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Define os custos de deslocamento entre pixels vizinhos</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Determina a métrica de distância utilizada</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Objetos finos</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Regiões estreitas do objeto</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Produzem valores baixos de distância</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: inteiro <em>L</em>.</li>
+<li>Linha 2: inteiro <em>C</em>.</li>
+<li>Linha 3: inteiro <em>L</em>_<em>B</em>.</li>
+<li>Linha 4: inteiro <em>C</em>_<em>B</em>.</li>
+<li>Próximas <em>L</em>_<em>B</em> linhas: elementos inteiros da matriz <em>b</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos binários (0 ou 1) da matriz <em>f</em>.</li>
+</ul>
+<p>⚠️ <strong>Nota de implementação:</strong> Os elementos da matriz <em>f</em> (0 ou 1) devem ser multiplicados por <strong>255</strong> para gerar uma imagem binária adequada (0 e 255) antes de aplicar a Transformada de Distância (TD).</p>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz da transformada de distância em <em>L</em> linhas e <em>C</em> colunas.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplo</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+9<br/>
+3<br/>
+3<br/>
+-99 -1 -99<br/>
+-1 0 -1<br/>
+-99 -1 -99<br/>
+0 0 0 0 0 0 0 0 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 0 0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0 0 0 0 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 2 2 2 2 2 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 0 0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Resultado da transformada de distância.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Nota:</strong> o valor <code>-99</code> atua como uma aproximação prática de -∈fty, impedindo a propagação pelas diagonais. Dessa forma, apenas os vizinhos horizontal e vertical contribuem para a distância, produzindo a distância de Manhattan.</p>
+<div class="cell" id="cell-fig-04-sim-distancia">
+<div id="sim-ep0409" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Transformada de Distância</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🗺️ camadas de erosão</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#555;margin-bottom:10px;text-align:center;">
+      Clique nas células para desenhar seu próprio objeto (mínimo 3 pixels)
+    </p>
+<div style="display:flex;justify-content:center;margin-bottom:18px;">
+<div id="ep0409_grid_f" style="display:grid;grid-template-columns:repeat(9,32px);gap:2px;"></div>
+</div>
+<div style="text-align:center;margin-bottom:14px;">
+<button id="ep0409_btn_corredor" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;margin-right:6px;">📐 Corredor</button>
+<button id="ep0409_btn_disco" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;margin-right:6px;">⬤ Disco</button>
+<button id="ep0409_btn_l" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">📏 Forma em L</button>
+</div>
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:10px;text-align:center;">
+      Mapa de distâncias
+    </p>
+<div style="display:flex;justify-content:center;">
+<div id="ep0409_grid_dist" style="display:grid;grid-template-columns:repeat(9,32px);gap:2px;"></div>
+</div>
+</div>
+<script>
+(function initSimEp0409() {
+  var container = document.getElementById('sim-ep0409');
+  if (!container) { setTimeout(initSimEp0409, 100); return; }
+
+var gF=document.getElementById('ep0409_grid_f');
+    var gD=document.getElementById('ep0409_grid_dist');
+
+    var L=5,C=9,f=[];
+    var B=[[0,1,0],[1,1,1],[0,1,0]];
+
+    function setCorredor(){
+      f=Array.from({length:L},()=>new Array(C).fill(0));
+      for(var y=1;y<4;y++)for(var x=1;x<8;x++) f[y][x]=1;
+    }
+
+    function setDisco(){
+      f=Array.from({length:L},()=>new Array(C).fill(0));
+      var cy=2,cx=4;
+      for(var y=0;y<L;y++)
+        for(var x=0;x<C;x++)
+          if(Math.pow(y-cy,2)+Math.pow((x-cx)*0.6,2)<=4) f[y][x]=1;
+    }
+
+    function setL(){
+      f=Array.from({length:L},()=>new Array(C).fill(0));
+      for(var y=1;y<4;y++)for(var x=1;x<3;x++) f[y][x]=1;
+      for(var y=2;y<4;y++)for(var x=1;x<8;x++) f[y][x]=1;
+    }
+
+    function erode(img,Bm){
+      var HB=Bm.length, WB=Bm[0].length, oy=-HB/2+0.5, ox=-WB/2+0.5;
+      var g=img.map(r=>r.slice());
+
+      for(var y=0;y<L;y++)
+        for(var x=0;x<C;x++)
+          for(var by=0;by<HB;by++)
+            for(var bx=0;bx<WB;bx++){
+              if(Bm[by][bx]!==1) continue;
+              var vy=Math.trunc(y+by+oy), vx=Math.trunc(x+bx+ox);
+              if(vy>=0&&vy<L&&vx>=0&&vx<C && img[vy][vx]<g[y][x])
+                g[y][x]=img[vy][vx];
+            }
+      return g;
+    }
+
+    function sameMatrix(a,b){
+      for(var y=0;y<L;y++)
+        for(var x=0;x<C;x++)
+          if(a[y][x]!==b[y][x]) return false;
+      return true;
+    }
+
+    function render(){
+      gF.innerHTML='';
+      for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+        (function(y,x){
+          var c=document.createElement('div');
+          c.style.cssText='width:32px;height:32px;border-radius:4px;border:1px solid #ddd;cursor:pointer;';
+          c.style.background=f[y][x]?'#16a085':'#f7f7f7';
+          c.onclick=function(){f[y][x]=1-f[y][x]; render();};
+          gF.appendChild(c);
+        })(y,x);
+      }
+
+      var dist=Array.from({length:L},()=>new Array(C).fill(0));
+      var atual=f.map(r=>r.slice());
+      var nivel=0;
+
+      while(atual.some(r=>r.some(v=>v===1))){
+        nivel++;
+        for(var y=0;y<L;y++)
+          for(var x=0;x<C;x++)
+            if(atual[y][x]===1) dist[y][x]=nivel;
+
+        var prox=erode(atual,B);
+        if(sameMatrix(prox,atual)) break;
+        atual=prox;
+      }
+
+      gD.innerHTML='';
+      for(var y=0;y<L;y++)for(var x=0;x<C;x++){
+        var c=document.createElement('div');
+        var v=dist[y][x];
+        var t=v/(nivel||1);
+        var inten=Math.round(220-t*170);
+
+        c.style.cssText='width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:1px solid #ddd;';
+        c.style.background= v===0 ? '#f7f7f7' : 'rgb('+(inten-60)+','+inten+','+(inten-30)+')';
+        c.style.color = v>0 ? 'white':'#bbb';
+        c.innerText = v||'';
+        gD.appendChild(c);
+      }
+    }
+
+    document.getElementById('ep0409_btn_corredor').onclick=()=>{setCorredor();render();};
+    document.getElementById('ep0409_btn_disco').onclick=()=>{setDisco();render();};
+    document.getElementById('ep0409_btn_l').onclick=()=>{setL();render();};
+
+    setCorredor();
+    render();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>

@@ -1,0 +1,179 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP05_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP05_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_03 🟠 Quantização DCT: a Verdadeira Fonte de Compressão</h2>
+<p>Um aplicativo de <strong>galeria de fotos</strong> precisa reduzir o tamanho de milhares de imagens antes de fazer <em>upload</em> para a nuvem, sem recodificar tudo do zero. O engenheiro responsável já tem os <strong>coeficientes DCT</strong> de cada bloco 4×4 calculados (a etapa cara computacionalmente já foi feita) — falta apenas aplicar a <strong>tabela de quantização</strong>, a etapa que realmente descarta informação e gera compressão. Coeficientes de alta frequência, menos perceptíveis ao olho humano, recebem divisores grandes e tendem a virar <strong>zero</strong>; coeficientes de baixa frequência, mais perceptíveis, recebem divisores pequenos e sobrevivem quase intactos.</p>
+<p>Você vai implementar exatamente essa etapa: <strong>quantizar e desquantizar</strong> (dividir, arredondar, multiplicar de volta) — o coração da compressão <em>lossy</em> do JPEG.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensão do bloco:</strong> Ler o inteiro <em>N</em> (bloco <em>N</em> × <em>N</em>).</li>
+<li><strong>Coeficientes:</strong> Ler a matriz <em>C</em> de coeficientes DCT, <em>N</em> linhas com <em>N</em> inteiros cada (podem ser negativos).</li>
+<li><strong>Tabela de quantização:</strong> Ler a matriz <em>Q</em>, <em>N</em> linhas com <em>N</em> inteiros positivos cada.</li>
+<li><strong>Quantização:</strong> Para cada posição (<em>u</em>,<em>v</em>), calcular o índice quantizado \tildeC(<em>u</em>,<em>v</em>) = round\!\left((<em>C</em>(<em>u</em>,<em>v</em>))/(<em>Q</em>(<em>u</em>,<em>v</em>))\right) usando arredondamento padrão para o inteiro mais próximo (valores intermediários <code>.5</code> nunca ocorrem nos casos de teste).</li>
+<li><strong>Desquantização (reconstrução):</strong> Calcular <em>C</em>'(<em>u</em>,<em>v</em>) = \tildeC(<em>u</em>,<em>v</em>) × <em>Q</em>(<em>u</em>,<em>v</em>)</li>
+<li><strong>Saída:</strong> Exibir a matriz reconstruída <em>C</em>', <em>N</em> × <em>N</em>, inteiros.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong><em>Round-trip</em> completo:</strong> a saída é o coeficiente <strong>reconstruído</strong> (\tildeC × <em>Q</em>), não o índice quantizado isolado.</li>
+<li><strong>Divisão em ponto flutuante:</strong> a divisão <em>C</em>(<em>u</em>,<em>v</em>)/<em>Q</em>(<em>u</em>,<em>v</em>) deve ser feita em ponto flutuante antes do arredondamento — divisão inteira truncada produzirá resultado incorreto.</li>
+<li><strong>Sinal preservado:</strong> coeficientes negativos mantêm o sinal após quantização e reconstrução.</li>
+<li><strong><em>Q</em>(<em>u</em>,<em>v</em>) &gt; 0 sempre:</strong> não há necessidade de tratar divisão por zero.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Coeficiente</th>
+<th style="padding:10px;border:1px solid #ddd;">Frequência</th>
+<th style="padding:10px;border:1px solid #ddd;">Valor típico de <em>Q</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Efeito da quantização</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(0,0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">DC (média do bloco)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequeno</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quase sempre sobrevive — domina a energia</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(<em>u</em>,<em>v</em>) baixo <em>u</em>+<em>v</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Baixa frequência</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequeno/médio</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parcialmente preservado</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(<em>u</em>,<em>v</em>) alto <em>u</em>+<em>v</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Alta frequência</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Grande</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Frequentemente vira zero — fonte da compressão</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>N</em>.</li>
+<li><em>N</em> linhas seguintes: matriz <em>C</em> (coeficientes DCT, inteiros, podem ser negativos).</li>
+<li><em>N</em> linhas seguintes: matriz <em>Q</em> (tabela de quantização, inteiros positivos).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz reconstruída <em>C</em>', <em>N</em> × <em>N</em>, inteiros separados por espaço.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+50 10 -5 0<br/>
+8 -3 2 1<br/>
+0 1 0 0<br/>
+2 0 0 -1<br/>
+2 5 7 8<br/>
+4 7 8 11<br/>
+6 8 11 12<br/>
+9 11 12 14</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 10 -7 0<br/>
+8 0 0 0<br/>
+0 0 0 0<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>C</em>(0,0)=50/2=25 \to 25×2=50 (preservado). <em>C</em>(0,2)=-5/7\approx-0.71\to-1\to-1×7=-7. Já <em>C</em>(1,1)=-3/7\approx-0.43\to0: zerado pela quantização — a maior parte do bloco vira zero, ilustrando a compactação de energia no canto superior esquerdo.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-05-sim-ep03">
+<div id="sim-ep0503" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Quantização DCT</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 round(C/Q)×Q</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste a escala de Q e veja quantos coeficientes sobrevivem (não-zero) após o round-trip.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#c2620a;">Escala de Q (agressividade)</label>
+<span id="ep0503_vl_s" style="font-family:monospace;font-weight:bold;color:#c2620a;">1.0×</span>
+</div>
+<input id="ep0503_sl_s" max="4" min="0.25" step="0.25" style="width:100%;" type="range" value="1"/>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Coeficientes DCT (C)</p>
+<div id="ep0503_grid_c" style="display:grid;grid-template-columns:repeat(4,46px);gap:4px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Reconstruído (round(C/Q)·Q)</p>
+<div id="ep0503_grid_r" style="display:grid;grid-template-columns:repeat(4,46px);gap:4px;justify-content:center;"></div>
+</div>
+</div>
+<div id="ep0503_debug" style="margin-top:20px;background:#fff1e6;border-radius:8px;padding:10px;border:1px solid #fcd9b8;font-family:monospace;font-size:11px;color:#9a4b0c;text-align:center;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root) return;
+    if(root.dataset.init) return;
+    root.dataset.init = "1";
+    var C=[[50,10,-5,0],[8,-3,2,1],[0,1,0,0],[2,0,0,-1]];
+    var Qbase=[[2,5,7,8],[4,7,8,11],[6,8,11,12],[9,11,12,14]];
+    var s = root.querySelector('#ep0503_sl_s');
+    var sv = root.querySelector('#ep0503_vl_s');
+    var gc = root.querySelector('#ep0503_grid_c');
+    var gr = root.querySelector('#ep0503_grid_r');
+    var dbg = root.querySelector('#ep0503_debug');
+    function cell(v, faded){
+      var c=document.createElement('div');
+      c.style.cssText='width:46px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:bold;font-family:monospace;' +
+        (faded ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;' : 'background:#fef3e2;color:#9a4b0c;border:1px solid #fcd9b8;');
+      c.textContent=v;
+      return c;
+    }
+    function render(){
+      var scale=parseFloat(s.value);
+      sv.textContent=scale.toFixed(2)+'×';
+      gc.innerHTML=''; gr.innerHTML='';
+      var zeros=0, total=16;
+      for(var i=0;i<4;i++){
+        for(var j=0;j<4;j++){
+          gc.appendChild(cell(C[i][j], false));
+          var Q = Qbase[i][j]*scale;
+          var q = Math.round(C[i][j]/Q);
+          var rec = Math.round(q*Q);
+          if(rec===0) zeros++;
+          gr.appendChild(cell(rec, rec===0));
+        }
+      }
+      dbg.textContent = 'Zeros: ' + zeros + '/' + total + '  |  Quanto maior a escala de Q, mais zeros — maior compressão, menor qualidade.';
+    }
+    s.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){ var root=document.getElementById('sim-ep0503'); if(root) init(root); else setTimeout(tryInit,200); }
+  tryInit();
+})();
+
+</script>
+</div>
+</div>
+</div></div>
