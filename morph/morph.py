@@ -1,8 +1,10 @@
 """
 Morph – Operações morfológicas para Processamento de Imagens.
 Copyright 2024 Francisco de Assis Zampirolli, UFABC. License MIT.
-https://github.com/fzampirolli/morph - version 1.0
-https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py - version 1.1 - compacto
+version 1.0 - https://github.com/fzampirolli/morph
+version 1.1 - https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py - compacto
+version 1.1.2 - com vários métodos para auxílio no cálculo de medidas usando cv2
+version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scipy.ndimage; lazy loading
 Last update: Jul 2026
 """
 
@@ -10,7 +12,6 @@ __version__ = "1.1.5"
 
 from typing import Optional
 import sys
-
 
 class mm:
     """Helper class for image processing tasks optimized for minimal RAM usage."""
