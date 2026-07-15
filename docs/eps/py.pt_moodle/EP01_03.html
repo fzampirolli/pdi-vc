@@ -1,0 +1,726 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP01_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP01_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP01_03 📈 Mean Average Precision (mAP) — Curva Precisão‑Sensibilidade</h2>
+<p>Nesta atividade, você avaliará um classificador binário (ex.: detecção de desmatamento em imagens de satélite, ver <a href="https://www.dgi.inpe.br/catalogo/explore">dgi.inpe.br</a>) através da <strong>curva Precisão‑Sensibilidade</strong> e da métrica <strong>mAP (<em>Mean Average Precision</em>)</strong>. O mAP é padrão em competições como <a href="https://cocodataset.org/">COCO (<em>Common Objects in Context</em>)</a> e <a href="http://host.robots.ox.ac.uk/pascal/VOC/">PASCAL VOC (<em>Visual Object Classes</em>)</a> e dos modelos <a href="https://github.com/ultralytics/ultralytics">YOLO (<em>You Only Look Once</em>)</a>.</p>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Por que o mAP é a métrica‑padrão?</h4>
+<p>Na EP01_02 você viu que a escolha do limiar altera significativamente a Precisão e a Sensibilidade. O <strong>mAP (<em>Mean Average Precision</em>)</strong> resolve isso: avalia o modelo em <strong>vários limiares</strong> (cada limiar deve gerar uma matriz de confusão diferente) e resume o desempenho pela <strong>área sob a curva Precisão‑Sensibilidade (P‑S)</strong>.</p>
+<p>Enquanto o F1‑<em>Score</em> olha para um único ponto de equilíbrio, o mAP considera a curva inteira. Quanto mais próximo de <strong>1,0</strong>, melhor o detector em todos os limiares e classes (ex.: moedas de 25, 50 e 1 real).</p>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Métrica</th>
+<th style="padding:10px;border:1px solid #ddd;">O que resume</th>
+<th style="padding:10px;border:1px solid #ddd;">Limitação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>F1‑<em>Score</em></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Equilíbrio P × S num único limiar</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Depende do limiar escolhido</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>AP</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Área sob a curva P‑S de uma classe</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Válida apenas para uma classe</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>mAP</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Média das APs sobre todas as classes</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Mais complexo de implementar</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p>Referências: <a href="https://blog.roboflow.com/mean-average-precision/">Roboflow — mAP</a> · <a href="https://youtu.be/COQPqUH-HG8">Vídeo explicativo</a></p>
+</blockquote>
+</div>
+<div>
+<h4> 🔢 Como o mAP é calculado — passo a passo</h4>
+<ol type="1">
+<li><p><strong>Limiares fixos</strong> (use sempre esta lista):</p>
+<pre><code>limiares = [0.00, 0.09, 0.21, 0.31, 0.39, 0.52, 0.60, 0.71, 0.81, 0.89, 1.00]</code></pre></li>
+<li><p>Para cada limiar (t), classifique as amostras: <code>predito = 1 se confiança ≥ t, senão 0</code>.<br/>
+Calcule VP, FP, FN, VN e obtenha Precisão((t)) e Sensibilidade((t)).</p></li>
+<li><p>Monte a curva P‑S: pares (Sensibilidade((t)), Precisão((t))), ordenados por Sensibilidade crescente.</p></li>
+<li><p><strong>Monotonize a Precisão</strong>:<br/>
+<em>P</em>_mono[<em>i</em>] = \max_j \ge <em>i</em> <em>P</em>[<em>j</em>]</p></li>
+<li><p>Calcule a <strong>AP</strong> (área sob a curva monotônica) usando a <strong>regra do trapézio</strong> (aproximação mais precisa que a simples soma de Riemann):<br/>
+AP = ∑_i=1^m-1 \fracP_mono[<em>i</em>-1] + <em>P</em>_mono[<em>i</em>]2 · (<em>S</em>[<em>i</em>] - <em>S</em>[<em>i</em>-1])</p></li>
+<li><p><strong>mAP</strong> = média das APs de todas as classes. Neste EP há apenas <strong>1 classe</strong>, portanto mAP = AP.</p></li>
+</ol>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Nota
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>📐 Diferença resumida:</strong><br/>
+A <em>soma de Riemann</em> aproxima a área por retângulos, podendo subestimar ou superestimar. A <strong>regra do trapézio</strong> usa trapézios, reduzindo o erro ao considerar a média entre os valores nos extremos do intervalo, sendo geralmente mais precisa para funções suaves por partes, como a curva Precisão‑Sensibilidade.</p>
+</div>
+</div>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Tarefa</h4>
+<p>Leia um inteiro <code>n</code> (quantidade de amostras). Em seguida leia <code>n</code> linhas, cada uma com: <code>verdade</code> (0 ou 1) e <code>confiança</code> (float 0.0–1.0).</p>
+<p>Calcule e imprima, para o <strong>limiar 0.85</strong> (índice 9 da lista):</p>
+<ul>
+<li>Matriz de Confusão (VP, FN, FP, VN)</li>
+<li>Acurácia, Precisão, Sensibilidade e F1‑Score</li>
+</ul>
+<p>Em seguida, para <strong>todos os limiares</strong>, imprima:</p>
+<ul>
+<li>Precisões cruas, Precisões monotônicas e Sensibilidades, separadas por <code>,</code></li>
+<li>mAP final</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Importante</h4>
+<ul>
+<li>Limiar fixo para as métricas individuais: <strong>0.85</strong></li>
+<li>Divisão segura: se denominador for zero, use 0</li>
+<li>Formatação: duas casas decimais</li>
+<li>Monotonize de trás para frente</li>
+<li>A Figura 1.14 apresenta uma simulação desta questão</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplo de Execução</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída Esperada</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">7<br/>
+0 0.94<br/>
+1 0.80<br/>
+1 0.69<br/>
+0 0.67<br/>
+1 0.30<br/>
+1 0.15<br/>
+1 0.15</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"># MÉTRICAS PARA O LIMIAR 0.85 #<br/>
+Matriz de Confusão:<br/>
+VP = 0, FN = 5<br/>
+FP = 1, VN = 1<br/>
+<br/>
+Métricas de Avaliação:<br/>
+Acurácia: 0.14<br/>
+Precisão: 0.00<br/>
+Sensibilidade: 0.00<br/>
+F1-Score: 0.00<br/>
+<br/>
+# MÉTRICAS PARA TODOS OS LIMIARES #<br/>
+Precisões: 0.00, 0.00, 0.00, 0.50, 0.50, 0.50, 0.50, 0.50, 0.60, 0.71, 0.71<br/>
+Precisões mon.: 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71<br/>
+Sensibilidades: 0.00, 0.00, 0.00, 0.20, 0.40, 0.40, 0.40, 0.40, 0.60, 1.00, 1.00<br/>
+mAP: 0.71</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🐍 Dica para calcular o AP (com regra do trapézio)</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a aria-hidden="true" href="#cb63-1" tabindex="-1"></a><span class="kw">def</span> calcular_AP(verdades, confiancas, limiares):</span>
+<span id="cb63-2"><a aria-hidden="true" href="#cb63-2" tabindex="-1"></a>    m <span class="op">=</span> <span class="bu">len</span>(limiares)</span>
+<span id="cb63-3"><a aria-hidden="true" href="#cb63-3" tabindex="-1"></a>    precisoes <span class="op">=</span> [<span class="fl">0.0</span>] <span class="op">*</span> m</span>
+<span id="cb63-4"><a aria-hidden="true" href="#cb63-4" tabindex="-1"></a>    sensibilidades <span class="op">=</span> [<span class="fl">0.0</span>] <span class="op">*</span> m</span>
+<span id="cb63-5"><a aria-hidden="true" href="#cb63-5" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(m):</span>
+<span id="cb63-6"><a aria-hidden="true" href="#cb63-6" tabindex="-1"></a>        p, s <span class="op">=</span> calcular_metricas(verdades, confiancas, limiares[i])</span>
+<span id="cb63-7"><a aria-hidden="true" href="#cb63-7" tabindex="-1"></a>        precisoes[m<span class="op">-</span><span class="dv">1</span><span class="op">-</span>i] <span class="op">=</span> p</span>
+<span id="cb63-8"><a aria-hidden="true" href="#cb63-8" tabindex="-1"></a>        sensibilidades[m<span class="op">-</span><span class="dv">1</span><span class="op">-</span>i] <span class="op">=</span> s</span>
+<span id="cb63-9"><a aria-hidden="true" href="#cb63-9" tabindex="-1"></a>    prec_mono <span class="op">=</span> precisoes.copy()</span>
+<span id="cb63-10"><a aria-hidden="true" href="#cb63-10" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(m<span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>):</span>
+<span id="cb63-11"><a aria-hidden="true" href="#cb63-11" tabindex="-1"></a>        <span class="cf">if</span> prec_mono[i] <span class="op">&lt;</span> prec_mono[i<span class="op">+</span><span class="dv">1</span>]:</span>
+<span id="cb63-12"><a aria-hidden="true" href="#cb63-12" tabindex="-1"></a>            prec_mono[i] <span class="op">=</span> prec_mono[i<span class="op">+</span><span class="dv">1</span>]</span>
+<span id="cb63-13"><a aria-hidden="true" href="#cb63-13" tabindex="-1"></a>    AP <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb63-14"><a aria-hidden="true" href="#cb63-14" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, m):</span>
+<span id="cb63-15"><a aria-hidden="true" href="#cb63-15" tabindex="-1"></a>        <span class="co"># Regra do trapézio: média das alturas vezes a base</span></span>
+<span id="cb63-16"><a aria-hidden="true" href="#cb63-16" tabindex="-1"></a>        area_trapezio <span class="op">=</span> (prec_mono[i<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> prec_mono[i]) <span class="op">/</span> <span class="fl">2.0</span></span>
+<span id="cb63-17"><a aria-hidden="true" href="#cb63-17" tabindex="-1"></a>        AP <span class="op">+=</span> area_trapezio <span class="op">*</span> (sensibilidades[i] <span class="op">-</span> sensibilidades[i<span class="op">-</span><span class="dv">1</span>])</span>
+<span id="cb63-18"><a aria-hidden="true" href="#cb63-18" tabindex="-1"></a>    <span class="cf">return</span> precisoes, prec_mono, sensibilidades, AP</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="cell-fig-01-sim-map">
+<div id="sim-ep03" style="all: initial; display: block; font-family: sans-serif; line-height: 1.4; color: #333; margin-top: 24px;">
+<!-- Título -->
+<div style="padding: 1rem 0 0.5rem 0;">
+<p style="font-size: 18px; font-weight: 500; color: #111; margin: 0 0 4px 0;">
+      Simulador: Curva P-S e mAP</p>
+<p style="font-size: 13px; color: #555; margin: 0 0 16px 0;">Edite as
+      amostras (verdade e confiança) e veja a curva Precisão-Sensibilidade e o
+      mAP calculados em tempo real.</p>
+<!-- Botões de cenário -->
+<div id="ep3-scenarios" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+<button id="ep3-sc1" style="font-size: 12px; padding: 5px 12px; border-radius: 99px; border: 1px solid #1a73e8; background: #e8f0fe; color: #1a73e8; cursor: pointer;">
+        Exemplo do EP </button> <button id="ep3-sc2" style="font-size: 12px; padding: 5px 12px; border-radius: 99px; border: 1px solid #ccc; background: white; color: #555; cursor: pointer;">
+        Detector quase perfeito </button> <button id="ep3-sc3" style="font-size: 12px; padding: 5px 12px; border-radius: 99px; border: 1px solid #ccc; background: white; color: #555; cursor: pointer;">
+        Detector aleatório </button> <button id="ep3-sc4" style="font-size: 12px; padding: 5px 12px; border-radius: 99px; border: 1px solid #ccc; background: white; color: #555; cursor: pointer;">
+        Muitos falsos positivos </button>
+<!-- Grid principal: entradas | resultados -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+<!-- ── Coluna esquerda: tabela de amostras editável ── -->
+<div style="background: white; border: 1px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; box-sizing: border-box;">
+<p style="font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 10px 0;">
+          Amostras (verdade | confiança)</p>
+<!-- Cabeçalho da tabela -->
+<div style="display: grid; grid-template-columns: 32px 1fr 1fr 28px; gap: 4px; margin-bottom: 4px;">
+<span style="font-size: 10px; color: #aaa; text-align: center;">#</span>
+<span style="font-size: 10px; color: #888; font-weight: 600; text-align: center;">Verdade</span>
+<span style="font-size: 10px; color: #888; font-weight: 600; text-align: center;">Confiança</span>
+</div>
+<!-- Lista de amostras (linhas geradas pelo JS) -->
+<div id="ep3-rows" style="display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto;">
+</div>
+<!-- Botão adicionar --> <button id="ep3-add" style="margin-top: 10px; width: 100%; font-size: 12px; padding: 6px 0; border-radius: 99px; border: 1px dashed #bbb; background: #fafafa; color: #555; cursor: pointer;">
+          + Adicionar amostra </button>
+<hr style="border: none; border-top: 1px solid #ddd; margin: 12px 0;"/>
+<!-- Limiar selecionado para as métricas individuais -->
+<p style="font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px 0;">
+          Limiar para métricas individuais</p>
+<div style="display: flex; align-items: center; gap: 10px;"><input id="ep3-thr" max="10" min="0" step="1" style="flex: 1;" type="range" value="9"/> <span id="ep3-thr-val" style="font-size: 14px; font-family: monospace; font-weight: 600; min-width: 38px; text-align: right; color: #0056b3;">0.85</span>
+</div>
+<p style="font-size: 10px; color: #aaa; margin: 4px 0 0 0;">Limiares
+          disponíveis: 0.00 · 0.09 · 0.21 · 0.31 · 0.39 · 0.52 · 0.60 · 0.71 ·
+          0.81 · 0.89 · 1.00</p>
+</div>
+<!-- ── Coluna direita: métricas + canvas ── -->
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<!-- Cards de métricas do limiar selecionado (linha com 4 cards) -->
+<div style="background: white; border: 1px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; box-sizing: border-box;">
+<p style="font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 10px 0;">
+            Métricas no limiar <span id="ep3-thr-label" style="color: #0056b3;">0.85</span></p>
+<!-- Matriz de confusão compacta -->
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<td style="text-align: right; width: 28%;"></td>
+<th data-quarto-table-cell-role="th" style="text-align: center; font-size: 10px; font-weight: 500; color: #555; padding: 3px;">Predita +</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; font-size: 10px; font-weight: 500; color: #555; padding: 3px;">Predita −</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right; font-size: 10px; color: #555; padding-right: 6px;">Real +</td>
+<td style="text-align: center; background: #EAF3DE; border-radius: 6px; padding: 6px;"><div style="font-size: 9px; color: #555;">
+VP
+</div>
+<div id="ep3-cv-vp" style="font-size: 18px; font-weight: 500; color: #3b6d11;">
+0
+</div></td>
+<td style="text-align: center; background: #FCEBEB; border-radius: 6px; padding: 6px;"><div style="font-size: 9px; color: #555;">
+FN
+</div>
+<div id="ep3-cv-fn" style="font-size: 18px; font-weight: 500; color: #a32d2d;">
+5
+</div></td>
+</tr>
+<tr class="even">
+<td style="text-align: right; font-size: 10px; color: #555; padding-right: 6px;">Real −</td>
+<td style="text-align: center; background: #FAEEDA; border-radius: 6px; padding: 6px;"><div style="font-size: 9px; color: #555;">
+FP
+</div>
+<div id="ep3-cv-fp" style="font-size: 18px; font-weight: 500; color: #854f0b;">
+1
+</div></td>
+<td style="text-align: center; background: #E6F1FB; border-radius: 6px; padding: 6px;"><div style="font-size: 9px; color: #555;">
+VN
+</div>
+<div id="ep3-cv-vn" style="font-size: 18px; font-weight: 500; color: #185fa5;">
+1
+</div></td>
+</tr>
+</tbody>
+</table>
+<!-- 4 métricas em linha -->
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;">
+<!-- Acurácia -->
+<div style="background: #f5f5f5; border-radius: 8px; padding: 8px 4px; text-align: center;">
+<p style="font-size: 10px; color: #555; margin: 0 0 4px 0;">
+                Acurácia</p>
+<p id="ep3-m-acc" style="font-size: 18px; font-weight: 500; color: #185fa5; margin: 0;">
+                0.14</p>
+<div style="margin-top: 5px; background: #ddd; border-radius: 99px; height: 4px; overflow: hidden;">
+<div id="ep3-b-acc" style="height: 100%; border-radius: 99px; background: #378ADD; width: 14%; transition: width .3s ease;">
+</div>
+</div>
+</div>
+<!-- Precisão -->
+<div style="background: #f5f5f5; border-radius: 8px; padding: 8px 4px; text-align: center;">
+<p style="font-size: 10px; color: #555; margin: 0 0 4px 0;">
+                Precisão</p>
+<p id="ep3-m-pre" style="font-size: 18px; font-weight: 500; color: #3b6d11; margin: 0;">
+                0.00</p>
+<div style="margin-top: 5px; background: #ddd; border-radius: 99px; height: 4px; overflow: hidden;">
+<div id="ep3-b-pre" style="height: 100%; border-radius: 99px; background: #639922; width: 0%; transition: width .3s ease;">
+</div>
+</div>
+</div>
+<!-- Sensibilidade -->
+<div style="background: #f5f5f5; border-radius: 8px; padding: 8px 4px; text-align: center;">
+<p style="font-size: 10px; color: #555; margin: 0 0 4px 0;">
+                Sensib.</p>
+<p id="ep3-m-sen" style="font-size: 18px; font-weight: 500; color: #854f0b; margin: 0;">
+                0.00</p>
+<div style="margin-top: 5px; background: #ddd; border-radius: 99px; height: 4px; overflow: hidden;">
+<div id="ep3-b-sen" style="height: 100%; border-radius: 99px; background: #BA7517; width: 0%; transition: width .3s ease;">
+</div>
+</div>
+</div>
+<!-- F1 -->
+<div style="background: #f5f5f5; border-radius: 8px; padding: 8px 4px; text-align: center;">
+<p style="font-size: 10px; color: #555; margin: 0 0 4px 0;">F1</p>
+<p id="ep3-m-f1" style="font-size: 18px; font-weight: 500; color: #6b21a8; margin: 0;">
+                0.00</p>
+<div style="margin-top: 5px; background: #ddd; border-radius: 99px; height: 4px; overflow: hidden;">
+<div id="ep3-b-f1" style="height: 100%; border-radius: 99px; background: #9333EA; width: 0%; transition: width .3s ease;">
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card mAP + canvas da curva P-S -->
+<div style="background: white; border: 1px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; box-sizing: border-box;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+<p style="font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: .06em; margin: 0;">
+              Curva Precisão-Sensibilidade</p>
+<div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 11px; color: #555;">mAP =</span> <span id="ep3-map-val" style="font-size: 22px; font-weight: bold; font-family: monospace; color: #0056b3;">0.71</span>
+</div>
+</div>
+<!-- Canvas da curva P-S --> <canvas height="220" id="ep3-canvas" style="display: block; width: 100%; height: auto; background: #fafafa; border-radius: 8px; border: 1px solid #eee;" width="340"></canvas>
+<div style="font-size: 9px; color: #aaa; margin-top: 5px; display: flex; gap: 12px; justify-content: center;">
+<span style="display: inline-flex; align-items: center; gap: 3px;">
+              Curva P-S </span> <span style="display: inline-flex; align-items: center; gap: 3px;">
+              Monotônica </span> <span style="display: inline-flex; align-items: center; gap: 3px;"> Área
+              (AP) </span></div>
+<!-- Tabela de limiares -->
+<div style="margin-top: 10px; overflow-x: auto;">
+<table class="caption-top" style="width: 100%; border-collapse: collapse; font-size: 10px; font-family: monospace;">
+<thead>
+<tr class="header" style="background: #f1f1f1;">
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 4px 6px; border: 1px solid #ddd;">Limiar</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 4px 6px; border: 1px solid #ddd; color: #000000;">Prec.</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 4px 6px; border: 1px solid #ddd; color: #e24b4a;">P.mono</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 4px 6px; border: 1px solid #ddd; color: #854f0b;">Sensib.</th>
+</tr>
+</thead>
+<tbody id="ep3-tbl-body">
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- fim coluna direita -->
+</div>
+<!-- fim grid -->
+</div>
+</div>
+<!-- fim #sim-ep03 -->
+<script>
+
+  (function init() {
+
+    var container = document.getElementById('sim-ep03');
+    if (!container) {
+      setTimeout(init, 100);
+      return;
+    }
+
+    /* ── Limiares fixos ────────────────────────────────────── */
+    var LIMIARES = [0.00, 0.09, 0.21, 0.31, 0.39, 0.52, 0.60, 0.71, 0.81,
+      0.89, 1.00
+    ];
+
+    /* ── Cenários predefinidos ─────────────────────────────── */
+    var CENARIOS = {
+      'ep3-sc1': [
+        [0, 0.94],
+        [1, 0.80],
+        [1, 0.69],
+        [0, 0.67],
+        [1, 0.30],
+        [1, 0.15],
+        [1, 0.15]
+      ],
+      'ep3-sc2': [
+        [1, 0.98],
+        [1, 0.95],
+        [1, 0.91],
+        [1, 0.87],
+        [0, 0.20],
+        [0, 0.10],
+        [0, 0.05]
+      ],
+      'ep3-sc3': [
+        [1, 0.55],
+        [0, 0.52],
+        [1, 0.48],
+        [0, 0.50],
+        [1, 0.51],
+        [0, 0.49],
+        [1, 0.53]
+      ],
+      'ep3-sc4': [
+        [1, 0.90],
+        [0, 0.88],
+        [0, 0.85],
+        [0, 0.80],
+        [1, 0.75],
+        [1, 0.70],
+        [0, 0.65]
+      ]
+    };
+
+    /* ── Estado ────────────────────────────────────────────── */
+    var amostras = [];
+
+    /* ── Elementos DOM ─────────────────────────────────────── */
+    var rowsDiv = document.getElementById('ep3-rows');
+    var addBtn = document.getElementById('ep3-add');
+    var thrSlider = document.getElementById('ep3-thr');
+    var thrValEl = document.getElementById('ep3-thr-val');
+    var thrLabelEl = document.getElementById('ep3-thr-label');
+    var canvas = document.getElementById('ep3-canvas');
+    var ctx = canvas.getContext('2d');
+    var mapValEl = document.getElementById('ep3-map-val');
+    var tblBody = document.getElementById('ep3-tbl-body');
+
+    var mEls = {
+      acc: document.getElementById('ep3-m-acc'),
+      pre: document.getElementById('ep3-m-pre'),
+      sen: document.getElementById('ep3-m-sen'),
+      f1: document.getElementById('ep3-m-f1')
+    };
+    var bEls = {
+      acc: document.getElementById('ep3-b-acc'),
+      pre: document.getElementById('ep3-b-pre'),
+      sen: document.getElementById('ep3-b-sen'),
+      f1: document.getElementById('ep3-b-f1')
+    };
+    var cvEls = {
+      vp: document.getElementById('ep3-cv-vp'),
+      fn: document.getElementById('ep3-cv-fn'),
+      fp: document.getElementById('ep3-cv-fp'),
+      vn: document.getElementById('ep3-cv-vn')
+    };
+
+    /* ── Helpers ───────────────────────────────────────────── */
+    function safe(n, d) {
+      return d === 0 ? 0 : n / d;
+    }
+
+    function fmt2(v) {
+      return v.toFixed(2);
+    }
+
+    function pct(v) {
+      return Math.round(v * 100);
+    }
+
+    function clamp01(v) {
+      return Math.min(1, Math.max(0, v));
+    }
+
+    /* ── Calcular métricas para um limiar ──────────────────── */
+    function calcMetricas(limiar) {
+      var vp = 0,
+        fn = 0,
+        fp = 0,
+        vn = 0;
+      amostras.forEach(function(s) {
+        var pred = s[1] >= limiar ? 1 : 0;
+        if (s[0] === 1 && pred === 1) vp++;
+        else if (s[0] === 1 && pred === 0) fn++;
+        else if (s[0] === 0 && pred === 1) fp++;
+        else vn++;
+      });
+      var tot = vp + fn + fp + vn;
+      var acc = safe(vp + vn, tot);
+      var pre = safe(vp, vp + fp);
+      var sen = safe(vp, vp + fn);
+      var f1 = safe(2 * pre * sen, pre + sen);
+      return {
+        vp: vp,
+        fn: fn,
+        fp: fp,
+        vn: vn,
+        acc: acc,
+        pre: pre,
+        sen: sen,
+        f1: f1
+      };
+    }
+
+    /* ── Calcular AP para todos os limiares ─────────────────── */
+    function calcAP() {
+      var m = LIMIARES.length;
+      var precisoes = [],
+        sensibilidades = [];
+      for (var i = 0; i < m; i++) {
+        var met = calcMetricas(LIMIARES[i]);
+        precisoes[m - 1 - i] = met.pre;
+        sensibilidades[m - 1 - i] = met.sen;
+      }
+      // Monotonização
+      var prec_mono = precisoes.slice();
+      for (var j = m - 2; j >= 0; j--) {
+        if (prec_mono[j] < prec_mono[j + 1]) prec_mono[j] = prec_mono[j + 1];
+      }
+      // Área (retângulos à esquerda)
+      var AP = 0;
+      for (var k = 1; k < m; k++) {
+        AP += prec_mono[k - 1] * (sensibilidades[k] - sensibilidades[k - 1]);
+      }
+      return {
+        precisoes: precisoes,
+        prec_mono: prec_mono,
+        sensibilidades: sensibilidades,
+        AP: AP
+      };
+    }
+
+    /* ── Desenhar curva P-S ─────────────────────────────────── */
+    function drawCurva(sensibilidades, precisoes, prec_mono) {
+      var W = canvas.width,
+        H = canvas.height;
+      var pad = { top: 18, right: 14, bottom: 32, left: 36 };
+      var cw = W - pad.left - pad.right;
+      var ch = H - pad.top - pad.bottom;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#fafafa';
+      ctx.fillRect(0, 0, W, H);
+
+      // grid
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 0.8;
+      for (var gi = 0; gi <= 5; gi++) {
+        var gx = pad.left + (gi / 5) * cw;
+        var gy = pad.top + (gi / 5) * ch;
+        ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, pad.top + ch); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cw, gy); ctx.stroke();
+      }
+
+      // eixos
+      ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + ch);
+      ctx.lineTo(pad.left + cw, pad.top + ch);
+      ctx.stroke();
+
+      // labels
+      ctx.fillStyle = '#999'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+      for (var li = 0; li <= 5; li++) {
+        var ly = pad.top + ch - (li / 5) * ch;
+        ctx.fillText((li * 20) + '%', pad.left - 4, ly + 3);
+      }
+      ctx.textAlign = 'center';
+      for (var lx = 0; lx <= 5; lx++) {
+        var lxx = pad.left + (lx / 5) * cw;
+        ctx.fillText((lx * 20) + '%', lxx, pad.top + ch + 12);
+      }
+      ctx.fillStyle = '#888'; ctx.font = '9px sans-serif';
+      ctx.save();
+      ctx.translate(10, pad.top + ch / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center'; ctx.fillText('Precisão', 0, 0);
+      ctx.restore();
+      ctx.textAlign = 'center';
+      ctx.fillText('Sensibilidade', pad.left + cw / 2, H - 4);
+
+      function toX(s) { return pad.left + clamp01(s) * cw; }
+      function toY(p) { return pad.top + ch - clamp01(p) * ch; }
+
+      var m = sensibilidades.length;
+
+      // Área sob a curva monotônica
+      ctx.beginPath();
+      ctx.moveTo(toX(0), toY(0));
+      for (var ai = 0; ai < m; ai++) {
+        ctx.lineTo(toX(sensibilidades[ai]), toY(prec_mono[ai]));
+      }
+      ctx.lineTo(toX(sensibilidades[m - 1]), toY(0));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(55,138,221,0.12)';
+      ctx.fill();
+
+      // Linha monotônica
+      ctx.beginPath();
+      ctx.moveTo(toX(sensibilidades[0]), toY(prec_mono[0]));
+      for (var mi = 1; mi < m; mi++) {
+        ctx.lineTo(toX(sensibilidades[mi]), toY(prec_mono[mi]));
+      }
+      ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 1.8;
+      ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+      // Linha curva original
+      ctx.beginPath();
+      ctx.moveTo(toX(sensibilidades[0]), toY(precisoes[0]));
+      for (var ci = 1; ci < m; ci++) {
+        ctx.lineTo(toX(sensibilidades[ci]), toY(precisoes[ci]));
+      }
+      ctx.strokeStyle = '#378ADD'; ctx.lineWidth = 2; ctx.stroke();
+
+      // Pontos
+      for (var pi = 0; pi < m; pi++) {
+        ctx.beginPath();
+        ctx.arc(toX(sensibilidades[pi]), toY(precisoes[pi]), 3.5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#378ADD'; ctx.fill();
+      }
+    }
+
+    /* ── Atualizar tudo ─────────────────────────────────────── */
+    function update() {
+      var thrIdx = parseInt(thrSlider.value);
+      var thr = LIMIARES[thrIdx];
+      thrValEl.innerText = thr.toFixed(2);
+      thrLabelEl.innerText = thr.toFixed(2);
+
+      var met = calcMetricas(thr);
+      cvEls.vp.innerText = met.vp;
+      cvEls.fn.innerText = met.fn;
+      cvEls.fp.innerText = met.fp;
+      cvEls.vn.innerText = met.vn;
+      if (mEls.acc) mEls.acc.innerText = fmt2(met.acc);
+      bEls.acc.style.width = pct(met.acc) + '%';
+      if (mEls.pre) mEls.pre.innerText = fmt2(met.pre);
+      bEls.pre.style.width = pct(met.pre) + '%';
+      if (mEls.sen) mEls.sen.innerText = fmt2(met.sen);
+      bEls.sen.style.width = pct(met.sen) + '%';
+      if (mEls.f1) mEls.f1.innerText = fmt2(met.f1);
+      bEls.f1.style.width = pct(met.f1) + '%';
+
+      var ap = calcAP();
+      mapValEl.innerText = fmt2(ap.AP);
+      drawCurva(ap.sensibilidades, ap.precisoes, ap.prec_mono);
+
+      tblBody.innerHTML = '';
+      var m = LIMIARES.length;
+      for (var i = 0; i < m; i++) {
+        var isSelected = (LIMIARES[m - 1 - i].toFixed(2) === thr.toFixed(2));
+        var bg = isSelected ? '#fffde7' : (i % 2 === 0 ? '#fff' : '#f9f9f9');
+        var tr = document.createElement('tr');
+        tr.style.background = bg;
+        tr.innerHTML =
+          '<td style="padding:3px 6px;border:1px solid #ddd;text-align:center;' +
+          (isSelected ? 'font-weight:700;color:#856404;' : '') + '">' +
+          LIMIARES[m - 1 - i].toFixed(2) + '</td>' +
+          '<td style="padding:3px 6px;border:1px solid #ddd;text-align:center;color:#3B6D11;">' +
+          fmt2(ap.precisoes[i]) + '</td>' +
+          '<td style="padding:3px 6px;border:1px solid #ddd;text-align:center;color:#A32D2D;">' +
+          fmt2(ap.prec_mono[i]) + '</td>' +
+          '<td style="padding:3px 6px;border:1px solid #ddd;text-align:center;color:#854F0B;">' +
+          fmt2(ap.sensibilidades[i]) + '</td>';
+        tblBody.appendChild(tr);
+      }
+    }
+
+    /* ── Renderizar linhas de amostras ──────────────────────── */
+    function renderRows() {
+      rowsDiv.innerHTML = '';
+      amostras.forEach(function(s, idx) {
+        var row = document.createElement('div');
+        row.style.cssText =
+          'display:grid;grid-template-columns:32px 1fr 1fr 28px;gap:4px;align-items:center;';
+
+        var numEl = document.createElement('span');
+        numEl.style.cssText = 'font-size:10px;color:#aaa;text-align:center;';
+        numEl.innerText = idx + 1;
+
+        var selV = document.createElement('select');
+        selV.style.cssText =
+          'font-size:12px;font-family:monospace;border:1px solid #ddd;border-radius:6px;padding:3px 4px;background:white;color:#333;';
+        [0, 1].forEach(function(v) {
+          var opt = document.createElement('option');
+          opt.value = v;
+          opt.text = v === 1 ? '1 (positivo)' : '0 (negativo)';
+          if (s[0] === v) opt.selected = true;
+          selV.appendChild(opt);
+        });
+        selV.addEventListener('change', function() {
+          amostras[idx][0] = parseInt(selV.value);
+          update();
+        });
+
+        var inpC = document.createElement('input');
+        inpC.type = 'number'; inpC.min = '0'; inpC.max = '1'; inpC.step = '0.01';
+        inpC.value = s[1].toFixed(2);
+        inpC.style.cssText =
+          'font-size:12px;font-family:monospace;border:1px solid #ddd;border-radius:6px;padding:3px 6px;width:100%;box-sizing:border-box;';
+        inpC.addEventListener('input', function() {
+          var v = parseFloat(inpC.value);
+          if (!isNaN(v)) { amostras[idx][1] = clamp01(v); update(); }
+        });
+
+        var btnRem = document.createElement('button');
+        btnRem.innerText = '×';
+        btnRem.style.cssText =
+          'font-size:13px;border:none;background:none;color:#ccc;cursor:pointer;padding:0;line-height:1;';
+        btnRem.addEventListener('click', function() {
+          if (amostras.length > 1) { amostras.splice(idx, 1); renderRows(); update(); }
+        });
+
+        row.appendChild(numEl);
+        row.appendChild(selV);
+        row.appendChild(inpC);
+        row.appendChild(btnRem);
+        rowsDiv.appendChild(row);
+      });
+    }
+
+    /* ── Eventos ─────────────────────────────────────────────── */
+    thrSlider.addEventListener('input', update);
+
+    addBtn.addEventListener('click', function() {
+      amostras.push([0, 0.50]);
+      renderRows();
+      update();
+    });
+
+    var scBtns = document.querySelectorAll('#ep3-scenarios button');
+    scBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var data = CENARIOS[btn.id];
+        if (!data) return;
+        amostras = data.map(function(d) { return [d[0], d[1]]; });
+        renderRows();
+        scBtns.forEach(function(b) {
+          b.style.background = 'white';
+          b.style.color = '#555';
+          b.style.borderColor = '#ccc';
+        });
+        btn.style.background = '#e8f0fe';
+        btn.style.color = '#1a73e8';
+        btn.style.borderColor = '#1a73e8';
+        update();
+      });
+    });
+
+    /* ── Inicialização ───────────────────────────────────────── */
+    document.getElementById('ep3-sc1').click();
+
+  })();
+
+</script>
+</div><span></span>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-01-sim-map-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 1.14: Simulador: <em>Mean Average Precision</em> (mAP) - Curva P.S
+</figcaption>
+</div>
+</div>
+</div>
