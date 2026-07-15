@@ -1171,18 +1171,35 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 new_cells.append(cell)
                 cap_str = fig_cap or label
 
-                # Detecta automaticamente imagens em retrato (mais altas que largas,
-                # como fluxogramas) e reduz a largura no PDF para não estourar a altura
-                # da página.
                 width_attr = ''
                 try:
                     from PIL import Image
                     with Image.open(png_abs) as im:
                         w, h = im.size
-                    if h > w:  # retrato
-                        width_attr = ' width=65%'
+                        dpi = im.info.get('dpi', (96, 96))[0] or 96
+
+                    # Largura útil da página no PDF (em polegadas).
+                    # Ajuste conforme os margins usados no LaTeX/geometry (cover_hook.tex).
+                    PAGE_CONTENT_WIDTH_IN = 6.3  # ex.: A4 (21cm) - 2cm - 2cm margens ≈ 6.69in; ajuste fino se necessário
+
+                    img_width_in = w / dpi
+                    pct = (img_width_in / PAGE_CONTENT_WIDTH_IN) * 100
+                    pct = max(25, min(100, round(pct)))  # evita imagens minúsculas ou explosão >100%
+
+                    # Imagens em retrato (mais altas que largas) ainda recebem um teto
+                    # adicional para não estourar a altura da página.
+                    if h > w:
+                        pct = min(pct, 60)
+
+                    if pct < 100:
+                        width_attr = f' width={pct}%'
                 except Exception:
                     pass
+
+                if label in ["fig-04-sim-cdil"]:
+                    width_attr = " width=65%"
+                if label in ["fig-01-sim-map"]:
+                    width_attr = " width=90%"
 
                 new_cells.append(nbformat.v4.new_markdown_cell(':::'))
                 new_cells.append(nbformat.v4.new_markdown_cell(

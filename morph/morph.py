@@ -3,11 +3,12 @@ Morph – Operações morfológicas para Processamento de Imagens.
 Copyright 2024 Francisco de Assis Zampirolli, UFABC. License MIT.
 https://github.com/fzampirolli/morph - version 1.0
 https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py - version 1.1 - compacto
-Last update: Jun 2026
+Last update: Jul 2026
 """
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
+from typing import Optional
 import sys, subprocess
 import numpy as np
 import cv2
@@ -1204,7 +1205,215 @@ class mm:
             return np.array([[np.sum(f[i:i+Bh,j:j+Bw]*kernel)+bias
                               for j in range(W)] for i in range(H)]).astype(np.uint8)
 
+
     # ── BLOB / ANÁLISE DE COMPONENTES ────────────────────────────────────────
+
+    @staticmethod
+    def connectedComponents(img):
+        """Rotula os componentes conexos de uma imagem binária."""
+        return cv2.connectedComponents(img)
+
+    @staticmethod
+    def findContours(img, mode=cv2.RETR_EXTERNAL,
+                    method=cv2.CHAIN_APPROX_SIMPLE):
+        """Encontra os contornos de uma imagem binária."""
+        contornos, _ = cv2.findContours(img.copy(), mode, method)
+        return contornos
+
+    @staticmethod
+    def contourArea(contour):
+        """Calcula a área de um contorno."""
+        return cv2.contourArea(contour)
+
+    @staticmethod
+    def arcLength(contour, closed=True):
+        """Calcula o perímetro de um contorno."""
+        return cv2.arcLength(contour, closed)
+
+    @staticmethod
+    def boundingRect(contour):
+        """Retorna o retângulo envolvente (x, y, largura, altura)."""
+        return cv2.boundingRect(contour)
+
+    @staticmethod
+    def minAreaRect(contour):
+        """Retorna o menor retângulo que envolve o contorno."""
+        return cv2.minAreaRect(contour)
+
+    @staticmethod
+    def boxPoints(rect):
+        """Obtém os quatro vértices de um retângulo."""
+        return cv2.boxPoints(rect).astype(int)
+
+    @staticmethod
+    def minEnclosingCircle(contour):
+        """Retorna o menor círculo que envolve o contorno."""
+        (x, y), r = cv2.minEnclosingCircle(contour)
+        return (int(x), int(y)), int(r)
+
+    @staticmethod
+    def fitEllipse(contour):
+        """Ajusta uma elipse ao contorno.
+
+        O contorno deve possuir pelo menos 5 pontos.
+        """
+        return cv2.fitEllipse(contour)
+
+    @staticmethod
+    def convexHull(contour):
+        """Retorna o fecho convexo do contorno."""
+        return cv2.convexHull(contour)
+
+    @staticmethod
+    def approxPolyDP(contour, precision=0.01, closed=True):
+        """Aproxima um contorno por um polígono."""
+        return cv2.approxPolyDP(
+            contour,
+            precision * cv2.arcLength(contour, closed),
+            closed
+        )
+
+    @staticmethod
+    def fitLine(contour):
+        """Ajusta uma reta ao contorno."""
+        return cv2.fitLine(
+            contour,
+            cv2.DIST_L2,
+            0,
+            0.01,
+            0.01
+        )
+
+    
+    
+    # ── (dentro da classe mm) ──────────────────────────────────────────────
+    
+    @staticmethod
+    def measure(img: np.ndarray, precision: float = 0.01) -> Optional[list[dict]]:
+        """Extrai medidas geométricas dos objetos de uma imagem binária."""
+        if not mm.binary(img):
+            return None
+        medidas = []
+        for i, c in enumerate(mm.findContours(img), 1):
+            area = mm.contourArea(c)
+            per = mm.arcLength(c)
+            x, y, w, h = mm.boundingRect(c)
+    
+            M = cv2.moments(c)
+            cx = M["m10"] / M["m00"] if M["m00"] else 0
+            cy = M["m01"] / M["m00"] if M["m00"] else 0
+    
+            hull = mm.convexHull(c)
+            hull_area = mm.contourArea(hull)  # fix: checar área, não len(hull)
+            poly = mm.approxPolyDP(c, precision)
+    
+            medidas.append(dict(
+                id=i,
+                area=area,
+                perimeter=per,
+                center=(cx, cy),
+                bbox=(x, y, w, h),
+                circularity=4 * np.pi * area / per**2 if per else 0,
+                solidity=area / hull_area if hull_area else 0,
+                vertices=len(poly)
+            ))
+        return medidas
+        
+    
+    @staticmethod
+    def saveMeasures(filename: str, measures: list[dict], fmt: str = "csv",
+                    img_width: Optional[int] = None, img_height: Optional[int] = None,
+                    class_id: int = 0) -> None:
+        """Salva as medidas em CSV, texto simples ou formato YOLO.
+    
+        fmt: 'csv'  -> uma linha por objeto, com cabeçalho, separado por vírgula.
+            'txt'  -> mesmas colunas do csv, separadas por espaço, sem cabeçalho.
+            'yolo' -> <class_id> <x_center> <y_center> <width> <height>,
+                    valores normalizados em [0, 1]. Exige img_width/img_height.
+    
+        class_id: usado apenas em fmt='yolo'; assume mesma classe para todos os
+                objetos (passe um valor fixo, ou pré-processe `measures` se
+                precisar de classes distintas por objeto).
+        """
+        header = None
+    
+        if fmt == "yolo":
+            if img_width is None or img_height is None:
+                raise ValueError("fmt='yolo' exige img_width e img_height")
+    
+            def linha(m):
+                x, y, w, h = m["bbox"]
+                xc, yc = (x + w / 2) / img_width, (y + h / 2) / img_height
+                wn, hn = w / img_width, h / img_height
+                return f"{class_id} {xc:.6f} {yc:.6f} {wn:.6f} {hn:.6f}"
+    
+        else:
+            sep = "," if fmt == "csv" else " "
+            if fmt == "csv":
+                header = sep.join([
+                    "id", "area", "perimeter", "cx", "cy", "x", "y", "w", "h",
+                    "circularity", "solidity", "vertices"
+                ])
+    
+            def linha(m):
+                x, y, w, h = m["bbox"]
+                cx, cy = m["center"]
+                campos = [m["id"], m["area"], round(m["perimeter"], 2),
+                        round(cx, 2), round(cy, 2), x, y, w, h,
+                        round(m["circularity"], 3), round(m["solidity"], 3),
+                        m["vertices"]]
+                return sep.join(map(str, campos))
+    
+        with open(filename, "w") as f:
+            if header:
+                f.write(header + "\n")
+            for m in measures:
+                f.write(linha(m) + "\n")
+    
+    
+    # ── verificação de gabarito via IoU (substitui o antigo verifyBoundBox) ────
+    
+    @staticmethod
+    def iou(boxA: tuple, boxB: tuple) -> float:
+        """Intersection over Union entre duas bounding boxes (x, y, w, h)."""
+        ax1, ay1, aw, ah = boxA
+        bx1, by1, bw, bh = boxB
+        ax2, ay2 = ax1 + aw, ay1 + ah
+        bx2, by2 = bx1 + bw, by1 + bh
+    
+        ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+        ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+        iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+        inter = iw * ih
+    
+        union = aw * ah + bw * bh - inter
+        return inter / union if union else 0.0
+    
+    
+    @staticmethod
+    def verifyBoundBox(object_id: int, bbox: tuple, matrix: np.ndarray,
+                        width: int, height: int, threshold: float = 0.5) -> int:
+        """Conta quantos gabaritos do objeto `object_id` casam com `bbox` via IoU.
+    
+        matrix: linhas no formato [id, x1_norm, y1_norm, x2_norm, y2_norm]
+                (coordenadas normalizadas em [0,1], como no formato original).
+        bbox:   (x, y, w, h) do objeto detectado, em pixels.
+        threshold: IoU mínimo para considerar "correto" (padrão 0.5, o valor
+                usual em detecção de objetos).
+        """
+        correct = 0
+        for v in matrix[matrix[:, 0] == object_id]:
+            x1, y1 = v[1] * width, v[2] * height
+            x2, y2 = v[3] * width, v[4] * height
+            gabarito_bbox = (x1, y1, x2 - x1, y2 - y1)
+            if mm.iou(bbox, gabarito_bbox) >= threshold:
+                correct += 1
+        return correct
+    
+
+
+
+    # ── BLOB / ANÁLISE DE COMPONENTES ANTIGO ────────────────────────────────────────
 
     @staticmethod
     def blob(f, op='area', border=1, precision=0.01, show='True'):
