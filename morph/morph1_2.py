@@ -6,14 +6,16 @@ https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py - version 1.1 -
 Last update: Jul 2026
 """
 
-__version__ = "1.1.5"
+__version__ = "1.1.2"
 
 from typing import Optional
-import sys
+import sys, subprocess
+import numpy as np
+import cv2
 
 
 class mm:
-    """Helper class for image processing tasks optimized for minimal RAM usage."""
+    """Helper class for image processing tasks."""
 
     IN_INTERACTIVE = (
         'google.colab' in sys.modules          # Google Colab
@@ -23,69 +25,23 @@ class mm:
 
     count_Images = 0
 
-    # Atributos privados para guardar cache das importações (Lazy Loading)
-    _cv2 = None
-    _np = None
-    _plt = None
-    _measure = None
-    _scipy_ndimage = None
-
-    @classmethod
-    def _get_cv2(cls):
-        if cls._cv2 is None:
-            import cv2
-            cls._cv2 = cv2
-        return cls._cv2
-
-    @classmethod
-    def _get_np(cls):
-        if cls._np is None:
-            import numpy as np
-            cls._np = np
-        return cls._np
-
-    @classmethod
-    def _get_plt(cls):
-        if cls._plt is None:
-            import matplotlib.pyplot as plt
-            cls._plt = plt
-        return cls._plt
-
-    @classmethod
-    def _get_skmeasure(cls):
-        if cls._measure is None:
-            from skimage import measure
-            cls._measure = measure
-        return cls._measure
-
-    @classmethod
-    def _get_scipy_ndimage(cls):
-        if cls._scipy_ndimage is None:
-            import scipy.ndimage as ndimage
-            cls._scipy_ndimage = ndimage
-        return cls._scipy_ndimage
-
     def __init__(self): pass
 
     # ── UTILITIES ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def install(packages=None):
+    def install(packages=['matplotlib', 'numpy', 'opencv-python']):
         """Instala pacotes pip. Ex: mm.install(['scikit-image'])"""
-        if packages is None:
-            packages = ['matplotlib', 'numpy', 'opencv-python']
-        import subprocess
         for p in packages:
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
     @staticmethod
     def read(file, pil=False, grayscale=False):
         """Lê imagem (local, URL ou Google Drive) → PIL.Image, ndarray 2D ou RGB 3D."""
-        import re, requests
+        import re, requests, numpy as np
         from PIL import Image
         from io import BytesIO
         from urllib.request import urlopen, Request
-        np = mm._get_np()
 
         # — fonte: URL / Google Drive —
         if isinstance(file, str) and file.startswith(("http://", "https://", "id=")):
@@ -113,9 +69,46 @@ class mm:
         return np.array(img.convert("RGB"))                            # (H,W,3)
 
     @staticmethod
+    def read_old2(file, pil=False):
+        """
+        Lê imagem local, URL ou Google Drive.
+        pil=True → PIL.Image
+        padrão   → ndarray RGB uint8
+        """
+        import re, requests, numpy as np
+        from PIL import Image
+        from io import BytesIO
+        from urllib.request import urlopen, Request
+        if isinstance(file, str) and file.startswith(("http://", "https://", "id=")):
+            m = (re.search(r"id=([\w-]+)", file) or
+                re.search(r"/d/([\w-]+)", file))
+            url = (
+                f"https://drive.google.com/uc?export=view&id={m.group(1)}"
+                if m and ("id=" in file or "drive.google.com" in file)
+                else file
+            )
+            headers = {
+                "User-Agent":
+                "Mozilla/5.0 AppleWebKit/537.36 Chrome/124 Safari/537.36"
+            }
+            try:
+                r = requests.get(url, headers=headers, timeout=20)
+                if r.status_code == 429:
+                    raise requests.exceptions.HTTPError()
+                r.raise_for_status()
+                source = BytesIO(r.content)
+            except:
+                req = Request(url, headers=headers)
+                source = BytesIO(urlopen(req, timeout=20).read())
+        else:
+            source = file
+        img = Image.open(source)
+        img.load()
+        return img if pil else np.array(img.convert("RGB"))
+
+    @staticmethod
     def color(img):
         """Converte imagem para RGB."""
-        cv2 = mm._get_cv2()
         if img.ndim == 2:         return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         if img.shape[2] == 4:    return cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -123,20 +116,17 @@ class mm:
     @staticmethod
     def gray(img):
         """Converte imagem colorida para escala de cinza."""
-        cv2 = mm._get_cv2()
         return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY if img.ndim==3 and img.shape[2]==4
                             else cv2.COLOR_RGB2GRAY)
 
     @staticmethod
     def neg(f):
         """Inverte a imagem."""
-        cv2 = mm._get_cv2()
         return cv2.bitwise_not(f)
 
     @staticmethod
     def binary(f):
         """True se binária, False se não, None se vazia."""
-        np = mm._get_np()
         hist, _ = np.histogram(f.ravel(), 256, [0, 256])
         nz = np.count_nonzero(hist > 0)
         return True if nz == 2 else (False if nz > 2 else None)
@@ -145,8 +135,12 @@ class mm:
 
     @staticmethod
     def readImg(h, w):
-        """Lê imagem h×w da entrada padrão (pixels por linha separados por espaço)."""
-        np = mm._get_np()
+        """Lê imagem h×w da entrada padrão (pixels por linha separados por espaço).
+        Exemplo:
+          mm.readImg(3, 4)
+          0 1 0 0
+          1 1 1 1
+          0 1 0 0"""
         m = np.zeros((h, w), dtype='uint8')
         for l in range(h):
             m[l] = [int(i) for i in input().split() if i]
@@ -155,7 +149,6 @@ class mm:
     @staticmethod
     def readImg2():
         """Lê imagem de tamanho variável da entrada padrão (até linha vazia)."""
-        np = mm._get_np()
         rows = []
         while line := input():
             rows.append([int(i) for i in line.split() if i])
@@ -164,13 +157,12 @@ class mm:
     @staticmethod
     def randomImage(h, w, maxValue=9):
         """Cria imagem aleatória h×w com valores em [0, maxValue]."""
-        np = mm._get_np()
         return np.random.randint(maxValue + 1, size=(h, w)).astype('uint8')
+
 
     @staticmethod
     def resize(img, size_or_factor, method='bilinear'):
         """Redimensiona imagem via OpenCV integrado ao mm: nearest, bilinear, bicubic."""
-        cv2 = mm._get_cv2()
         interp = {'nearest': cv2.INTER_NEAREST, 'bilinear': cv2.INTER_LINEAR, 'bicubic': cv2.INTER_CUBIC}
         m = interp.get(method, cv2.INTER_LINEAR)
         
@@ -181,7 +173,7 @@ class mm:
     @staticmethod
     def rotate(img, angle, center=None, scale=1.0, interp='bilinear'):
         """Rotaciona uma imagem em torno de um ponto central."""
-        cv2 = mm._get_cv2()
+        import cv2
         flags = {'nearest': cv2.INTER_NEAREST,
                 'bilinear': cv2.INTER_LINEAR,
                 'bicubic': cv2.INTER_CUBIC}.get(interp, cv2.INTER_LINEAR)
@@ -193,17 +185,17 @@ class mm:
     
     @staticmethod
     def translate(img, tx, ty):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
+        import cv2
+        import numpy as np
         h, w = img.shape[:2]
         M = np.float32([[1, 0, tx], [0, 1, ty]])
         return cv2.warpAffine(img, M, (w, h))
+    
 
     @staticmethod
     def shear(img, shx=0.0, shy=0.0, method='bilinear'):
         """Aplica cisalhamento afim. method: 'nearest', 'bilinear', 'bicubic', 'lanczos'."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
+        import cv2, numpy as np
         _m = {'nearest': cv2.INTER_NEAREST, 'bilinear': cv2.INTER_LINEAR,
             'bicubic': cv2.INTER_CUBIC,   'lanczos':  cv2.INTER_LANCZOS4}
         h, w = img.shape[:2]
@@ -212,18 +204,32 @@ class mm:
 
     @staticmethod
     def perspective_transform(img, pts1, pts2, size=None):
-        """Aplica transformação de perspectiva (homografia) em uma imagem."""
-        cv2 = mm._get_cv2()
+        """
+        Aplica transformação de perspectiva (homografia) em uma imagem.
+        
+        Parâmetros:
+            img: imagem de entrada (numpy array)
+            pts1: pontos de origem (4 pontos) no formato np.float32
+            pts2: pontos de destino (4 pontos) no formato np.float32
+            size: tupla (largura, altura) da imagem de saída. Se None, usa o tamanho original.
+        
+        Retorna:
+            imagem transformada
+        """
+        import cv2
+        import numpy as np
+        
         if size is None:
             h, w = img.shape[:2]
             size = (w, h)
+        
         M = cv2.getPerspectiveTransform(pts1, pts2)
-        return cv2.warpPerspective(img, M, size)
+        dst = cv2.warpPerspective(img, M, size)
+        return dst
 
     @staticmethod
     def show(*args, title=None, titles=None, cols=3, rows=None, figsize=None, axis=False, dpi=150, scale=50):
-        plt = mm._get_plt()
-        np = mm._get_np()
+        import matplotlib.pyplot as plt
         colors = [[255,0,0],[0,255,0],[0,0,255],[255,0,255],[0,255,255],[255,255,0],[255,50,50],[50,255,50]]
         if isinstance(args[0], list):
             images = args[0]
@@ -248,7 +254,7 @@ class mm:
             h, w = f.shape[:2]
             if figsize is None:
                 ratio   = h / w
-                fw      = max(min(w / dpi * scale / 100, 12), 3)
+                fw      = max(min(w / dpi * scale / 100, 12), 3)   # mínimo 3", máximo 12"
                 fh      = max(min(fw * ratio, 12), 3)
                 figsize = (fw, fh)
             plt.figure(figsize=figsize, dpi=dpi)
@@ -258,12 +264,11 @@ class mm:
         plt.savefig(f'fig_{mm.count_Images:04d}.png') if not mm.IN_INTERACTIVE else plt.show()
         mm.count_Images += not mm.IN_INTERACTIVE
 
+
     @staticmethod
     def write(img, path):
         """Salva imagem em disco. Aceita numpy array (RGB ou cinza) ou PIL Image."""
         import os
-        np = mm._get_np()
-        cv2 = mm._get_cv2()
         os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
         if isinstance(img, np.ndarray):
             if img.ndim == 3 and img.shape[2] == 3:
@@ -271,9 +276,11 @@ class mm:
             else:
                 cv2.imwrite(path, img)
         else:
+            # PIL Image — preserva EXIF se disponível
             exif = img.info.get("exif", b"")
             img.save(path, exif=exif) if exif else img.save(path)
 
+            
     @staticmethod
     def drawImg(f):
         return mm.drawImage(f)
@@ -281,7 +288,7 @@ class mm:
     @staticmethod
     def drawImage(f):
         """Retorna string formatada da matriz para impressão."""
-        width = max(len(str(f.max())), len(str(f.min())))
+        width = max(len(str(f.max())), len(str(f.min())))  # considera sinal do negativo
         fmt = '%' + str(width) + 'd '
         return ''.join(
             ''.join(fmt % f[i,j] for j in range(f.shape[1])) + '\n'
@@ -291,7 +298,7 @@ class mm:
     @staticmethod
     def _plot_grid(f):
         """Configura grade e rótulos para drawImagePlt/drawImageKernel."""
-        plt = mm._get_plt()
+        import matplotlib.pyplot as plt
         h, w = f.shape
         plt.rcParams.update({'xtick.bottom':False,'xtick.labelbottom':False,
                              'xtick.top':True,'xtick.labeltop':True})
@@ -301,6 +308,7 @@ class mm:
         [plt.axvline(i+.5, 0, h, color='r') for i in range(w-1)]
         [plt.axhline(j+.5, 0, w, color='r') for j in range(h-1)]
 
+ 
     @staticmethod
     def drawImgKernel(f, B, x, y, scale=40):
         return mm.drawImageKernel(f, B, x, y, scale)
@@ -308,7 +316,7 @@ class mm:
     @staticmethod
     def drawImageKernel(f,B,x,y,scale=40):
         """Exibe imagem com kernel B centrado em (x,y)."""
-        plt = mm._get_plt()
+        import matplotlib.pyplot as plt
         Bh,Bw=B.shape
         Bcx,Bcy=Bw//2,Bh//2
         h,w=f.shape[:2]
@@ -326,28 +334,34 @@ class mm:
 
     @staticmethod
     def drawImagePlt(f, scale=40):
-        """ Displays the input image f using Matplotlib."""
-        plt = mm._get_plt()
+        """ Displays the input image f using Matplotlib.
+        Args: f (ndarray): The input image.
+        Example: drawImagePlt(f) """
+        import matplotlib.pyplot as plt
+        # Set up the plot.
         h,w=f.shape[:2]
         plt.figure(figsize=(w/100*scale,h/100*scale))
         plt.rcParams['xtick.bottom'] = plt.rcParams['xtick.labelbottom'] = False
         plt.rcParams['xtick.top'] = plt.rcParams['xtick.labeltop'] = True
+        # Display the image.
         _ = plt.imshow(f, 'gray')
+        # Set the tick marks and labels.
         plt.yticks(range(h))
         plt.xticks(range(w))
         plt.ylabel('y')
         plt.xlabel('x')
+        # Add grid lines.
         [plt.axvline(i + .5, 0, h, color='r') for i in range(w - 1)]
         [plt.axhline(j + .5, 0, w, color='r') for j in range(h - 1)]
 
     @staticmethod
     def lblshow(f, border=3):
         """Exibe contornos coloridos de cada componente."""
-        plt = mm._get_plt()
-        skmeasure = mm._get_skmeasure()
+        import matplotlib.pyplot as plt
+        from skimage import measure
         fig, ax = plt.subplots()
         ax.imshow(f, interpolation='nearest', cmap=plt.cm.gray)
-        for c in skmeasure.find_contours(f, 0.0):
+        for c in measure.find_contours(f, 0.0):
             ax.plot(c[:,1], c[:,0], linewidth=border)
         ax.axis('image'); ax.set_xticks([]); ax.set_yticks([])
         plt.imshow(f, "gray")
@@ -358,46 +372,44 @@ class mm:
     # ── OPERAÇÕES BÁSICAS ────────────────────────────────────────────────────
 
     @staticmethod
-    def subm(f, g):   return mm._get_cv2().subtract(f, g)
+    def subm(f, g):   return cv2.subtract(f, g)
     @staticmethod
-    def addm(f, g):   return mm._get_cv2().add(f, g)
+    def addm(f, g):   return cv2.add(f, g)
     @staticmethod
-    def union(f, g):  return mm._get_np().maximum(f, g)
+    def union(f, g):  return np.maximum(f, g)
     @staticmethod
-    def intersec(f1, f2): return mm._get_np().minimum(f1, f2)
+    def intersec(f1, f2): return np.minimum(f1, f2)
 
     @staticmethod
     def blend(f, g, alpha=0.5):
         """Mistura ponderada: alpha*f + (1-alpha)*g, com clipping para uint8."""
-        np = mm._get_np()
         return np.clip(
             alpha * f.astype(np.float32) + (1 - alpha) * g.astype(np.float32),
             0, 255
         ).astype(np.uint8)
     
     @staticmethod
-    def band(f, g):   return mm._get_cv2().bitwise_and(f, g)
+    def band(f, g):   return cv2.bitwise_and(f, g)
     @staticmethod
-    def bor(f, g):    return mm._get_cv2().bitwise_or(f, g)
+    def bor(f, g):    return cv2.bitwise_or(f, g)
     @staticmethod
-    def bxor(f, g):   return mm._get_cv2().bitwise_xor(f, g)
+    def bxor(f, g):   return cv2.bitwise_xor(f, g)
     @staticmethod
-    def bnot(f):      return mm._get_cv2().bitwise_not(f)
+    def bnot(f):      return cv2.bitwise_not(f)
 
     @staticmethod
     def threshold(img, limiar=None):
         """Limiarização binária. Se limiar for None, utiliza o método de Otsu."""
-        cv2 = mm._get_cv2()
+        # Se limiar for None, ativa o Otsu e passa 0 como valor inicial para a OpenCV
         flags = cv2.THRESH_BINARY + (cv2.THRESH_OTSU if limiar is None else 0)
         valor_limiar = 0 if limiar is None else limiar
+        
         _, th = cv2.threshold(img, valor_limiar, 255, flags)
         return th
 
     # ── HISTOGRAMA / EQUALIZAÇÃO ─────────────────────────────────────────────
 
-    @staticmethod
     def hist(img, B=8):
-        np = mm._get_np()
         H = np.zeros(2**B, dtype=int)
         for v in img.flatten(): H[v] += 1
         return H
@@ -405,7 +417,6 @@ class mm:
     @staticmethod
     def histPlus(img):
         """Histograma e dicionário de pixels por cor."""
-        np = mm._get_np()
         H = np.zeros(int(img.max()) + 1, dtype=int)
         vet = {}
         for i, cor in enumerate(img.flatten()):
@@ -417,8 +428,8 @@ class mm:
     def histImg(img, vmax=None, color="steelblue"):
         """Renderiza o histograma de img como array NumPy (para uso em mm.show)."""
         import io
-        plt = mm._get_plt()
-        np = mm._get_np()
+        import matplotlib.pyplot as plt
+        import numpy as np
         H = mm.hist(img)
         vmax = vmax if vmax is not None else int(img.max())
         fig, ax = plt.subplots(figsize=(4, 3))
@@ -432,10 +443,8 @@ class mm:
         buf.seek(0)
         return np.array(plt.imread(buf))
 
-    @staticmethod
     def equalize(image, B=8):
         """Equalização de histograma pela CDF: s_k = (L-1) * CDF(r_k)."""
-        np = mm._get_np()
         Lmax = 2**B
         h = mm.hist(image, B)
         cdf = np.cumsum(h / h.sum())
@@ -443,13 +452,13 @@ class mm:
         return lut[image]
 
     @staticmethod
-    def equalizacao(image):
+    def equalizacao(image): # old
         """Equalização pelo valor máximo."""
-        np = mm._get_np()
         h = mm.hist(image)
         prob = h / h.sum()
         soma = np.cumsum(prob) * image.max()
         soma = np.round(soma)
+        l, c = image.shape
         out = np.vectorize(lambda v: soma[v])(image)
         return out.astype('int')
 
@@ -458,73 +467,64 @@ class mm:
     @staticmethod
     def sesum(b, n=0):
         """Soma de Minkowski nB."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        def _s(nb, b_struct):
-            h, w = b_struct.shape
+        def _s(nb, b):
+            h, w = b.shape
             nbh, nbw = nb.shape
             H = nbh+h-1 if h%2 else nbh+h
             W = nbw+w-1 if w%2 else nbw+w
             r = np.zeros((H, W), dtype='uint8')
             r[h//3:-(h//3), w//3:-(w//3)] = nb
-            return cv2.dilate(r, b_struct).astype('uint8')
+            return cv2.dilate(r, b).astype('uint8')
         B = b.copy()
         for _ in range(n): B = _s(B, b)
         return B
 
     @staticmethod
-    def sebox(n=0):
-        np = mm._get_np()
-        return mm.sesum(np.ones((3,3), dtype='uint8'), n)
-
+    def sebox(n=0):   return mm.sesum(np.ones((3,3), dtype='uint8'), n)
     @staticmethod
     def secross(n=0):
-        np = mm._get_np()
         B = np.ones((3,3), dtype='uint8')
         B[0,0]=B[0,2]=B[2,0]=B[2,2]=0
         return mm.sesum(B, n)
-
     @staticmethod
-    def sedisk(n=3):
-        cv2 = mm._get_cv2()
-        return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
+    def sedisk(n=3):  return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
 
     # ── VIZINHANÇA (helper interno) ───────────────────────────────────────────
+
 
     @staticmethod
     def _viz(f, B, y, x):
         """Gera (vy, vx, b_val) para cada vizinho válido de (y,x)."""
-        np = mm._get_np()
         H, W = f.shape
         Bh, Bw = B.shape
-        oh, ow = -Bh/2 + 0.5, -Bw/2 + 0.5
+        oh, ow = -Bh/2 + 0.5, -Bw/2 + 0.5  # offsets fixos
         for by, bx in np.ndindex(Bh, Bw):
             vy, vx = int(y + by + oh), int(x + bx + ow)
             if 0 <= vy < H and 0 <= vx < W:
                 yield vy, vx, B[by, bx]
                 
-    # ── FILTROS / CORRELAÇÃO ─────────────────────────────────────────────────
+    # implementações de correlação/convolução
 
     @staticmethod
     def conv(f, w):
         """Correlação vetorizada via cv2.filter2D (eficiente)."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
         return cv2.filter2D(f, -1, w.astype(np.float32))
     
     @staticmethod
     def conv0(f, w):
         """Correlação didática (laços explícitos) — bordas mantidas como original."""
-        np = mm._get_np()
         f  = f.astype(np.float32)
         a, b = w.shape[0]//2, w.shape[1]//2
         H, W = f.shape
-        g = f.copy()
+        g = f.copy()                              # bordas ficam inalteradas
         for y in range(a, H-a):
             for x in range(b, W-b):
-                viz = f[y-a:y+a+1, x-b:x+b+1]
+                viz = f[y-a:y+a+1, x-b:x+b+1]   # vizinhança centrada em (y,x)
                 g[y,x] = (w * viz).sum()
         return np.clip(g, 0, 255).astype(np.uint8)
+
+
+    # ── FILTROS ───────────────────────────────────────────────────
 
     @staticmethod
     def blur0(f, N=3):
@@ -540,13 +540,11 @@ class mm:
     @staticmethod
     def blur(f, N=3):
         """Filtro de média N×N via cv2: borda copiada."""
-        return mm._get_cv2().blur(f, (N, N))
+        return cv2.blur(f, (N, N))
 
     @staticmethod
     def gaussian0(f, N=3, sigma=0):
         """Filtro Gaussiano N×N (Python pura): borda copiada."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
         r = N // 2
         L, C = f.shape
 
@@ -555,37 +553,33 @@ class mm:
         h /= h.sum()
 
         g = f.copy().astype(float)
+
         for i in range(r, L-r):
             for j in range(r, C-r):
                 g[i,j] = round(np.sum(f[i-r:i+r+1, j-r:j+r+1] * h))
+
         return g.astype('uint8')
 
     @staticmethod
     def gaussian(f, N=3, sigma=0):
         """Filtro Gaussiano N×N via cv2: borda copiada."""
-        return mm._get_cv2().GaussianBlur(f, (N, N), sigma)   
+        return cv2.GaussianBlur(f, (N, N), sigma)   
 
     @staticmethod
-    def laplacian0(f, B=None):
+    def laplacian0(f, B=np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)):
         """Realce por Laplaciano (Python pura): g = clip(f - conv(f,B)), borda copiada."""
-        np = mm._get_np()
-        if B is None:
-            B = np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)
         g = f.copy().astype(int)
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
                 viz = list(mm._viz(f, B, y, x))
-                if len(viz) == B.size:
+                if len(viz) == B.size:  # só pixels totalmente internos
                     lap = sum(int(f[vy,vx]) * bv for vy,vx,bv in viz)
                     g[y,x] = max(0, min(255, int(f[y,x]) - lap))
         return g.astype('uint8')
 
     @staticmethod
-    def laplacian_viz0(f, B=None):
+    def laplacian_viz0(f, B=np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)):
         """Visualização do Laplaciano bruto (Python pura): normaliza |lap| para [0,255]."""
-        np = mm._get_np()
-        if B is None:
-            B = np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)
         g = np.zeros_like(f, dtype=np.float32)
         r = B.shape[0] // 2
         for y in range(r, f.shape[0]-r):
@@ -597,104 +591,89 @@ class mm:
         return np.clip(np.abs(g) / mx * 255, 0, 255).astype(np.uint8)
                                                             
     @staticmethod
-    def laplacian_viz(f, B=None):
+    def laplacian_viz(f, B=np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)):
         """Visualização do Laplaciano bruto via cv2: normaliza |lap| para [0,255]."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if B is None:
-            B = np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)
         lap = cv2.filter2D(f.astype(np.float32), -1, B)
         return np.clip(np.abs(lap) / np.abs(lap).max() * 255, 0, 255).astype(np.uint8)
 
     @staticmethod
-    def laplacian(f, B=None):
+    def laplacian(f, B=np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)):
         """Realce por Laplaciano via cv2: borda copiada."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if B is None:
-            B = np.array([[0,1,0],[1,-4,1],[0,1,0]], dtype=np.float32)
         lap = cv2.filter2D(f.astype(np.float32), -1, B)
-        return np.clip(f.astype(np.float32) - lap, 0, 255).astype('uint8')
+        out = np.clip(f.astype(np.float32) - lap, 0, 255).astype('uint8')
+        return out
 
     @staticmethod
-    def sobel0(f, Bx=None, By=None):
+    def sobel0(f,
+            Bx=np.array([[-1,0,1],[-2,0,2],[-1,0,1]], dtype=np.float32),
+            By=np.array([[-1,-2,-1],[0,0,0],[1,2,1]], dtype=np.float32)):
         """Magnitude do gradiente de Sobel (Python pura): borda zero."""
-        np = mm._get_np()
-        if Bx is None:
-            Bx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]], dtype=np.float32)
-        if By is None:
-            By = np.array([[-1,-2,-1],[0,0,0],[1,2,1]], dtype=np.float32)
         g = np.zeros(f.shape, dtype='uint8')
         H, W = f.shape
         for y in range(1, H-1):
             for x in range(1, W-1):
-                gx = sum(float(f[y+dy, x+dx]) * Bx[dy+1, dx+1] for dy in [-1,0,1] for dx in [-1,0,1])
-                gy = sum(float(f[y+dy, x+dx]) * By[dy+1, dx+1] for dy in [-1,0,1] for dx in [-1,0,1])
+                gx = sum(float(f[y+dy, x+dx]) * Bx[dy+1, dx+1]
+                        for dy in [-1,0,1] for dx in [-1,0,1])
+                gy = sum(float(f[y+dy, x+dx]) * By[dy+1, dx+1]
+                        for dy in [-1,0,1] for dx in [-1,0,1])
                 g[y,x] = max(0, min(255, round((gx**2 + gy**2)**0.5)))
         return g
 
     @staticmethod
-    def sobel(f, Bx=None, By=None):
+    def sobel(f,
+            Bx=np.array([[-1,0,1],[-2,0,2],[-1,0,1]], dtype=np.float32),
+            By=np.array([[-1,-2,-1],[0,0,0],[1,2,1]], dtype=np.float32)):
         """Magnitude do gradiente de Sobel via cv2: borda zero."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if Bx is None:
-            Bx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]], dtype=np.float32)
-        if By is None:
-            By = np.array([[-1,-2,-1],[0,0,0],[1,2,1]], dtype=np.float32)
-        gx = cv2.filter2D(f.astype(np.float32), -1, Bx, borderType=cv2.BORDER_ISOLATED)
-        gy = cv2.filter2D(f.astype(np.float32), -1, By, borderType=cv2.BORDER_ISOLATED)
+        gx = cv2.filter2D(f.astype(np.float32), -1, Bx,
+                        borderType=cv2.BORDER_ISOLATED)
+        gy = cv2.filter2D(f.astype(np.float32), -1, By,
+                        borderType=cv2.BORDER_ISOLATED)
         return np.clip(np.round(np.sqrt(gx**2 + gy**2)), 0, 255).astype('uint8')
 
     @staticmethod
-    def prewitt0(f, Bx=None, By=None):
+    def prewitt0(f,
+                Bx=np.array([[-1,0,1],[-1,0,1],[-1,0,1]], dtype=np.float32),
+                By=np.array([[-1,-1,-1],[0,0,0],[1,1,1]], dtype=np.float32)):
         """Magnitude do gradiente de Prewitt (Python pura): borda zero."""
-        np = mm._get_np()
-        if Bx is None:
-            Bx = np.array([[-1,0,1],[-1,0,1],[-1,0,1]], dtype=np.float32)
-        if By is None:
-            By = np.array([[-1,-1,-1],[0,0,0],[1,1,1]], dtype=np.float32)
         g = np.zeros(f.shape, dtype='uint8')
         H, W = f.shape
         for y in range(1, H-1):
             for x in range(1, W-1):
-                gx = sum(float(f[y+dy, x+dx]) * Bx[dy+1, dx+1] for dy in [-1,0,1] for dx in [-1,0,1])
-                gy = sum(float(f[y+dy, x+dx]) * By[dy+1, dx+1] for dy in [-1,0,1] for dx in [-1,0,1])
+                gx = sum(float(f[y+dy, x+dx]) * Bx[dy+1, dx+1]
+                        for dy in [-1,0,1] for dx in [-1,0,1])
+                gy = sum(float(f[y+dy, x+dx]) * By[dy+1, dx+1]
+                        for dy in [-1,0,1] for dx in [-1,0,1])
                 g[y,x] = max(0, min(255, round((gx**2 + gy**2)**0.5)))
         return g
 
     @staticmethod
-    def prewitt(f, Bx=None, By=None):
-        """Magnitude do gradiente de Prewitt via cv2: borda zero."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if Bx is None:
-            Bx = np.array([[-1,0,1],[-1,0,1],[-1,0,1]], dtype=np.float32)
-        if By is None:
-            By = np.array([[-1,-1,-1],[0,0,0],[1,1,1]], dtype=np.float32)
-        gx = cv2.filter2D(f.astype(np.float32), -1, Bx, borderType=cv2.BORDER_ISOLATED)
-        gy = cv2.filter2D(f.astype(np.float32), -1, By, borderType=cv2.BORDER_ISOLATED)
+    def prewitt(f,
+                Bx=np.array([[-1,0,1],[-1,0,1],[-1,0,1]], dtype=np.float32),
+                By=np.array([[-1,-1,-1],[0,0,0],[1,1,1]], dtype=np.float32)):
+        """Magnitude do gradiente de Prewitt via cv2: borda zero. """
+        gx = cv2.filter2D(f.astype(np.float32), -1, Bx,
+                        borderType=cv2.BORDER_ISOLATED)
+        gy = cv2.filter2D(f.astype(np.float32), -1, By,
+                        borderType=cv2.BORDER_ISOLATED)
         return np.clip(np.round(np.sqrt(gx**2 + gy**2)), 0, 255).astype('uint8')
 
     @staticmethod
     def canny0(f, t_low=50, t_high=150, ksize=3, sigma=0):
-        """Detector de Canny (Python pura, didático)."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        scipy_nd = mm._get_scipy_ndimage()
+        """Detector de Canny (Python pura, didático): Gaussiano → Sobel → NMS → histerese."""
+        from scipy.ndimage import convolve, label
 
         # 1. suavização
         k = cv2.getGaussianKernel(ksize, sigma)
-        s = scipy_nd.convolve(f.astype(np.float32), k @ k.T)
+        s = convolve(f.astype(np.float32), k @ k.T)
 
         # 2. gradiente
         Bx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]], dtype=np.float32)
         By = np.array([[-1,-2,-1],[0,0,0],[1,2,1]], dtype=np.float32)
-        gx, gy = scipy_nd.convolve(s, Bx), scipy_nd.convolve(s, By)
+        gx, gy = convolve(s, Bx), convolve(s, By)
         mag    = np.sqrt(gx**2 + gy**2)
         angle  = np.degrees(np.arctan2(gy, gx)) % 180
 
-        # 3. supressão de não-máximos
+        # 3. supressão de não-máximos (laço inevitável — acesso por direção)
         nms = np.zeros_like(mag)
         H, W = f.shape
         for y in range(1, H-1):
@@ -707,10 +686,10 @@ class mm:
                 if mag[y, x] >= n1 and mag[y, x] >= n2:
                     nms[y, x] = mag[y, x]
 
-        # 4. histerese
+        # 4. histerese via flood-fill em componentes conectados
         strong = nms >= t_high
         weak   = (nms >= t_low) & ~strong
-        labeled, _ = scipy_nd.label(weak | strong)
+        labeled, _ = label(weak | strong)
         keep   = {labeled[y, x] for y, x in zip(*np.where(strong))}
         out    = np.zeros((H, W), dtype=np.uint8)
         out[(strong | weak) & np.isin(labeled, list(keep))] = 255
@@ -719,16 +698,13 @@ class mm:
     @staticmethod
     def canny(f, t_low=50, t_high=150, ksize=5, sigma=0):
         """Detector de Canny via cv2."""
-        cv2 = mm._get_cv2()
         blurred = cv2.GaussianBlur(f, (ksize, ksize), sigma)
         return cv2.Canny(blurred, t_low, t_high)
 
+
     @staticmethod
-    def median0(f, B=None, border='copy'):
+    def median0(f, B=np.zeros((3,3), dtype='uint8'), border='copy'):
         """border: 'copy' (padrão) ou 'zero'."""
-        np = mm._get_np()
-        if B is None:
-            B = np.zeros((3,3), dtype='uint8')
         g = f.copy() if border == 'copy' else np.zeros_like(f)
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
@@ -741,20 +717,20 @@ class mm:
     @staticmethod
     def median(f, ksize=3):
         """Filtro da mediana via cv2: tamanho configurável (ímpar)."""
-        return mm._get_cv2().medianBlur(f, ksize)
+        return cv2.medianBlur(f, ksize)
+
 
     @staticmethod
     def usm0(f, k=1.0, w=None):
         """Unsharp Masking (Python pura): g = clip(round(f + k*(f - mean))), borda copiada."""
-        np = mm._get_np()
         if w is None:
             a, b = 1, 1
-            def blur_pixel(img, i, j):
-                return img[i-1:i+2, j-1:j+2].mean()
+            def blur_pixel(f, i, j):
+                return f[i-1:i+2, j-1:j+2].mean()
         else:
             a, b = w.shape[0] // 2, w.shape[1] // 2
-            def blur_pixel(img, i, j):
-                return (w * img[i-a:i+a+1, j-b:j+b+1]).sum()
+            def blur_pixel(f, i, j):
+                return (w * f[i-a:i+a+1, j-b:j+b+1]).sum()
 
         L, C = f.shape
         fbar = f.copy().astype(float)
@@ -771,33 +747,27 @@ class mm:
 
     @staticmethod
     def usm(f, k=1.0, w=None):
-        """Unsharp Masking via cv2: g = clip(round(f + k*(f - blur))), borda copiada."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
+        """Unsharp Masking via cv2: g = clip(round(f + k*(f - blur))), borda copiada.
+        w: kernel de desfoque opcional (padrão: média 3×3)."""
         if w is None:
             w = np.ones((3, 3), dtype=np.float32) / 9.0
         fbar = cv2.filter2D(f.astype(np.float32), -1, w)
         m = f.astype(np.float32) - fbar
         return np.clip(np.round(f.astype(np.float32) + k * m), 0, 255).astype('uint8')
 
+
     # ── EROSÃO / DILATAÇÃO ───────────────────────────────────────────────────
 
     @staticmethod
-    def ero(f, Bc=None):
+    def ero(f, Bc=np.zeros((3,3),dtype='uint8')):
         """Erosão (OpenCV ou com pesos)."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if Bc is None:
-            Bc = np.zeros((3,3), dtype='uint8')
         try:    return cv2.erode(f, Bc)
         except: return mm.ero1(f, Bc)
 
+
     @staticmethod
-    def ero0(f, Bc=None):
+    def ero0(f, Bc=np.ones((3,3),dtype='uint8')):
         """Erosão clássica sem pesos."""
-        np = mm._get_np()
-        if Bc is None:
-            Bc = np.ones((3,3), dtype='uint8')
         g = np.empty_like(f)
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
@@ -807,137 +777,97 @@ class mm:
         return g
     
     @staticmethod
-    def ero1(f, b=None):
+    def ero1(f, b=np.zeros((3,3), dtype='uint8')):
         """Erosão com pesos: mínimo de f[viz]-b."""
-        np = mm._get_np()
-        if b is None:
-            b = np.zeros((3,3), dtype='uint8')
         g = np.empty_like(f)
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
                 g[y,x] = 255
                 for vy, vx, bv in mm._viz(f, b, y, x):
                     if np.isinf(bv): continue
-                    val = int(f[vy,vx]) - int(bv)
+                    val = int(f[vy,vx]) - int(bv)   # cast antes de subtrair
                     if int(g[y,x]) > val:
-                        g[y,x] = max(0, val)
+                        g[y,x] = max(0, val)          # clamp para não guardar negativo em uint8
         return g
 
     @staticmethod
-    def dil(f, Bc=None):
+    def dil(f, Bc=np.zeros((3,3),dtype='uint8')):
         """Dilatação (OpenCV ou com pesos)."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if Bc is None:
-            Bc = np.zeros((3,3), dtype='uint8')
         try:    return cv2.dilate(f, Bc)
         except: return mm.dil1(f, Bc)
 
     @staticmethod
-    def dil0(f, Bc=None):
+    def dil0(f, Bc=np.ones((3,3),dtype='uint8')):
         """Dilatação plana seguindo rigorosamente a teoria."""
-        np = mm._get_np()
-        if Bc is None:
-            Bc = np.ones((3,3), dtype='uint8')
         g = np.empty_like(f) 
-        Bc = np.flip(Bc)
+        Bc = np.flip(Bc)     # reflexão explícita: B̂
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
-                g[y,x] = 0
+                g[y,x] = 0 # Inicializa com o valor mínimo para buscar o máximo
                 for vy,vx,bv in mm._viz(f,Bc,y,x):
                     if bv and g[y,x] < f[vy,vx]:
                         g[y,x] = f[vy,vx]
         return g
 
+
     @staticmethod
-    def dil1(f, b=None):
-        """Dilatação com pesos: máximo de f[viz]+b (Apenas uma definição unificada)."""
-        np = mm._get_np()
-        if b is None:
-            b = np.zeros((3,3), dtype='uint8')
+    def dil1(f, b=np.zeros((3,3), dtype='uint8')):
+        """Dilatação com pesos: máximo de f[viz]+b."""
         g = np.empty_like(f)
         b = np.flip(b)
         for y in range(f.shape[0]):
             for x in range(f.shape[1]):
                 g[y,x] = 0
                 for vy, vx, bv in mm._viz(f, b, y, x):
-                    val = int(f[vy,vx]) + int(bv)
+                    val = int(f[vy,vx]) + int(bv)       # cast evita overflow uint8
                     if int(g[y,x]) < val:
-                        g[y,x] = min(255, val)
+                        g[y,x] = min(255, val)           # clamp: dilatação nunca acima de 255
         return g
 
     # ── OPERADORES MORFOLÓGICOS ──────────────────────────────────────────────
 
     @staticmethod
-    def open(f, b=None):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def open(f, b=np.zeros((3,3),dtype='uint8')):
         return cv2.morphologyEx(f, cv2.MORPH_OPEN, b)
-
     @staticmethod
-    def open0(f, B=None):
-        np = mm._get_np()
-        if B is None: B = np.ones((3,3), dtype='uint8')
+    def open0(f, B=np.ones((3,3),dtype='uint8')):
         return mm.dil0(mm.ero0(f, B), B)
-
     @staticmethod
-    def open1(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def open1(f, b=np.zeros((3,3),dtype='uint8')):
         return mm.dil1(mm.ero1(f, b), b)
         
     @staticmethod
-    def close(f, b=None):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def close(f, b=np.zeros((3,3),dtype='uint8')):
         return cv2.morphologyEx(f, cv2.MORPH_CLOSE, b)
-
     @staticmethod
-    def close0(f, B=None):
-        np = mm._get_np()
-        if B is None: B = np.ones((3,3), dtype='uint8')
+    def close0(f, B=np.ones((3,3),dtype='uint8')):
         return mm.ero0(mm.dil0(f, B), B)
-
     @staticmethod
     def close1(f, b):
         return mm.ero1(mm.dil1(f, b), b)
     
     @staticmethod
-    def openth(f, b=None):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def openth(f, b=np.zeros((3,3),dtype='uint8')):
         return mm.subm(f, cv2.morphologyEx(f, cv2.MORPH_OPEN, b))
-
     @staticmethod
-    def openth1(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def openth1(f, b=np.zeros((3,3),dtype='uint8')):
         return mm.subm(f, mm.dil1(mm.ero1(f,b), b))
 
     @staticmethod
-    def closeth(f, b=None):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def closeth(f, b=np.zeros((3,3),dtype='uint8')):
         return mm.subm(cv2.morphologyEx(f, cv2.MORPH_CLOSE, b), f)
     
     @staticmethod
-    def closerecth(f, b=None):
+    def closerecth(f, b=np.zeros((3,3),dtype='uint8')):  # alias
         return mm.closeth(f, b)
 
     @staticmethod
-    def asf(f, filter='OC', b=None, n=1):
+    def asf(f, filter='OC', b=np.zeros((3,3),dtype='uint8'), n=1):
         """Filtro sequencial alternado. filter: 'OC','CO','OCO','COC'."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
-        seqs = {'OC':[cv2.MORPH_OPEN, cv2.MORPH_CLOSE],
-                'CO':[cv2.MORPH_CLOSE, cv2.MORPH_OPEN],
-                'OCO':[cv2.MORPH_OPEN, cv2.MORPH_CLOSE, cv2.MORPH_OPEN],
-                'COC':[cv2.MORPH_CLOSE, cv2.MORPH_OPEN, cv2.MORPH_CLOSE]}
+        seqs = {'OC':[cv2.MORPH_OPEN,cv2.MORPH_CLOSE],
+                'CO':[cv2.MORPH_CLOSE,cv2.MORPH_OPEN],
+                'OCO':[cv2.MORPH_OPEN,cv2.MORPH_CLOSE,cv2.MORPH_OPEN],
+                'COC':[cv2.MORPH_CLOSE,cv2.MORPH_OPEN,cv2.MORPH_CLOSE]}
         y = f.copy()
         for i in range(n):
             bi = mm.sesum(b, i)
@@ -948,174 +878,128 @@ class mm:
     # ── RECONSTRUÇÃO ─────────────────────────────────────────────────────────
     
     @staticmethod
-    def cdil(f, g, b=None, n=1):
+    def cdil(f, g, b=np.zeros((3,3),dtype='uint8'), n=1):
         """Dilatação geodésica do marcador f sob a máscara g."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         y = f.copy()
         for _ in range(n):
             y = np.minimum(cv2.dilate(y, b), g)
         return y
 
-    @staticmethod
-    def cero(f, g, b=None, n=1):
+    def cero(f, g, b=np.zeros((3,3),dtype='uint8'), n=1):
         """Erosão geodésica do marcador f sob a máscara g."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         y = f.copy()
         for _ in range(n):
             y = np.maximum(cv2.erode(y, b), g)
         return y
 
     @staticmethod
-    def infrec(f, g, b=None):
+    def infrec(f, g, b=np.zeros((3,3), dtype='uint8')):
         """Inf-reconstrução: dilata o marcador (f ∧ g) até convergir sob a máscara g."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         y = np.minimum(f, g)
+        # Inicializa y1 com valores impossíveis para forçar a entrada no laço
         y1 = np.full_like(f, 256, dtype=np.int16) 
         while not np.array_equal(y, y1):
             y1 = y.copy()
+            # Aplica a dilatação geodésica: (y ⊕ b) ∧ g
             y = np.minimum(cv2.dilate(y, b), g)
         return y.astype('uint8')
 
     @staticmethod
-    def suprec(f, g, b=None):
+    def suprec(f, g, b=np.zeros((3,3), dtype='uint8')):
         """Sup-reconstrução: erode o marcador (f ∨ g) até convergir sobre a máscara g."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         y = np.maximum(f, g)
+        # Inicializa y1 com valores impossíveis para forçar a entrada no laço
         y1 = np.full_like(f, -1, dtype=np.int16)
         while not np.array_equal(y, y1):
             y1 = y.copy()
+            # Aplica a erosão geodésica: (y ⊖ b) ∨ g
             y = np.maximum(cv2.erode(y, b), g)
         return y.astype('uint8')
 
     @staticmethod
-    def closerec(f, b=None, bc=None):
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
-        if bc is None: bc = np.zeros((3,3), dtype='uint8')
+    def closerec(f, b=np.zeros((3,3),dtype='uint8'), bc=np.zeros((3,3),dtype='uint8')):
         return mm.suprec(f, mm.dil(f,b), bc)
 
     @staticmethod
     def areaopen(f, a):
         """Remove componentes com área ≤ a."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
-        def _ao(img, area_lim):
-            y = np.zeros(img.shape, dtype=int)
-            if mm.binary(img):
-                n, lbl = cv2.connectedComponents(img)
+        def _ao(f, a):
+            y = np.zeros(f.shape, dtype=int)
+            if mm.binary(f):
+                n, lbl = cv2.connectedComponents(f)
                 for i in range(1, n):
                     area = np.sum(lbl==i)
-                    if area > area_lim: y[lbl==i] = area
+                    if area > a: y[lbl==i] = area
             else:
-                hist, _ = np.histogram(img.ravel(), 256, [0,256])
+                hist, _ = np.histogram(f.ravel(), 256, [0,256])
                 for cor, h in enumerate(hist):
                     if h and cor:
-                        _, fc = cv2.threshold(img, cor, 255, cv2.THRESH_BINARY)
-                        fo = _ao(fc, area_lim)
+                        _, fc = cv2.threshold(f, cor, 255, cv2.THRESH_BINARY)
+                        fo = _ao(fc, a)
                         if fo.max()==0: break
                         y += fo
             return y
         return _ao(f, a)
 
     @staticmethod
-    def gradm(f, b=None):
+    def gradm(f, b=np.zeros((3,3),dtype='uint8')):
         """Gradiente morfológico: dil(f,b) - ero(f,b)."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(mm.dil(f,b), mm.ero(f,b))
-
     @staticmethod
-    def grad0(f, b=None):
+    def grad0(f, b=np.ones((3,3), dtype='uint8')):
         """Gradiente Morfológico Plano: dil0(f, b) - ero0(f, b). Evidencia contornos."""
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
         return mm.subm(mm.dil0(f, b), mm.ero0(f, b))
-
     @staticmethod
-    def gradm1(f, b=None):
+    def gradm1(f, b=np.zeros((3,3),dtype='uint8')):
         """Gradiente morfológico: dil(f,b) - ero(f,b)."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(mm.dil1(f,b), mm.ero1(f,b))
 
     @staticmethod
-    def tophat(f, b=None):
+    def tophat(f, b=np.zeros((3,3), dtype='uint8')):
         """Top-hat: f - open(f, b). Realça detalhes brilhantes sobre fundo escuro."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(f, mm.open(f, b))
-
     @staticmethod
-    def tophat0(f, b=None):
+    def tophat0(f, b=np.ones((3,3), dtype='uint8')):
         """Top-hat Plano: f - open0(f, b). Realça picos brilhantes sem padding."""
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
         return mm.subm(f, mm.open0(f, b))
-
     @staticmethod
-    def tophat1(f, b=None):
+    def tophat1(f, b=np.zeros((3,3), dtype='uint8')):
         """Top-hat Plano: f - open0(f, b). Realça picos brilhantes sem padding."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(f, mm.open1(f, b))
 
     @staticmethod
-    def blackhat(f, b=None):
+    def blackhat(f, b=np.zeros((3,3), dtype='uint8')):
         """Black-hat: close(f, b) - f. Realça detalhes escuros sobre fundo claro."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(mm.close(f, b), f)
-
     @staticmethod
-    def blackhat0(f, b=None):
+    def blackhat0(f, b=np.ones((3,3), dtype='uint8')):
         """Black-hat Plano: close0(f, b) - f. Realça vales escuros sem padding."""
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
         return mm.subm(mm.close0(f, b), f)
-
     @staticmethod
-    def blackhat1(f, b=None):
+    def blackhat1(f, b=np.zeros((3,3), dtype='uint8')):
         """Black-hat Plano: close0(f, b) - f. Realça vales escuros sem padding."""
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
         return mm.subm(mm.close1(f, b), f)
     
     # ── REGIÕES / RÓTULOS ─────────────────────────────────────────────────────
 
     @staticmethod
-    def regmax(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def regmax(f, b=np.ones((3,3),dtype='uint8')):
         k = 255 if f.max()<=255 else 65535
         return mm.union(mm.threshold(mm.subm(f, mm.infrec(mm.subm(f,1),f,b)),0),
                         mm.threshold(f,k))
 
     @staticmethod
-    def regmin(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def regmin(f, b=np.ones((3,3),dtype='uint8')):
         return mm.union(mm.threshold(mm.subm(mm.suprec(mm.addm(f,1),f,b),f),1),
                         mm.threshold(f,0))
 
     @staticmethod
     def label(f):
-        cv2 = mm._get_cv2()
-        _, lbl = cv2.connectedComponents(f)
-        return lbl
+        _, lbl = cv2.connectedComponents(f); return lbl
 
     @staticmethod
-    def label0(f, b=None):
+    def label0(f, b=np.ones((3,3),dtype='uint8')):
         """Rotulagem por flood-fill com pilha."""
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
         h, w = f.shape
         g = np.zeros(f.shape, dtype=int)
         cor = 1
@@ -1134,9 +1018,7 @@ class mm:
     # ── WATERSHED ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def watershed0(f, mask=None, b=None, op='region'):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def watershed0(f, mask=None, b=np.ones((3,3),dtype='uint8'), op='region'):
         f = mm.label0(f, b); g = f.copy()
         mask = np.ones_like(f) if mask is None else (mask > 0)
         
@@ -1155,9 +1037,7 @@ class mm:
         return g if op=='region' else mm.gradm(g, mm.secross())
 
     @staticmethod
-    def watershedB(f, mask=None, b=None, op='region'):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def watershedB(f, mask=None, b=np.ones((3,3),dtype='uint8'), op='region'):
         m = mm.label0(f, b)
         h, w = m.shape
         mask = np.ones_like(m) if mask is None else (mask > 0)
@@ -1181,33 +1061,42 @@ class mm:
                     
         return m if op == 'region' else mm.gradm(m, mm.secross())
     
+    
     @staticmethod
     def watershed(f, mask=None, b=None, op='region'):
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
+        # 1. Rotulação inicial estrita dos marcadores
         if len(np.unique(f)) <= 2:
             _, m = cv2.connectedComponents(f.astype('uint8'))
         else:
             m = f.copy().astype('int32')
             
         mask = np.ones_like(m) if mask is None else (mask > 0)
+        
+        # Zera marcadores inválidos fora da máscara antes de começar
         m[~mask] = 0
         
+        # 2. Configura os marcadores do OpenCV
+        # 0 = áreas a inundar (dentro da máscara). -2 = barreiras intransponíveis (fora da máscara).
         markers = np.where((m == 0) & (~mask), -2, m).astype('int32')
         markers[(m == 0) & mask] = 0
 
+        # 3. Criação do guia de relevo definitivo (Muros binários altos)
+        # 255 onde é proibido (fundo), 0 onde é permitido (moedas). Isso impede vazamentos nas bordas!
         guidance = np.where(mask, 0, 255).astype(np.uint8)
         f_bgr = cv2.merge([guidance, guidance, guidance])
         
+        # 4. Execução do OpenCV
         cv2.watershed(f_bgr, markers)
+        
+        # 5. Filtro de segurança no retorno: elimina linhas divisórias e força o fundo a ser zero
         res = np.where((markers <= 0) | (~mask), 0, markers).astype('uint8')
+        
         return res if op == 'region' else mm.gradm(res, mm.secross())
 
     # ── DISTÂNCIA / ESQUELETO ─────────────────────────────────────────────────
 
     @staticmethod
     def dist(f):
-        cv2 = mm._get_cv2()
         y = cv2.distanceTransform(f, cv2.DIST_L2, 5)
         return y.astype('uint8') if y.max()<=255 else y.astype('uint16')
 
@@ -1216,13 +1105,11 @@ class mm:
         g = f.copy()
         while True:
             f=g.copy(); g=mm.ero1(g,b)
-            if mm._get_np().array_equal(f,g): break
+            if np.array_equal(f,g): break
         return g
 
     @staticmethod
-    def gdist(f, g, b=None):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def gdist(f, g, b=np.ones((3,3),dtype='uint8')):
         h,w = f.shape; M=h*w
         fneg=(M-f*M).astype('uint16'); gneg=(1-g).astype('uint16')
         y,c = gneg,0
@@ -1234,28 +1121,21 @@ class mm:
 
     @staticmethod
     def thin(f):
-        np = mm._get_np()
         from skimage.morphology import skeletonize
         return np.array(skeletonize(f), dtype='uint8')
 
     @staticmethod
-    def skel(f):
-        return mm._get_cv2().ximgproc.thinning(f)
+    def skel(f): return cv2.ximgproc.thinning(f)
 
-    @staticmethod
-    def skelm(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.zeros((3,3), dtype='uint8')
+    def skelm(f, b=np.zeros((3,3),dtype='uint8')):
         img=f.copy(); skel=np.zeros(f.shape); n=0
         while img.max():
             nb=mm.sesum(b,n); ero=mm.ero1(img,nb)
             skel=np.maximum(skel, ero-mm.dil1(mm.ero1(ero,b),b)); n+=1
         return skel
 
-    @staticmethod
     def esqueleto(f, b):
         """Esqueleto alternativo (lista3 2022.1)."""
-        np = mm._get_np()
         img=f.copy(); skel=np.zeros(f.shape); n=0
         while img.max():
             abertura=mm.dil1(mm.ero1(img,b),b)
@@ -1267,32 +1147,36 @@ class mm:
 
     @staticmethod
     def frame(f, border=5):
-        np = mm._get_np()
         g=np.ones_like(f)*255; g[border:-border,border:-border]=0; return g
 
+    # def edgeoff(f, b=np.ones((3,3),dtype='uint8')):
+    #     return mm.subm(f, mm.infrec(mm.frame(f),f,b))
+
     @staticmethod
-    def edgeoff(f, b=None, border=1):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def edgeoff(f, b=np.ones((3,3),dtype='uint8'), border=1):
+        # CORREÇÃO 1: Garante borda de 1 pixel e restringe o marcador apenas aos objetos (f)
         marcador = mm.frame(f, border=border) & f
+        
+        # CORREÇÃO 2: Reconstrói os objetos de borda e os subtrai da imagem original
         return mm.subm(f, mm.infrec(marcador, f, b))
 
-    @staticmethod
-    def clohole(f, b=None):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
-        marcador = mm.frame(f, border=1) & mm.neg(f)
-        return mm.neg(mm.infrec(marcador, mm.neg(f), b))
+    # @staticmethod
+    # def clohole(f, b=np.ones((3,3),dtype='uint8')):
+    #     return mm.neg(mm.infrec(mm.frame(f),mm.neg(f),b))
 
     @staticmethod
-    def hmin(f, h, b=None):
-        np = mm._get_np()
-        if b is None: b = np.ones((3,3), dtype='uint8')
+    def clohole(f, b=np.ones((3,3),dtype='uint8')):
+        # CORREÇÃO: O marcador DEVE ser restrito ao fundo da imagem (mm.neg(f))
+        marcador = mm.frame(f, border=1) & mm.neg(f)
+        
+        # Realiza a reconstrução do fundo e inverte o resultado para obter os buracos cheios
+        return mm.neg(mm.infrec(marcador, mm.neg(f), b))
+
+    def hmin(f, h, b=np.ones((3,3),dtype='uint8')):
         return mm.suprec(f, mm.addm(f,h), b)
 
     @staticmethod
     def toggle(f, f1, f2, op='gray'):
-        np = mm._get_np()
         mask = np.logical_and(mm.subm(f,f1)<=f, f<=mm.subm(f2,f))
         if op=='gray':
             t=mask.astype('uint8')*255
@@ -1301,7 +1185,6 @@ class mm:
 
     @staticmethod
     def correlacao0(f, kernel, bias):
-        np = mm._get_np()
         Bh,Bw = kernel.shape
         if Bh==Bw:
             H,W = f.shape[0]-Bh+1, f.shape[1]-Bw+1
@@ -1314,78 +1197,86 @@ class mm:
     @staticmethod
     def connectedComponents(img):
         """Rotula os componentes conexos de uma imagem binária."""
-        return mm._get_cv2().connectedComponents(img)
+        return cv2.connectedComponents(img)
 
     @staticmethod
-    def findContours(img, mode=None, method=None):
+    def findContours(img, mode=cv2.RETR_EXTERNAL,
+                    method=cv2.CHAIN_APPROX_SIMPLE):
         """Encontra os contornos de uma imagem binária."""
-        cv2 = mm._get_cv2()
-        if mode is None: mode = cv2.RETR_EXTERNAL
-        if method is None: method = cv2.CHAIN_APPROX_SIMPLE
         contornos, _ = cv2.findContours(img.copy(), mode, method)
         return contornos
 
     @staticmethod
     def contourArea(contour):
         """Calcula a área de um contorno."""
-        return mm._get_cv2().contourArea(contour)
+        return cv2.contourArea(contour)
 
     @staticmethod
     def arcLength(contour, closed=True):
         """Calcula o perímetro de um contorno."""
-        return mm._get_cv2().arcLength(contour, closed)
+        return cv2.arcLength(contour, closed)
 
     @staticmethod
     def boundingRect(contour):
         """Retorna o retângulo envolvente (x, y, largura, altura)."""
-        return mm._get_cv2().boundingRect(contour)
+        return cv2.boundingRect(contour)
 
     @staticmethod
     def minAreaRect(contour):
         """Retorna o menor retângulo que envolve o contorno."""
-        return mm._get_cv2().minAreaRect(contour)
+        return cv2.minAreaRect(contour)
 
     @staticmethod
     def boxPoints(rect):
         """Obtém os quatro vértices de um retângulo."""
-        return mm._get_cv2().boxPoints(rect).astype(int)
+        return cv2.boxPoints(rect).astype(int)
 
     @staticmethod
     def minEnclosingCircle(contour):
         """Retorna o menor círculo que envolve o contorno."""
-        (x, y), r = mm._get_cv2().minEnclosingCircle(contour)
+        (x, y), r = cv2.minEnclosingCircle(contour)
         return (int(x), int(y)), int(r)
 
     @staticmethod
     def fitEllipse(contour):
-        """Ajusta uma elipse ao contorno. O contorno deve possuir pelo menos 5 pontos."""
-        return mm._get_cv2().fitEllipse(contour)
+        """Ajusta uma elipse ao contorno.
+
+        O contorno deve possuir pelo menos 5 pontos.
+        """
+        return cv2.fitEllipse(contour)
 
     @staticmethod
     def convexHull(contour):
         """Retorna o fecho convexo do contorno."""
-        return mm._get_cv2().convexHull(contour)
+        return cv2.convexHull(contour)
 
     @staticmethod
     def approxPolyDP(contour, precision=0.01, closed=True):
         """Aproxima um contorno por um polígono."""
-        return mm._get_cv2().approxPolyDP(
+        return cv2.approxPolyDP(
             contour,
-            precision * mm._get_cv2().arcLength(contour, closed),
+            precision * cv2.arcLength(contour, closed),
             closed
         )
 
     @staticmethod
     def fitLine(contour):
         """Ajusta uma reta ao contorno."""
-        cv2 = mm._get_cv2()
-        return cv2.fitLine(contour, cv2.DIST_L2, 0, 0.01, 0.01)
+        return cv2.fitLine(
+            contour,
+            cv2.DIST_L2,
+            0,
+            0.01,
+            0.01
+        )
 
+    
+    
+    # ── (dentro da classe mm) ──────────────────────────────────────────────
+    
     @staticmethod
-    def measure(img: "np.ndarray", precision: float = 0.01) -> Optional[list[dict]]:
+    def measure(img: np.ndarray, precision: float = 0.01) -> Optional[list[dict]]:
         """Extrai medidas geométricas dos objetos de uma imagem binária."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
         if not mm.binary(img):
             return None
         medidas = []
@@ -1399,7 +1290,7 @@ class mm:
             cy = M["m01"] / M["m00"] if M["m00"] else 0
     
             hull = mm.convexHull(c)
-            hull_area = mm.contourArea(hull)
+            hull_area = mm.contourArea(hull)  # fix: checar área, não len(hull)
             poly = mm.approxPolyDP(c, precision)
     
             medidas.append(dict(
@@ -1414,11 +1305,22 @@ class mm:
             ))
         return medidas
         
+    
     @staticmethod
     def saveMeasures(filename: str, measures: list[dict], fmt: str = "csv",
                     img_width: Optional[int] = None, img_height: Optional[int] = None,
                     class_id: int = 0) -> None:
-        """Salva as medidas em CSV, texto simples ou formato YOLO."""
+        """Salva as medidas em CSV, texto simples ou formato YOLO.
+    
+        fmt: 'csv'  -> uma linha por objeto, com cabeçalho, separado por vírgula.
+            'txt'  -> mesmas colunas do csv, separadas por espaço, sem cabeçalho.
+            'yolo' -> <class_id> <x_center> <y_center> <width> <height>,
+                    valores normalizados em [0, 1]. Exige img_width/img_height.
+    
+        class_id: usado apenas em fmt='yolo'; assume mesma classe para todos os
+                objetos (passe um valor fixo, ou pré-processe `measures` se
+                precisar de classes distintas por objeto).
+        """
         header = None
     
         if fmt == "yolo":
@@ -1454,8 +1356,11 @@ class mm:
             for m in measures:
                 f.write(linha(m) + "\n")
     
+    
+    # ── verificação de gabarito via IoU (substitui o antigo verifyBoundBox) ────
+    
     @staticmethod
-    def IoU(boxA: tuple, boxB: tuple) -> float:
+    def iou(boxA: tuple, boxB: tuple) -> float:
         """Intersection over Union entre duas bounding boxes (x, y, w, h)."""
         ax1, ay1, aw, ah = boxA
         bx1, by1, bw, bh = boxB
@@ -1470,26 +1375,37 @@ class mm:
         union = aw * ah + bw * bh - inter
         return inter / union if union else 0.0
     
+    
     @staticmethod
-    def verifyBoundBox(object_id: int, bbox: tuple, matrix: "np.ndarray",
+    def verifyBoundBox(object_id: int, bbox: tuple, matrix: np.ndarray,
                         width: int, height: int, threshold: float = 0.5) -> int:
-        """Conta quantos gabaritos do objeto `object_id` casam com `bbox` via IoU."""
+        """Conta quantos gabaritos do objeto `object_id` casam com `bbox` via IoU.
+    
+        matrix: linhas no formato [id, x1_norm, y1_norm, x2_norm, y2_norm]
+                (coordenadas normalizadas em [0,1], como no formato original).
+        bbox:   (x, y, w, h) do objeto detectado, em pixels.
+        threshold: IoU mínimo para considerar "correto" (padrão 0.5, o valor
+                usual em detecção de objetos).
+        """
         correct = 0
         for v in matrix[matrix[:, 0] == object_id]:
             x1, y1 = v[1] * width, v[2] * height
             x2, y2 = v[3] * width, v[4] * height
             gabarito_bbox = (x1, y1, x2 - x1, y2 - y1)
-            if mm.IoU(bbox, gabarito_bbox) >= threshold:
+            if mm.iou(bbox, gabarito_bbox) >= threshold:
                 correct += 1
         return correct
+    
+
+
 
     # ── BLOB / ANÁLISE DE COMPONENTES ANTIGO ────────────────────────────────────────
 
     @staticmethod
     def blob(f, op='area', border=1, precision=0.01, show='True'):
-        """Topologia de componentes conexos antiga."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
+        """Topologia de componentes conexos.
+        op: 'area','textLabel','textPer','textArea','box','rect',
+            'circle','ellipse','convex','poly','line'"""
         if not mm.binary(f): return None
         measures = []
         color_img = cv2.cvtColor(f, cv2.COLOR_GRAY2RGB)
@@ -1544,8 +1460,6 @@ class mm:
     @staticmethod
     def blobAll(f, border=1, precision=0.01, show='False'):
         """Todas as medidas topológicas por componente."""
-        cv2 = mm._get_cv2()
-        np = mm._get_np()
         ops=['textLabel','textArea','textPer','box','rect','circle','ellipse','convex','poly','line']
         n, labels = cv2.connectedComponents(f)
         result = {k: [] for k in ops}
@@ -1555,11 +1469,10 @@ class mm:
         return result
 
     @staticmethod
-    def verifyBoundBox_old(object_lbl, center, matrix, width, height):
-        """Verifica se centro do objeto está dentro do bounding box do gabarito (versão antiga)."""
-        np = mm._get_np()
+    def verifyBoundBox(object, center, matrix, width, height):
+        """Verifica se centro do objeto está dentro do bounding box do gabarito."""
         correct = 0
-        for v in matrix[matrix[:,0]==object_lbl]:
+        for v in matrix[matrix[:,0]==object]:
             p1=v[1:][:2]*[width,height]//1; p2=v[1:][2:]*[width,height]//1
             if (p1<np.array(center)).all() and (np.array(center)<p2).all(): correct+=1
         return correct

@@ -1199,7 +1199,7 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 if label in ["fig-04-sim-cdil"]:
                     width_attr = " width=65%"
                 if label in ["fig-01-sim-map"]:
-                    width_attr = " width=90%"
+                    width_attr = " width=100%"
 
                 new_cells.append(nbformat.v4.new_markdown_cell(':::'))
                 new_cells.append(nbformat.v4.new_markdown_cell(
