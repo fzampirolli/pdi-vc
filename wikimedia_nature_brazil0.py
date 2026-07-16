@@ -67,6 +67,8 @@ CATEGORIAS_NATUREZA = [
 
 BUSCA = CATEGORIAS_NATUREZA[0]
 
+BUSCA = 'faces of people'
+
 BUSCAS_TEXTO = [
     "scanned text",
     "historical manuscript",

@@ -63,6 +63,7 @@ CATEGORIAS_NATUREZA = [
 
 
 BUSCA = CATEGORIAS_NATUREZA
+BUSCA = "face"
 
 BUSCAS_TEXTO = [
     "scanned text",
