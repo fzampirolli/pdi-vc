@@ -268,20 +268,20 @@ Melhor modelo: 0 com 4 inliers</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 8.11: Simulador: RANSAC — Votação por Inliers entre Modelos Candidatos
+Figura 8.15: Simulador: RANSAC — Votação por Inliers entre Modelos Candidatos
 </figcaption>
 </figure>
 </div>
 </div>
 <div class="cell" id="b53db1c6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a aria-hidden="true" href="#cb33-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_02.py</span>
-<span id="cb33-2"><a aria-hidden="true" href="#cb33-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a aria-hidden="true" href="#cb35-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_02.py</span>
+<span id="cb35-2"><a aria-hidden="true" href="#cb35-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP08_02.py</code></pre>
 </div>
 </div>
 <div class="cell" id="ced5ebb6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a aria-hidden="true" href="#cb35-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a aria-hidden="true" href="#cb37-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap08/casos/EP08_02.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap08/cap8/EP8_2.cases
@@ -424,6 +424,8 @@ window.Quarto = {
     document.getElementById("orb8_angVal").textContent = angleDeg + "°";
     document.getElementById("orb8_slVal").textContent = angleDeg;
 
+    document.getElementById("orb8_noiseVal").textContent = noiseLevel;
+
     ctx.font = "bold 12px sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
@@ -487,8 +489,9 @@ window.Quarto = {
       const bxRot = cx + (p.bx * c - p.by * s);
       const byRot = cy + (p.bx * s + p.by * c);
 
-      ctx.strokeStyle = desc[i] === 1 ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)";
-      ctx.lineWidth = 1.2;
+ctx.strokeStyle = desc[i] === 1 ? "rgba(16, 185, 129, 0.9)" : "rgba(239, 68, 68, 0.9)";
+ctx.lineWidth = 2;
+
       ctx.beginPath();
       ctx.moveTo(axRot, ayRot);
       ctx.lineTo(bxRot, byRot);
@@ -541,20 +544,24 @@ window.Quarto = {
     render();
   });
 
-  document.getElementById("orb8_btnReset").addEventListener("click", function(){
+document.getElementById("orb8_btnReset").addEventListener("click", function(){
     angleDeg = 0;
     noiseLevel = 0;
     slider.value = 0;
     const btnNoise = document.getElementById("orb8_btnNoise");
     btnNoise.classList.remove("orb8_active");
+    btnNoise.textContent = "Adicionar Ruído";
     render();
-  });
+});
 
-  document.getElementById("orb8_btnNoise").addEventListener("click", function(){
-    noiseLevel = noiseLevel === 0 ? 30 : 0;
+const noiseStep = 15;
+const maxNoise = 150;
+document.getElementById("orb8_btnNoise").addEventListener("click", function(){
+    noiseLevel = Math.min(noiseLevel + noiseStep, maxNoise);
+    this.textContent = "Adicionar Ruído (" + noiseLevel + ")";
     this.classList.toggle("orb8_active", noiseLevel > 0);
     render();
-  });
+});
 
   render();
 })();
@@ -564,11 +571,9 @@ window.Quarto = {
   const cap08_canvas = document.getElementById("cap08_canvas");
   const cap08_ctx = cap08_canvas.getContext("2d");
   const cap08_W = cap08_canvas.width, cap08_H = cap08_canvas.height;
-
   let cap08_pontos = [];
   let cap08_limiar = 15;
   let cap08_modelo = null; // {x1,y1,x2,y2, inliersIdx}
-
   function cap08_gerarPontos(){
     const pontos = [];
     const a = 0.5, b = 60; // reta y = a*x + b (referência)
@@ -586,13 +591,11 @@ window.Quarto = {
     }
     return pontos;
   }
-
   function cap08_distPontoReta(px, py, x1, y1, x2, y2){
     const num = Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1);
     const den = Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
     return den === 0 ? Infinity : num / den;
   }
-
   function cap08_ajustarMinimosQuadrados(indices){
     let somaX = 0, somaY = 0, somaXY = 0, somaXX = 0;
     const n = indices.length;
@@ -606,33 +609,27 @@ window.Quarto = {
     const b = (somaY - a * somaX) / n;
     return {a: a, b: b};
   }
-
   function cap08_rodarRansac(){
     const numIter = 60;
     let melhorInliers = [];
     let melhorP1 = null, melhorP2 = null;
-
     for (let it = 0; it < numIter; it++){
       const i1 = Math.floor(Math.random() * cap08_pontos.length);
       let i2 = Math.floor(Math.random() * cap08_pontos.length);
       while (i2 === i1) i2 = Math.floor(Math.random() * cap08_pontos.length);
       const p1 = cap08_pontos[i1], p2 = cap08_pontos[i2];
-
       const inliersAtual = [];
       cap08_pontos.forEach((p, idx) => {
         const d = cap08_distPontoReta(p.x, p.y, p1.x, p1.y, p2.x, p2.y);
         if (d <= cap08_limiar) inliersAtual.push(idx);
       });
-
       if (inliersAtual.length > melhorInliers.length){
         melhorInliers = inliersAtual;
         melhorP1 = p1; melhorP2 = p2;
       }
     }
-
     const ajuste = cap08_ajustarMinimosQuadrados(melhorInliers) ||
       {a: (melhorP2.y - melhorP1.y) / (melhorP2.x - melhorP1.x + 1e-6), b: melhorP1.y};
-
     cap08_modelo = {
       a: ajuste.a, b: ajuste.b,
       inliersIdx: new Set(melhorInliers),
@@ -640,10 +637,8 @@ window.Quarto = {
     };
     cap08_render();
   }
-
   function cap08_render(){
     cap08_ctx.clearRect(0, 0, cap08_W, cap08_H);
-
     cap08_pontos.forEach((p, idx) => {
       let cor = "#9ca3af";
       if (cap08_modelo){
@@ -657,7 +652,6 @@ window.Quarto = {
       cap08_ctx.strokeStyle = "#ffffff";
       cap08_ctx.stroke();
     });
-
     if (cap08_modelo){
       const x0 = 0, x1 = cap08_W;
       const y0 = cap08_modelo.a * x0 + cap08_modelo.b;
@@ -668,7 +662,6 @@ window.Quarto = {
       cap08_ctx.strokeStyle = "#2563eb";
       cap08_ctx.lineWidth = 2.5;
       cap08_ctx.stroke();
-
       document.getElementById("cap08_nIn").textContent = cap08_modelo.inliersIdx.size;
       document.getElementById("cap08_nOut").textContent = cap08_pontos.length - cap08_modelo.inliersIdx.size;
       document.getElementById("cap08_nIter").textContent = cap08_modelo.numIter;
@@ -679,24 +672,214 @@ window.Quarto = {
     }
     document.getElementById("cap08_thVal").textContent = cap08_limiar;
   }
-
   document.getElementById("cap08_slider").addEventListener("input", function(ev){
     cap08_limiar = parseInt(ev.target.value, 10);
     document.getElementById("cap08_slVal").textContent = cap08_limiar;
     if (cap08_modelo) cap08_rodarRansac();
     else cap08_render();
   });
-
   document.getElementById("cap08_btnRun").addEventListener("click", cap08_rodarRansac);
-
   document.getElementById("cap08_btnNovo").addEventListener("click", function(){
     cap08_pontos = cap08_gerarPontos();
     cap08_modelo = null;
     cap08_render();
   });
-
   cap08_pontos = cap08_gerarPontos();
   cap08_render();
+})();
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById("cap08reg_canvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const panelW = 280;
+  const gap = W - panelW * 2; // espaço central entre as duas "imagens"
+  const offB = panelW + gap;  // deslocamento x do painel B
+
+  let matches = []; // {ax, ay, bx, by, outlier}
+  let limiar = 12;
+  let modelo = null; // {a,b,tx,ty, inliersIdx:Set, numIter}
+
+  function desenharMoldura(x0, largura, cor, texto){
+    ctx.strokeStyle = cor;
+    ctx.setLineDash([4,3]);
+    ctx.strokeRect(x0+4, 4, largura-8, H-8);
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText(texto, x0+10, 18);
+  }
+
+  function gerarCorrespondencias(){
+    const pts = [];
+    // transformação de similaridade "verdadeira" entre imagem A e imagem B
+    const ang = (Math.random() * 20 - 10) * Math.PI / 180;
+    const escala = 0.85 + Math.random() * 0.3;
+    const a = escala * Math.cos(ang), b = escala * Math.sin(ang);
+    const tx = 20 + Math.random() * 20, ty = 10 + Math.random() * 40;
+
+    const nBoas = 18, nRuins = 8;
+    for (let i = 0; i < nBoas; i++){
+      const ax = 30 + Math.random() * (panelW - 60);
+      const ay = 30 + Math.random() * (H - 60);
+      let bx = a*ax - b*ay + tx;
+      let by = b*ax + a*ay + ty;
+      bx += (Math.random() - 0.5) * 8;
+      by += (Math.random() - 0.5) * 8;
+      bx = Math.min(Math.max(bx, 20), panelW - 20);
+      by = Math.min(Math.max(by, 20), H - 20);
+      pts.push({ax, ay, bx: bx + offB, by, outlier: false});
+    }
+    for (let i = 0; i < nRuins; i++){
+      const ax = 30 + Math.random() * (panelW - 60);
+      const ay = 30 + Math.random() * (H - 60);
+      const bx = 20 + Math.random() * (panelW - 40);
+      const by = 20 + Math.random() * (H - 40);
+      pts.push({ax, ay, bx: bx + offB, by, outlier: true});
+    }
+    return pts;
+  }
+
+  function estimarSimilaridade(i1, i2){
+    const p1 = matches[i1], p2 = matches[i2];
+    const dxA = p2.ax - p1.ax, dyA = p2.ay - p1.ay;
+    const dxB = (p2.bx - offB) - (p1.bx - offB), dyB = p2.by - p1.by;
+    const denom = dxA*dxA + dyA*dyA;
+    if (denom < 1e-6) return null;
+    const a = (dxA*dxB + dyA*dyB) / denom;
+    const b = (dxA*dyB - dyA*dxB) / denom;
+    const tx = (p1.bx - offB) - a*p1.ax + b*p1.ay;
+    const ty = p1.by - b*p1.ax - a*p1.ay;
+    return {a, b, tx, ty};
+  }
+
+  function refinarComInliers(indices){
+    // Procrustes simples (centrando os pontos) usando todos os inliers
+    let n = indices.length;
+    let mxA=0,myA=0,mxB=0,myB=0;
+    indices.forEach(i => {
+      const p = matches[i];
+      mxA += p.ax; myA += p.ay; mxB += (p.bx - offB); myB += p.by;
+    });
+    mxA/=n; myA/=n; mxB/=n; myB/=n;
+    let sxx=0, sxy=0, syx=0, syy=0;
+    indices.forEach(i => {
+      const p = matches[i];
+      const ax = p.ax-mxA, ay = p.ay-myA;
+      const bx = (p.bx-offB)-mxB, by = p.by-myB;
+      sxx += ax*bx; sxy += ay*bx; syx += ax*by; syy += ay*by;
+    });
+    const num = sxy - syx;
+    const den = sxx + syy;
+    if (Math.abs(den) < 1e-6 && Math.abs(num) < 1e-6) return null;
+    const ang = Math.atan2(num, den);
+    const escalaNum = sxx + syy;
+    const norm = Math.sqrt((mxA-mxA)); // placeholder, não usado
+    const a = Math.cos(ang), b = Math.sin(ang);
+    // escala: razão entre normas
+    let normA=0, normB=0;
+    indices.forEach(i=>{
+      const p = matches[i];
+      const ax = p.ax-mxA, ay=p.ay-myA;
+      normA += ax*ax+ay*ay;
+    });
+    const escala = normA>1e-6 ? Math.sqrt((sxx+syy)**2+(sxy-syx)**2)/normA : 1;
+    const af = escala*a, bf = escala*b;
+    const tx = mxB - af*mxA + bf*myA;
+    const ty = myB - bf*mxA - af*myA;
+    return {a: af, b: bf, tx, ty};
+  }
+
+  function distancia(p, m){
+    const bxPred = m.a*p.ax - m.b*p.ay + m.tx;
+    const byPred = m.b*p.ax + m.a*p.ay + m.ty;
+    const dx = bxPred - (p.bx - offB);
+    const dy = byPred - p.by;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+
+  function rodarRansac(){
+    const numIter = 80;
+    let melhorInliers = [];
+    let melhorModelo = null;
+    for (let it = 0; it < numIter; it++){
+      const i1 = Math.floor(Math.random()*matches.length);
+      let i2 = Math.floor(Math.random()*matches.length);
+      while (i2===i1) i2 = Math.floor(Math.random()*matches.length);
+      const m = estimarSimilaridade(i1, i2);
+      if (!m) continue;
+      const inliersAtual = [];
+      matches.forEach((p, idx) => {
+        if (distancia(p, m) <= limiar) inliersAtual.push(idx);
+      });
+      if (inliersAtual.length > melhorInliers.length){
+        melhorInliers = inliersAtual;
+        melhorModelo = m;
+      }
+    }
+    const refinado = melhorInliers.length >= 2 ? refinarComInliers(melhorInliers) : melhorModelo;
+    modelo = {
+      ...(refinado || melhorModelo),
+      inliersIdx: new Set(melhorInliers),
+      numIter
+    };
+    render();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    desenharMoldura(0, panelW, "#e5e7eb", "Imagem A");
+    desenharMoldura(offB, panelW, "#e5e7eb", "Imagem B");
+
+    matches.forEach((p, idx) => {
+      let cor = "#d1d5db";
+      if (modelo) cor = modelo.inliersIdx.has(idx) ? "#86efac" : "#fca5a5";
+      ctx.beginPath();
+      ctx.moveTo(p.ax, p.ay);
+      ctx.lineTo(p.bx, p.by);
+      ctx.strokeStyle = cor;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      [[p.ax,p.ay],[p.bx,p.by]].forEach(([x,y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2*Math.PI);
+        ctx.fillStyle = "#818cf8";
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+      });
+    });
+
+    if (modelo){
+      document.getElementById("cap08reg_nIn").textContent = modelo.inliersIdx.size;
+      document.getElementById("cap08reg_nOut").textContent = matches.length - modelo.inliersIdx.size;
+      document.getElementById("cap08reg_nIter").textContent = modelo.numIter;
+    } else {
+      document.getElementById("cap08reg_nIn").textContent = "–";
+      document.getElementById("cap08reg_nOut").textContent = "–";
+      document.getElementById("cap08reg_nIter").textContent = "–";
+    }
+    document.getElementById("cap08reg_thVal").textContent = limiar;
+  }
+
+  document.getElementById("cap08reg_slider").addEventListener("input", function(ev){
+    limiar = parseInt(ev.target.value, 10);
+    document.getElementById("cap08reg_slVal").textContent = limiar;
+    if (modelo) rodarRansac();
+    else render();
+  });
+  document.getElementById("cap08reg_btnRun").addEventListener("click", rodarRansac);
+  document.getElementById("cap08reg_btnNovo").addEventListener("click", function(){
+    matches = gerarCorrespondencias();
+    modelo = null;
+    render();
+  });
+
+  matches = gerarCorrespondencias();
+  render();
 })();
 </script>
 <script>
