@@ -1483,34 +1483,51 @@ class mm:
             if mm.IoU(bbox, gabarito_bbox) >= threshold:
                 correct += 1
         return correct
-
+    
     @staticmethod
     def showBoundBox(img: "np.ndarray", filename: str, fmt: str = "yolo",
                       img_width: Optional[int] = None, img_height: Optional[int] = None,
-                      thickness: int = 2, title: Optional[str] = None) -> None:
-        """Lê um arquivo de anotações gerado por saveMeasures (yolo, csv ou txt)
-        e sobrepõe as bounding boxes à imagem correspondente via mm.show."""
+                      thickness: int = 2, font_scale: float = 0.5,
+                      colors: Optional[list] = None, show: bool = True,
+                      title: Optional[str] = None) -> "np.ndarray":
+        """Lê um arquivo de anotações gerado por saveMeasures (yolo, csv ou txt),
+        desenha as bounding boxes sobre a imagem — com uma cor por classe e o
+        número da classe como rótulo — e retorna a imagem anotada.
+
+        Parameters
+        ----------
+        thickness : espessura das linhas dos retângulos.
+        font_scale : escala do texto do rótulo de classe.
+        colors : paleta de cores (BGR) indexada pelo class_id; usa uma paleta
+                 padrão de 8 cores se não for fornecida.
+        show : se True, também exibe o resultado via mm.show.
+        """
         cv2 = mm._get_cv2()
         np = mm._get_np()
 
         h, w = img.shape[:2]
         img_width = img_width or w
         img_height = img_height or h
+        colors = colors or [
+            (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 0, 255),
+            (0, 255, 255), (255, 255, 0), (255, 50, 50), (50, 255, 50)
+        ]
 
         with open(filename, "r") as f:
             linhas = f.readlines()
 
-        boxes = []
+        boxes = []  # (class_id, x, y, w, h)
         if fmt == "yolo":
             for linha in linhas:
                 campos = linha.strip().split()
                 if not campos:
                     continue
-                _, xc, yc, wn, hn = campos
+                cid, xc, yc, wn, hn = campos
+                cid = int(cid)
                 xc, yc, wn, hn = float(xc), float(yc), float(wn), float(hn)
                 bw, bh = wn * img_width, hn * img_height
                 bx, by = xc * img_width - bw / 2, yc * img_height - bh / 2
-                boxes.append((bx, by, bw, bh))
+                boxes.append((cid, bx, by, bw, bh))
         else:
             sep = "," if fmt == "csv" else " "
             for linha in linhas:
@@ -1519,15 +1536,20 @@ class mm:
                     continue
                 # ordem definida em saveMeasures: id, area, perimeter, cx, cy, x, y, w, h, ...
                 _, _, _, _, _, x, y, bw, bh, *_ = campos
-                boxes.append((float(x), float(y), float(bw), float(bh)))
+                # csv/txt não registram class_id; assume classe única (0)
+                boxes.append((0, float(x), float(y), float(bw), float(bh)))
 
-        mask = np.zeros((h, w), dtype=np.uint8)
-        for x, y, bw, bh in boxes:
+        out = np.stack([img] * 3, axis=-1) if img.ndim == 2 else img.copy()
+        for cid, x, y, bw, bh in boxes:
             x, y, bw, bh = (round(v) for v in (x, y, bw, bh))
-            cv2.rectangle(mask, (x, y), (x + bw, y + bh), color=1, thickness=thickness)
+            cor = colors[cid % len(colors)]
+            cv2.rectangle(out, (x, y), (x + bw, y + bh), cor, thickness)
+            cv2.putText(out, str(cid), (x, max(y - 5, 0)),
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, cor, thickness)
 
-        base = np.stack([img] * 3, axis=-1) if img.ndim == 2 else img
-        mm.show(base, mask, title=title or f"Bounding boxes ({filename})")
+        if show:
+            mm.show(out, title=title or f"Bounding boxes ({filename})")
+        return out
 
     # ── BLOB / ANÁLISE DE COMPONENTES ANTIGO ────────────────────────────────────────
 
