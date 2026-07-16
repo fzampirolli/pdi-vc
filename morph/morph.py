@@ -1484,6 +1484,51 @@ class mm:
                 correct += 1
         return correct
 
+    @staticmethod
+    def showBoundBox(img: "np.ndarray", filename: str, fmt: str = "yolo",
+                      img_width: Optional[int] = None, img_height: Optional[int] = None,
+                      thickness: int = 2, title: Optional[str] = None) -> None:
+        """Lê um arquivo de anotações gerado por saveMeasures (yolo, csv ou txt)
+        e sobrepõe as bounding boxes à imagem correspondente via mm.show."""
+        cv2 = mm._get_cv2()
+        np = mm._get_np()
+
+        h, w = img.shape[:2]
+        img_width = img_width or w
+        img_height = img_height or h
+
+        with open(filename, "r") as f:
+            linhas = f.readlines()
+
+        boxes = []
+        if fmt == "yolo":
+            for linha in linhas:
+                campos = linha.strip().split()
+                if not campos:
+                    continue
+                _, xc, yc, wn, hn = campos
+                xc, yc, wn, hn = float(xc), float(yc), float(wn), float(hn)
+                bw, bh = wn * img_width, hn * img_height
+                bx, by = xc * img_width - bw / 2, yc * img_height - bh / 2
+                boxes.append((bx, by, bw, bh))
+        else:
+            sep = "," if fmt == "csv" else " "
+            for linha in linhas:
+                campos = linha.strip().split(sep)
+                if not campos or campos[0] == "id":
+                    continue
+                # ordem definida em saveMeasures: id, area, perimeter, cx, cy, x, y, w, h, ...
+                _, _, _, _, _, x, y, bw, bh, *_ = campos
+                boxes.append((float(x), float(y), float(bw), float(bh)))
+
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for x, y, bw, bh in boxes:
+            x, y, bw, bh = (round(v) for v in (x, y, bw, bh))
+            cv2.rectangle(mask, (x, y), (x + bw, y + bh), color=1, thickness=thickness)
+
+        base = np.stack([img] * 3, axis=-1) if img.ndim == 2 else img
+        mm.show(base, mask, title=title or f"Bounding boxes ({filename})")
+
     # ── BLOB / ANÁLISE DE COMPONENTES ANTIGO ────────────────────────────────────────
 
     @staticmethod
