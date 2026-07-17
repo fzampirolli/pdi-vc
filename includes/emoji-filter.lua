@@ -226,7 +226,6 @@ local emojis = {
   ["▶️"] = "\\emoji{play-button}",                     -- Também mapeado antes como: "$\\triangleright$"
 
   -- Garante emojis do TestSuite mesmo que não estejam no lua
-
   ["✔️"] = "\\emoji{check-mark-button}",
   ["📥"] =  "\\emoji{inbox-tray}",
   ["📤"] =  "\\emoji{outbox-tray}",
@@ -243,7 +242,20 @@ local emojis = {
   ["🐛"] = "\\emoji{bug}",
   ["🤝"] = "\\emoji{handshake}",
   ["🔧"] = "\\emoji{wrench}",
-    
+
+  -- 🆕 NOVOS ADICIONADOS
+  ["🎭"] = "\\emoji{performing-arts}",
+  ["🔲"] = "\\emoji{black-square-button}",
+  ["🌫️"] = "\\emoji{fog}",
+  ["🧭"] = "\\emoji{compass}",
+  ["✨"] = "\\emoji{sparkles}",
+  ["🎚️"] = "\\emoji{level-slider}",
+  ["🪨"] = "\\emoji{rock}",
+  ["🧹"] = "\\emoji{broom}",
+  ["⛰️"] = "\\emoji{mountain}",
+  ["🌋"] = "\\emoji{volcano}",
+  ["🗺️"] = "\\emoji{world-map}",
+  ["🪙"] = "\\emoji{coin}",
 }
 
 
