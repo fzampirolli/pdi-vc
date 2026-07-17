@@ -2024,79 +2024,76 @@ Figura&nbsp;7.16: Amostras sintéticas das três classes de textura utilizadas n
 <p>Como esses descritores possuem escalas e dimensionalidades distintas, os vetores de características são padronizados utilizando o <code>StandardScaler</code>, de modo que cada atributo apresente média zero e desvio-padrão unitário. Essa etapa evita que atributos com maior amplitude influenciem desproporcionalmente o cálculo das distâncias euclidianas empregado pelo classificador.</p>
 <p>A avaliação é realizada utilizando o algoritmo <span class="math inline">\(k\)</span>-NN com <span class="math inline">\(k=5\)</span>, sob um protocolo de validação cruzada estratificada em cinco partições (<em>5-fold stratified cross-validation</em>). Nesse procedimento, o conjunto de dados é dividido em cinco subconjuntos preservando a proporção entre as classes. Em cada iteração, quatro partições são utilizadas para treinamento e a partição restante para teste, repetindo-se o processo até que todas tenham sido empregadas como conjunto de teste. A acurácia média obtida ao longo das cinco execuções, ver <a href="#fig-07-comparativo-kfolds" class="quarto-xref">Figura&nbsp;<span>7.17</span></a>, fornece uma estimativa mais estável do desempenho do classificador, reduzindo a dependência de uma única divisão entre treinamento e teste.</p>
 <div id="cell-fig-07-comparativo-kfolds" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.feature <span class="im">import</span> local_binary_pattern, hog</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> cross_val_score</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> StandardScaler</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.neighbors <span class="im">import</span> KNeighborsClassifier</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Geração da base de dados</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>X_bruto, X_lbp, X_hog, y_textura <span class="op">=</span> [], [], [], []</span>
 <span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Geração da base de dados</span></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>X_bruto, X_lbp, X_hog, y_textura <span class="op">=</span> [], [], [], []</span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> classe <span class="kw">in</span> classes_textura:</span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">60</span>):</span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>        img <span class="op">=</span> gerar_textura(classe, ruido<span class="op">=</span><span class="fl">0.10</span>)</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> classe <span class="kw">in</span> classes_textura:</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">60</span>):</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>        img <span class="op">=</span> gerar_textura(classe, ruido<span class="op">=</span><span class="fl">0.10</span>)</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 1: Pixels brutos</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>        X_bruto.append(img.ravel())</span>
 <span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 1: Pixels brutos</span></span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>        X_bruto.append(img.ravel())</span>
-<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 2: Histograma LBP uniforme</span></span>
-<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>        lbp <span class="op">=</span> local_binary_pattern(img, P<span class="op">=</span><span class="dv">8</span>, R<span class="op">=</span><span class="dv">1</span>, method<span class="op">=</span><span class="st">"uniform"</span>)</span>
-<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>        hist_lbp, _ <span class="op">=</span> np.histogram(lbp, bins<span class="op">=</span><span class="dv">10</span>, <span class="bu">range</span><span class="op">=</span>(<span class="dv">0</span>, <span class="dv">10</span>), density<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>        X_lbp.append(hist_lbp)</span>
-<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 3: Descritor HOG</span></span>
-<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>        feat_hog <span class="op">=</span> hog(img, orientations<span class="op">=</span><span class="dv">8</span>, pixels_per_cell<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">16</span>), cells_per_block<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>        X_hog.append(feat_hog)</span>
-<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>        y_textura.append(classe)</span>
-<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>y_textura <span class="op">=</span> np.array(y_textura)</span>
-<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>descritores <span class="op">=</span> {</span>
-<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Pixels Brutos"</span>: np.array(X_bruto),</span>
-<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"LBP (Textura)"</span>: np.array(X_lbp),</span>
-<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"HOG (Forma)"</span>: np.array(X_hog)</span>
-<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-34"><a href="#cb33-34" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Avaliação estatística via 5-fold cross-validation</span></span>
-<span id="cb33-35"><a href="#cb33-35" aria-hidden="true" tabindex="-1"></a>resultados_media <span class="op">=</span> {}</span>
-<span id="cb33-36"><a href="#cb33-36" aria-hidden="true" tabindex="-1"></a>resultados_desvio <span class="op">=</span> {}</span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 2: Histograma LBP uniforme</span></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>        lbp <span class="op">=</span> local_binary_pattern(img, P<span class="op">=</span><span class="dv">8</span>, R<span class="op">=</span><span class="dv">1</span>, method<span class="op">=</span><span class="st">"uniform"</span>)</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>        hist_lbp, _ <span class="op">=</span> np.histogram(lbp, bins<span class="op">=</span><span class="dv">10</span>, <span class="bu">range</span><span class="op">=</span>(<span class="dv">0</span>, <span class="dv">10</span>), density<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>        X_lbp.append(hist_lbp)</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Extração 3: Descritor HOG</span></span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>        feat_hog <span class="op">=</span> hog(img, orientations<span class="op">=</span><span class="dv">8</span>, pixels_per_cell<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">16</span>), cells_per_block<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>        X_hog.append(feat_hog)</span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>        y_textura.append(classe)</span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>y_textura <span class="op">=</span> np.array(y_textura)</span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>descritores <span class="op">=</span> {</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Pixels Brutos"</span>: np.array(X_bruto),</span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"LBP (Textura)"</span>: np.array(X_lbp),</span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"HOG (Forma)"</span>: np.array(X_hog)</span>
+<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Avaliação estatística via 5-fold cross-validation</span></span>
+<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>resultados_media <span class="op">=</span> {}</span>
+<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>resultados_desvio <span class="op">=</span> {}</span>
+<span id="cb33-34"><a href="#cb33-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-35"><a href="#cb33-35" aria-hidden="true" tabindex="-1"></a>knn <span class="op">=</span> KNeighborsClassifier(n_neighbors<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb33-36"><a href="#cb33-36" aria-hidden="true" tabindex="-1"></a>scaler <span class="op">=</span> StandardScaler()</span>
 <span id="cb33-37"><a href="#cb33-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-38"><a href="#cb33-38" aria-hidden="true" tabindex="-1"></a>knn <span class="op">=</span> KNeighborsClassifier(n_neighbors<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb33-39"><a href="#cb33-39" aria-hidden="true" tabindex="-1"></a>scaler <span class="op">=</span> StandardScaler()</span>
-<span id="cb33-40"><a href="#cb33-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-41"><a href="#cb33-41" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nome, X_dados <span class="kw">in</span> descritores.items():</span>
-<span id="cb33-42"><a href="#cb33-42" aria-hidden="true" tabindex="-1"></a>    X_norm <span class="op">=</span> scaler.fit_transform(X_dados)</span>
-<span id="cb33-43"><a href="#cb33-43" aria-hidden="true" tabindex="-1"></a>    scores <span class="op">=</span> cross_val_score(knn, X_norm, y_textura, cv<span class="op">=</span><span class="dv">5</span>, scoring<span class="op">=</span><span class="st">"accuracy"</span>)</span>
-<span id="cb33-44"><a href="#cb33-44" aria-hidden="true" tabindex="-1"></a>    resultados_media[nome] <span class="op">=</span> scores.mean()</span>
-<span id="cb33-45"><a href="#cb33-45" aria-hidden="true" tabindex="-1"></a>    resultados_desvio[nome] <span class="op">=</span> scores.std()</span>
-<span id="cb33-46"><a href="#cb33-46" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>nome<span class="sc">:15s}</span><span class="ss"> -&gt; Acurácia Média: </span><span class="sc">{</span>scores<span class="sc">.</span>mean()<span class="sc">:.4f}</span><span class="ss"> (± </span><span class="sc">{</span>scores<span class="sc">.</span>std()<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
-<span id="cb33-47"><a href="#cb33-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-48"><a href="#cb33-48" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Plotagem do gráfico comparativo formal</span></span>
-<span id="cb33-49"><a href="#cb33-49" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.5</span>))</span>
-<span id="cb33-50"><a href="#cb33-50" aria-hidden="true" tabindex="-1"></a>nomes_desc <span class="op">=</span> <span class="bu">list</span>(resultados_media.keys())</span>
-<span id="cb33-51"><a href="#cb33-51" aria-hidden="true" tabindex="-1"></a>medias <span class="op">=</span> <span class="bu">list</span>(resultados_media.values())</span>
-<span id="cb33-52"><a href="#cb33-52" aria-hidden="true" tabindex="-1"></a>desvios <span class="op">=</span> <span class="bu">list</span>(resultados_desvio.values())</span>
-<span id="cb33-53"><a href="#cb33-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-54"><a href="#cb33-54" aria-hidden="true" tabindex="-1"></a>bars <span class="op">=</span> plt.bar(nomes_desc, medias, yerr<span class="op">=</span>desvios, capsize<span class="op">=</span><span class="dv">6</span>, </span>
-<span id="cb33-55"><a href="#cb33-55" aria-hidden="true" tabindex="-1"></a>               color<span class="op">=</span>[<span class="st">"#6366f1"</span>, <span class="st">"#9333ea"</span>, <span class="st">"#f97316"</span>], </span>
-<span id="cb33-56"><a href="#cb33-56" aria-hidden="true" tabindex="-1"></a>               width<span class="op">=</span><span class="fl">0.45</span>, edgecolor<span class="op">=</span><span class="st">"black"</span>, alpha<span class="op">=</span><span class="fl">0.85</span>)</span>
-<span id="cb33-57"><a href="#cb33-57" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Acurácia Média (5-Fold CV)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>)</span>
-<span id="cb33-58"><a href="#cb33-58" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Análise Comparativa de Descritores para Classificação de Texturas"</span>, </span>
-<span id="cb33-59"><a href="#cb33-59" aria-hidden="true" tabindex="-1"></a>          fontsize<span class="op">=</span><span class="dv">12</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>)</span>
-<span id="cb33-60"><a href="#cb33-60" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="fl">0.3</span>, <span class="fl">1.1</span>)</span>
-<span id="cb33-61"><a href="#cb33-61" aria-hidden="true" tabindex="-1"></a>plt.grid(axis<span class="op">=</span><span class="st">"y"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb33-62"><a href="#cb33-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-63"><a href="#cb33-63" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> bar <span class="kw">in</span> bars:</span>
-<span id="cb33-64"><a href="#cb33-64" aria-hidden="true" tabindex="-1"></a>    h <span class="op">=</span> bar.get_height()</span>
-<span id="cb33-65"><a href="#cb33-65" aria-hidden="true" tabindex="-1"></a>    plt.text(bar.get_x() <span class="op">+</span> bar.get_width()<span class="op">/</span><span class="dv">2</span>, </span>
-<span id="cb33-66"><a href="#cb33-66" aria-hidden="true" tabindex="-1"></a>             h <span class="op">+</span> <span class="fl">0.03</span>, <span class="ss">f"</span><span class="sc">{</span>h<span class="sc">:.3f}</span><span class="ss">"</span>, ha<span class="op">=</span><span class="st">"center"</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>)</span>
-<span id="cb33-67"><a href="#cb33-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-68"><a href="#cb33-68" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb33-69"><a href="#cb33-69" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb33-38"><a href="#cb33-38" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nome, X_dados <span class="kw">in</span> descritores.items():</span>
+<span id="cb33-39"><a href="#cb33-39" aria-hidden="true" tabindex="-1"></a>    X_norm <span class="op">=</span> scaler.fit_transform(X_dados)</span>
+<span id="cb33-40"><a href="#cb33-40" aria-hidden="true" tabindex="-1"></a>    scores <span class="op">=</span> cross_val_score(knn, X_norm, y_textura, cv<span class="op">=</span><span class="dv">5</span>, scoring<span class="op">=</span><span class="st">"accuracy"</span>)</span>
+<span id="cb33-41"><a href="#cb33-41" aria-hidden="true" tabindex="-1"></a>    resultados_media[nome] <span class="op">=</span> scores.mean()</span>
+<span id="cb33-42"><a href="#cb33-42" aria-hidden="true" tabindex="-1"></a>    resultados_desvio[nome] <span class="op">=</span> scores.std()</span>
+<span id="cb33-43"><a href="#cb33-43" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>nome<span class="sc">:15s}</span><span class="ss"> -&gt; Acurácia Média: </span><span class="sc">{</span>scores<span class="sc">.</span>mean()<span class="sc">:.4f}</span><span class="ss"> (± </span><span class="sc">{</span>scores<span class="sc">.</span>std()<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb33-44"><a href="#cb33-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-45"><a href="#cb33-45" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Plotagem do gráfico comparativo formal</span></span>
+<span id="cb33-46"><a href="#cb33-46" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.5</span>))</span>
+<span id="cb33-47"><a href="#cb33-47" aria-hidden="true" tabindex="-1"></a>nomes_desc <span class="op">=</span> <span class="bu">list</span>(resultados_media.keys())</span>
+<span id="cb33-48"><a href="#cb33-48" aria-hidden="true" tabindex="-1"></a>medias <span class="op">=</span> <span class="bu">list</span>(resultados_media.values())</span>
+<span id="cb33-49"><a href="#cb33-49" aria-hidden="true" tabindex="-1"></a>desvios <span class="op">=</span> <span class="bu">list</span>(resultados_desvio.values())</span>
+<span id="cb33-50"><a href="#cb33-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-51"><a href="#cb33-51" aria-hidden="true" tabindex="-1"></a>bars <span class="op">=</span> plt.bar(nomes_desc, medias, yerr<span class="op">=</span>desvios, capsize<span class="op">=</span><span class="dv">6</span>, </span>
+<span id="cb33-52"><a href="#cb33-52" aria-hidden="true" tabindex="-1"></a>               color<span class="op">=</span>[<span class="st">"#6366f1"</span>, <span class="st">"#9333ea"</span>, <span class="st">"#f97316"</span>], </span>
+<span id="cb33-53"><a href="#cb33-53" aria-hidden="true" tabindex="-1"></a>               width<span class="op">=</span><span class="fl">0.45</span>, edgecolor<span class="op">=</span><span class="st">"black"</span>, alpha<span class="op">=</span><span class="fl">0.85</span>)</span>
+<span id="cb33-54"><a href="#cb33-54" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Acurácia Média (5-Fold CV)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>)</span>
+<span id="cb33-55"><a href="#cb33-55" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Análise Comparativa de Descritores para Classificação de Texturas"</span>, </span>
+<span id="cb33-56"><a href="#cb33-56" aria-hidden="true" tabindex="-1"></a>          fontsize<span class="op">=</span><span class="dv">12</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>)</span>
+<span id="cb33-57"><a href="#cb33-57" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="fl">0.3</span>, <span class="fl">1.1</span>)</span>
+<span id="cb33-58"><a href="#cb33-58" aria-hidden="true" tabindex="-1"></a>plt.grid(axis<span class="op">=</span><span class="st">"y"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb33-59"><a href="#cb33-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-60"><a href="#cb33-60" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> bar <span class="kw">in</span> bars:</span>
+<span id="cb33-61"><a href="#cb33-61" aria-hidden="true" tabindex="-1"></a>    h <span class="op">=</span> bar.get_height()</span>
+<span id="cb33-62"><a href="#cb33-62" aria-hidden="true" tabindex="-1"></a>    plt.text(bar.get_x() <span class="op">+</span> bar.get_width()<span class="op">/</span><span class="dv">2</span>, </span>
+<span id="cb33-63"><a href="#cb33-63" aria-hidden="true" tabindex="-1"></a>             h <span class="op">+</span> <span class="fl">0.03</span>, <span class="ss">f"</span><span class="sc">{</span>h<span class="sc">:.3f}</span><span class="ss">"</span>, ha<span class="op">=</span><span class="st">"center"</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>)</span>
+<span id="cb33-64"><a href="#cb33-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-65"><a href="#cb33-65" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb33-66"><a href="#cb33-66" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Pixels Brutos   -&gt; Acurácia Média: 0.7167 (± 0.0324)
-LBP (Textura)   -&gt; Acurácia Média: 0.7111 (± 0.0333)
-HOG (Forma)     -&gt; Acurácia Média: 0.5278 (± 0.0248)</code></pre>
+<pre><code>Pixels Brutos   -&gt; Acurácia Média: 0.6889 (± 0.0478)
+LBP (Textura)   -&gt; Acurácia Média: 0.7611 (± 0.0648)
+HOG (Forma)     -&gt; Acurácia Média: 0.4889 (± 0.0624)</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div id="fig-07-comparativo-kfolds" class="quarto-float quarto-figure quarto-figure-center anchored">
