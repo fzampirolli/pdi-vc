@@ -207,7 +207,7 @@ Total classe 1: 1</td>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep01">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="48" id="fig-07-sim-ep01">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="89" id="fig-07-sim-ep01">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0701" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
@@ -216,7 +216,7 @@ Total classe 1: 1</td>
 <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 votação majoritária</span>
 </div>
 <div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★).</p>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★ em x=3, y=3).</p>
 <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
 <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
 <label style="font-size:12px;font-weight:bold;color:#2980b9;">k (número de vizinhos)</label>
@@ -233,7 +233,7 @@ Total classe 1: 1</td>
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var query = {x:1, y:1};
+    var query = {x:3, y:3};
     var pontos = [
       {nome:"A", x:0, y:0, r:0},
       {nome:"B", x:1, y:0, r:0},
@@ -244,8 +244,11 @@ Total classe 1: 1</td>
       {nome:"G", x:0, y:2, r:0},
       {nome:"H", x:6, y:3, r:1}
     ];
-    pontos.forEach(function(p){ p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2); });
-    pontos.sort(function(a,b){ return a.d - b.d; });
+    pontos.forEach(function(p, i){
+      p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2);
+      p.idx = i;
+    });
+    pontos.sort(function(a,b){ return (a.d - b.d) || (a.idx - b.idx); });
 
     var slEl = root.querySelector('#ep0701_sl');
     var vlEl = root.querySelector('#ep0701_vl');
@@ -268,7 +271,7 @@ Total classe 1: 1</td>
           '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var previsto = votos[1] > votos[0] ? 1 : 0;
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : pontos[0].r);
       dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
     }
     slEl.addEventListener('input', render);
@@ -290,70 +293,9 @@ Figura 7.19: Simulador: Classificador k-NN Passo a Passo
 </div>
 <div class="cell" id="5936f887">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a aria-hidden="true" href="#cb41-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_01.py</span>
-<span id="cb41-2"><a aria-hidden="true" href="#cb41-2" tabindex="-1"></a><span class="co"># Código Python</span></span>
-<span id="cb41-3"><a aria-hidden="true" href="#cb41-3" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb41-4"><a aria-hidden="true" href="#cb41-4" tabindex="-1"></a></span>
-<span id="cb41-5"><a aria-hidden="true" href="#cb41-5" tabindex="-1"></a><span class="co"># 1. Quantidade e parâmetro</span></span>
-<span id="cb41-6"><a aria-hidden="true" href="#cb41-6" tabindex="-1"></a>linha_params <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-7"><a aria-hidden="true" href="#cb41-7" tabindex="-1"></a>N <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">0</span>])</span>
-<span id="cb41-8"><a aria-hidden="true" href="#cb41-8" tabindex="-1"></a>k <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">1</span>])</span>
-<span id="cb41-9"><a aria-hidden="true" href="#cb41-9" tabindex="-1"></a></span>
-<span id="cb41-10"><a aria-hidden="true" href="#cb41-10" tabindex="-1"></a><span class="co"># 2. Exemplos de treinamento</span></span>
-<span id="cb41-11"><a aria-hidden="true" href="#cb41-11" tabindex="-1"></a>X_train <span class="op">=</span> []</span>
-<span id="cb41-12"><a aria-hidden="true" href="#cb41-12" tabindex="-1"></a>y_train <span class="op">=</span> []</span>
-<span id="cb41-13"><a aria-hidden="true" href="#cb41-13" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(N):</span>
-<span id="cb41-14"><a aria-hidden="true" href="#cb41-14" tabindex="-1"></a>    linha_treino <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-15"><a aria-hidden="true" href="#cb41-15" tabindex="-1"></a>    X_train.append([<span class="bu">float</span>(linha_treino[<span class="dv">0</span>]), <span class="bu">float</span>(linha_treino[<span class="dv">1</span>])])</span>
-<span id="cb41-16"><a aria-hidden="true" href="#cb41-16" tabindex="-1"></a>    y_train.append(<span class="bu">int</span>(linha_treino[<span class="dv">2</span>]))</span>
-<span id="cb41-17"><a aria-hidden="true" href="#cb41-17" tabindex="-1"></a></span>
-<span id="cb41-18"><a aria-hidden="true" href="#cb41-18" tabindex="-1"></a><span class="co"># Converte para arrays do numpy (mantendo a mesma estrutura do sklearn)</span></span>
-<span id="cb41-19"><a aria-hidden="true" href="#cb41-19" tabindex="-1"></a>X_train <span class="op">=</span> np.array(X_train)</span>
-<span id="cb41-20"><a aria-hidden="true" href="#cb41-20" tabindex="-1"></a>y_train <span class="op">=</span> np.array(y_train)</span>
-<span id="cb41-21"><a aria-hidden="true" href="#cb41-21" tabindex="-1"></a></span>
-<span id="cb41-22"><a aria-hidden="true" href="#cb41-22" tabindex="-1"></a><span class="co"># 3. Consultas</span></span>
-<span id="cb41-23"><a aria-hidden="true" href="#cb41-23" tabindex="-1"></a>Q <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>())</span>
-<span id="cb41-24"><a aria-hidden="true" href="#cb41-24" tabindex="-1"></a></span>
-<span id="cb41-25"><a aria-hidden="true" href="#cb41-25" tabindex="-1"></a>total_classe_1 <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb41-26"><a aria-hidden="true" href="#cb41-26" tabindex="-1"></a></span>
-<span id="cb41-27"><a aria-hidden="true" href="#cb41-27" tabindex="-1"></a><span class="co"># 4. Processamento de cada consulta</span></span>
-<span id="cb41-28"><a aria-hidden="true" href="#cb41-28" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(Q):</span>
-<span id="cb41-29"><a aria-hidden="true" href="#cb41-29" tabindex="-1"></a>    linha_consulta <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-30"><a aria-hidden="true" href="#cb41-30" tabindex="-1"></a>    xq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">0</span>])</span>
-<span id="cb41-31"><a aria-hidden="true" href="#cb41-31" tabindex="-1"></a>    yq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">1</span>])</span>
-<span id="cb41-32"><a aria-hidden="true" href="#cb41-32" tabindex="-1"></a></span>
-<span id="cb41-33"><a aria-hidden="true" href="#cb41-33" tabindex="-1"></a>    <span class="co"># Mantém o padrão de matriz 2D para a consulta</span></span>
-<span id="cb41-34"><a aria-hidden="true" href="#cb41-34" tabindex="-1"></a>    X_query <span class="op">=</span> np.array([[xq, yq]])</span>
-<span id="cb41-35"><a aria-hidden="true" href="#cb41-35" tabindex="-1"></a></span>
-<span id="cb41-36"><a aria-hidden="true" href="#cb41-36" tabindex="-1"></a>    <span class="co"># 5. Cálculo das distâncias euclidianas manualmente (equivalente ao 'brute' do knn)</span></span>
-<span id="cb41-37"><a aria-hidden="true" href="#cb41-37" tabindex="-1"></a>    <span class="co"># Subtrai o ponto de consulta de todos os pontos de treino, eleva ao quadrado, soma e tira a raiz</span></span>
-<span id="cb41-38"><a aria-hidden="true" href="#cb41-38" tabindex="-1"></a>    distancias <span class="op">=</span> np.sqrt(np.<span class="bu">sum</span>((X_train <span class="op">-</span> X_query[<span class="dv">0</span>]) <span class="op">**</span> <span class="dv">2</span>, axis<span class="op">=</span><span class="dv">1</span>))</span>
-<span id="cb41-39"><a aria-hidden="true" href="#cb41-39" tabindex="-1"></a></span>
-<span id="cb41-40"><a aria-hidden="true" href="#cb41-40" tabindex="-1"></a>    <span class="co"># argsort com o método 'mergesort' garante uma ordenação ESTÁVEL (preserva ordem de leitura em empates)</span></span>
-<span id="cb41-41"><a aria-hidden="true" href="#cb41-41" tabindex="-1"></a>    indices_vizinhos <span class="op">=</span> np.argsort(distancias, kind<span class="op">=</span><span class="st">"mergesort"</span>)[:k]</span>
-<span id="cb41-42"><a aria-hidden="true" href="#cb41-42" tabindex="-1"></a></span>
-<span id="cb41-43"><a aria-hidden="true" href="#cb41-43" tabindex="-1"></a>    <span class="co"># Seleciona os rótulos dos k vizinhos mais próximos</span></span>
-<span id="cb41-44"><a aria-hidden="true" href="#cb41-44" tabindex="-1"></a>    rotulos_vizinhos <span class="op">=</span> y_train[indices_vizinhos]</span>
-<span id="cb41-45"><a aria-hidden="true" href="#cb41-45" tabindex="-1"></a></span>
-<span id="cb41-46"><a aria-hidden="true" href="#cb41-46" tabindex="-1"></a>    <span class="co"># 6. Votação majoritária</span></span>
-<span id="cb41-47"><a aria-hidden="true" href="#cb41-47" tabindex="-1"></a>    votos_0 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">0</span>)</span>
-<span id="cb41-48"><a aria-hidden="true" href="#cb41-48" tabindex="-1"></a>    votos_1 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">1</span>)</span>
-<span id="cb41-49"><a aria-hidden="true" href="#cb41-49" tabindex="-1"></a></span>
-<span id="cb41-50"><a aria-hidden="true" href="#cb41-50" tabindex="-1"></a>    <span class="cf">if</span> votos_1 <span class="op">&gt;</span> votos_0:</span>
-<span id="cb41-51"><a aria-hidden="true" href="#cb41-51" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb41-52"><a aria-hidden="true" href="#cb41-52" tabindex="-1"></a>    <span class="cf">elif</span> votos_0 <span class="op">&gt;</span> votos_1:</span>
-<span id="cb41-53"><a aria-hidden="true" href="#cb41-53" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb41-54"><a aria-hidden="true" href="#cb41-54" tabindex="-1"></a>    <span class="cf">else</span>:</span>
-<span id="cb41-55"><a aria-hidden="true" href="#cb41-55" tabindex="-1"></a>        <span class="co"># Desempate defensivo: classe do vizinho mais próximo absoluto</span></span>
-<span id="cb41-56"><a aria-hidden="true" href="#cb41-56" tabindex="-1"></a>        pred <span class="op">=</span> <span class="bu">int</span>(rotulos_vizinhos[<span class="dv">0</span>])</span>
-<span id="cb41-57"><a aria-hidden="true" href="#cb41-57" tabindex="-1"></a></span>
-<span id="cb41-58"><a aria-hidden="true" href="#cb41-58" tabindex="-1"></a>    <span class="co"># 7. Saída</span></span>
-<span id="cb41-59"><a aria-hidden="true" href="#cb41-59" tabindex="-1"></a>    <span class="bu">print</span>(pred)</span>
-<span id="cb41-60"><a aria-hidden="true" href="#cb41-60" tabindex="-1"></a>    <span class="cf">if</span> pred <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb41-61"><a aria-hidden="true" href="#cb41-61" tabindex="-1"></a>        total_classe_1 <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb41-62"><a aria-hidden="true" href="#cb41-62" tabindex="-1"></a></span>
-<span id="cb41-63"><a aria-hidden="true" href="#cb41-63" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total classe 1: </span><span class="sc">{</span>total_classe_1<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<span id="cb41-2"><a aria-hidden="true" href="#cb41-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_01.py</code></pre>
+<pre><code>Writing EP07_01.py</code></pre>
 </div>
 </div>
 <div class="cell" id="8e502b2a">
@@ -363,14 +305,7 @@ Figura 7.19: Simulador: Classificador k-NN Passo a Passo
 📋 5 caso(s) carregado(s) de casos/EP07_01.cases
 
 🔍 Testando Python: EP07_01.py
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso1_Exemplo1_Enunciado: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso2_Exemplo2_K1: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso3_Empate_Distancia_Ordem_Estavel: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso4_Desempate_Votacao_K_Par_Defensivo: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso5_Multiplas_Consultas_Variadas: OK</span>
-
-📊 Resultado: 5/5 (100.0%)
-<span style="color:#27ae60;font-weight:500">🎉 Parabéns! Todos os testes passaram.</span></pre>
+<span style="color:#f39c12;font-weight:500">⚠️ EP07_01.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
@@ -527,7 +462,7 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var query = {x:1, y:1};
+    var query = {x:3, y:3};
     var pontos = [
       {nome:"A", x:0, y:0, r:0},
       {nome:"B", x:1, y:0, r:0},
@@ -538,8 +473,11 @@ window.Quarto = {
       {nome:"G", x:0, y:2, r:0},
       {nome:"H", x:6, y:3, r:1}
     ];
-    pontos.forEach(function(p){ p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2); });
-    pontos.sort(function(a,b){ return a.d - b.d; });
+    pontos.forEach(function(p, i){
+      p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2);
+      p.idx = i;
+    });
+    pontos.sort(function(a,b){ return (a.d - b.d) || (a.idx - b.idx); });
 
     var slEl = root.querySelector('#ep0701_sl');
     var vlEl = root.querySelector('#ep0701_vl');
@@ -562,7 +500,7 @@ window.Quarto = {
           '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var previsto = votos[1] > votos[0] ? 1 : 0;
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : pontos[0].r);
       dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
     }
     slEl.addEventListener('input', render);
@@ -582,11 +520,12 @@ window.Quarto = {
     root.dataset.init = "1";
 
     var pontos = [
-      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
-      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
-      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
-      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+      {nome:"P1", x1:10,  x2:0.90, r:0},
+      {nome:"P2", x1:12,  x2:0.85, r:0},
+      {nome:"P3", x1:900, x2:0.20, r:1},
+      {nome:"P4", x1:950, x2:0.25, r:1}
     ];
+    pontos.forEach(function(p, i){ p.idx = i; });
     var query = {x1:500, x2:0.88};
     var k = 3;
 
@@ -595,6 +534,7 @@ window.Quarto = {
       var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
       return {mean:m, std:Math.sqrt(v)};
     }
+    // Ajuste (fit) somente sobre o treino, nunca sobre a consulta.
     var s1 = stats(pontos.map(function(p){return p.x1;}));
     var s2 = stats(pontos.map(function(p){return p.x2;}));
 
@@ -602,6 +542,7 @@ window.Quarto = {
 
     var cards = root.querySelector('#ep0702_cards');
     var dbg = root.querySelector('#ep0702_debug');
+    var qEl = root.querySelector('#ep0702_query');
     var btnRaw = root.querySelector('#ep0702_btn_raw');
     var btnNorm = root.querySelector('#ep0702_btn_norm');
     var modoNorm = false;
@@ -612,6 +553,9 @@ window.Quarto = {
       btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
       btnNorm.style.color = modoNorm ? 'white' : '#374151';
 
+      qEl.textContent = '★ consulta: área=' + query.x1 + ', circularidade=' + query.x2 +
+        (modoNorm ? '  →  z_área=' + z(query.x1, s1).toFixed(3) + ', z_circ=' + z(query.x2, s2).toFixed(3) : '');
+
       var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
       var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
 
@@ -619,9 +563,10 @@ window.Quarto = {
         var px1 = modoNorm ? z(p.x1, s1) : p.x1;
         var px2 = modoNorm ? z(p.x2, s2) : p.x2;
         var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
-        return {nome:p.nome, r:p.r, d:d};
+        return {nome:p.nome, r:p.r, d:d, idx:p.idx, area:p.x1, circ:p.x2, va:px1, vc:px2};
       });
-      lista.sort(function(a,b){ return a.d - b.d; });
+      // Ordenação estável por distância; empates resolvidos pela ordem de leitura (idx).
+      lista.sort(function(a,b){ return (a.d - b.d) || (a.idx - b.idx); });
 
       cards.innerHTML = '';
       var votos = [0,0];
@@ -631,12 +576,17 @@ window.Quarto = {
         var div = document.createElement('div');
         div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
           (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        var valorUsado = modoNorm
+          ? ('z=(' + p.va.toFixed(2) + ', ' + p.vc.toFixed(2) + ')')
+          : ('área=' + p.area + ', circ=' + p.circ);
         div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;font-size:10px;">'+valorUsado+'</div>' +
           '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
           '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var previsto = votos[1] > votos[0] ? 1 : 0;
+      // Defensivo: em caso de empate de votação (k par), usa a classe do vizinho mais próximo.
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : lista[0].r);
       dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
         '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
         '  |  classe prevista=' + previsto;
@@ -661,11 +611,17 @@ window.Quarto = {
     var cenarios = {
       A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
       B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
-      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
+      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}],
+      D: [{y:0,p:1},{y:0,p:1},{y:1,p:1},{y:0,p:0}]
     };
     var cards = root.querySelector('#ep0703_cards');
     var dbg = root.querySelector('#ep0703_debug');
-    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
+    var botoes = {
+      A: root.querySelector('#ep0703_b1'),
+      B: root.querySelector('#ep0703_b2'),
+      C: root.querySelector('#ep0703_b3'),
+      D: root.querySelector('#ep0703_b4')
+    };
 
     function render(key){
       Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
@@ -691,6 +647,7 @@ window.Quarto = {
     botoes.A.addEventListener('click', function(){ render('A'); });
     botoes.B.addEventListener('click', function(){ render('B'); });
     botoes.C.addEventListener('click', function(){ render('C'); });
+    botoes.D.addEventListener('click', function(){ render('D'); });
     render('A');
   }
   function tryInit(){
@@ -705,10 +662,25 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var valores = [[90,90,90],[10,50,10],[90,90,90]];
+    var exemplos = {
+      1: [[10,10,10],[10,50,10],[10,10,10]],
+      2: [[90,90,90],[10,50,10],[90,90,90]]
+    };
+    var valores = exemplos[2].map(function(row){ return row.slice(); });
     var grid = root.querySelector('#ep0704_grid');
     var dbg = root.querySelector('#ep0704_debug');
+    var btn1 = root.querySelector('#ep0704_b1');
+    var btn2 = root.querySelector('#ep0704_b2');
     var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+    var pIndex = {};
+    ordem.forEach(function(pos,p){ pIndex[pos[0]+','+pos[1]] = p; });
+    var cenarioAtivo = 2;
+
+    function marcarBotaoAtivo(n){
+      cenarioAtivo = n;
+      btn1.classList.toggle('ativo', n===1);
+      btn2.classList.toggle('ativo', n===2);
+    }
 
     function render(){
       grid.innerHTML = '';
@@ -716,13 +688,20 @@ window.Quarto = {
         for(var c=0;c<3;c++){
           (function(r,c){
             var v = valores[r][c];
-            var div = document.createElement('div');
             var central = (r===1 && c===1);
-            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+            var div = document.createElement('div');
+            div.style.cssText = 'position:relative;height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
             div.textContent = v;
             if(!central){
+              var pLabel = document.createElement('span');
+              pLabel.textContent = 'p'+pIndex[r+','+c];
+              pLabel.style.cssText = 'position:absolute;top:2px;left:4px;font-size:9px;font-weight:400;opacity:0.75;';
+              div.appendChild(pLabel);
               div.addEventListener('click', function(){
                 valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                cenarioAtivo = null;
+                btn1.classList.remove('ativo');
+                btn2.classList.remove('ativo');
                 render();
               });
             }
@@ -739,6 +718,17 @@ window.Quarto = {
       var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
       dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
     }
+    btn1.addEventListener('click', function(){
+      valores = exemplos[1].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(1);
+      render();
+    });
+    btn2.addEventListener('click', function(){
+      valores = exemplos[2].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(2);
+      render();
+    });
+    marcarBotaoAtivo(2);
     render();
   }
   function tryInit(){

@@ -360,7 +360,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#objetivo-deste-caderno" id="toc-objetivo-deste-caderno" class="nav-link" data-scroll-target="#objetivo-deste-caderno">🎯 Objetivo deste Caderno</a></li>
   <li><a href="#ep07_01-classificador-k-nn-passo-a-passo" id="toc-ep07_01-classificador-k-nn-passo-a-passo" class="nav-link" data-scroll-target="#ep07_01-classificador-k-nn-passo-a-passo"><span class="header-section-number">7.18.1</span> EP07_01 🟢 Classificador k-NN Passo a Passo</a></li>
-  <li><a href="#ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" id="toc-ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" class="nav-link" data-scroll-target="#ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalização Z-score e Robustez do k-NN a Escalas Distintas</a></li>
+  <li><a href="#ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" id="toc-ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" class="nav-link" data-scroll-target="#ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalização <em>Z-score</em> e Robustez do k-NN a Escalas Distintas</a></li>
   <li><a href="#ep07_03-avaliação-por-matriz-de-confusão" id="toc-ep07_03-avaliação-por-matriz-de-confusão" class="nav-link" data-scroll-target="#ep07_03-avaliação-por-matriz-de-confusão"><span class="header-section-number">7.18.3</span> EP07_03 🟡 Avaliação por Matriz de Confusão</a></li>
   <li><a href="#ep07_04-codificação-manual-do-descritor-lbp" id="toc-ep07_04-codificação-manual-do-descritor-lbp" class="nav-link" data-scroll-target="#ep07_04-codificação-manual-do-descritor-lbp"><span class="header-section-number">7.18.4</span> EP07_04 🟠 Codificação Manual do Descritor LBP</a></li>
   <li><a href="#ep07_05-histograma-de-orientações-de-uma-célula-hog" id="toc-ep07_05-histograma-de-orientações-de-uma-célula-hog" class="nav-link" data-scroll-target="#ep07_05-histograma-de-orientações-de-uma-célula-hog"><span class="header-section-number">7.18.5</span> EP07_05 🔴 Histograma de Orientações de uma Célula HOG</a></li>
@@ -2479,7 +2479,7 @@ Total classe 1: 1</td>
 </tbody>
 </table>
 <div id="cell-fig-07-sim-ep01" class="cell">
-<div id="fig-07-sim-ep01" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="48">
+<div id="fig-07-sim-ep01" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="89">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -2489,7 +2489,7 @@ Total classe 1: 1</td>
     <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 votação majoritária</span>
   </div>
   <div style="padding:20px;background:white;overflow:auto">
-    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★).</p>
+    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★ em x=3, y=3).</p>
     <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
         <label style="font-size:12px;font-weight:bold;color:#2980b9;">k (número de vizinhos)</label>
@@ -2506,7 +2506,7 @@ Total classe 1: 1</td>
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var query = {x:1, y:1};
+    var query = {x:3, y:3};
     var pontos = [
       {nome:"A", x:0, y:0, r:0},
       {nome:"B", x:1, y:0, r:0},
@@ -2517,8 +2517,11 @@ Total classe 1: 1</td>
       {nome:"G", x:0, y:2, r:0},
       {nome:"H", x:6, y:3, r:1}
     ];
-    pontos.forEach(function(p){ p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2); });
-    pontos.sort(function(a,b){ return a.d - b.d; });
+    pontos.forEach(function(p, i){
+      p.d = Math.sqrt((p.x-query.x)**2 + (p.y-query.y)**2);
+      p.idx = i;
+    });
+    pontos.sort(function(a,b){ return (a.d - b.d) || (a.idx - b.idx); });
 
     var slEl = root.querySelector('#ep0701_sl');
     var vlEl = root.querySelector('#ep0701_vl');
@@ -2541,7 +2544,7 @@ Total classe 1: 1</td>
           '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var previsto = votos[1] > votos[0] ? 1 : 0;
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : pontos[0].r);
       dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
     }
     slEl.addEventListener('input', render);
@@ -2563,70 +2566,9 @@ Figura&nbsp;7.19: Simulador: Classificador k-NN Passo a Passo
 </div>
 <div id="5936f887" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_01.py</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Quantidade e parâmetro</span></span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>linha_params <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">0</span>])</span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">1</span>])</span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Exemplos de treinamento</span></span>
-<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>X_train <span class="op">=</span> []</span>
-<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>y_train <span class="op">=</span> []</span>
-<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(N):</span>
-<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>    linha_treino <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>    X_train.append([<span class="bu">float</span>(linha_treino[<span class="dv">0</span>]), <span class="bu">float</span>(linha_treino[<span class="dv">1</span>])])</span>
-<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>    y_train.append(<span class="bu">int</span>(linha_treino[<span class="dv">2</span>]))</span>
-<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Converte para arrays do numpy (mantendo a mesma estrutura do sklearn)</span></span>
-<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>X_train <span class="op">=</span> np.array(X_train)</span>
-<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>y_train <span class="op">=</span> np.array(y_train)</span>
-<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Consultas</span></span>
-<span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a>Q <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>())</span>
-<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>total_classe_1 <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Processamento de cada consulta</span></span>
-<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(Q):</span>
-<span id="cb41-29"><a href="#cb41-29" aria-hidden="true" tabindex="-1"></a>    linha_consulta <span class="op">=</span> <span class="bu">input</span>().split()</span>
-<span id="cb41-30"><a href="#cb41-30" aria-hidden="true" tabindex="-1"></a>    xq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">0</span>])</span>
-<span id="cb41-31"><a href="#cb41-31" aria-hidden="true" tabindex="-1"></a>    yq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">1</span>])</span>
-<span id="cb41-32"><a href="#cb41-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-33"><a href="#cb41-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Mantém o padrão de matriz 2D para a consulta</span></span>
-<span id="cb41-34"><a href="#cb41-34" aria-hidden="true" tabindex="-1"></a>    X_query <span class="op">=</span> np.array([[xq, yq]])</span>
-<span id="cb41-35"><a href="#cb41-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-36"><a href="#cb41-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 5. Cálculo das distâncias euclidianas manualmente (equivalente ao 'brute' do knn)</span></span>
-<span id="cb41-37"><a href="#cb41-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Subtrai o ponto de consulta de todos os pontos de treino, eleva ao quadrado, soma e tira a raiz</span></span>
-<span id="cb41-38"><a href="#cb41-38" aria-hidden="true" tabindex="-1"></a>    distancias <span class="op">=</span> np.sqrt(np.<span class="bu">sum</span>((X_train <span class="op">-</span> X_query[<span class="dv">0</span>]) <span class="op">**</span> <span class="dv">2</span>, axis<span class="op">=</span><span class="dv">1</span>))</span>
-<span id="cb41-39"><a href="#cb41-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-40"><a href="#cb41-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># argsort com o método 'mergesort' garante uma ordenação ESTÁVEL (preserva ordem de leitura em empates)</span></span>
-<span id="cb41-41"><a href="#cb41-41" aria-hidden="true" tabindex="-1"></a>    indices_vizinhos <span class="op">=</span> np.argsort(distancias, kind<span class="op">=</span><span class="st">"mergesort"</span>)[:k]</span>
-<span id="cb41-42"><a href="#cb41-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-43"><a href="#cb41-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Seleciona os rótulos dos k vizinhos mais próximos</span></span>
-<span id="cb41-44"><a href="#cb41-44" aria-hidden="true" tabindex="-1"></a>    rotulos_vizinhos <span class="op">=</span> y_train[indices_vizinhos]</span>
-<span id="cb41-45"><a href="#cb41-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-46"><a href="#cb41-46" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 6. Votação majoritária</span></span>
-<span id="cb41-47"><a href="#cb41-47" aria-hidden="true" tabindex="-1"></a>    votos_0 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">0</span>)</span>
-<span id="cb41-48"><a href="#cb41-48" aria-hidden="true" tabindex="-1"></a>    votos_1 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">1</span>)</span>
-<span id="cb41-49"><a href="#cb41-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-50"><a href="#cb41-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> votos_1 <span class="op">&gt;</span> votos_0:</span>
-<span id="cb41-51"><a href="#cb41-51" aria-hidden="true" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb41-52"><a href="#cb41-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> votos_0 <span class="op">&gt;</span> votos_1:</span>
-<span id="cb41-53"><a href="#cb41-53" aria-hidden="true" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb41-54"><a href="#cb41-54" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
-<span id="cb41-55"><a href="#cb41-55" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Desempate defensivo: classe do vizinho mais próximo absoluto</span></span>
-<span id="cb41-56"><a href="#cb41-56" aria-hidden="true" tabindex="-1"></a>        pred <span class="op">=</span> <span class="bu">int</span>(rotulos_vizinhos[<span class="dv">0</span>])</span>
-<span id="cb41-57"><a href="#cb41-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-58"><a href="#cb41-58" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 7. Saída</span></span>
-<span id="cb41-59"><a href="#cb41-59" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(pred)</span>
-<span id="cb41-60"><a href="#cb41-60" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> pred <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb41-61"><a href="#cb41-61" aria-hidden="true" tabindex="-1"></a>        total_classe_1 <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb41-62"><a href="#cb41-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-63"><a href="#cb41-63" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total classe 1: </span><span class="sc">{</span>total_classe_1<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_01.py</code></pre>
+<pre><code>Writing EP07_01.py</code></pre>
 </div>
 </div>
 <div id="8e502b2a" class="cell">
@@ -2636,22 +2578,15 @@ Figura&nbsp;7.19: Simulador: Classificador k-NN Passo a Passo
 📋 5 caso(s) carregado(s) de casos/EP07_01.cases
 
 🔍 Testando Python: EP07_01.py
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso1_Exemplo1_Enunciado: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso2_Exemplo2_K1: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso3_Empate_Distancia_Ordem_Estavel: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso4_Desempate_Votacao_K_Par_Defensivo: OK</span>
-<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso5_Multiplas_Consultas_Variadas: OK</span>
-
-📊 Resultado: 5/5 (100.0%)
-<span style="color:#27ae60;font-weight:500">🎉 Parabéns! Todos os testes passaram.</span></pre>
+<span style="color:#f39c12;font-weight:500">⚠️ EP07_01.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
 </section>
 <section id="ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" class="level3" data-number="7.18.2">
-<h3 data-number="7.18.2" class="anchored" data-anchor-id="ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalização Z-score e Robustez do k-NN a Escalas Distintas</h3>
-<p>Este exercício complementar revisita o classificador implementado no <strong>EP07_01</strong>, desta vez sob a ótica discutida na seção <em>O Impacto da Escala e a Normalização de Características</em> do capítulo: o k-NN decide com base na distância entre vetores, de modo que uma característica medida em uma escala muito maior do que as demais tende a <strong>dominar</strong> o cálculo da distância, mesmo quando ela não é a mais relevante para separar as classes.</p>
-<p>Um sistema de inspeção registra, para cada peça, sua <strong>área</strong> (em pixels, podendo chegar a centenas ou milhares) e sua <strong>circularidade</strong> (sempre entre <span class="math inline">\(0\)</span> e <span class="math inline">\(1\)</span>). Você foi encarregado de classificar novas peças por k-NN de duas formas — com e sem a padronização Z-score apresentada no capítulo — e de reportar em quais casos as duas abordagens <strong>divergem</strong>.</p>
+<h3 data-number="7.18.2" class="anchored" data-anchor-id="ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalização <em>Z-score</em> e Robustez do k-NN a Escalas Distintas</h3>
+<p>Este exercício revisita o classificador implementado no <strong>EP07_01</strong>, desta vez sob a ótica discutida na seção <em>O Impacto da Escala e a Normalização de Características</em> do capítulo: o k-NN decide com base na distância entre vetores, de modo que uma característica medida em uma escala muito maior do que as demais tende a <strong>dominar</strong> o cálculo da distância, mesmo quando ela não é a mais relevante para separar as classes.</p>
+<p>Um sistema de inspeção registra, para cada peça, sua <strong>área</strong> (em pixels, podendo chegar a centenas ou milhares) e sua <strong>circularidade</strong> (sempre entre <span class="math inline">\(0\)</span> e <span class="math inline">\(1\)</span>). Você foi encarregado de classificar novas peças por k-NN de duas formas — com e sem a padronização <em>Z-score</em> apresentada no capítulo — e de reportar em quais casos as duas abordagens <strong>divergem</strong>.</p>
 <section id="diretrizes-de-implementação-1" class="level4" data-number="7.18.2.1">
 <h4 data-number="7.18.2.1" class="anchored" data-anchor-id="diretrizes-de-implementação-1"><span class="header-section-number">7.18.2.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
@@ -2691,7 +2626,7 @@ z_j = \frac{x_j - \mu_j}{\sigma_j}.
 </thead>
 <tbody>
 <tr class="odd">
-<td>Padronização Z-score</td>
+<td>Padronização <em>Z-score</em></td>
 <td>Reescala cada característica para média <span class="math inline">\(0\)</span> e desvio-padrão <span class="math inline">\(1\)</span>, tornando escalas heterogêneas comparáveis</td>
 </tr>
 <tr class="even">
@@ -2766,7 +2701,7 @@ Divergiu: 0</td>
 </tbody>
 </table>
 <div id="cell-fig-07-sim-ep02" class="cell">
-<div id="fig-07-sim-ep02" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="51">
+<div id="fig-07-sim-ep02" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="92">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -2776,7 +2711,8 @@ Divergiu: 0</td>
     <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔷 padronização de características</span>
   </div>
   <div style="padding:20px;background:white;overflow:auto">
-    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Alterne entre a distância bruta e a distância padronizada (Z-score) para a mesma consulta (★) e observe como a classe prevista pode mudar.</p>
+    <p style="font-size:11px;color:#777;margin-bottom:6px;text-align:center;">Cada exemplo tem duas características — área (pixels) e circularidade (0 a 1). Alterne entre distância bruta e padronizada (Z-score) para a mesma consulta (★) e observe se a classe prevista muda.</p>
+    <p id="ep0702_query" style="font-size:11px;color:#555;margin-bottom:14px;text-align:center;font-family:monospace;"></p>
     <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;justify-content:center;gap:10px;">
       <button id="ep0702_btn_raw" style="border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer;background:#2980b9;color:white;">Sem normalização</button>
       <button id="ep0702_btn_norm" style="border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer;background:#e5e7eb;color:#374151;">Com normalização (Z-score)</button>
@@ -2792,11 +2728,12 @@ Divergiu: 0</td>
     root.dataset.init = "1";
 
     var pontos = [
-      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
-      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
-      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
-      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+      {nome:"P1", x1:10,  x2:0.90, r:0},
+      {nome:"P2", x1:12,  x2:0.85, r:0},
+      {nome:"P3", x1:900, x2:0.20, r:1},
+      {nome:"P4", x1:950, x2:0.25, r:1}
     ];
+    pontos.forEach(function(p, i){ p.idx = i; });
     var query = {x1:500, x2:0.88};
     var k = 3;
 
@@ -2805,6 +2742,7 @@ Divergiu: 0</td>
       var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
       return {mean:m, std:Math.sqrt(v)};
     }
+    // Ajuste (fit) somente sobre o treino, nunca sobre a consulta.
     var s1 = stats(pontos.map(function(p){return p.x1;}));
     var s2 = stats(pontos.map(function(p){return p.x2;}));
 
@@ -2812,6 +2750,7 @@ Divergiu: 0</td>
 
     var cards = root.querySelector('#ep0702_cards');
     var dbg = root.querySelector('#ep0702_debug');
+    var qEl = root.querySelector('#ep0702_query');
     var btnRaw = root.querySelector('#ep0702_btn_raw');
     var btnNorm = root.querySelector('#ep0702_btn_norm');
     var modoNorm = false;
@@ -2822,6 +2761,9 @@ Divergiu: 0</td>
       btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
       btnNorm.style.color = modoNorm ? 'white' : '#374151';
 
+      qEl.textContent = '★ consulta: área=' + query.x1 + ', circularidade=' + query.x2 +
+        (modoNorm ? '  →  z_área=' + z(query.x1, s1).toFixed(3) + ', z_circ=' + z(query.x2, s2).toFixed(3) : '');
+
       var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
       var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
 
@@ -2829,9 +2771,10 @@ Divergiu: 0</td>
         var px1 = modoNorm ? z(p.x1, s1) : p.x1;
         var px2 = modoNorm ? z(p.x2, s2) : p.x2;
         var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
-        return {nome:p.nome, r:p.r, d:d};
+        return {nome:p.nome, r:p.r, d:d, idx:p.idx, area:p.x1, circ:p.x2, va:px1, vc:px2};
       });
-      lista.sort(function(a,b){ return a.d - b.d; });
+      // Ordenação estável por distância; empates resolvidos pela ordem de leitura (idx).
+      lista.sort(function(a,b){ return (a.d - b.d) || (a.idx - b.idx); });
 
       cards.innerHTML = '';
       var votos = [0,0];
@@ -2841,12 +2784,17 @@ Divergiu: 0</td>
         var div = document.createElement('div');
         div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
           (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        var valorUsado = modoNorm
+          ? ('z=(' + p.va.toFixed(2) + ', ' + p.vc.toFixed(2) + ')')
+          : ('área=' + p.area + ', circ=' + p.circ);
         div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;font-size:10px;">'+valorUsado+'</div>' +
           '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
           '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var previsto = votos[1] > votos[0] ? 1 : 0;
+      // Defensivo: em caso de empate de votação (k par), usa a classe do vizinho mais próximo.
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : lista[0].r);
       dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
         '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
         '  |  classe prevista=' + previsto;
@@ -2874,15 +2822,15 @@ Figura&nbsp;7.20: Simulador: Efeito da Normalização Z-score na Distância k-NN
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_02.py</code></pre>
+<pre><code>Writing EP07_02.py</code></pre>
 </div>
 </div>
 <div id="00ec17ce" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_02.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_2.cases
-❌ Não foi possível baixar EP07_02.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_02.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP07_02.cases
+💥 Arquivo EP07_02.py não encontrado.</pre>
 </div>
 </div>
 </section>
@@ -3010,7 +2958,7 @@ Revocacao: indefinida</td>
 </tbody>
 </table>
 <div id="cell-fig-07-sim-ep03" class="cell">
-<div id="fig-07-sim-ep03" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="54">
+<div id="fig-07-sim-ep03" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="103">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -3021,10 +2969,11 @@ Revocacao: indefinida</td>
   </div>
   <div style="padding:20px;background:white;overflow:auto">
     <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha um cenário de inspeção e observe como acurácia, precisão e revocação reagem de forma diferente.</p>
-    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px;">
       <button id="ep0703_b1" class="ep0703_btn">Cenário A: erros equilibrados</button>
       <button id="ep0703_b2" class="ep0703_btn">Cenário B: muitos falsos negativos</button>
       <button id="ep0703_b3" class="ep0703_btn">Cenário C: nenhum defeito real</button>
+      <button id="ep0703_b4" class="ep0703_btn">Cenário D: muitos falsos positivos</button>
     </div>
     <div id="ep0703_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;"></div>
     <div id="ep0703_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
@@ -3042,11 +2991,17 @@ Revocacao: indefinida</td>
     var cenarios = {
       A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
       B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
-      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
+      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}],
+      D: [{y:0,p:1},{y:0,p:1},{y:1,p:1},{y:0,p:0}]
     };
     var cards = root.querySelector('#ep0703_cards');
     var dbg = root.querySelector('#ep0703_debug');
-    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
+    var botoes = {
+      A: root.querySelector('#ep0703_b1'),
+      B: root.querySelector('#ep0703_b2'),
+      C: root.querySelector('#ep0703_b3'),
+      D: root.querySelector('#ep0703_b4')
+    };
 
     function render(key){
       Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
@@ -3072,6 +3027,7 @@ Revocacao: indefinida</td>
     botoes.A.addEventListener('click', function(){ render('A'); });
     botoes.B.addEventListener('click', function(){ render('B'); });
     botoes.C.addEventListener('click', function(){ render('C'); });
+    botoes.D.addEventListener('click', function(){ render('D'); });
     render('A');
   }
   function tryInit(){
@@ -3092,15 +3048,17 @@ Figura&nbsp;7.21: Simulador: Precisão x Revocação
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_03.py</span>
 <span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_03.py</code></pre>
+<pre><code>Writing EP07_03.py</code></pre>
 </div>
 </div>
 <div id="20f33c49" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_03.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_3.cases
-❌ Não foi possível baixar EP07_03.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_03.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP07_03.cases
+
+🔍 Testando Python: EP07_03.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP07_03.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
@@ -3214,7 +3172,7 @@ Figura&nbsp;7.21: Simulador: Precisão x Revocação
 </tbody>
 </table>
 <div id="cell-fig-07-sim-ep04" class="cell">
-<div id="fig-07-sim-ep04" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="57">
+<div id="fig-07-sim-ep04" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="110">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -3224,20 +3182,43 @@ Figura&nbsp;7.21: Simulador: Precisão x Revocação
     <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 P=8, R=1</span>
   </div>
   <div style="padding:20px;background:white;overflow:auto">
-    <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro e observe o código LBP resultante.</p>
+    <p style="font-size:11px;color:#777;margin-bottom:10px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro (o centro, em destaque, é fixo) e observe o código LBP resultante. O rótulo pequeno em cada célula é o índice $p$ da equação.</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;">
+      <button id="ep0704_b1" class="ep0704_btn">Exemplo 1: mancha homogênea</button>
+      <button id="ep0704_b2" class="ep0704_btn">Exemplo 2: padrão alternado</button>
+    </div>
     <div id="ep0704_grid" style="display:grid;grid-template-columns:repeat(3,60px);gap:4px;justify-content:center;margin-bottom:16px;"></div>
     <div id="ep0704_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
   </div>
 </div>
+<style>
+  #sim-ep0704 .ep0704_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0704 .ep0704_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+</style>
 <script>
 (function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var valores = [[90,90,90],[10,50,10],[90,90,90]];
+    var exemplos = {
+      1: [[10,10,10],[10,50,10],[10,10,10]],
+      2: [[90,90,90],[10,50,10],[90,90,90]]
+    };
+    var valores = exemplos[2].map(function(row){ return row.slice(); });
     var grid = root.querySelector('#ep0704_grid');
     var dbg = root.querySelector('#ep0704_debug');
+    var btn1 = root.querySelector('#ep0704_b1');
+    var btn2 = root.querySelector('#ep0704_b2');
     var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+    var pIndex = {};
+    ordem.forEach(function(pos,p){ pIndex[pos[0]+','+pos[1]] = p; });
+    var cenarioAtivo = 2;
+
+    function marcarBotaoAtivo(n){
+      cenarioAtivo = n;
+      btn1.classList.toggle('ativo', n===1);
+      btn2.classList.toggle('ativo', n===2);
+    }
 
     function render(){
       grid.innerHTML = '';
@@ -3245,13 +3226,20 @@ Figura&nbsp;7.21: Simulador: Precisão x Revocação
         for(var c=0;c<3;c++){
           (function(r,c){
             var v = valores[r][c];
-            var div = document.createElement('div');
             var central = (r===1 && c===1);
-            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+            var div = document.createElement('div');
+            div.style.cssText = 'position:relative;height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
             div.textContent = v;
             if(!central){
+              var pLabel = document.createElement('span');
+              pLabel.textContent = 'p'+pIndex[r+','+c];
+              pLabel.style.cssText = 'position:absolute;top:2px;left:4px;font-size:9px;font-weight:400;opacity:0.75;';
+              div.appendChild(pLabel);
               div.addEventListener('click', function(){
                 valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                cenarioAtivo = null;
+                btn1.classList.remove('ativo');
+                btn2.classList.remove('ativo');
                 render();
               });
             }
@@ -3268,6 +3256,17 @@ Figura&nbsp;7.21: Simulador: Precisão x Revocação
       var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
       dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
     }
+    btn1.addEventListener('click', function(){
+      valores = exemplos[1].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(1);
+      render();
+    });
+    btn2.addEventListener('click', function(){
+      valores = exemplos[2].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(2);
+      render();
+    });
+    marcarBotaoAtivo(2);
     render();
   }
   function tryInit(){
@@ -3288,15 +3287,17 @@ Figura&nbsp;7.22: Simulador: Codigo LBP
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP07_04.py</span>
 <span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP07_04.py</code></pre>
+<pre><code>Writing EP07_04.py</code></pre>
 </div>
 </div>
 <div id="c30c87ae" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP07_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_04.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_4.cases
-❌ Não foi possível baixar EP07_04.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_04.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP07_04.cases
+
+🔍 Testando Python: EP07_04.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP07_04.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
 </section>
