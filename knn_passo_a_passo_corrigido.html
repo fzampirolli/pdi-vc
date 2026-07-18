@@ -1,0 +1,58 @@
+<h2 class="sr-only">Simulador do classificador k-NN: ajuste k e veja quais vizinhos votam para a consulta fixa em (3,3)</h2>
+<p style="font-size:13px;color:var(--text-secondary);margin:0 0 1rem;">Ajuste k e veja quais exemplos de treinamento (ordenados por distância) participam da votação para a consulta fixa (★ em x=3, y=3).</p>
+<div style="background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+    <label style="font-size:13px;font-weight:500;color:var(--text-accent);">k (número de vizinhos)</label>
+    <span id="ep0701_vl" style="font-family:var(--font-mono);font-weight:500;color:var(--text-accent);">3</span>
+  </div>
+  <input id="ep0701_sl" style="width:100%;" max="7" min="1" step="2" type="range" value="3">
+</div>
+<div id="ep0701_cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;"></div>
+<div id="ep0701_debug" style="margin-top:1.25rem;background:var(--bg-accent);border-radius:var(--radius);padding:10px;font-family:var(--font-mono);font-size:12px;color:var(--text-accent);text-align:center;"></div>
+<script>
+(function(){
+  var query = {x:3, y:3};
+  var pontos = [
+    {nome:"A", x:0, y:0, r:0},
+    {nome:"B", x:1, y:0, r:0},
+    {nome:"C", x:5, y:5, r:1},
+    {nome:"D", x:6, y:5, r:1},
+    {nome:"E", x:2, y:2, r:0},
+    {nome:"F", x:4, y:4, r:1},
+    {nome:"G", x:0, y:2, r:0},
+    {nome:"H", x:6, y:3, r:1}
+  ];
+  pontos.forEach(function(p){ p.d = Math.sqrt(Math.pow(p.x-query.x,2) + Math.pow(p.y-query.y,2)); });
+  var ordenados = pontos.map(function(p,i){ return {p:p, idx:i}; })
+    .sort(function(a,b){ return a.p.d - b.p.d || a.idx - b.idx; })
+    .map(function(o){ return o.p; });
+
+  var slEl = document.getElementById('ep0701_sl');
+  var vlEl = document.getElementById('ep0701_vl');
+  var cards = document.getElementById('ep0701_cards');
+  var dbg = document.getElementById('ep0701_debug');
+
+  function render(){
+    var k = parseInt(slEl.value);
+    vlEl.textContent = k;
+    cards.innerHTML = '';
+    var votos = [0, 0];
+    ordenados.forEach(function(p, i){
+      var dentro = i < k;
+      if(dentro) votos[p.r]++;
+      var div = document.createElement('div');
+      var corFundo = dentro ? (p.r===0 ? 'var(--bg-accent)' : 'var(--bg-danger)') : 'var(--surface-1)';
+      var corTexto = dentro ? (p.r===0 ? 'var(--text-accent)' : 'var(--text-danger)') : 'var(--text-muted)';
+      div.style.cssText = 'text-align:center;border-radius:var(--radius);padding:10px 6px;font-size:12px;background:'+corFundo+';color:'+corTexto+';border:0.5px solid var(--border);';
+      div.innerHTML = '<div style="font-weight:500;">'+p.nome+' (r='+p.r+')</div>' +
+        '<div style="font-family:var(--font-mono);margin:4px 0;">d='+p.d.toFixed(2)+'</div>' +
+        '<div style="font-weight:500;">'+(dentro?'vota':'-')+'</div>';
+      cards.appendChild(div);
+    });
+    var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : ordenados[0].r);
+    dbg.textContent = 'k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] + '  |  classe prevista=' + previsto;
+  }
+  slEl.addEventListener('input', render);
+  render();
+})();
+</script>
