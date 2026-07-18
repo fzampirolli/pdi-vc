@@ -119,7 +119,7 @@ Acuracia: 1.0000</td>
 <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟣 pipeline completo</span>
 
 </div><div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha a métrica de distância e observe como a amostra de teste (★) é classificada entre três protótipos de textura.</p>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha a métrica de distância e observe como a amostra de teste (★) é classificada entre três protótipos de textura — repare que a classe vencedora muda conforme a métrica.</p>
 <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
 <button class="ep0706_btn" id="ep0706_be">Euclidiana</button>
 <button class="ep0706_btn" id="ep0706_bm">Manhattan</button>
@@ -137,10 +137,14 @@ Acuracia: 1.0000</td>
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
+    // Teste fixo (★). "granular" difere do teste por 3 desvios pequenos e espalhados
+    // (favorecido pela euclidiana, que penaliza menos diferenças distribuídas);
+    // "listrada" difere por um único desvio grande concentrado numa dimensão
+    // (soma absoluta menor, favorecido pela Manhattan). "manchada" é apenas distratora.
     var protos = [
-      {nome:"granular", h:[0.30,0.30,0.40]},
-      {nome:"listrada", h:[0.70,0.10,0.20]},
-      {nome:"manchada", h:[0.20,0.60,0.20]}
+      {nome:"granular", h:[0.23, 0.40, 0.25]},
+      {nome:"listrada", h:[0.35, 0.28, 0.07]},
+      {nome:"manchada", h:[0.20, 0.60, 0.20]}
     ];
     var teste = {h:[0.35,0.28,0.37]};
     var cards = root.querySelector('#ep0706_cards');
@@ -164,7 +168,7 @@ Acuracia: 1.0000</td>
       var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
       var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
       distancias.forEach(function(d){
-        var ok = d.d === minD;
+        var ok = Math.abs(d.d - minD) < 1e-9;
         var div = document.createElement('div');
         div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
           (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');

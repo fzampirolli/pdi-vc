@@ -118,9 +118,18 @@
 </div>
 <input id="ep0705_sl" max="6" min="2" step="1" style="width:100%;" type="range" value="2"/>
 </div>
+<div id="ep0705_pixels" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;"></div>
+<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+<button class="ep0705_btn" id="ep0705_btn_raw">Histograma bruto (H)</button>
+<button class="ep0705_btn" id="ep0705_btn_norm">Histograma normalizado (Ĥ)</button>
+</div>
 <div id="ep0705_bars" style="display:flex;gap:6px;align-items:flex-end;height:120px;justify-content:center;margin-bottom:12px;"></div>
 <div id="ep0705_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
+<style>
+  #sim-ep0705 .ep0705_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0705 .ep0705_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+</style>
 <script>
 
 (function(){
@@ -133,38 +142,66 @@
     ];
     var slEl = root.querySelector('#ep0705_sl');
     var vlEl = root.querySelector('#ep0705_vl');
+    var pxEl = root.querySelector('#ep0705_pixels');
     var bars = root.querySelector('#ep0705_bars');
     var dbg = root.querySelector('#ep0705_debug');
+    var btnRaw = root.querySelector('#ep0705_btn_raw');
+    var btnNorm = root.querySelector('#ep0705_btn_norm');
+    var modoNorm = false;
 
     function render(){
+      btnRaw.classList.toggle('ativo', !modoNorm);
+      btnNorm.classList.toggle('ativo', modoNorm);
+
       var B = parseInt(slEl.value);
       vlEl.textContent = B;
       var largura = 180/B;
-      var H = new Array(B).fill(0);
-      pixels.forEach(function(p){
-        var b = Math.min(Math.floor(p.ang/largura), B-1);
-        H[b] += p.mag;
+
+      // Bin de cada pixel individualmente (item 5: acumulação por magnitude, não contagem).
+      var binsPorPixel = pixels.map(function(p){
+        return Math.min(Math.floor(p.ang/largura), B-1);
       });
-      var maxH = Math.max.apply(null, H.concat([0.001]));
+
+      var H = new Array(B).fill(0);
+      pixels.forEach(function(p, i){ H[binsPorPixel[i]] += p.mag; });
+
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return v/denom; });
+
+      // Cartões por pixel: magnitude, orientação e bin de destino.
+      pxEl.innerHTML = '';
+      pixels.forEach(function(p, i){
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;';
+        div.innerHTML = '<div style="font-weight:700;">mag='+p.mag.toFixed(1)+'</div>' +
+          '<div style="font-family:monospace;">θ='+p.ang+'°</div>' +
+          '<div style="font-weight:700;color:#6366f1;">→ bin '+binsPorPixel[i]+'</div>';
+        pxEl.appendChild(div);
+      });
+
+      var dados = modoNorm ? Hn : H;
+      var maxD = Math.max.apply(null, dados.concat([0.001]));
       bars.innerHTML = '';
-      H.forEach(function(v, i){
+      dados.forEach(function(v, i){
         var col = document.createElement('div');
         col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
         var barra = document.createElement('div');
-        var altura = Math.round((v/maxH)*90) + 4;
-        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
+        var altura = Math.round((v/maxD)*90) + 4;
+        barra.style.cssText = 'width:34px;height:'+altura+'px;background:'+(modoNorm?'#0ea5e9':'#6366f1')+';border-radius:4px 4px 0 0;';
         var label = document.createElement('div');
         label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
-        label.textContent = v.toFixed(2);
+        label.textContent = modoNorm ? v.toFixed(4) : v.toFixed(2);
         col.appendChild(barra);
         col.appendChild(label);
         bars.appendChild(col);
       });
-      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
-      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
-      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
+
+      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' +
+        Hn.map(function(v){return v.toFixed(4);}).join(', ') + ']';
     }
     slEl.addEventListener('input', render);
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
     render();
   }
   function tryInit(){

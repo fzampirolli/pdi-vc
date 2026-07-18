@@ -761,38 +761,66 @@ window.Quarto = {
     ];
     var slEl = root.querySelector('#ep0705_sl');
     var vlEl = root.querySelector('#ep0705_vl');
+    var pxEl = root.querySelector('#ep0705_pixels');
     var bars = root.querySelector('#ep0705_bars');
     var dbg = root.querySelector('#ep0705_debug');
+    var btnRaw = root.querySelector('#ep0705_btn_raw');
+    var btnNorm = root.querySelector('#ep0705_btn_norm');
+    var modoNorm = false;
 
     function render(){
+      btnRaw.classList.toggle('ativo', !modoNorm);
+      btnNorm.classList.toggle('ativo', modoNorm);
+
       var B = parseInt(slEl.value);
       vlEl.textContent = B;
       var largura = 180/B;
-      var H = new Array(B).fill(0);
-      pixels.forEach(function(p){
-        var b = Math.min(Math.floor(p.ang/largura), B-1);
-        H[b] += p.mag;
+
+      // Bin de cada pixel individualmente (item 5: acumulação por magnitude, não contagem).
+      var binsPorPixel = pixels.map(function(p){
+        return Math.min(Math.floor(p.ang/largura), B-1);
       });
-      var maxH = Math.max.apply(null, H.concat([0.001]));
+
+      var H = new Array(B).fill(0);
+      pixels.forEach(function(p, i){ H[binsPorPixel[i]] += p.mag; });
+
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return v/denom; });
+
+      // Cartões por pixel: magnitude, orientação e bin de destino.
+      pxEl.innerHTML = '';
+      pixels.forEach(function(p, i){
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;';
+        div.innerHTML = '<div style="font-weight:700;">mag='+p.mag.toFixed(1)+'</div>' +
+          '<div style="font-family:monospace;">θ='+p.ang+'°</div>' +
+          '<div style="font-weight:700;color:#6366f1;">→ bin '+binsPorPixel[i]+'</div>';
+        pxEl.appendChild(div);
+      });
+
+      var dados = modoNorm ? Hn : H;
+      var maxD = Math.max.apply(null, dados.concat([0.001]));
       bars.innerHTML = '';
-      H.forEach(function(v, i){
+      dados.forEach(function(v, i){
         var col = document.createElement('div');
         col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
         var barra = document.createElement('div');
-        var altura = Math.round((v/maxH)*90) + 4;
-        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
+        var altura = Math.round((v/maxD)*90) + 4;
+        barra.style.cssText = 'width:34px;height:'+altura+'px;background:'+(modoNorm?'#0ea5e9':'#6366f1')+';border-radius:4px 4px 0 0;';
         var label = document.createElement('div');
         label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
-        label.textContent = v.toFixed(2);
+        label.textContent = modoNorm ? v.toFixed(4) : v.toFixed(2);
         col.appendChild(barra);
         col.appendChild(label);
         bars.appendChild(col);
       });
-      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
-      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
-      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
+
+      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' +
+        Hn.map(function(v){return v.toFixed(4);}).join(', ') + ']';
     }
     slEl.addEventListener('input', render);
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
     render();
   }
   function tryInit(){
@@ -807,10 +835,14 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
+    // Teste fixo (★). "granular" difere do teste por 3 desvios pequenos e espalhados
+    // (favorecido pela euclidiana, que penaliza menos diferenças distribuídas);
+    // "listrada" difere por um único desvio grande concentrado numa dimensão
+    // (soma absoluta menor, favorecido pela Manhattan). "manchada" é apenas distratora.
     var protos = [
-      {nome:"granular", h:[0.30,0.30,0.40]},
-      {nome:"listrada", h:[0.70,0.10,0.20]},
-      {nome:"manchada", h:[0.20,0.60,0.20]}
+      {nome:"granular", h:[0.23, 0.40, 0.25]},
+      {nome:"listrada", h:[0.35, 0.28, 0.07]},
+      {nome:"manchada", h:[0.20, 0.60, 0.20]}
     ];
     var teste = {h:[0.35,0.28,0.37]};
     var cards = root.querySelector('#ep0706_cards');
@@ -834,7 +866,7 @@ window.Quarto = {
       var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
       var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
       distancias.forEach(function(d){
-        var ok = d.d === minD;
+        var ok = Math.abs(d.d - minD) < 1e-9;
         var div = document.createElement('div');
         div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
           (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
@@ -862,90 +894,198 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
 
-    // Historgramas simplificados (4 compartimentos, ilustrativos) de cada bloco do mosaico
-    // e dos protótipos de cada classe -- valores qualitativos, apenas para fins didáticos.
-    var protos = {
-      granular: [[0.30,0.10,0.10,0.50],[0.28,0.12,0.11,0.49]],
-      listrada: [[0.10,0.35,0.35,0.20],[0.12,0.32,0.30,0.26]],
-      manchada: [[0.28,0.12,0.12,0.48],[0.31,0.09,0.10,0.50]],
-      xadrez:   [[0.10,0.05,0.55,0.30],[0.08,0.06,0.58,0.28]]
-    };
-    var cores = {granular:"#93c5fd", listrada:"#fca5a5", manchada:"#fcd34d", xadrez:"#86efac"};
-    var blocos = [
-      {rotulo:"granular", hist:[0.29,0.11,0.10,0.50]},
-      {rotulo:"listrada", hist:[0.11,0.33,0.33,0.23]},
-      {rotulo:"manchada", hist:[0.27,0.13,0.13,0.47]},
-      {rotulo:"xadrez",   hist:[0.09,0.06,0.56,0.29]},
-      {rotulo:"granular", hist:[0.31,0.09,0.09,0.51]},
-      {rotulo:"manchada", hist:[0.30,0.10,0.11,0.49]}
+    var S = 6, G = 3, L = G * S, SCALE = 10;
+    var classesOrder = ["granular", "listrada", "manchada", "xadrez"];
+    // Grade 3x3 com classes repetidas, análoga ao Caso 2 do enunciado
+    var layout = [
+      "granular", "listrada", "manchada",
+      "xadrez",   "granular", "manchada",
+      "listrada", "xadrez",   "granular"
     ];
 
-    function dist(u,v){
-      var s=0; for(var i=0;i<u.length;i++) s+=(u[i]-v[i])*(u[i]-v[i]);
-      return Math.sqrt(s);
+    // --- Geração determinística de textura por pixel (didática, não os PGMs reais) ---
+    function h(a, b, phase){
+      var v = Math.sin((a + phase) * 12.9898 + (b + phase * 0.7) * 78.233 + phase * 3.1) * 43758.5453;
+      return v - Math.floor(v);
+    }
+    function texturePixel(cls, r, c, phase){
+      phase = phase || 0;
+      switch(cls){
+        case "granular": return h(r, c, phase) < 0.5 ? 220 : 30;
+        case "listrada": return ((c + Math.floor(phase * 2)) % 4) < 2 ? 220 : 30;
+        case "manchada": return h(Math.floor(r / 3), Math.floor(c / 3), phase) < 0.5 ? 200 : 60;
+        case "xadrez":   return ((Math.floor(r / 2) + Math.floor(c / 2)) % 2 === 0) ? 230 : 20;
+      }
     }
 
-    function classificar(hist, k){
-      var candidatos = [];
-      Object.keys(protos).forEach(function(classe){
-        protos[classe].forEach(function(h, idx){
-          candidatos.push({classe:classe, d:dist(hist,h), ordem: idx});
-        });
+    function buildImage(){
+      var img = [];
+      for(var r = 0; r < L; r++){
+        var row = [];
+        for(var c = 0; c < L; c++){
+          var bi = Math.floor(r / S), bj = Math.floor(c / S);
+          row.push(texturePixel(layout[bi * G + bj], r, c, 0));
+        }
+        img.push(row);
+      }
+      return img;
+    }
+
+    // --- LBP: P=8, R=1, sentido horário, s_p = 1 se vizinho >= centro ---
+    function lbpBin(patch, r, c){
+      var center = patch[r][c];
+      var neigh = [
+        patch[r-1][c-1], patch[r-1][c], patch[r-1][c+1],
+        patch[r][c+1],
+        patch[r+1][c+1], patch[r+1][c], patch[r+1][c-1],
+        patch[r][c-1]
+      ];
+      var bits = neigh.map(function(v){ return v >= center ? 1 : 0; });
+      var trans = 0;
+      for(var i = 0; i < 8; i++){ if(bits[i] !== bits[(i+1) % 8]) trans++; }
+      if(trans <= 2) return bits.reduce(function(a,b){ return a+b; }, 0); // popcount 0..8
+      return 9; // não uniforme
+    }
+
+    // Histograma de um patch isolado (usado para gerar protótipos), excluindo apenas a borda do patch
+    function computeLBPHist(patch){
+      var n = patch.length, m = patch[0].length;
+      var hist = new Array(10).fill(0), count = 0;
+      for(var r = 1; r < n - 1; r++){
+        for(var c = 1; c < m - 1; c++){
+          hist[lbpBin(patch, r, c)]++;
+          count++;
+        }
+      }
+      for(var k = 0; k < 10; k++) hist[k] = count > 0 ? hist[k] / count : 0;
+      return hist;
+    }
+
+    // Histogramas por bloco da imagem completa, excluindo só a borda global (item 4/5 do enunciado)
+    function computeMosaicHistograms(img){
+      var hists = [], counts = [];
+      for(var i = 0; i < G*G; i++){ hists.push(new Array(10).fill(0)); counts.push(0); }
+      for(var r = 1; r < L - 1; r++){
+        for(var c = 1; c < L - 1; c++){
+          var bin = lbpBin(img, r, c);
+          var idx = Math.floor(r/S) * G + Math.floor(c/S);
+          hists[idx][bin]++;
+          counts[idx]++;
+        }
+      }
+      for(var b = 0; b < hists.length; b++){
+        for(var k = 0; k < 10; k++) hists[b][k] = counts[b] > 0 ? hists[b][k] / counts[b] : 0;
+      }
+      return hists;
+    }
+
+    // --- Protótipos: 2 por classe (N=8), ordem de leitura fixa (usada no desempate) ---
+    var prototypes = [];
+    classesOrder.forEach(function(cls){
+      [0, 5].forEach(function(phase){
+        var Sp = S + 2, patch = [];
+        for(var r = 0; r < Sp; r++){
+          var row = [];
+          for(var c = 0; c < Sp; c++) row.push(texturePixel(cls, r, c, phase));
+          patch.push(row);
+        }
+        prototypes.push({ classe: cls, hist: computeLBPHist(patch) });
       });
-      candidatos.sort(function(a,b){ return a.d - b.d; });
-      var vizinhos = candidatos.slice(0,k);
-      var contagem = {};
-      vizinhos.forEach(function(v){ contagem[v.classe] = (contagem[v.classe]||0)+1; });
-      var ordemClasses = ["granular","listrada","manchada","xadrez"];
+    });
+
+    function dist(u, v, metric){
+      var s = 0;
+      for(var i = 0; i < u.length; i++){
+        s += metric === "euclidiana" ? (u[i]-v[i])*(u[i]-v[i]) : Math.abs(u[i]-v[i]);
+      }
+      return metric === "euclidiana" ? Math.sqrt(s) : s;
+    }
+
+    // Desempate de distância: ordem de leitura dos protótipos. Desempate de votação: ordem das classes.
+    function classify(hist, k, metric){
+      var cand = prototypes.map(function(p, idx){ return { classe: p.classe, d: dist(hist, p.hist, metric), idx: idx }; });
+      cand.sort(function(a, b){ return a.d !== b.d ? a.d - b.d : a.idx - b.idx; });
+      var viz = cand.slice(0, k);
+      var votos = {};
+      viz.forEach(function(v){ votos[v.classe] = (votos[v.classe] || 0) + 1; });
       var melhor = null, melhorN = -1;
-      ordemClasses.forEach(function(c){
-        var n = contagem[c] || 0;
+      classesOrder.forEach(function(c){
+        var n = votos[c] || 0;
         if(n > melhorN){ melhorN = n; melhor = c; }
       });
-      return {predita: melhor, vizinhos: vizinhos};
+      return melhor;
     }
 
-    var grid = root.querySelector('#ep0707_grid');
-    var sl = root.querySelector('#ep0707_sl');
-    var vl = root.querySelector('#ep0707_vl');
+    var canvas = root.querySelector('#ep0707_canvas');
+    canvas.width = L * SCALE; canvas.height = L * SCALE;
+    var ctx = canvas.getContext('2d');
+    var slK = root.querySelector('#ep0707_sl');
+    var vlK = root.querySelector('#ep0707_vl');
+    var selMetric = root.querySelector('#ep0707_metric');
+    var gridEl = root.querySelector('#ep0707_grid');
     var dbg = root.querySelector('#ep0707_debug');
 
+    var img = buildImage();
+    var hists = computeMosaicHistograms(img);
+
     function render(){
-      var k = parseInt(sl.value);
-      vl.textContent = k;
-      grid.innerHTML = '';
+      var k = parseInt(slK.value);
+      var metric = selMetric.value;
+      vlK.textContent = k;
+
+      var preds = [];
+      for(var idx = 0; idx < G*G; idx++) preds.push(classify(hists[idx], k, metric));
+
+      var confusion = classesOrder.map(function(){ return new Array(classesOrder.length).fill(0); });
       var acertos = 0;
+      for(var i2 = 0; i2 < G*G; i2++){
+        var ri = classesOrder.indexOf(layout[i2]);
+        var pi = classesOrder.indexOf(preds[i2]);
+        confusion[ri][pi]++;
+        if(layout[i2] === preds[i2]) acertos++;
+      }
+      var acc = acertos / (G*G);
 
-      blocos.forEach(function(b, idx){
-        var res = classificar(b.hist, k);
-        var ok = (res.predita === b.rotulo);
-        if(ok) acertos++;
+      // Desenha a imagem real em tons de cinza
+      for(var r = 0; r < L; r++){
+        for(var c = 0; c < L; c++){
+          var v = img[r][c];
+          ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+          ctx.fillRect(c*SCALE, r*SCALE, SCALE, SCALE);
+        }
+      }
+      // Contorna cada bloco: verde = acerto, vermelho = erro
+      for(var idx3 = 0; idx3 < G*G; idx3++){
+        var bi = Math.floor(idx3 / G), bj = idx3 % G;
+        ctx.strokeStyle = (preds[idx3] === layout[idx3]) ? '#10b981' : '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bj*S*SCALE + 1, bi*S*SCALE + 1, S*SCALE - 2, S*SCALE - 2);
+      }
 
+      // Grade textual de apoio
+      gridEl.innerHTML = '';
+      for(var idx4 = 0; idx4 < G*G; idx4++){
+        var ok = preds[idx4] === layout[idx4];
         var card = document.createElement('div');
-        card.style.cssText = 'border-radius:10px;padding:10px;text-align:center;border:2px solid ' + (ok ? '#10b981' : '#f43f5e') + ';background:' + cores[b.rotulo] + '22;';
+        card.style.cssText = 'border-radius:8px;padding:6px;text-align:center;font-size:10px;border:2px solid ' + (ok ? '#10b981' : '#f43f5e') + ';';
+        card.innerHTML = 'Real: ' + layout[idx4] + '<br><b style="color:' + (ok ? '#059669' : '#e11d48') + '">Pred: ' + preds[idx4] + (ok ? ' ✅' : ' ❌') + '</b>';
+        gridEl.appendChild(card);
+      }
 
-        var amostra = document.createElement('div');
-        amostra.style.cssText = 'width:100%;height:40px;border-radius:6px;background:' + cores[b.rotulo] + ';margin-bottom:6px;';
-        card.appendChild(amostra);
-
-        var real = document.createElement('div');
-        real.style.cssText = 'font-size:10px;color:#555;';
-        real.textContent = 'Real: ' + b.rotulo;
-        card.appendChild(real);
-
-        var pred = document.createElement('div');
-        pred.style.cssText = 'font-size:11px;font-weight:bold;color:' + (ok ? '#059669' : '#e11d48') + ';';
-        pred.textContent = 'Predita: ' + res.predita + (ok ? ' ✅' : ' ❌');
-        card.appendChild(pred);
-
-        grid.appendChild(card);
-      });
-
-      var acc = (acertos / blocos.length).toFixed(4);
-      dbg.innerHTML = 'k=' + k + ' &nbsp;|&nbsp; Acertos: ' + acertos + '/' + blocos.length + ' &nbsp;|&nbsp; Acuracia: ' + acc;
+      // Saída no mesmo formato do programa (itens 7-9 do enunciado)
+      var linhas = [];
+      linhas.push('Classes preditas (ordem de leitura da grade):');
+      linhas.push(preds.join(' '));
+      linhas.push('');
+      linhas.push('Matriz de confusão (linhas=real, colunas=predita; ordem ' + classesOrder.join(',') + '):');
+      confusion.forEach(function(lin){ linhas.push(lin.join(' ')); });
+      linhas.push('');
+      linhas.push('Acuracia: ' + acc.toFixed(4));
+      dbg.textContent = linhas.join('\n');
     }
 
-    sl.addEventListener('input', render);
+    slK.addEventListener('input', render);
+    selMetric.addEventListener('change', render);
     render();
   }
 
