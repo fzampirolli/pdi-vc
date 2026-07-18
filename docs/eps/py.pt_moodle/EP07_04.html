@@ -3,27 +3,28 @@
 📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_04.html</a>
 <br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_04 🔴 Histograma de Orientações de uma Célula HOG</h2>
-<p>A função <code>hog</code> do <code>scikit-image</code>, empregada no projeto de classificação de dígitos, divide a imagem em pequenas <strong>células</strong> e, para cada uma, constrói um histograma das orientações do gradiente ponderado pela magnitude — exatamente a etapa central descrita na seção sobre o descritor HOG do capítulo.</p>
-<p>Você foi encarregado de implementar esse cálculo para uma única célula, a partir dos valores de magnitude e orientação do gradiente <strong>já calculados</strong> para cada pixel da célula (dispensando o cálculo das derivadas parciais).</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_04 🟠 Codificação Manual do Descritor LBP</h2>
+<p>A função <code>local_binary_pattern</code> do <code>scikit-image</code>, utilizada no projeto de classificação de texturas, calcula automaticamente o código LBP de cada pixel de uma imagem. Antes de utilizá-la como uma caixa-preta, você foi encarregado de implementar manualmente o cálculo do código LBP clássico (P=8, R=1) para o pixel central de uma vizinhança 3×3, exatamente como definido na equação do capítulo.</p>
+<p>Além do código, o sistema de inspeção de texturas também precisa saber se aquele padrão é <strong>uniforme</strong> — um padrão é uniforme quando o número de transições (0\to1 ou 1\to0) ao percorrer os 8 bits <strong>circularmente</strong> (voltando do último bit ao primeiro) é <strong>no máximo 2</strong>, propriedade explorada pela variante <em>uniforme</em> do LBP mencionada no capítulo.</p>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Dimensões:</strong> Ler os inteiros <em>n</em> (a célula tem <em>n</em> × <em>n</em> pixels) e <em>B</em> (número de compartimentos do histograma).</li>
-<li><strong>Magnitudes:</strong> Ler <em>n</em> linhas com <em>n</em> valores reais cada, representando |\nabla <em>f</em>(<em>x</em>,<em>y</em>)| para cada pixel da célula.</li>
-<li><strong>Orientações:</strong> Ler mais <em>n</em> linhas com <em>n</em> valores reais cada, representando \theta(<em>x</em>,<em>y</em>) em <strong>graus</strong>, já convertido para o intervalo <strong>não sinalizado</strong> [0^\circ, 180^\circ), como convencionalmente utilizado pelo HOG.</li>
-<li><strong>Compartimentos:</strong> Os <em>B</em> compartimentos cobrem [0^\circ, 180^\circ) em faixas iguais de largura 180/<em>B</em> graus. Um pixel com orientação \theta pertence ao compartimento \lfloor \theta / (180/<em>B</em>) \rfloor; se esse índice for igual a <em>B</em> (possível apenas quando \theta é exatamente 180^\circ, o que não deve ocorrer pela diretriz do item 3), utilize o compartimento <em>B</em>-1.</li>
-<li><strong>Histograma bruto:</strong> Para cada pixel, acumule sua <strong>magnitude</strong> (não sua contagem) no compartimento correspondente: <em>H</em>[<em>b</em>] = ∑_(<em>x</em>,<em>y</em>)\, :\, bin(\theta(<em>x</em>,<em>y</em>)) = <em>b</em> |\nabla <em>f</em>(<em>x</em>,<em>y</em>)|.</li>
-<li><strong>Normalização L2:</strong> Após construir <em>H</em>, normalize-o para obter \hat <em>H</em>: \hat <em>H</em>[<em>b</em>] = (<em>H</em>[<em>b</em>])/(√(∑_j=0)^B-1) <em>H</em>[<em>j</em>]^2 + \epsilon, \qquad \epsilon = 10^-6.</li>
-<li><strong>Saída:</strong> Imprimir o histograma bruto <em>H</em> (arredondado a 2 casas decimais) em uma linha, seguido do histograma normalizado \hat <em>H</em> (arredondado a 4 casas decimais) em outra linha, ambos com os <em>B</em> valores separados por espaço, na ordem dos compartimentos.</li>
+<li><strong>Quantidade:</strong> Ler o inteiro <em>T</em> (número de vizinhanças a processar).</li>
+<li><strong>Dados de cada vizinhança:</strong> Para cada uma das <em>T</em> vizinhanças, ler uma matriz 3×3 de inteiros (intensidades), fornecida em 3 linhas de 3 valores cada. O pixel central é a posição <code>[1][1]</code>.</li>
+<li><strong>Ordem dos vizinhos:</strong> Percorra os 8 vizinhos em sentido <strong>horário</strong>, iniciando no canto superior esquerdo, na seguinte ordem de posições <code>[linha][coluna]</code>: <code>[0][0]</code>, <code>[0][1]</code>, <code>[0][2]</code>, <code>[1][2]</code>, <code>[2][2]</code>, <code>[2][1]</code>, <code>[2][0]</code>, <code>[1][0]</code>. Esse é o índice <em>p</em> = 0, 1, …, 7 da equação do LBP.</li>
+<li><strong>Função limiar:</strong> Para cada vizinho <em>p</em> com intensidade <em>g</em>_<em>p</em> e centro <em>g</em>_<em>c</em>, calcule <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>), que vale <code>1</code> se <em>g</em>_<em>p</em> ≥ <em>g</em>_<em>c</em> e <code>0</code> caso contrário.</li>
+<li><strong>Código LBP:</strong> Calcule LBP = ∑_p=0^7 <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>)\, 2^<em>p</em>.</li>
+<li><strong>Transições:</strong> Considerando a sequência circular de bits <em>s</em>_0, <em>s</em>_1, …, <em>s</em>_7 (na ordem do item 3), conte quantos pares consecutivos <strong>adjacentes na sequência circular</strong> (incluindo o par <em>s</em>_7, <em>s</em>_0) diferem entre si.</li>
+<li><strong>Classificação:</strong> Se o número de transições for \le 2, classifique como <code>UNIFORME</code>; caso contrário, <code>NAO_UNIFORME</code>.</li>
+<li><strong>Saída:</strong> Para cada vizinhança, na ordem de entrada, imprimir o código LBP (inteiro decimal, 0–255), o número de transições e a classificação.</li>
 </ol>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Binning não sinalizado:</strong> o intervalo de orientações é [0,180), não [0,360) — gradientes em direções opostas (diferença de 180^\circ) contribuem para o <strong>mesmo</strong> compartimento, convenção padrão do HOG para detecção de objetos.</li>
-<li><strong>Acumulação por magnitude, não por contagem:</strong> o histograma pondera cada pixel por sua magnitude de gradiente, não simplesmente conta quantos pixels caem em cada compartimento.</li>
-<li><strong>Constante de estabilização:</strong> o \epsilon = 10^-6 no denominador da normalização evita divisão por zero quando a célula é completamente homogênea (todas as magnitudes nulas).</li>
+<li><strong>Ordem fixa dos vizinhos:</strong> a ordem do item 3 é obrigatória — invertê-la produz um código numericamente diferente, mesmo representando o mesmo padrão visual.</li>
+<li><strong>Comparação não estrita:</strong> <em>s</em>(<em>z</em>) = 1 quando <em>z</em> \ge 0 (o próprio capítulo define a igualdade como incluída no caso <code>1</code>).</li>
+<li><strong>Contagem circular:</strong> não esqueça o par que fecha o ciclo (<em>s</em>_7 com <em>s</em>_0); ignorar esse par é um erro comum que classifica incorretamente padrões uniformes.</li>
 </ul>
 </div>
 <div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
@@ -31,43 +32,41 @@
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
-<th style="padding:10px;border:1px solid #ddd;">Etapa</th>
-<th style="padding:10px;border:1px solid #ddd;">Papel</th>
+<th style="padding:10px;border:1px solid #ddd;">Padrão (bits <em>s</em>_0… <em>s</em>_7)</th>
+<th style="padding:10px;border:1px solid #ddd;">Transições</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretação</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Magnitude do gradiente</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pondera a contribuição de cada pixel — bordas fortes pesam mais que ruído fraco</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00000000</code> ou <code>11111111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Região homogênea (mancha clara ou escura)</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Orientação não sinalizada</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Torna o descritor invariante à polaridade do contraste (claro→escuro vs. escuro→claro)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00001111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Borda simples entre duas regiões</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Histograma por célula</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resume a distribuição local de bordas em um vetor compacto</td>
-</tr>
-<tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Normalização L2</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reduz a sensibilidade do descritor a variações globais de iluminação e contraste</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>01010101</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Textura de contraste alternado — não uniforme</td>
 </tr>
 </tbody>
 </table>
-<p>A concatenação dos histogramas normalizados de todas as células da imagem — não implementada neste exercício — forma o vetor de características HOG completo, utilizado como entrada do classificador k-NN no projeto do capítulo.</p>
+<p>Padrões uniformes concentram-se em regiões de textura suave ou bordas simples; padrões não uniformes tendem a corresponder a ruído de alta frequência. Por isso, o histograma LBP <em>uniforme</em>, usado no projeto de classificação de texturas, agrupa todos os padrões não uniformes em um único compartimento, reduzindo a dimensionalidade do descritor.</p>
 </div>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiros <em>n</em> e <em>B</em>.</li>
-<li>Próximas <em>n</em> linhas: <em>n</em> magnitudes reais cada.</li>
-<li>Próximas <em>n</em> linhas: <em>n</em> orientações reais (graus, [0,180)) cada.</li>
+<li>Linha 1: Inteiro <em>T</em>.</li>
+<li>Para cada vizinhança: 3 linhas com 3 inteiros cada (matriz 3×3).</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li>Linha 1: os <em>B</em> valores do histograma bruto, arredondados a 2 casas decimais.</li>
-<li>Linha 2: os <em>B</em> valores do histograma normalizado, arredondados a 4 casas decimais.</li>
+<li><em>T</em> linhas, no formato <code>LBP=&lt;int&gt; transicoes=&lt;int&gt; &lt;UNIFORME|NAO_UNIFORME&gt;</code>.</li>
 </ul>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
@@ -82,43 +81,32 @@
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
-1.0 2.0<br/>
-3.0 4.0<br/>
-10 100<br/>
-170 20</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5.00 5.00<br/>
-0.7071 0.7071</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Bin de largura 90°: [0,90) e [90,180); magnitudes 1 e 4 caem no bin 0, 2 e 3 no bin 1.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+10 10 10<br/>
+10 50 10<br/>
+10 10 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=0 transicoes=0 UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Centro é o mais claro; todos os vizinhos geram bit 0.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 4<br/>
-0.0 0.0<br/>
-0.0 0.0<br/>
-0 0<br/>
-0 0</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.00 0.00 0.00 0.00<br/>
-0.0000 0.0000 0.0000 0.0000</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Célula homogênea: \epsilon evita divisão por zero.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+90 90 90<br/>
+10 50 10<br/>
+90 90 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=119 transicoes=4 NAO_UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Vizinhos claros e escuros alternados na vizinhança.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep04">
 <div id="sim-ep0704" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Histograma de Orientações de uma Célula</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 4 pixels fixos</span>
+<span>🎮 Simulador: Código LBP de uma Vizinhança 3×3</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 P=8, R=1</span>
 
 </div><div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o número de compartimentos (B) e observe como a mesma célula (magnitudes e orientações fixas) é redistribuída.</p>
-<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#2980b9;">Número de compartimentos (B)</label>
-<span id="ep0704_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">2</span>
-</div>
-<input id="ep0704_sl" max="6" min="2" step="1" style="width:100%;" type="range" value="2"/>
-</div>
-<div id="ep0704_bars" style="display:flex;gap:6px;align-items:flex-end;height:120px;justify-content:center;margin-bottom:12px;"></div>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro e observe o código LBP resultante.</p>
+<div id="ep0704_grid" style="display:grid;grid-template-columns:repeat(3,60px);gap:4px;justify-content:center;margin-bottom:16px;"></div>
 <div id="ep0704_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
 <script>
@@ -127,44 +115,40 @@
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var pixels = [
-      {mag:1.0, ang:10}, {mag:2.0, ang:100},
-      {mag:3.0, ang:170}, {mag:4.0, ang:20}
-    ];
-    var slEl = root.querySelector('#ep0704_sl');
-    var vlEl = root.querySelector('#ep0704_vl');
-    var bars = root.querySelector('#ep0704_bars');
+    var valores = [[90,90,90],[10,50,10],[90,90,90]];
+    var grid = root.querySelector('#ep0704_grid');
     var dbg = root.querySelector('#ep0704_debug');
+    var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
 
     function render(){
-      var B = parseInt(slEl.value);
-      vlEl.textContent = B;
-      var largura = 180/B;
-      var H = new Array(B).fill(0);
-      pixels.forEach(function(p){
-        var b = Math.min(Math.floor(p.ang/largura), B-1);
-        H[b] += p.mag;
-      });
-      var maxH = Math.max.apply(null, H.concat([0.001]));
-      bars.innerHTML = '';
-      H.forEach(function(v, i){
-        var col = document.createElement('div');
-        col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
-        var barra = document.createElement('div');
-        var altura = Math.round((v/maxH)*90) + 4;
-        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
-        var label = document.createElement('div');
-        label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
-        label.textContent = v.toFixed(2);
-        col.appendChild(barra);
-        col.appendChild(label);
-        bars.appendChild(col);
-      });
-      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
-      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
-      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
+      grid.innerHTML = '';
+      for(var r=0;r<3;r++){
+        for(var c=0;c<3;c++){
+          (function(r,c){
+            var v = valores[r][c];
+            var div = document.createElement('div');
+            var central = (r===1 && c===1);
+            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+            div.textContent = v;
+            if(!central){
+              div.addEventListener('click', function(){
+                valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                render();
+              });
+            }
+            grid.appendChild(div);
+          })(r,c);
+        }
+      }
+      var gc = valores[1][1];
+      var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
+      var lbp = 0;
+      bits.forEach(function(b,p){ lbp += b * Math.pow(2,p); });
+      var trans = 0;
+      for(var i=0;i<8;i++){ if(bits[i] !== bits[(i+1)%8]) trans++; }
+      var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
+      dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
     }
-    slEl.addEventListener('input', render);
     render();
   }
   function tryInit(){

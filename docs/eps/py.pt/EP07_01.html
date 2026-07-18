@@ -77,9 +77,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
 </head>
@@ -105,7 +105,7 @@ d(x_q, x_i) = \sqrt{(x_q - x_i)^2 + (y_q - y_i)^2}.
 <section class="level4" data-number="7.18.1.2" id="restrições-computacionais">
 <h4 class="anchored" data-anchor-id="restrições-computacionais" data-number="7.18.1.2"><span class="header-section-number">7.18.1.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Métrica fixa:</strong> utilize exclusivamente a distância euclidiana (não a squared distance) para a ordenação, embora o resultado da comparação seja o mesmo.</li>
+<li><strong>Métrica fixa:</strong> utilize exclusivamente a distância euclidiana (não a <em>squared distance</em>) para a ordenação, embora o resultado da comparação seja o mesmo.</li>
 <li><strong>k sempre ímpar:</strong> a entrada garante <span class="math inline">\(k\)</span> ímpar e <span class="math inline">\(k \le N\)</span>; ainda assim, implemente o desempate do item 6 por robustez.</li>
 <li><strong>Estabilidade:</strong> ao ordenar por distância, preserve a ordem relativa de exemplos com a mesma distância (ordenação estável).</li>
 </ul>
@@ -207,7 +207,7 @@ Total classe 1: 1</td>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep01">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2" id="fig-07-sim-ep01">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="48" id="fig-07-sim-ep01">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0701" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
@@ -290,17 +290,87 @@ Figura 7.19: Simulador: Classificador k-NN Passo a Passo
 </div>
 <div class="cell" id="5936f887">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a aria-hidden="true" href="#cb41-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_01.py</span>
-<span id="cb41-2"><a aria-hidden="true" href="#cb41-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<span id="cb41-2"><a aria-hidden="true" href="#cb41-2" tabindex="-1"></a><span class="co"># Código Python</span></span>
+<span id="cb41-3"><a aria-hidden="true" href="#cb41-3" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb41-4"><a aria-hidden="true" href="#cb41-4" tabindex="-1"></a></span>
+<span id="cb41-5"><a aria-hidden="true" href="#cb41-5" tabindex="-1"></a><span class="co"># 1. Quantidade e parâmetro</span></span>
+<span id="cb41-6"><a aria-hidden="true" href="#cb41-6" tabindex="-1"></a>linha_params <span class="op">=</span> <span class="bu">input</span>().split()</span>
+<span id="cb41-7"><a aria-hidden="true" href="#cb41-7" tabindex="-1"></a>N <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">0</span>])</span>
+<span id="cb41-8"><a aria-hidden="true" href="#cb41-8" tabindex="-1"></a>k <span class="op">=</span> <span class="bu">int</span>(linha_params[<span class="dv">1</span>])</span>
+<span id="cb41-9"><a aria-hidden="true" href="#cb41-9" tabindex="-1"></a></span>
+<span id="cb41-10"><a aria-hidden="true" href="#cb41-10" tabindex="-1"></a><span class="co"># 2. Exemplos de treinamento</span></span>
+<span id="cb41-11"><a aria-hidden="true" href="#cb41-11" tabindex="-1"></a>X_train <span class="op">=</span> []</span>
+<span id="cb41-12"><a aria-hidden="true" href="#cb41-12" tabindex="-1"></a>y_train <span class="op">=</span> []</span>
+<span id="cb41-13"><a aria-hidden="true" href="#cb41-13" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(N):</span>
+<span id="cb41-14"><a aria-hidden="true" href="#cb41-14" tabindex="-1"></a>    linha_treino <span class="op">=</span> <span class="bu">input</span>().split()</span>
+<span id="cb41-15"><a aria-hidden="true" href="#cb41-15" tabindex="-1"></a>    X_train.append([<span class="bu">float</span>(linha_treino[<span class="dv">0</span>]), <span class="bu">float</span>(linha_treino[<span class="dv">1</span>])])</span>
+<span id="cb41-16"><a aria-hidden="true" href="#cb41-16" tabindex="-1"></a>    y_train.append(<span class="bu">int</span>(linha_treino[<span class="dv">2</span>]))</span>
+<span id="cb41-17"><a aria-hidden="true" href="#cb41-17" tabindex="-1"></a></span>
+<span id="cb41-18"><a aria-hidden="true" href="#cb41-18" tabindex="-1"></a><span class="co"># Converte para arrays do numpy (mantendo a mesma estrutura do sklearn)</span></span>
+<span id="cb41-19"><a aria-hidden="true" href="#cb41-19" tabindex="-1"></a>X_train <span class="op">=</span> np.array(X_train)</span>
+<span id="cb41-20"><a aria-hidden="true" href="#cb41-20" tabindex="-1"></a>y_train <span class="op">=</span> np.array(y_train)</span>
+<span id="cb41-21"><a aria-hidden="true" href="#cb41-21" tabindex="-1"></a></span>
+<span id="cb41-22"><a aria-hidden="true" href="#cb41-22" tabindex="-1"></a><span class="co"># 3. Consultas</span></span>
+<span id="cb41-23"><a aria-hidden="true" href="#cb41-23" tabindex="-1"></a>Q <span class="op">=</span> <span class="bu">int</span>(<span class="bu">input</span>())</span>
+<span id="cb41-24"><a aria-hidden="true" href="#cb41-24" tabindex="-1"></a></span>
+<span id="cb41-25"><a aria-hidden="true" href="#cb41-25" tabindex="-1"></a>total_classe_1 <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb41-26"><a aria-hidden="true" href="#cb41-26" tabindex="-1"></a></span>
+<span id="cb41-27"><a aria-hidden="true" href="#cb41-27" tabindex="-1"></a><span class="co"># 4. Processamento de cada consulta</span></span>
+<span id="cb41-28"><a aria-hidden="true" href="#cb41-28" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(Q):</span>
+<span id="cb41-29"><a aria-hidden="true" href="#cb41-29" tabindex="-1"></a>    linha_consulta <span class="op">=</span> <span class="bu">input</span>().split()</span>
+<span id="cb41-30"><a aria-hidden="true" href="#cb41-30" tabindex="-1"></a>    xq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">0</span>])</span>
+<span id="cb41-31"><a aria-hidden="true" href="#cb41-31" tabindex="-1"></a>    yq <span class="op">=</span> <span class="bu">float</span>(linha_consulta[<span class="dv">1</span>])</span>
+<span id="cb41-32"><a aria-hidden="true" href="#cb41-32" tabindex="-1"></a></span>
+<span id="cb41-33"><a aria-hidden="true" href="#cb41-33" tabindex="-1"></a>    <span class="co"># Mantém o padrão de matriz 2D para a consulta</span></span>
+<span id="cb41-34"><a aria-hidden="true" href="#cb41-34" tabindex="-1"></a>    X_query <span class="op">=</span> np.array([[xq, yq]])</span>
+<span id="cb41-35"><a aria-hidden="true" href="#cb41-35" tabindex="-1"></a></span>
+<span id="cb41-36"><a aria-hidden="true" href="#cb41-36" tabindex="-1"></a>    <span class="co"># 5. Cálculo das distâncias euclidianas manualmente (equivalente ao 'brute' do knn)</span></span>
+<span id="cb41-37"><a aria-hidden="true" href="#cb41-37" tabindex="-1"></a>    <span class="co"># Subtrai o ponto de consulta de todos os pontos de treino, eleva ao quadrado, soma e tira a raiz</span></span>
+<span id="cb41-38"><a aria-hidden="true" href="#cb41-38" tabindex="-1"></a>    distancias <span class="op">=</span> np.sqrt(np.<span class="bu">sum</span>((X_train <span class="op">-</span> X_query[<span class="dv">0</span>]) <span class="op">**</span> <span class="dv">2</span>, axis<span class="op">=</span><span class="dv">1</span>))</span>
+<span id="cb41-39"><a aria-hidden="true" href="#cb41-39" tabindex="-1"></a></span>
+<span id="cb41-40"><a aria-hidden="true" href="#cb41-40" tabindex="-1"></a>    <span class="co"># argsort com o método 'mergesort' garante uma ordenação ESTÁVEL (preserva ordem de leitura em empates)</span></span>
+<span id="cb41-41"><a aria-hidden="true" href="#cb41-41" tabindex="-1"></a>    indices_vizinhos <span class="op">=</span> np.argsort(distancias, kind<span class="op">=</span><span class="st">"mergesort"</span>)[:k]</span>
+<span id="cb41-42"><a aria-hidden="true" href="#cb41-42" tabindex="-1"></a></span>
+<span id="cb41-43"><a aria-hidden="true" href="#cb41-43" tabindex="-1"></a>    <span class="co"># Seleciona os rótulos dos k vizinhos mais próximos</span></span>
+<span id="cb41-44"><a aria-hidden="true" href="#cb41-44" tabindex="-1"></a>    rotulos_vizinhos <span class="op">=</span> y_train[indices_vizinhos]</span>
+<span id="cb41-45"><a aria-hidden="true" href="#cb41-45" tabindex="-1"></a></span>
+<span id="cb41-46"><a aria-hidden="true" href="#cb41-46" tabindex="-1"></a>    <span class="co"># 6. Votação majoritária</span></span>
+<span id="cb41-47"><a aria-hidden="true" href="#cb41-47" tabindex="-1"></a>    votos_0 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">0</span>)</span>
+<span id="cb41-48"><a aria-hidden="true" href="#cb41-48" tabindex="-1"></a>    votos_1 <span class="op">=</span> np.<span class="bu">sum</span>(rotulos_vizinhos <span class="op">==</span> <span class="dv">1</span>)</span>
+<span id="cb41-49"><a aria-hidden="true" href="#cb41-49" tabindex="-1"></a></span>
+<span id="cb41-50"><a aria-hidden="true" href="#cb41-50" tabindex="-1"></a>    <span class="cf">if</span> votos_1 <span class="op">&gt;</span> votos_0:</span>
+<span id="cb41-51"><a aria-hidden="true" href="#cb41-51" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb41-52"><a aria-hidden="true" href="#cb41-52" tabindex="-1"></a>    <span class="cf">elif</span> votos_0 <span class="op">&gt;</span> votos_1:</span>
+<span id="cb41-53"><a aria-hidden="true" href="#cb41-53" tabindex="-1"></a>        pred <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb41-54"><a aria-hidden="true" href="#cb41-54" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb41-55"><a aria-hidden="true" href="#cb41-55" tabindex="-1"></a>        <span class="co"># Desempate defensivo: classe do vizinho mais próximo absoluto</span></span>
+<span id="cb41-56"><a aria-hidden="true" href="#cb41-56" tabindex="-1"></a>        pred <span class="op">=</span> <span class="bu">int</span>(rotulos_vizinhos[<span class="dv">0</span>])</span>
+<span id="cb41-57"><a aria-hidden="true" href="#cb41-57" tabindex="-1"></a></span>
+<span id="cb41-58"><a aria-hidden="true" href="#cb41-58" tabindex="-1"></a>    <span class="co"># 7. Saída</span></span>
+<span id="cb41-59"><a aria-hidden="true" href="#cb41-59" tabindex="-1"></a>    <span class="bu">print</span>(pred)</span>
+<span id="cb41-60"><a aria-hidden="true" href="#cb41-60" tabindex="-1"></a>    <span class="cf">if</span> pred <span class="op">==</span> <span class="dv">1</span>:</span>
+<span id="cb41-61"><a aria-hidden="true" href="#cb41-61" tabindex="-1"></a>        total_classe_1 <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb41-62"><a aria-hidden="true" href="#cb41-62" tabindex="-1"></a></span>
+<span id="cb41-63"><a aria-hidden="true" href="#cb41-63" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total classe 1: </span><span class="sc">{</span>total_classe_1<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP07_01.py</code></pre>
+<pre><code>Overwriting EP07_01.py</code></pre>
 </div>
 </div>
 <div class="cell" id="8e502b2a">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a aria-hidden="true" href="#cb43-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_01.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_01.cases
-📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_1.cases
-❌ Não foi possível baixar EP07_01.cases</pre>
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_01.cases já existe em casos/
+📋 5 caso(s) carregado(s) de casos/EP07_01.cases
+
+🔍 Testando Python: EP07_01.py
+<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso1_Exemplo1_Enunciado: OK</span>
+<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso2_Exemplo2_K1: OK</span>
+<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso3_Empate_Distancia_Ordem_Estavel: OK</span>
+<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso4_Desempate_Votacao_K_Par_Defensivo: OK</span>
+<span style="color:#27ae60;font-weight:500">✔️ EP07_Caso5_Multiplas_Consultas_Variadas: OK</span>
+
+📊 Resultado: 5/5 (100.0%)
+<span style="color:#27ae60;font-weight:500">🎉 Parabéns! Todos os testes passaram.</span></pre>
 </div>
 </div>
 </section>
@@ -510,14 +580,92 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
+
+    var pontos = [
+      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
+      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
+      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
+      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+    ];
+    var query = {x1:500, x2:0.88};
+    var k = 3;
+
+    function stats(vals){
+      var m = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+      var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
+      return {mean:m, std:Math.sqrt(v)};
+    }
+    var s1 = stats(pontos.map(function(p){return p.x1;}));
+    var s2 = stats(pontos.map(function(p){return p.x2;}));
+
+    function z(x, s){ return s.std === 0 ? 0 : (x - s.mean) / s.std; }
+
+    var cards = root.querySelector('#ep0702_cards');
+    var dbg = root.querySelector('#ep0702_debug');
+    var btnRaw = root.querySelector('#ep0702_btn_raw');
+    var btnNorm = root.querySelector('#ep0702_btn_norm');
+    var modoNorm = false;
+
+    function render(){
+      btnRaw.style.background = modoNorm ? '#e5e7eb' : '#2980b9';
+      btnRaw.style.color = modoNorm ? '#374151' : 'white';
+      btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
+      btnNorm.style.color = modoNorm ? 'white' : '#374151';
+
+      var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
+      var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
+
+      var lista = pontos.map(function(p){
+        var px1 = modoNorm ? z(p.x1, s1) : p.x1;
+        var px2 = modoNorm ? z(p.x2, s2) : p.x2;
+        var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
+        return {nome:p.nome, r:p.r, d:d};
+      });
+      lista.sort(function(a,b){ return a.d - b.d; });
+
+      cards.innerHTML = '';
+      var votos = [0,0];
+      lista.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
+        cards.appendChild(div);
+      });
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
+        '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
+        '  |  classe prevista=' + previsto;
+    }
+
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0702');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
     var cenarios = {
       A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
       B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
       C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
     };
-    var cards = root.querySelector('#ep0702_cards');
-    var dbg = root.querySelector('#ep0702_debug');
-    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+    var cards = root.querySelector('#ep0703_cards');
+    var dbg = root.querySelector('#ep0703_debug');
+    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
 
     function render(key){
       Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
@@ -546,7 +694,7 @@ window.Quarto = {
     render('A');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0702');
+    var root = document.getElementById('sim-ep0703');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -558,8 +706,8 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var valores = [[90,90,90],[10,50,10],[90,90,90]];
-    var grid = root.querySelector('#ep0703_grid');
-    var dbg = root.querySelector('#ep0703_debug');
+    var grid = root.querySelector('#ep0704_grid');
+    var dbg = root.querySelector('#ep0704_debug');
     var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
 
     function render(){
@@ -594,7 +742,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0703');
+    var root = document.getElementById('sim-ep0704');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -609,10 +757,10 @@ window.Quarto = {
       {mag:1.0, ang:10}, {mag:2.0, ang:100},
       {mag:3.0, ang:170}, {mag:4.0, ang:20}
     ];
-    var slEl = root.querySelector('#ep0704_sl');
-    var vlEl = root.querySelector('#ep0704_vl');
-    var bars = root.querySelector('#ep0704_bars');
-    var dbg = root.querySelector('#ep0704_debug');
+    var slEl = root.querySelector('#ep0705_sl');
+    var vlEl = root.querySelector('#ep0705_vl');
+    var bars = root.querySelector('#ep0705_bars');
+    var dbg = root.querySelector('#ep0705_debug');
 
     function render(){
       var B = parseInt(slEl.value);
@@ -646,7 +794,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0704');
+    var root = document.getElementById('sim-ep0705');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -663,10 +811,10 @@ window.Quarto = {
       {nome:"manchada", h:[0.20,0.60,0.20]}
     ];
     var teste = {h:[0.35,0.28,0.37]};
-    var cards = root.querySelector('#ep0705_cards');
-    var dbg = root.querySelector('#ep0705_debug');
-    var be = root.querySelector('#ep0705_be');
-    var bm = root.querySelector('#ep0705_bm');
+    var cards = root.querySelector('#ep0706_cards');
+    var dbg = root.querySelector('#ep0706_debug');
+    var be = root.querySelector('#ep0706_be');
+    var bm = root.querySelector('#ep0706_bm');
 
     function dist(u, v, metrica){
       var s = 0;
@@ -700,7 +848,7 @@ window.Quarto = {
     render('euclidiana');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0705');
+    var root = document.getElementById('sim-ep0706');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -755,10 +903,10 @@ window.Quarto = {
       return {predita: melhor, vizinhos: vizinhos};
     }
 
-    var grid = root.querySelector('#ep0706_grid');
-    var sl = root.querySelector('#ep0706_sl');
-    var vl = root.querySelector('#ep0706_vl');
-    var dbg = root.querySelector('#ep0706_debug');
+    var grid = root.querySelector('#ep0707_grid');
+    var sl = root.querySelector('#ep0707_sl');
+    var vl = root.querySelector('#ep0707_vl');
+    var dbg = root.querySelector('#ep0707_debug');
 
     function render(){
       var k = parseInt(sl.value);
@@ -800,7 +948,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim-ep0706');
+    var root = document.getElementById('sim-ep0707');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();

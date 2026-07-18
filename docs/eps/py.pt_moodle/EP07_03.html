@@ -3,28 +3,34 @@
 📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_03.html</a>
 <br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_03 🟠 Codificação Manual do Descritor LBP</h2>
-<p>A função <code>local_binary_pattern</code> do <code>scikit-image</code>, utilizada no projeto de classificação de texturas, calcula automaticamente o código LBP de cada pixel de uma imagem. Antes de utilizá-la como uma caixa-preta, você foi encarregado de implementar manualmente o cálculo do código LBP clássico (P=8, R=1) para o pixel central de uma vizinhança 3×3, exatamente como definido na equação do capítulo.</p>
-<p>Além do código, o sistema de inspeção de texturas também precisa saber se aquele padrão é <strong>uniforme</strong> — um padrão é uniforme quando o número de transições (0\to1 ou 1\to0) ao percorrer os 8 bits <strong>circularmente</strong> (voltando do último bit ao primeiro) é <strong>no máximo 2</strong>, propriedade explorada pela variante <em>uniforme</em> do LBP mencionada no capítulo.</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_03 🟡 Avaliação por Matriz de Confusão</h2>
+<p>Um classificador binário de qualidade de solda foi treinado e testado em uma linha de produção. Para cada peça inspecionada, o sistema registrou o rótulo <strong>real</strong> (obtido por um especialista) e o rótulo <strong>previsto</strong> pelo classificador, em que <code>1</code> representa “defeituosa” e <code>0</code> representa “conforme”.</p>
+<p>A gerência de qualidade quer saber não apenas a acurácia do sistema, mas também sua <strong>precisão</strong> (quando o sistema aponta defeito, com que frequência ele está certo?) e sua <strong>revocação</strong> (de todas as peças realmente defeituosas, quantas o sistema conseguiu identificar?) — a distinção discutida na seção de avaliação de classificadores do capítulo.</p>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Quantidade:</strong> Ler o inteiro <em>T</em> (número de vizinhanças a processar).</li>
-<li><strong>Dados de cada vizinhança:</strong> Para cada uma das <em>T</em> vizinhanças, ler uma matriz 3×3 de inteiros (intensidades), fornecida em 3 linhas de 3 valores cada. O pixel central é a posição <code>[1][1]</code>.</li>
-<li><strong>Ordem dos vizinhos:</strong> Percorra os 8 vizinhos em sentido <strong>horário</strong>, iniciando no canto superior esquerdo, na seguinte ordem de posições <code>[linha][coluna]</code>: <code>[0][0]</code>, <code>[0][1]</code>, <code>[0][2]</code>, <code>[1][2]</code>, <code>[2][2]</code>, <code>[2][1]</code>, <code>[2][0]</code>, <code>[1][0]</code>. Esse é o índice <em>p</em> = 0, 1, …, 7 da equação do LBP.</li>
-<li><strong>Função limiar:</strong> Para cada vizinho <em>p</em> com intensidade <em>g</em>_<em>p</em> e centro <em>g</em>_<em>c</em>, calcule <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>), que vale <code>1</code> se <em>g</em>_<em>p</em> ≥ <em>g</em>_<em>c</em> e <code>0</code> caso contrário.</li>
-<li><strong>Código LBP:</strong> Calcule LBP = ∑_p=0^7 <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>)\, 2^<em>p</em>.</li>
-<li><strong>Transições:</strong> Considerando a sequência circular de bits <em>s</em>_0, <em>s</em>_1, …, <em>s</em>_7 (na ordem do item 3), conte quantos pares consecutivos <strong>adjacentes na sequência circular</strong> (incluindo o par <em>s</em>_7, <em>s</em>_0) diferem entre si.</li>
-<li><strong>Classificação:</strong> Se o número de transições for \le 2, classifique como <code>UNIFORME</code>; caso contrário, <code>NAO_UNIFORME</code>.</li>
-<li><strong>Saída:</strong> Para cada vizinhança, na ordem de entrada, imprimir o código LBP (inteiro decimal, 0–255), o número de transições e a classificação.</li>
+<li><strong>Quantidade:</strong> Ler o inteiro <em>N</em> (número de peças inspecionadas).</li>
+<li><strong>Dados de cada peça:</strong> Para cada uma das <em>N</em> peças, ler dois inteiros — o rótulo real <em>y</em> e o rótulo previsto \hat <em>y</em> (ambos ∈ 0, 1).</li>
+<li><strong>Matriz de confusão:</strong> Considerando a classe <code>1</code> (defeituosa) como <strong>positiva</strong>, contar:
+<ul>
+<li>VP (Verdadeiro Positivo): y=1 e \hat y=1;</li>
+<li>FP (Falso Positivo): y=0 e \hat y=1;</li>
+<li>FN (Falso Negativo): y=1 e \hat y=0;</li>
+<li>VN (Verdadeiro Negativo): y=0 e \hat y=0.</li>
+</ul></li>
+<li><strong>Métricas:</strong> Calcular Acurácia = (VP+VN)/(<em>N</em>), \quad
+Precisã<em>o</em> = (VP)/(VP+FP), \quad
+Revocaçã<em>o</em> = (VP)/(VP+FN).</li>
+<li><strong>Casos degenerados:</strong> Se VP+FP=0 (nenhuma predição positiva), imprima <code>Precisao: indefinida</code>. Se VP+FN=0 (nenhum caso positivo real), imprima <code>Revocacao: indefinida</code>.</li>
+<li><strong>Arredondamento:</strong> Todas as métricas numéricas devem ser arredondadas para 4 casas decimais (<em>round half away from zero</em>) apenas na exibição.</li>
 </ol>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Ordem fixa dos vizinhos:</strong> a ordem do item 3 é obrigatória — invertê-la produz um código numericamente diferente, mesmo representando o mesmo padrão visual.</li>
-<li><strong>Comparação não estrita:</strong> <em>s</em>(<em>z</em>) = 1 quando <em>z</em> \ge 0 (o próprio capítulo define a igualdade como incluída no caso <code>1</code>).</li>
-<li><strong>Contagem circular:</strong> não esqueça o par que fecha o ciclo (<em>s</em>_7 com <em>s</em>_0); ignorar esse par é um erro comum que classifica incorretamente padrões uniformes.</li>
+<li><strong>Convenção de classe positiva fixa:</strong> a classe <code>1</code> é sempre a classe positiva neste exercício, independentemente de sua frequência relativa.</li>
+<li><strong>Proteção de divisão por zero:</strong> implemente os casos degenerados do item 5 antes de realizar a divisão.</li>
+<li><strong>Ordem de saída:</strong> siga exatamente a ordem especificada na seção de saída, mesmo nos casos degenerados.</li>
 </ul>
 </div>
 <div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
@@ -32,42 +38,43 @@
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
-<th style="padding:10px;border:1px solid #ddd;">Padrão (bits <em>s</em>_0… <em>s</em>_7)</th>
-<th style="padding:10px;border:1px solid #ddd;">Transições</th>
-<th style="padding:10px;border:1px solid #ddd;">Interpretação</th>
+<th style="padding:10px;border:1px solid #ddd;">Métrica</th>
+<th style="padding:10px;border:1px solid #ddd;">Pergunta que responde</th>
+<th style="padding:10px;border:1px solid #ddd;">Sensível a desbalanceamento?</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00000000</code> ou <code>11111111</code></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Região homogênea (mancha clara ou escura)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Acurácia</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Qual fração das peças foi classificada corretamente?</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sim — pode mascarar erros na classe minoritária</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00001111</code></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Borda simples entre duas regiões</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Precisão</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Das peças apontadas como defeituosas, quantas realmente são?</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Penaliza falsos positivos</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>01010101</code></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Textura de contraste alternado — não uniforme</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Revocação</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Das peças realmente defeituosas, quantas foram detectadas?</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Penaliza falsos negativos</td>
 </tr>
 </tbody>
 </table>
-<p>Padrões uniformes concentram-se em regiões de textura suave ou bordas simples; padrões não uniformes tendem a corresponder a ruído de alta frequência. Por isso, o histograma LBP <em>uniforme</em>, usado no projeto de classificação de texturas, agrupa todos os padrões não uniformes em um único compartimento, reduzindo a dimensionalidade do descritor.</p>
+<p>Em um contexto industrial, uma <strong>revocação</strong> baixa é frequentemente mais grave do que uma <strong>precisão</strong> baixa: deixar passar uma peça defeituosa (falso negativo) tende a ser mais custoso do que inspecionar manualmente uma peça boa apontada por engano (falso positivo).</p>
 </div>
 <div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiro <em>T</em>.</li>
-<li>Para cada vizinhança: 3 linhas com 3 inteiros cada (matriz 3×3).</li>
+<li>Linha 1: Inteiro <em>N</em>.</li>
+<li>Próximas <em>N</em> linhas: dois inteiros por linha — <em>y</em> e \hat <em>y</em>, separados por espaço.</li>
 </ul>
-<p><strong>Saída:</strong></p>
-<ul>
-<li><em>T</em> linhas, no formato <code>LBP=&lt;int&gt; transicoes=&lt;int&gt; &lt;UNIFORME|NAO_UNIFORME&gt;</code>.</li>
-</ul>
+<p><strong>Saída (nesta ordem exata):</strong></p>
+<pre><code>VP=&lt;int&gt; FP=&lt;int&gt; FN=&lt;int&gt; VN=&lt;int&gt;
+Acuracia: &lt;valor ou métrica indefinida&gt;
+Precisao: &lt;valor ou indefinida&gt;
+Revocacao: &lt;valor ou indefinida&gt;</code></pre>
 </div>
 <div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
@@ -81,75 +88,90 @@
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
-10 10 10<br/>
-10 50 10<br/>
-10 10 10</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=0 transicoes=0 UNIFORME</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Centro é o mais claro; todos os vizinhos geram bit 0.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+1 1<br/>
+0 1<br/>
+1 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">VP=1 FP=1 FN=1 VN=1<br/>
+Acuracia: 0.5000<br/>
+Precisao: 0.5000<br/>
+Revocacao: 0.5000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Um erro de cada tipo.</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
-90 90 90<br/>
-10 50 10<br/>
-90 90 90</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=119 transicoes=4 NAO_UNIFORME</td>
-<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Vizinhos claros e escuros alternados na vizinhança.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+0 0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">VP=0 FP=0 FN=0 VN=3<br/>
+Acuracia: 1.0000<br/>
+Precisao: indefinida<br/>
+Revocacao: indefinida</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Nenhum caso positivo real nem previsto.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep03">
 <div id="sim-ep0703" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Código LBP de uma Vizinhança 3×3</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 P=8, R=1</span>
+<span>🎮 Simulador: Precisão x Revocação</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 linha de produção</span>
 
 </div><div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro e observe o código LBP resultante.</p>
-<div id="ep0703_grid" style="display:grid;grid-template-columns:repeat(3,60px);gap:4px;justify-content:center;margin-bottom:16px;"></div>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha um cenário de inspeção e observe como acurácia, precisão e revocação reagem de forma diferente.</p>
+<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+<button class="ep0703_btn" id="ep0703_b1">Cenário A: erros equilibrados</button>
+<button class="ep0703_btn" id="ep0703_b2">Cenário B: muitos falsos negativos</button>
+<button class="ep0703_btn" id="ep0703_b3">Cenário C: nenhum defeito real</button>
+</div>
+<div id="ep0703_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;"></div>
 <div id="ep0703_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
+<style>
+  #sim-ep0703 .ep0703_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0703 .ep0703_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+</style>
 <script>
 
 (function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var valores = [[90,90,90],[10,50,10],[90,90,90]];
-    var grid = root.querySelector('#ep0703_grid');
+    var cenarios = {
+      A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
+      B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
+      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
+    };
+    var cards = root.querySelector('#ep0703_cards');
     var dbg = root.querySelector('#ep0703_debug');
-    var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
 
-    function render(){
-      grid.innerHTML = '';
-      for(var r=0;r<3;r++){
-        for(var c=0;c<3;c++){
-          (function(r,c){
-            var v = valores[r][c];
-            var div = document.createElement('div');
-            var central = (r===1 && c===1);
-            div.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
-            div.textContent = v;
-            if(!central){
-              div.addEventListener('click', function(){
-                valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
-                render();
-              });
-            }
-            grid.appendChild(div);
-          })(r,c);
-        }
-      }
-      var gc = valores[1][1];
-      var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
-      var lbp = 0;
-      bits.forEach(function(b,p){ lbp += b * Math.pow(2,p); });
-      var trans = 0;
-      for(var i=0;i<8;i++){ if(bits[i] !== bits[(i+1)%8]) trans++; }
-      var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
-      dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
+    function render(key){
+      Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
+      var dados = cenarios[key];
+      var VP=0,FP=0,FN=0,VN=0;
+      cards.innerHTML = '';
+      dados.forEach(function(d, i){
+        if(d.y===1 && d.p===1) VP++;
+        else if(d.y===0 && d.p===1) FP++;
+        else if(d.y===1 && d.p===0) FN++;
+        else VN++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f9fafb;border:1px solid #e5e7eb;';
+        div.innerHTML = '<div style="font-weight:700;">Peça '+(i+1)+'</div><div>real='+d.y+', prev='+d.p+'</div>';
+        cards.appendChild(div);
+      });
+      var N = dados.length;
+      var acc = ((VP+VN)/N).toFixed(4);
+      var prec = (VP+FP)>0 ? (VP/(VP+FP)).toFixed(4) : 'indefinida';
+      var rev = (VP+FN)>0 ? (VP/(VP+FN)).toFixed(4) : 'indefinida';
+      dbg.textContent = 'VP='+VP+' FP='+FP+' FN='+FN+' VN='+VN+'  |  Acuracia='+acc+'  Precisao='+prec+'  Revocacao='+rev;
     }
-    render();
+    botoes.A.addEventListener('click', function(){ render('A'); });
+    botoes.B.addEventListener('click', function(){ render('B'); });
+    botoes.C.addEventListener('click', function(){ render('C'); });
+    render('A');
   }
   function tryInit(){
     var root = document.getElementById('sim-ep0703');

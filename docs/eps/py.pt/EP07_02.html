@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP07_02 — EP07_02 🟡 Avaliação por Matriz de Confusão</title>
+  <title>EP07_02 — EP07_02 🟡 Normalização Z-score e Robustez do k-NN a Escalas Distintas</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <style>
 /* Default styles provided by pandoc.
@@ -77,93 +77,89 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:120ch">
-<h3 class="anchored" data-anchor-id="ep07_02-avaliação-por-matriz-de-confusão" data-number="7.18.2"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Avaliação por Matriz de Confusão</h3>
-<p>Um classificador binário de qualidade de solda foi treinado e testado em uma linha de produção. Para cada peça inspecionada, o sistema registrou o rótulo <strong>real</strong> (obtido por um especialista) e o rótulo <strong>previsto</strong> pelo classificador, em que <code>1</code> representa “defeituosa” e <code>0</code> representa “conforme”.</p>
-<p>A gerência de qualidade quer saber não apenas a acurácia do sistema, mas também sua <strong>precisão</strong> (quando o sistema aponta defeito, com que frequência ele está certo?) e sua <strong>revocação</strong> (de todas as peças realmente defeituosas, quantas o sistema conseguiu identificar?) — a distinção discutida na seção de avaliação de classificadores do capítulo.</p>
+<h3 class="anchored" data-anchor-id="ep07_02-normalização-z-score-e-robustez-do-k-nn-a-escalas-distintas" data-number="7.18.2"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalização Z-score e Robustez do k-NN a Escalas Distintas</h3>
+<p>Este exercício complementar revisita o classificador implementado no <strong>EP07_01</strong>, desta vez sob a ótica discutida na seção <em>O Impacto da Escala e a Normalização de Características</em> do capítulo: o k-NN decide com base na distância entre vetores, de modo que uma característica medida em uma escala muito maior do que as demais tende a <strong>dominar</strong> o cálculo da distância, mesmo quando ela não é a mais relevante para separar as classes.</p>
+<p>Um sistema de inspeção registra, para cada peça, sua <strong>área</strong> (em pixels, podendo chegar a centenas ou milhares) e sua <strong>circularidade</strong> (sempre entre <span class="math inline">\(0\)</span> e <span class="math inline">\(1\)</span>). Você foi encarregado de classificar novas peças por k-NN de duas formas — com e sem a padronização Z-score apresentada no capítulo — e de reportar em quais casos as duas abordagens <strong>divergem</strong>.</p>
 <section class="level4" data-number="7.18.2.1" id="diretrizes-de-implementação-1">
 <h4 class="anchored" data-anchor-id="diretrizes-de-implementação-1" data-number="7.18.2.1"><span class="header-section-number">7.18.2.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Quantidade:</strong> Ler o inteiro <span class="math inline">\(N\)</span> (número de peças inspecionadas).</li>
-<li><strong>Dados de cada peça:</strong> Para cada uma das <span class="math inline">\(N\)</span> peças, ler dois inteiros — o rótulo real <span class="math inline">\(y\)</span> e o rótulo previsto <span class="math inline">\(\hat y\)</span> (ambos <span class="math inline">\(\in \{0, 1\}\)</span>).</li>
-<li><strong>Matriz de confusão:</strong> Considerando a classe <code>1</code> (defeituosa) como <strong>positiva</strong>, contar:
-<ul>
-<li><span class="math inline">\(VP\)</span> (Verdadeiro Positivo): <span class="math inline">\(y=1\)</span> e <span class="math inline">\(\hat y=1\)</span>;</li>
-<li><span class="math inline">\(FP\)</span> (Falso Positivo): <span class="math inline">\(y=0\)</span> e <span class="math inline">\(\hat y=1\)</span>;</li>
-<li><span class="math inline">\(FN\)</span> (Falso Negativo): <span class="math inline">\(y=1\)</span> e <span class="math inline">\(\hat y=0\)</span>;</li>
-<li><span class="math inline">\(VN\)</span> (Verdadeiro Negativo): <span class="math inline">\(y=0\)</span> e <span class="math inline">\(\hat y=0\)</span>.</li>
-</ul></li>
-<li><strong>Métricas:</strong> Calcular <span class="math display">\[
-\text{Acurácia} = \frac{VP+VN}{N}, \quad
-\text{Precisão} = \frac{VP}{VP+FP}, \quad
-\text{Revocação} = \frac{VP}{VP+FN}.
-\]</span></li>
-<li><strong>Casos degenerados:</strong> Se <span class="math inline">\(VP+FP=0\)</span> (nenhuma predição positiva), imprima <code>Precisao: indefinida</code>. Se <span class="math inline">\(VP+FN=0\)</span> (nenhum caso positivo real), imprima <code>Revocacao: indefinida</code>.</li>
-<li><strong>Arredondamento:</strong> Todas as métricas numéricas devem ser arredondadas para 4 casas decimais (<em>round half away from zero</em>) apenas na exibição.</li>
+<li><strong>Quantidade e parâmetro:</strong> Ler o inteiro <span class="math inline">\(N\)</span> (número de exemplos de treinamento) e o inteiro ímpar <span class="math inline">\(k\)</span>.</li>
+<li><strong>Exemplos de treinamento:</strong> Para cada um dos <span class="math inline">\(N\)</span> exemplos, ler três valores: a área <span class="math inline">\(x_1\)</span> (real), a circularidade <span class="math inline">\(x_2\)</span> (real) e o rótulo <span class="math inline">\(r\)</span> (inteiro, <span class="math inline">\(0\)</span> ou <span class="math inline">\(1\)</span>).</li>
+<li><strong>Consultas:</strong> Ler o inteiro <span class="math inline">\(Q\)</span> e, em seguida, as coordenadas <span class="math inline">\(x_1, x_2\)</span> de cada consulta.</li>
+<li><strong>Classificação sem normalização:</strong> Para cada consulta, classifique-a por k-NN diretamente sobre <span class="math inline">\((x_1, x_2)\)</span>, com distância euclidiana e as mesmas regras de desempate do EP07_01 (ordem de leitura para distâncias empatadas; vizinho mais próximo entre classes empatadas na votação).</li>
+<li><strong>Parâmetros de normalização:</strong> Calcule a média <span class="math inline">\(\mu_j\)</span> e o desvio-padrão <strong>populacional</strong> <span class="math inline">\(\sigma_j\)</span> (divisão por <span class="math inline">\(N\)</span>, não por <span class="math inline">\(N-1\)</span> — a mesma convenção adotada pela classe <code>StandardScaler</code>) de cada característica <span class="math inline">\(j \in \{1,2\}\)</span>, <strong>exclusivamente sobre o conjunto de treinamento</strong>.</li>
+<li><strong>Padronização:</strong> Transforme cada característica de treinamento e de consulta por <span class="math display">\[
+z_j = \frac{x_j - \mu_j}{\sigma_j}.
+\]</span> Se <span class="math inline">\(\sigma_j = 0\)</span> (característica constante no treinamento), defina <span class="math inline">\(z_j = 0\)</span> para todas as amostras dessa característica, evitando a divisão por zero.</li>
+<li><strong>Classificação com normalização:</strong> Repita a classificação k-NN do item 4, agora sobre os vetores padronizados <span class="math inline">\((z_1, z_2)\)</span>, com as mesmas regras de desempate.</li>
+<li><strong>Saída:</strong> Para cada consulta, na ordem de entrada, imprimir as duas classes previstas. Ao final, imprimir o número de consultas em que as duas classificações <strong>divergem</strong>.</li>
 </ol>
 </section>
 <section class="level4" data-number="7.18.2.2" id="restrições-computacionais-1">
 <h4 class="anchored" data-anchor-id="restrições-computacionais-1" data-number="7.18.2.2"><span class="header-section-number">7.18.2.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Convenção de classe positiva fixa:</strong> a classe <code>1</code> é sempre a classe positiva neste exercício, independentemente de sua frequência relativa.</li>
-<li><strong>Proteção de divisão por zero:</strong> implemente os casos degenerados do item 5 antes de realizar a divisão.</li>
-<li><strong>Ordem de saída:</strong> siga exatamente a ordem especificada na seção de saída, mesmo nos casos degenerados.</li>
+<li><strong>Ajuste apenas no treino:</strong> <span class="math inline">\(\mu_j\)</span> e <span class="math inline">\(\sigma_j\)</span> são calculados unicamente a partir do conjunto de treinamento e reaplicados às consultas — nunca recalculados a partir delas. Essa prática evita o <strong>vazamento de dados</strong> (<em>data leakage</em>), mencionado na seção de normalização do capítulo.</li>
+<li><strong>Desvio-padrão populacional:</strong> utilize <span class="math inline">\(\sigma_j = \sqrt{\frac{1}{N}\sum_i (x_{i,j}-\mu_j)^2}\)</span>, e não a versão amostral (divisão por <span class="math inline">\(N-1\)</span>).</li>
+<li><strong>Característica constante:</strong> trate <span class="math inline">\(\sigma_j = 0\)</span> como caso especial (item 6); não deve ocorrer erro de divisão por zero.</li>
+<li><strong>Regras de desempate:</strong> reutilize exatamente as convenções do EP07_01, tanto na seleção dos <span class="math inline">\(k\)</span> vizinhos quanto na votação majoritária.</li>
 </ul>
 </section>
 <section class="level4" data-number="7.18.2.3" id="fundamentação-teórica-1">
 <h4 class="anchored" data-anchor-id="fundamentação-teórica-1" data-number="7.18.2.3"><span class="header-section-number">7.18.2.3</span> 🧠 Fundamentação Teórica</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
 </colgroup>
 <thead>
 <tr class="header">
-<th>Métrica</th>
-<th>Pergunta que responde</th>
-<th>Sensível a desbalanceamento?</th>
+<th>Elemento</th>
+<th>Papel</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Acurácia</td>
-<td>Qual fração das peças foi classificada corretamente?</td>
-<td>Sim — pode mascarar erros na classe minoritária</td>
+<td>Padronização Z-score</td>
+<td>Reescala cada característica para média <span class="math inline">\(0\)</span> e desvio-padrão <span class="math inline">\(1\)</span>, tornando escalas heterogêneas comparáveis</td>
 </tr>
 <tr class="even">
-<td>Precisão</td>
-<td>Das peças apontadas como defeituosas, quantas realmente são?</td>
-<td>Penaliza falsos positivos</td>
+<td>Ajuste (<em>fit</em>) apenas no treino</td>
+<td>Garante que a avaliação sobre as consultas reflita apenas o que o modelo aprendeu no treinamento</td>
 </tr>
 <tr class="odd">
-<td>Revocação</td>
-<td>Das peças realmente defeituosas, quantas foram detectadas?</td>
-<td>Penaliza falsos negativos</td>
+<td>Distância euclidiana sem normalização</td>
+<td>Dominada pela característica de maior amplitude — aqui, a área</td>
+</tr>
+<tr class="even">
+<td>Predição divergente</td>
+<td>Evidencia que a escala das características, e não apenas o algoritmo ou os dados, pode determinar a fronteira de decisão do k-NN</td>
 </tr>
 </tbody>
 </table>
-<p>Em um contexto industrial, uma <strong>revocação</strong> baixa é frequentemente mais grave do que uma <strong>precisão</strong> baixa: deixar passar uma peça defeituosa (falso negativo) tende a ser mais custoso do que inspecionar manualmente uma peça boa apontada por engano (falso positivo).</p>
+<p>Este exercício reforça, de forma controlada, a razão pela qual o <code>StandardScaler</code> é aplicado antes do k-NN ao longo do capítulo: sem essa etapa, características de circularidade — mesmo sendo altamente discriminativas — podem ser praticamente ignoradas pelo classificador diante de uma característica de área com amplitude centenas de vezes maior.</p>
 </section>
 <section class="level4" data-number="7.18.2.4" id="especificação-de-entrada-e-saída-vpl-1">
 <h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-1" data-number="7.18.2.4"><span class="header-section-number">7.18.2.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: Inteiro <span class="math inline">\(N\)</span>.</li>
-<li>Próximas <span class="math inline">\(N\)</span> linhas: dois inteiros por linha — <span class="math inline">\(y\)</span> e <span class="math inline">\(\hat y\)</span>, separados por espaço.</li>
+<li>Linha 1: Inteiros <span class="math inline">\(N\)</span> e <span class="math inline">\(k\)</span>, separados por espaço.</li>
+<li>Próximas <span class="math inline">\(N\)</span> linhas: três valores por linha — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reais) e <span class="math inline">\(r\)</span> (inteiro <span class="math inline">\(\in \{0,1\}\)</span>), separados por espaço.</li>
+<li>Próxima linha: inteiro <span class="math inline">\(Q\)</span>.</li>
+<li>Próximas <span class="math inline">\(Q\)</span> linhas: dois valores por linha — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reais) da consulta, separados por espaço.</li>
 </ul>
-<p><strong>Saída (nesta ordem exata):</strong></p>
-<pre><code>VP=&lt;int&gt; FP=&lt;int&gt; FN=&lt;int&gt; VN=&lt;int&gt;
-Acuracia: &lt;valor ou métrica indefinida&gt;
-Precisao: &lt;valor ou indefinida&gt;
-Revocacao: &lt;valor ou indefinida&gt;</code></pre>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><span class="math inline">\(Q\)</span> linhas, no formato <code>SemNorm=&lt;0|1&gt; ComNorm=&lt;0|1&gt;</code>, na ordem de entrada das consultas.</li>
+<li>Última linha: <code>Divergiu: &lt;int&gt;</code>.</li>
+</ul>
 </section>
 <section class="level4" data-number="7.18.2.5" id="exemplos-1">
 <h4 class="anchored" data-anchor-id="exemplos-1" data-number="7.18.2.5"><span class="header-section-number">7.18.2.5</span> 📌 Exemplos</h4>
@@ -182,93 +178,118 @@ Revocacao: &lt;valor ou indefinida&gt;</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td>4<br/>
-1 1<br/>
-0 1<br/>
-1 0<br/>
-0 0</td>
-<td>VP=1 FP=1 FN=1 VN=1<br/>
-Acuracia: 0.5000<br/>
-Precisao: 0.5000<br/>
-Revocacao: 0.5000</td>
-<td>Um erro de cada tipo.</td>
+<td>4 3<br/>
+10 0.9 0<br/>
+12 0.85 0<br/>
+900 0.2 1<br/>
+950 0.25 1<br/>
+1<br/>
+500 0.88</td>
+<td>SemNorm=1 ComNorm=0<br/>
+Divergiu: 1</td>
+<td>Sem normalização, a área (escala de centenas) domina a distância e a consulta é classificada como classe <code>1</code>. Após a padronização, a circularidade — muito mais próxima das amostras de classe <code>0</code> — passa a pesar de forma comparável, e a predição muda para <code>0</code>.</td>
 </tr>
 <tr class="even">
-<td>3<br/>
-0 0<br/>
-0 0<br/>
-0 0</td>
-<td>VP=0 FP=0 FN=0 VN=3<br/>
-Acuracia: 1.0000<br/>
-Precisao: indefinida<br/>
-Revocacao: indefinida</td>
-<td>Nenhum caso positivo real nem previsto.</td>
+<td>2 1<br/>
+0 0.5 0<br/>
+100 0.5 1<br/>
+1<br/>
+60 0.5</td>
+<td>SemNorm=1 ComNorm=1<br/>
+Divergiu: 0</td>
+<td>A circularidade é constante no treinamento (<span class="math inline">\(\sigma_2=0\)</span>); pela regra do item 6, <span class="math inline">\(z_2=0\)</span> para todas as amostras, e a classificação depende apenas da área em ambos os casos.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep02">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5" id="fig-07-sim-ep02">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="51" id="fig-07-sim-ep02">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0702" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Precisão x Revocação</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 linha de produção</span>
+<span>🎮 Simulador: Normalização Z-score e Distância k-NN</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔷 padronização de características</span>
 </div>
 <div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha um cenário de inspeção e observe como acurácia, precisão e revocação reagem de forma diferente.</p>
-<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
-<button class="ep0702_btn" id="ep0702_b1">Cenário A: erros equilibrados</button>
-<button class="ep0702_btn" id="ep0702_b2">Cenário B: muitos falsos negativos</button>
-<button class="ep0702_btn" id="ep0702_b3">Cenário C: nenhum defeito real</button>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Alterne entre a distância bruta e a distância padronizada (Z-score) para a mesma consulta (★) e observe como a classe prevista pode mudar.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;justify-content:center;gap:10px;">
+<button id="ep0702_btn_raw" style="border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer;background:#2980b9;color:white;">Sem normalização</button>
+<button id="ep0702_btn_norm" style="border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer;background:#e5e7eb;color:#374151;">Com normalização (Z-score)</button>
 </div>
-<div id="ep0702_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;"></div>
-<div id="ep0702_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<div id="ep0702_cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+<div id="ep0702_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
 </div>
-<style>
-  #sim-ep0702 .ep0702_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
-  #sim-ep0702 .ep0702_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
-</style>
 <script>
 (function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var cenarios = {
-      A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
-      B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
-      C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
-    };
+
+    var pontos = [
+      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
+      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
+      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
+      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+    ];
+    var query = {x1:500, x2:0.88};
+    var k = 3;
+
+    function stats(vals){
+      var m = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+      var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
+      return {mean:m, std:Math.sqrt(v)};
+    }
+    var s1 = stats(pontos.map(function(p){return p.x1;}));
+    var s2 = stats(pontos.map(function(p){return p.x2;}));
+
+    function z(x, s){ return s.std === 0 ? 0 : (x - s.mean) / s.std; }
+
     var cards = root.querySelector('#ep0702_cards');
     var dbg = root.querySelector('#ep0702_debug');
-    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+    var btnRaw = root.querySelector('#ep0702_btn_raw');
+    var btnNorm = root.querySelector('#ep0702_btn_norm');
+    var modoNorm = false;
 
-    function render(key){
-      Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
-      var dados = cenarios[key];
-      var VP=0,FP=0,FN=0,VN=0;
+    function render(){
+      btnRaw.style.background = modoNorm ? '#e5e7eb' : '#2980b9';
+      btnRaw.style.color = modoNorm ? '#374151' : 'white';
+      btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
+      btnNorm.style.color = modoNorm ? 'white' : '#374151';
+
+      var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
+      var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
+
+      var lista = pontos.map(function(p){
+        var px1 = modoNorm ? z(p.x1, s1) : p.x1;
+        var px2 = modoNorm ? z(p.x2, s2) : p.x2;
+        var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
+        return {nome:p.nome, r:p.r, d:d};
+      });
+      lista.sort(function(a,b){ return a.d - b.d; });
+
       cards.innerHTML = '';
-      dados.forEach(function(d, i){
-        if(d.y===1 && d.p===1) VP++;
-        else if(d.y===0 && d.p===1) FP++;
-        else if(d.y===1 && d.p===0) FN++;
-        else VN++;
+      var votos = [0,0];
+      lista.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
         var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f9fafb;border:1px solid #e5e7eb;';
-        div.innerHTML = '<div style="font-weight:700;">Peça '+(i+1)+'</div><div>real='+d.y+', prev='+d.p+'</div>';
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
         cards.appendChild(div);
       });
-      var N = dados.length;
-      var acc = ((VP+VN)/N).toFixed(4);
-      var prec = (VP+FP)>0 ? (VP/(VP+FP)).toFixed(4) : 'indefinida';
-      var rev = (VP+FN)>0 ? (VP/(VP+FN)).toFixed(4) : 'indefinida';
-      dbg.textContent = 'VP='+VP+' FP='+FP+' FN='+FN+' VN='+VN+'  |  Acuracia='+acc+'  Precisao='+prec+'  Revocacao='+rev;
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
+        '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
+        '  |  classe prevista=' + previsto;
     }
-    botoes.A.addEventListener('click', function(){ render('A'); });
-    botoes.B.addEventListener('click', function(){ render('B'); });
-    botoes.C.addEventListener('click', function(){ render('C'); });
-    render('A');
+
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+    render();
   }
   function tryInit(){
     var root = document.getElementById('sim-ep0702');
@@ -279,20 +300,20 @@ Revocacao: indefinida</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 7.20: Simulador: Precisão x Revocação
+Figura 7.20: Simulador: Efeito da Normalização Z-score na Distância k-NN
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="1354863b">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a aria-hidden="true" href="#cb45-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
-<span id="cb45-2"><a aria-hidden="true" href="#cb45-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="b5810799">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a aria-hidden="true" href="#cb44-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
+<span id="cb44-2"><a aria-hidden="true" href="#cb44-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP07_02.py</code></pre>
+<pre><code>Overwriting EP07_02.py</code></pre>
 </div>
 </div>
-<div class="cell" id="20f33c49">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a aria-hidden="true" href="#cb47-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="00ec17ce">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a aria-hidden="true" href="#cb46-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_02.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/cap7/EP7_2.cases
@@ -506,14 +527,92 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
+
+    var pontos = [
+      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
+      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
+      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
+      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+    ];
+    var query = {x1:500, x2:0.88};
+    var k = 3;
+
+    function stats(vals){
+      var m = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+      var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
+      return {mean:m, std:Math.sqrt(v)};
+    }
+    var s1 = stats(pontos.map(function(p){return p.x1;}));
+    var s2 = stats(pontos.map(function(p){return p.x2;}));
+
+    function z(x, s){ return s.std === 0 ? 0 : (x - s.mean) / s.std; }
+
+    var cards = root.querySelector('#ep0702_cards');
+    var dbg = root.querySelector('#ep0702_debug');
+    var btnRaw = root.querySelector('#ep0702_btn_raw');
+    var btnNorm = root.querySelector('#ep0702_btn_norm');
+    var modoNorm = false;
+
+    function render(){
+      btnRaw.style.background = modoNorm ? '#e5e7eb' : '#2980b9';
+      btnRaw.style.color = modoNorm ? '#374151' : 'white';
+      btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
+      btnNorm.style.color = modoNorm ? 'white' : '#374151';
+
+      var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
+      var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
+
+      var lista = pontos.map(function(p){
+        var px1 = modoNorm ? z(p.x1, s1) : p.x1;
+        var px2 = modoNorm ? z(p.x2, s2) : p.x2;
+        var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
+        return {nome:p.nome, r:p.r, d:d};
+      });
+      lista.sort(function(a,b){ return a.d - b.d; });
+
+      cards.innerHTML = '';
+      var votos = [0,0];
+      lista.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
+        cards.appendChild(div);
+      });
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
+        '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
+        '  |  classe prevista=' + previsto;
+    }
+
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0702');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
     var cenarios = {
       A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
       B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
       C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
     };
-    var cards = root.querySelector('#ep0702_cards');
-    var dbg = root.querySelector('#ep0702_debug');
-    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+    var cards = root.querySelector('#ep0703_cards');
+    var dbg = root.querySelector('#ep0703_debug');
+    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
 
     function render(key){
       Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
@@ -542,7 +641,7 @@ window.Quarto = {
     render('A');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0702');
+    var root = document.getElementById('sim-ep0703');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -554,8 +653,8 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var valores = [[90,90,90],[10,50,10],[90,90,90]];
-    var grid = root.querySelector('#ep0703_grid');
-    var dbg = root.querySelector('#ep0703_debug');
+    var grid = root.querySelector('#ep0704_grid');
+    var dbg = root.querySelector('#ep0704_debug');
     var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
 
     function render(){
@@ -590,7 +689,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0703');
+    var root = document.getElementById('sim-ep0704');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -605,10 +704,10 @@ window.Quarto = {
       {mag:1.0, ang:10}, {mag:2.0, ang:100},
       {mag:3.0, ang:170}, {mag:4.0, ang:20}
     ];
-    var slEl = root.querySelector('#ep0704_sl');
-    var vlEl = root.querySelector('#ep0704_vl');
-    var bars = root.querySelector('#ep0704_bars');
-    var dbg = root.querySelector('#ep0704_debug');
+    var slEl = root.querySelector('#ep0705_sl');
+    var vlEl = root.querySelector('#ep0705_vl');
+    var bars = root.querySelector('#ep0705_bars');
+    var dbg = root.querySelector('#ep0705_debug');
 
     function render(){
       var B = parseInt(slEl.value);
@@ -642,7 +741,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0704');
+    var root = document.getElementById('sim-ep0705');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -659,10 +758,10 @@ window.Quarto = {
       {nome:"manchada", h:[0.20,0.60,0.20]}
     ];
     var teste = {h:[0.35,0.28,0.37]};
-    var cards = root.querySelector('#ep0705_cards');
-    var dbg = root.querySelector('#ep0705_debug');
-    var be = root.querySelector('#ep0705_be');
-    var bm = root.querySelector('#ep0705_bm');
+    var cards = root.querySelector('#ep0706_cards');
+    var dbg = root.querySelector('#ep0706_debug');
+    var be = root.querySelector('#ep0706_be');
+    var bm = root.querySelector('#ep0706_bm');
 
     function dist(u, v, metrica){
       var s = 0;
@@ -696,7 +795,7 @@ window.Quarto = {
     render('euclidiana');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0705');
+    var root = document.getElementById('sim-ep0706');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -751,10 +850,10 @@ window.Quarto = {
       return {predita: melhor, vizinhos: vizinhos};
     }
 
-    var grid = root.querySelector('#ep0706_grid');
-    var sl = root.querySelector('#ep0706_sl');
-    var vl = root.querySelector('#ep0706_vl');
-    var dbg = root.querySelector('#ep0706_debug');
+    var grid = root.querySelector('#ep0707_grid');
+    var sl = root.querySelector('#ep0707_sl');
+    var vl = root.querySelector('#ep0707_vl');
+    var dbg = root.querySelector('#ep0707_debug');
 
     function render(){
       var k = parseInt(sl.value);
@@ -796,7 +895,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim-ep0706');
+    var root = document.getElementById('sim-ep0707');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();

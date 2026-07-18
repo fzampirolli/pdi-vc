@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP07_05 — EP07_05 🟣 Pipeline Completo: Descritores + k-NN + Avaliação Multi-Classe</title>
+  <title>EP07_05 — EP07_05 🔴 Histograma de Orientações de uma Célula HOG</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <style>
 /* Default styles provided by pandoc.
@@ -77,40 +77,39 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:120ch">
-<h3 class="anchored" data-anchor-id="ep07_05-pipeline-completo-descritores-k-nn-avaliação-multi-classe" data-number="7.18.5"><span class="header-section-number">7.18.5</span> EP07_05 🟣 <em>Pipeline</em> Completo: Descritores + k-NN + Avaliação Multi-Classe</h3>
-<p>Este último exercício integra as três etapas centrais do capítulo em um único <em>pipeline</em>, reproduzindo em miniatura o <strong>Projeto Prático 2</strong> (classificação de texturas sintéticas por LBP): um conjunto de histogramas de descritores <strong>já extraídos</strong> (como se fossem histogramas LBP) é utilizado para treinar um classificador k-NN, que por sua vez é avaliado sobre um conjunto de teste independente por meio de uma matriz de confusão multi-classe.</p>
-<p>Diferentemente do EP07_01, aqui o espaço de características tem dimensão arbitrária <span class="math inline">\(H\)</span> (o tamanho do histograma), existem mais de duas classes, e a métrica de distância é um parâmetro de entrada — permitindo reproduzir o experimento de comparação de métricas discutido no capítulo.</p>
+<h3 class="anchored" data-anchor-id="ep07_05-histograma-de-orientações-de-uma-célula-hog" data-number="7.18.5"><span class="header-section-number">7.18.5</span> EP07_05 🔴 Histograma de Orientações de uma Célula HOG</h3>
+<p>A função <code>hog</code> do <code>scikit-image</code>, empregada no projeto de classificação de dígitos, divide a imagem em pequenas <strong>células</strong> e, para cada uma, constrói um histograma das orientações do gradiente ponderado pela magnitude — exatamente a etapa central descrita na seção sobre o descritor HOG do capítulo.</p>
+<p>Você foi encarregado de implementar esse cálculo para uma única célula, a partir dos valores de magnitude e orientação do gradiente <strong>já calculados</strong> para cada pixel da célula (dispensando o cálculo das derivadas parciais).</p>
 <section class="level4" data-number="7.18.5.1" id="diretrizes-de-implementação-4">
 <h4 class="anchored" data-anchor-id="diretrizes-de-implementação-4" data-number="7.18.5.1"><span class="header-section-number">7.18.5.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Classes:</strong> Ler o inteiro <span class="math inline">\(C\)</span> (número de classes) seguido de <span class="math inline">\(C\)</span> nomes de classe (<em>strings</em> sem espaço), na ordem em que devem aparecer na matriz de confusão.</li>
-<li><strong>Configuração:</strong> Ler o inteiro <span class="math inline">\(H\)</span> (dimensão dos histogramas), a <em>string</em> <span class="math inline">\(M\)</span> (métrica: <code>euclidiana</code> ou <code>manhattan</code>) e o inteiro ímpar <span class="math inline">\(k\)</span>.</li>
-<li><strong>Treinamento:</strong> Ler o inteiro <span class="math inline">\(N\)</span> e, em seguida, <span class="math inline">\(N\)</span> linhas, cada uma contendo o nome da classe seguido de <span class="math inline">\(H\)</span> valores reais (o histograma de descritor).</li>
-<li><strong>Teste:</strong> Ler o inteiro <span class="math inline">\(Q\)</span> e, em seguida, <span class="math inline">\(Q\)</span> linhas, cada uma contendo o nome da classe <strong>real</strong> seguido de <span class="math inline">\(H\)</span> valores reais (o histograma de descritor da amostra de teste).</li>
-<li><strong>Distância:</strong> Para cada amostra de teste, calcule a distância a cada exemplo de treinamento usando a métrica <span class="math inline">\(M\)</span>: <span class="math display">\[
-d_{\text{euclidiana}}(u,v) = \sqrt{\sum_{j=1}^{H}(u_j-v_j)^2}, \qquad
-d_{\text{manhattan}}(u,v) = \sum_{j=1}^{H} |u_j - v_j|.
+<li><strong>Dimensões:</strong> Ler os inteiros <span class="math inline">\(n\)</span> (a célula tem <span class="math inline">\(n \times n\)</span> pixels) e <span class="math inline">\(B\)</span> (número de compartimentos do histograma).</li>
+<li><strong>Magnitudes:</strong> Ler <span class="math inline">\(n\)</span> linhas com <span class="math inline">\(n\)</span> valores reais cada, representando <span class="math inline">\(|\nabla f(x,y)|\)</span> para cada pixel da célula.</li>
+<li><strong>Orientações:</strong> Ler mais <span class="math inline">\(n\)</span> linhas com <span class="math inline">\(n\)</span> valores reais cada, representando <span class="math inline">\(\theta(x,y)\)</span> em <strong>graus</strong>, já convertido para o intervalo <strong>não sinalizado</strong> <span class="math inline">\([0^\circ, 180^\circ)\)</span>, como convencionalmente utilizado pelo HOG.</li>
+<li><strong>Compartimentos:</strong> Os <span class="math inline">\(B\)</span> compartimentos cobrem <span class="math inline">\([0^\circ, 180^\circ)\)</span> em faixas iguais de largura <span class="math inline">\(180/B\)</span> graus. Um pixel com orientação <span class="math inline">\(\theta\)</span> pertence ao compartimento <span class="math inline">\(\lfloor \theta / (180/B) \rfloor\)</span>; se esse índice for igual a <span class="math inline">\(B\)</span> (possível apenas quando <span class="math inline">\(\theta\)</span> é exatamente <span class="math inline">\(180^\circ\)</span>, o que não deve ocorrer pela diretriz do item 3), utilize o compartimento <span class="math inline">\(B-1\)</span>.</li>
+<li><strong>Histograma bruto:</strong> Para cada pixel, acumule sua <strong>magnitude</strong> (não sua contagem) no compartimento correspondente: <span class="math display">\[
+H[b] = \sum_{(x,y)\, :\, \text{bin}(\theta(x,y)) = b} |\nabla f(x,y)|.
 \]</span></li>
-<li><strong>Classificação k-NN:</strong> Selecione os <span class="math inline">\(k\)</span> exemplos de treinamento mais próximos (desempate de distância pela ordem de leitura, como no EP07_01) e classifique pela classe majoritária entre eles. Em caso de <strong>empate de votação</strong> entre duas ou mais classes, escolha a que aparece <strong>primeiro</strong> na lista de classes do item 1.</li>
-<li><strong>Matriz de confusão:</strong> Construa uma matriz <span class="math inline">\(C \times C\)</span> em que a linha corresponde à classe real e a coluna à classe prevista, seguindo a ordem de classes do item 1.</li>
-<li><strong>Acurácia:</strong> Calcule a acurácia global como a razão entre acertos e <span class="math inline">\(Q\)</span>.</li>
-<li><strong>Saída:</strong> Para cada amostra de teste, na ordem de entrada, imprimir a classe prevista. Em seguida, imprimir a matriz de confusão (uma linha por classe real, valores separados por espaço, na ordem das classes). Por fim, imprimir a acurácia arredondada a 4 casas decimais.</li>
+<li><strong>Normalização L2:</strong> Após construir <span class="math inline">\(H\)</span>, normalize-o para obter <span class="math inline">\(\hat H\)</span>: <span class="math display">\[
+\hat H[b] = \frac{H[b]}{\sqrt{\sum_{j=0}^{B-1} H[j]^2 + \epsilon}}, \qquad \epsilon = 10^{-6}.
+\]</span></li>
+<li><strong>Saída:</strong> Imprimir o histograma bruto <span class="math inline">\(H\)</span> (arredondado a 2 casas decimais) em uma linha, seguido do histograma normalizado <span class="math inline">\(\hat H\)</span> (arredondado a 4 casas decimais) em outra linha, ambos com os <span class="math inline">\(B\)</span> valores separados por espaço, na ordem dos compartimentos.</li>
 </ol>
 </section>
 <section class="level4" data-number="7.18.5.2" id="restrições-computacionais-4">
 <h4 class="anchored" data-anchor-id="restrições-computacionais-4" data-number="7.18.5.2"><span class="header-section-number">7.18.5.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Métrica selecionável:</strong> implemente ambas as distâncias; a métrica <span class="math inline">\(M\)</span> define qual é utilizada em toda a execução (não é possível misturar métricas na mesma chamada).</li>
-<li><strong>Desempate de votação determinístico:</strong> o critério do item 6 (ordem da lista de classes) deve ser seguido mesmo quando o empate envolve mais de duas classes.</li>
-<li><strong>Independência de treino e teste:</strong> não há necessidade de validar que as amostras de teste não aparecem no treino — assuma que a entrada é válida.</li>
+<li><strong>Binning não sinalizado:</strong> o intervalo de orientações é <span class="math inline">\([0,180)\)</span>, não <span class="math inline">\([0,360)\)</span> — gradientes em direções opostas (diferença de <span class="math inline">\(180^\circ\)</span>) contribuem para o <strong>mesmo</strong> compartimento, convenção padrão do HOG para detecção de objetos.</li>
+<li><strong>Acumulação por magnitude, não por contagem:</strong> o histograma pondera cada pixel por sua magnitude de gradiente, não simplesmente conta quantos pixels caem em cada compartimento.</li>
+<li><strong>Constante de estabilização:</strong> o <span class="math inline">\(\epsilon = 10^{-6}\)</span> no denominador da normalização evita divisão por zero quando a célula é completamente homogênea (todas as magnitudes nulas).</li>
 </ul>
 </section>
 <section class="level4" data-number="7.18.5.3" id="fundamentação-teórica-4">
@@ -122,51 +121,43 @@ d_{\text{manhattan}}(u,v) = \sum_{j=1}^{H} |u_j - v_j|.
 </colgroup>
 <thead>
 <tr class="header">
-<th>Etapa do exercício</th>
-<th>Etapa correspondente no capítulo</th>
+<th>Etapa</th>
+<th>Papel</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Histogramas de treino/teste já extraídos</td>
-<td><code>descritor_lbp</code> aplicado às texturas sintéticas</td>
+<td>Magnitude do gradiente</td>
+<td>Pondera a contribuição de cada pixel — bordas fortes pesam mais que ruído fraco</td>
 </tr>
 <tr class="even">
-<td>Distância euclidiana ou Manhattan</td>
-<td>Parâmetro <code>metric</code> do <code>KNeighborsClassifier</code></td>
+<td>Orientação não sinalizada</td>
+<td>Torna o descritor invariante à polaridade do contraste (claro→escuro vs. escuro→claro)</td>
 </tr>
 <tr class="odd">
-<td>Votação majoritária com <span class="math inline">\(k\)</span> vizinhos</td>
-<td><code>KNeighborsClassifier.predict</code></td>
+<td>Histograma por célula</td>
+<td>Resume a distribuição local de bordas em um vetor compacto</td>
 </tr>
 <tr class="even">
-<td>Matriz de confusão <span class="math inline">\(C\times C\)</span></td>
-<td><code>confusion_matrix</code> do <code>scikit-learn</code></td>
-</tr>
-<tr class="odd">
-<td>Acurácia global</td>
-<td><code>accuracy_score</code> do <code>scikit-learn</code></td>
+<td>Normalização L2</td>
+<td>Reduz a sensibilidade do descritor a variações globais de iluminação e contraste</td>
 </tr>
 </tbody>
 </table>
-<p>Este exercício evidencia, de forma controlada, um resultado discutido no capítulo: a <strong>escolha da métrica de distância</strong> e do <strong>valor de <span class="math inline">\(k\)</span></strong> pode alterar a classe prevista para uma mesma amostra, mesmo mantendo fixo o descritor utilizado — reforçando que, no reconhecimento de padrões clássico, o descritor, a métrica e o classificador formam um sistema interdependente, e não peças isoladas.</p>
+<p>A concatenação dos histogramas normalizados de todas as células da imagem — não implementada neste exercício — forma o vetor de características HOG completo, utilizado como entrada do classificador k-NN no projeto do capítulo.</p>
 </section>
 <section class="level4" data-number="7.18.5.4" id="especificação-de-entrada-e-saída-vpl-4">
 <h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-4" data-number="7.18.5.4"><span class="header-section-number">7.18.5.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
 <p><strong>Entrada:</strong></p>
 <ul>
-<li>Linha 1: inteiro <span class="math inline">\(C\)</span> seguido de <span class="math inline">\(C\)</span> nomes de classe.</li>
-<li>Linha 2: inteiro <span class="math inline">\(H\)</span>, <em>string</em> <span class="math inline">\(M\)</span> e inteiro <span class="math inline">\(k\)</span>.</li>
-<li>Linha 3: inteiro <span class="math inline">\(N\)</span>.</li>
-<li>Próximas <span class="math inline">\(N\)</span> linhas: nome da classe seguido de <span class="math inline">\(H\)</span> reais.</li>
-<li>Próxima linha: inteiro <span class="math inline">\(Q\)</span>.</li>
-<li>Próximas <span class="math inline">\(Q\)</span> linhas: nome da classe real seguido de <span class="math inline">\(H\)</span> reais.</li>
+<li>Linha 1: Inteiros <span class="math inline">\(n\)</span> e <span class="math inline">\(B\)</span>.</li>
+<li>Próximas <span class="math inline">\(n\)</span> linhas: <span class="math inline">\(n\)</span> magnitudes reais cada.</li>
+<li>Próximas <span class="math inline">\(n\)</span> linhas: <span class="math inline">\(n\)</span> orientações reais (graus, <span class="math inline">\([0,180)\)</span>) cada.</li>
 </ul>
 <p><strong>Saída:</strong></p>
 <ul>
-<li><span class="math inline">\(Q\)</span> linhas com a classe prevista de cada amostra de teste, na ordem de entrada.</li>
-<li><span class="math inline">\(C\)</span> linhas com a matriz de confusão (uma linha por classe real).</li>
-<li>Última linha: <code>Acuracia: &lt;valor&gt;</code>.</li>
+<li>Linha 1: os <span class="math inline">\(B\)</span> valores do histograma bruto, arredondados a 2 casas decimais.</li>
+<li>Linha 2: os <span class="math inline">\(B\)</span> valores do histograma normalizado, arredondados a 4 casas decimais.</li>
 </ul>
 </section>
 <section class="level4" data-number="7.18.5.5" id="exemplos-4">
@@ -179,101 +170,100 @@ d_{\text{manhattan}}(u,v) = \sum_{j=1}^{H} |u_j - v_j|.
 </colgroup>
 <thead>
 <tr class="header">
-<th>Entrada (resumida)</th>
+<th>Entrada</th>
 <th>Saída</th>
 <th>Observação</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>2 granular listrada<br/>
-2 euclidiana 1<br/>
-4<br/>
-granular 0.9 0.1<br/>
-granular 0.8 0.2<br/>
-listrada 0.1 0.9<br/>
-listrada 0.2 0.8<br/>
-2<br/>
-granular 0.85 0.15<br/>
-listrada 0.15 0.85</td>
-<td>granular<br/>
-listrada<br/>
-1 0<br/>
-0 1<br/>
-Acuracia: 1.0000</td>
-<td>Com <span class="math inline">\(k=1\)</span>, cada teste é classificado pelo vizinho de treino mais próximo.</td>
+<td>2 2<br/>
+1.0 2.0<br/>
+3.0 4.0<br/>
+10 100<br/>
+170 20</td>
+<td>5.00 5.00<br/>
+0.7071 0.7071</td>
+<td>Bin de largura 90°: <span class="math inline">\([0,90)\)</span> e <span class="math inline">\([90,180)\)</span>; magnitudes 1 e 4 caem no bin 0, 2 e 3 no bin 1.</td>
+</tr>
+<tr class="even">
+<td>2 4<br/>
+0.0 0.0<br/>
+0.0 0.0<br/>
+0 0<br/>
+0 0</td>
+<td>0.00 0.00 0.00 0.00<br/>
+0.0000 0.0000 0.0000 0.0000</td>
+<td>Célula homogênea: <span class="math inline">\(\epsilon\)</span> evita divisão por zero.</td>
 </tr>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep05">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="14" id="fig-07-sim-ep05">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="60" id="fig-07-sim-ep05">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0705" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: k-NN sobre Histogramas de Textura</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟣 pipeline completo</span>
+<span>🎮 Simulador: Histograma de Orientações de uma Célula</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 4 pixels fixos</span>
 </div>
 <div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Escolha a métrica de distância e observe como a amostra de teste (★) é classificada entre três protótipos de textura.</p>
-<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
-<button class="ep0705_btn" id="ep0705_be">Euclidiana</button>
-<button class="ep0705_btn" id="ep0705_bm">Manhattan</button>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Ajuste o número de compartimentos (B) e observe como a mesma célula (magnitudes e orientações fixas) é redistribuída.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Número de compartimentos (B)</label>
+<span id="ep0705_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">2</span>
 </div>
-<div id="ep0705_cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>
+<input id="ep0705_sl" max="6" min="2" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="2"/>
+</div>
+<div id="ep0705_bars" style="display:flex;gap:6px;align-items:flex-end;height:120px;justify-content:center;margin-bottom:12px;"></div>
 <div id="ep0705_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
 </div>
 </div>
-<style>
-  #sim-ep0705 .ep0705_btn { font-size:11px;padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
-  #sim-ep0705 .ep0705_btn.ativo { background:#7c3aed;color:#fff;border-color:#7c3aed; }
-</style>
 <script>
 (function(){
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var protos = [
-      {nome:"granular", h:[0.30,0.30,0.40]},
-      {nome:"listrada", h:[0.70,0.10,0.20]},
-      {nome:"manchada", h:[0.20,0.60,0.20]}
+    var pixels = [
+      {mag:1.0, ang:10}, {mag:2.0, ang:100},
+      {mag:3.0, ang:170}, {mag:4.0, ang:20}
     ];
-    var teste = {h:[0.35,0.28,0.37]};
-    var cards = root.querySelector('#ep0705_cards');
+    var slEl = root.querySelector('#ep0705_sl');
+    var vlEl = root.querySelector('#ep0705_vl');
+    var bars = root.querySelector('#ep0705_bars');
     var dbg = root.querySelector('#ep0705_debug');
-    var be = root.querySelector('#ep0705_be');
-    var bm = root.querySelector('#ep0705_bm');
 
-    function dist(u, v, metrica){
-      var s = 0;
-      for(var i=0;i<u.length;i++){
-        if(metrica === 'euclidiana') s += (u[i]-v[i])*(u[i]-v[i]);
-        else s += Math.abs(u[i]-v[i]);
-      }
-      return metrica === 'euclidiana' ? Math.sqrt(s) : s;
-    }
-
-    function render(metrica){
-      be.classList.toggle('ativo', metrica==='euclidiana');
-      bm.classList.toggle('ativo', metrica==='manhattan');
-      cards.innerHTML = '';
-      var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
-      var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
-      distancias.forEach(function(d){
-        var ok = d.d === minD;
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
-          (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
-        div.innerHTML = '<div style="font-weight:700;">'+d.nome+'</div><div style="font-family:monospace;margin-top:4px;">d='+d.d.toFixed(4)+'</div>' +
-          (ok ? '<div style="font-weight:700;">★ mais próximo</div>' : '');
-        cards.appendChild(div);
+    function render(){
+      var B = parseInt(slEl.value);
+      vlEl.textContent = B;
+      var largura = 180/B;
+      var H = new Array(B).fill(0);
+      pixels.forEach(function(p){
+        var b = Math.min(Math.floor(p.ang/largura), B-1);
+        H[b] += p.mag;
       });
-      var vencedor = distancias.reduce(function(a,b){ return b.d < a.d ? b : a; });
-      dbg.textContent = 'métrica=' + metrica + '  |  classe prevista (k=1) = ' + vencedor.nome;
+      var maxH = Math.max.apply(null, H.concat([0.001]));
+      bars.innerHTML = '';
+      H.forEach(function(v, i){
+        var col = document.createElement('div');
+        col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+        var barra = document.createElement('div');
+        var altura = Math.round((v/maxH)*90) + 4;
+        barra.style.cssText = 'width:34px;height:'+altura+'px;background:#6366f1;border-radius:4px 4px 0 0;';
+        var label = document.createElement('div');
+        label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
+        label.textContent = v.toFixed(2);
+        col.appendChild(barra);
+        col.appendChild(label);
+        bars.appendChild(col);
+      });
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return (v/denom).toFixed(4); });
+      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' + Hn.join(', ') + ']';
     }
-    be.addEventListener('click', function(){ render('euclidiana'); });
-    bm.addEventListener('click', function(){ render('manhattan'); });
-    render('euclidiana');
+    slEl.addEventListener('input', render);
+    render();
   }
   function tryInit(){
     var root = document.getElementById('sim-ep0705');
@@ -284,19 +274,19 @@ Acuracia: 1.0000</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 7.23: Simulador: <em>Pipeline</em> k-NN com escolha de metrica
+Figura 7.23: Simulador: Histograma HOG de uma Celula
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="a2187d71">
+<div class="cell" id="08dbf999">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1"><a aria-hidden="true" href="#cb54-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_05.py</span>
 <span id="cb54-2"><a aria-hidden="true" href="#cb54-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP07_05.py</code></pre>
+<pre><code>Overwriting EP07_05.py</code></pre>
 </div>
 </div>
-<div class="cell" id="d121621d">
+<div class="cell" id="2037352e">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a aria-hidden="true" href="#cb56-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_05.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_05.cases
@@ -511,14 +501,92 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
+
+    var pontos = [
+      {nome:"P1 (área)", x1:10,  x2:0.90, r:0},
+      {nome:"P2 (área)", x1:12,  x2:0.85, r:0},
+      {nome:"P3 (área)", x1:900, x2:0.20, r:1},
+      {nome:"P4 (área)", x1:950, x2:0.25, r:1}
+    ];
+    var query = {x1:500, x2:0.88};
+    var k = 3;
+
+    function stats(vals){
+      var m = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+      var v = vals.reduce(function(a,s){return a+(s-m)*(s-m);},0)/vals.length;
+      return {mean:m, std:Math.sqrt(v)};
+    }
+    var s1 = stats(pontos.map(function(p){return p.x1;}));
+    var s2 = stats(pontos.map(function(p){return p.x2;}));
+
+    function z(x, s){ return s.std === 0 ? 0 : (x - s.mean) / s.std; }
+
+    var cards = root.querySelector('#ep0702_cards');
+    var dbg = root.querySelector('#ep0702_debug');
+    var btnRaw = root.querySelector('#ep0702_btn_raw');
+    var btnNorm = root.querySelector('#ep0702_btn_norm');
+    var modoNorm = false;
+
+    function render(){
+      btnRaw.style.background = modoNorm ? '#e5e7eb' : '#2980b9';
+      btnRaw.style.color = modoNorm ? '#374151' : 'white';
+      btnNorm.style.background = modoNorm ? '#2980b9' : '#e5e7eb';
+      btnNorm.style.color = modoNorm ? 'white' : '#374151';
+
+      var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
+      var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
+
+      var lista = pontos.map(function(p){
+        var px1 = modoNorm ? z(p.x1, s1) : p.x1;
+        var px2 = modoNorm ? z(p.x2, s2) : p.x2;
+        var d = Math.sqrt((px1-qx1)*(px1-qx1) + (px2-qx2)*(px2-qx2));
+        return {nome:p.nome, r:p.r, d:d};
+      });
+      lista.sort(function(a,b){ return a.d - b.d; });
+
+      cards.innerHTML = '';
+      var votos = [0,0];
+      lista.forEach(function(p, i){
+        var dentro = i < k;
+        if(dentro) votos[p.r]++;
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
+          (dentro ? (p.r===0 ? 'background:#dbeafe;border:1px solid #93c5fd;color:#1e3a8a;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;') : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;');
+        div.innerHTML = '<div style="font-weight:700;">'+p.nome+' (r='+p.r+')</div>' +
+          '<div style="font-family:monospace;margin:4px 0;">d='+p.d.toFixed(3)+'</div>' +
+          '<div style="font-weight:700;">'+(dentro?'VOTA':'-')+'</div>';
+        cards.appendChild(div);
+      });
+      var previsto = votos[1] > votos[0] ? 1 : 0;
+      dbg.textContent = (modoNorm ? 'COM normalização' : 'SEM normalização') +
+        '  |  k=' + k + '  |  votos classe0=' + votos[0] + ', classe1=' + votos[1] +
+        '  |  classe prevista=' + previsto;
+    }
+
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0702');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
     var cenarios = {
       A: [{y:1,p:1},{y:0,p:1},{y:1,p:0},{y:0,p:0}],
       B: [{y:1,p:0},{y:1,p:0},{y:1,p:1},{y:0,p:0}],
       C: [{y:0,p:0},{y:0,p:0},{y:0,p:0}]
     };
-    var cards = root.querySelector('#ep0702_cards');
-    var dbg = root.querySelector('#ep0702_debug');
-    var botoes = {A: root.querySelector('#ep0702_b1'), B: root.querySelector('#ep0702_b2'), C: root.querySelector('#ep0702_b3')};
+    var cards = root.querySelector('#ep0703_cards');
+    var dbg = root.querySelector('#ep0703_debug');
+    var botoes = {A: root.querySelector('#ep0703_b1'), B: root.querySelector('#ep0703_b2'), C: root.querySelector('#ep0703_b3')};
 
     function render(key){
       Object.keys(botoes).forEach(function(k){ botoes[k].classList.toggle('ativo', k===key); });
@@ -547,7 +615,7 @@ window.Quarto = {
     render('A');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0702');
+    var root = document.getElementById('sim-ep0703');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -559,8 +627,8 @@ window.Quarto = {
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
     var valores = [[90,90,90],[10,50,10],[90,90,90]];
-    var grid = root.querySelector('#ep0703_grid');
-    var dbg = root.querySelector('#ep0703_debug');
+    var grid = root.querySelector('#ep0704_grid');
+    var dbg = root.querySelector('#ep0704_debug');
     var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
 
     function render(){
@@ -595,7 +663,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0703');
+    var root = document.getElementById('sim-ep0704');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -610,10 +678,10 @@ window.Quarto = {
       {mag:1.0, ang:10}, {mag:2.0, ang:100},
       {mag:3.0, ang:170}, {mag:4.0, ang:20}
     ];
-    var slEl = root.querySelector('#ep0704_sl');
-    var vlEl = root.querySelector('#ep0704_vl');
-    var bars = root.querySelector('#ep0704_bars');
-    var dbg = root.querySelector('#ep0704_debug');
+    var slEl = root.querySelector('#ep0705_sl');
+    var vlEl = root.querySelector('#ep0705_vl');
+    var bars = root.querySelector('#ep0705_bars');
+    var dbg = root.querySelector('#ep0705_debug');
 
     function render(){
       var B = parseInt(slEl.value);
@@ -647,7 +715,7 @@ window.Quarto = {
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0704');
+    var root = document.getElementById('sim-ep0705');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -664,10 +732,10 @@ window.Quarto = {
       {nome:"manchada", h:[0.20,0.60,0.20]}
     ];
     var teste = {h:[0.35,0.28,0.37]};
-    var cards = root.querySelector('#ep0705_cards');
-    var dbg = root.querySelector('#ep0705_debug');
-    var be = root.querySelector('#ep0705_be');
-    var bm = root.querySelector('#ep0705_bm');
+    var cards = root.querySelector('#ep0706_cards');
+    var dbg = root.querySelector('#ep0706_debug');
+    var be = root.querySelector('#ep0706_be');
+    var bm = root.querySelector('#ep0706_bm');
 
     function dist(u, v, metrica){
       var s = 0;
@@ -701,7 +769,7 @@ window.Quarto = {
     render('euclidiana');
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0705');
+    var root = document.getElementById('sim-ep0706');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -756,10 +824,10 @@ window.Quarto = {
       return {predita: melhor, vizinhos: vizinhos};
     }
 
-    var grid = root.querySelector('#ep0706_grid');
-    var sl = root.querySelector('#ep0706_sl');
-    var vl = root.querySelector('#ep0706_vl');
-    var dbg = root.querySelector('#ep0706_debug');
+    var grid = root.querySelector('#ep0707_grid');
+    var sl = root.querySelector('#ep0707_sl');
+    var vl = root.querySelector('#ep0707_vl');
+    var dbg = root.querySelector('#ep0707_debug');
 
     function render(){
       var k = parseInt(sl.value);
@@ -801,7 +869,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim-ep0706');
+    var root = document.getElementById('sim-ep0707');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
