@@ -287,20 +287,20 @@ Revocacao: indefinida</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 7.21: Simulador: Precisão x Revocação
+Figura 7.23: Simulador: Precisão x Revocação
 </figcaption>
 </figure>
 </div>
 </div>
 <div class="cell" id="1354863b">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a aria-hidden="true" href="#cb48-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_03.py</span>
-<span id="cb48-2"><a aria-hidden="true" href="#cb48-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_03.py</span>
+<span id="cb50-2"><a aria-hidden="true" href="#cb50-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP07_03.py</code></pre>
 </div>
 </div>
 <div class="cell" id="20f33c49">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_03.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a aria-hidden="true" href="#cb52-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_03.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_03.cases já existe em casos/
 📋 5 caso(s) carregado(s) de casos/EP07_03.cases
@@ -744,76 +744,193 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var pixels = [
-      {mag:1.0, ang:10}, {mag:2.0, ang:100},
-      {mag:3.0, ang:170}, {mag:4.0, ang:20}
-    ];
-    var slEl = root.querySelector('#ep0705_sl');
-    var vlEl = root.querySelector('#ep0705_vl');
-    var pxEl = root.querySelector('#ep0705_pixels');
-    var bars = root.querySelector('#ep0705_bars');
-    var dbg = root.querySelector('#ep0705_debug');
-    var btnRaw = root.querySelector('#ep0705_btn_raw');
-    var btnNorm = root.querySelector('#ep0705_btn_norm');
+
+    var n = 3;
+    var mags = [[1.0,2.0,0.5],[3.0,4.0,1.5],[0.8,2.5,3.2]];
+    var angs = [[10,100,45],[170,20,95],[60,150,5]];
+    var CORES = ["#6366f1","#0ea5e9","#10b981","#f59e0b","#ef4444","#a855f7"];
+
+    var slEl = root.querySelector("#ep0705v3_sl");
+    var vlEl = root.querySelector("#ep0705v3_vl");
+    var stdinEl = root.querySelector("#ep0705v3_stdin");
+    var magGridEl = root.querySelector("#ep0705v3_mag_grid");
+    var angGridEl = root.querySelector("#ep0705v3_ang_grid");
+    var reguaEl = root.querySelector("#ep0705v3_regua");
+    var reguaTicksEl = root.querySelector("#ep0705v3_regua_ticks");
+    var reguaMarcasEl = root.querySelector("#ep0705v3_regua_marcas");
+    var faixasEl = root.querySelector("#ep0705v3_faixas");
+    var pxEl = root.querySelector("#ep0705v3_pixels");
+    var bars = root.querySelector("#ep0705v3_bars");
+    var passosEl = root.querySelector("#ep0705v3_passos");
+    var dbg = root.querySelector("#ep0705v3_debug");
+    var btnRaw = root.querySelector("#ep0705v3_btn_raw");
+    var btnNorm = root.querySelector("#ep0705v3_btn_norm");
     var modoNorm = false;
 
     function render(){
-      btnRaw.classList.toggle('ativo', !modoNorm);
-      btnNorm.classList.toggle('ativo', modoNorm);
+      btnRaw.classList.toggle("ativo", !modoNorm);
+      btnNorm.classList.toggle("ativo", modoNorm);
 
       var B = parseInt(slEl.value);
       vlEl.textContent = B;
       var largura = 180/B;
 
-      // Bin de cada pixel individualmente (item 5: acumulação por magnitude, não contagem).
-      var binsPorPixel = pixels.map(function(p){
-        return Math.min(Math.floor(p.ang/largura), B-1);
-      });
+      // ---- Entrada bruta (stdin) ----
+      var linhas = [];
+      linhas.push(n + " " + B);
+      mags.forEach(function(row){ linhas.push(row.map(function(v){return v.toFixed(1);}).join(" ")); });
+      angs.forEach(function(row){ linhas.push(row.join(" ")); });
+      stdinEl.textContent = linhas.join("\n");
 
+      // ---- bin de cada pixel (floor(theta/largura), clip) ----
+      var binsMat = [];
+      for(var i=0;i<n;i++){
+        binsMat.push([]);
+        for(var j=0;j<n;j++){
+          var raw = angs[i][j]/largura;
+          var b = Math.floor(raw);
+          if(b > B-1) b = B-1;
+          if(b < 0) b = 0;
+          binsMat[i].push(b);
+        }
+      }
+
+      // ---- Matriz de magnitudes (grid simples) ----
+      magGridEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var d = document.createElement("div");
+          d.style.cssText = "text-align:center;border-radius:8px;padding:8px 4px;font-size:12px;font-family:monospace;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;";
+          d.textContent = mags[i][j].toFixed(1);
+          magGridEl.appendChild(d);
+        }
+      }
+
+      // ---- Matriz de orientações (colorida por bin, com floor explícito) ----
+      angGridEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var b2 = binsMat[i][j];
+          var cor2 = CORES[b2];
+          var raw2 = angs[i][j]/largura;
+          var d2 = document.createElement("div");
+          d2.style.cssText = "text-align:center;border-radius:8px;padding:6px 4px;font-size:11px;font-family:monospace;background:"+cor2+"22;border:2px solid "+cor2+";color:#374151;";
+          d2.innerHTML = "<div style=\"font-weight:700;\">"+angs[i][j]+"°</div>"+
+            "<div style=\"font-size:9px;color:#6b7280;\">÷"+largura.toFixed(1)+"="+raw2.toFixed(2)+"</div>"+
+            "<div style=\"font-size:9px;font-weight:700;color:"+cor2+";\">⌊·⌋=bin "+b2+"</div>";
+          angGridEl.appendChild(d2);
+        }
+      }
+
+      // ---- Régua 0-180 com faixas coloridas ----
+      reguaEl.innerHTML = "";
+      for(var b3=0;b3<B;b3++){
+        var seg = document.createElement("div");
+        seg.style.cssText = "flex:1;background:"+CORES[b3]+";opacity:0.35;border-right:1px solid rgba(255,255,255,0.6);";
+        reguaEl.appendChild(seg);
+      }
+      // ticks (limites dos bins)
+      reguaTicksEl.innerHTML = "";
+      for(var b4=0;b4<=B;b4++){
+        var pct = (b4*largura/180*100);
+        var tick = document.createElement("div");
+        tick.style.cssText = "position:absolute;left:"+pct+"%;top:0;font-size:9px;color:#6b7280;transform:translateX(-50%);white-space:nowrap;";
+        tick.textContent = (b4*largura).toFixed(0)+"°";
+        reguaTicksEl.appendChild(tick);
+      }
+      // marcadores dos angulos de cada pixel
+      reguaMarcasEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var ang = angs[i][j];
+          var b5 = binsMat[i][j];
+          var pctm = (ang/180*100);
+          var marker = document.createElement("div");
+          marker.style.cssText = "position:absolute;left:"+pctm+"%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;";
+          marker.innerHTML = "<div style=\"font-size:9px;color:"+CORES[b5]+";font-weight:700;\">("+i+","+j+")</div>"+
+            "<div style=\"width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid "+CORES[b5]+";\"></div>";
+          reguaMarcasEl.appendChild(marker);
+        }
+      }
+
+      // ---- Faixas dos bins (legenda) ----
+      faixasEl.innerHTML = "";
+      for(var b=0;b<B;b++){
+        var lo = (b*largura).toFixed(1);
+        var hi = ((b+1)*largura).toFixed(1);
+        var chip = document.createElement("div");
+        chip.style.cssText = "display:flex;align-items:center;gap:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:20px;padding:4px 10px;font-size:11px;color:#374151;";
+        chip.innerHTML = "<span style=\"width:10px;height:10px;border-radius:50%;background:"+CORES[b]+";display:inline-block;\"></span>bin "+b+": ["+lo+"°, "+hi+"°)";
+        faixasEl.appendChild(chip);
+      }
+
+      // ---- Atribuição por pixel + histograma bruto ----
       var H = new Array(B).fill(0);
-      pixels.forEach(function(p, i){ H[binsPorPixel[i]] += p.mag; });
+      var binsPorPixel = [];
+      pxEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var mag = mags[i][j], ang = angs[i][j];
+          var bin = binsMat[i][j];
+          binsPorPixel.push({i:i, j:j, mag:mag, ang:ang, bin:bin});
+          H[bin] += mag;
+
+          var div = document.createElement("div");
+          var cor = CORES[bin];
+          div.style.cssText = "text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:"+cor+"22;border:2px solid "+cor+";color:#374151;";
+          div.innerHTML = "<div style=\"font-weight:700;\">mag="+mag.toFixed(1)+"</div>"+
+            "<div style=\"font-family:monospace;\">θ="+ang+"°</div>"+
+            "<div style=\"font-weight:700;color:"+cor+";\">→ bin "+bin+"</div>";
+          pxEl.appendChild(div);
+        }
+      }
 
       var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
       var Hn = H.map(function(v){ return v/denom; });
 
-      // Cartões por pixel: magnitude, orientação e bin de destino.
-      pxEl.innerHTML = '';
-      pixels.forEach(function(p, i){
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;';
-        div.innerHTML = '<div style="font-weight:700;">mag='+p.mag.toFixed(1)+'</div>' +
-          '<div style="font-family:monospace;">θ='+p.ang+'°</div>' +
-          '<div style="font-weight:700;color:#6366f1;">→ bin '+binsPorPixel[i]+'</div>';
-        pxEl.appendChild(div);
-      });
-
+      // ---- Barras (coloridas por bin) ----
       var dados = modoNorm ? Hn : H;
       var maxD = Math.max.apply(null, dados.concat([0.001]));
-      bars.innerHTML = '';
-      dados.forEach(function(v, i){
-        var col = document.createElement('div');
-        col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
-        var barra = document.createElement('div');
+      bars.innerHTML = "";
+      dados.forEach(function(v, b){
+        var col = document.createElement("div");
+        col.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px;";
+        var barra = document.createElement("div");
         var altura = Math.round((v/maxD)*90) + 4;
-        barra.style.cssText = 'width:34px;height:'+altura+'px;background:'+(modoNorm?'#0ea5e9':'#6366f1')+';border-radius:4px 4px 0 0;';
-        var label = document.createElement('div');
-        label.style.cssText = 'font-family:monospace;font-size:10px;color:#4b5563;';
+        barra.style.cssText = "width:34px;height:"+altura+"px;background:"+CORES[b]+";border-radius:4px 4px 0 0;";
+        var label = document.createElement("div");
+        label.style.cssText = "font-family:monospace;font-size:10px;color:#4b5563;";
         label.textContent = modoNorm ? v.toFixed(4) : v.toFixed(2);
+        var binLabel = document.createElement("div");
+        binLabel.style.cssText = "font-size:9px;color:#9ca3af;";
+        binLabel.textContent = "bin "+b;
         col.appendChild(barra);
         col.appendChild(label);
+        col.appendChild(binLabel);
         bars.appendChild(col);
       });
 
-      dbg.textContent = 'H=[' + H.map(function(v){return v.toFixed(2);}).join(', ') + ']  |  Ĥ=[' +
-        Hn.map(function(v){return v.toFixed(4);}).join(', ') + ']';
+      // ---- Passo a passo (floor + soma) ----
+      var passos = [];
+      for(var b=0;b<B;b++){
+        var contribs = binsPorPixel.filter(function(p){ return p.bin===b; });
+        var termos = contribs.map(function(p){ return p.mag.toFixed(2)+" (θ="+p.ang+"°→⌊"+(p.ang/largura).toFixed(2)+"⌋="+p.bin+")"; }).join(" + ");
+        if(termos === "") termos = "(nenhum pixel)";
+        passos.push("<span style=\"color:"+CORES[b]+";font-weight:700;\">H["+b+"]</span> = "+termos+" = <b>"+H[b].toFixed(2)+"</b>");
+      }
+      passosEl.innerHTML = passos.join("<br>");
+
+      dbg.textContent = "H=[" + H.map(function(v){return v.toFixed(2);}).join(", ") + "]  |  Ĥ=[" +
+        Hn.map(function(v){return v.toFixed(4);}).join(", ") + "]";
     }
-    slEl.addEventListener('input', render);
-    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
-    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+
+    slEl.addEventListener("input", render);
+    btnRaw.addEventListener("click", function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener("click", function(){ modoNorm = true; render(); });
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0705');
+    var root = document.getElementById("sim-ep0705v3");
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
