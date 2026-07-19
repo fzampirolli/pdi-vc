@@ -1701,17 +1701,21 @@ class mm:
         stds = np.std(X_train, axis=0)
         
         # Cria cópias para armazenar os dados normalizados
-        X_train_norm = np.zeros_like(X_train)
-        X_test_norm = np.zeros_like(X_test)
+        # X_train_norm = np.zeros_like(X_train)
+        # X_test_norm = np.zeros_like(X_test)
         
-        # Normaliza cada característica j (funciona para qualquer dimensão D)
-        for j in range(X_train.shape[1]):
-            if stds[j] == 0:
-                X_train_norm[:, j] = 0.0
-                X_test_norm[:, j] = 0.0
-            else:
-                X_train_norm[:, j] = (X_train[:, j] - means[j]) / stds[j]
-                X_test_norm[:, j] = (X_test[:, j] - means[j]) / stds[j]
+        # # Normaliza cada característica j (funciona para qualquer dimensão D)
+        # for j in range(X_train.shape[1]):
+        #     if stds[j] == 0:
+        #         X_train_norm[:, j] = 0.0
+        #         X_test_norm[:, j] = 0.0
+        #     else:
+        #         X_train_norm[:, j] = (X_train[:, j] - means[j]) / stds[j]
+        #         X_test_norm[:, j] = (X_test[:, j] - means[j]) / stds[j]
+        # ou simplesmente
+        stds_safe = np.where(stds == 0, 1, stds)
+        X_train_norm = np.where(stds == 0, 0.0, (X_train - means) / stds_safe)
+        X_test_norm  = np.where(stds == 0, 0.0, (X_test  - means) / stds_safe)
                 
         return X_train_norm, X_test_norm
     
@@ -1731,18 +1735,21 @@ class mm:
         acuracia = np.sum(y_true == y_pred) / N if N > 0 else 0.0
 
         # 2. Cenário Binário (se houver apenas 2 classes no mapeamento geral)
+        def _vp_fp_fn(c):
+            vp = int(np.sum((y_true == c) & (y_pred == c)))
+            fp = int(np.sum((y_true != c) & (y_pred == c)))
+            fn = int(np.sum((y_true == c) & (y_pred != c)))
+            return vp, fp, fn
+
         if len(classes) == 2:
             neg_label = classes[classes != pos_label][0]
-            
-            VP = int(np.sum((y_true == pos_label) & (y_pred == pos_label)))
-            FP = int(np.sum((y_true == neg_label) & (y_pred == pos_label)))
-            FN = int(np.sum((y_true == pos_label) & (y_pred == neg_label)))
+            VP, FP, FN = _vp_fp_fn(pos_label)
             VN = int(np.sum((y_true == neg_label) & (y_pred == neg_label)))
-            
             precisao = (VP / (VP + FP)) if (VP + FP) > 0 else "indefinida"
             revocacao = (VP / (VP + FN)) if (VP + FN) > 0 else "indefinida"
-            
             return VP, FP, FN, VN, acuracia, precisao, revocacao
+
+        # bloco multi-classe agora reaproveita _vp_fp_fn(c) no loop
 
         # 3. Cenário Multi-Classes Geral (Mais de 2 classes reais no problema)
         # Remove os preenchimentos artificiais se houver classes de verdade a mais
@@ -1807,25 +1814,20 @@ class mm:
         Suporta qualquer número de compartimentos B e matrizes de tamanho n x n.
         """
         np = mm._get_np()
-        
-        # Inicializa o histograma bruto com zeros
-        H = np.zeros(B, dtype=np.float64)
         largura_bin = 180.0 / B
-        
+
         # Calcula os índices dos compartimentos para todos os pixels
         # np.clip garante de forma defensiva que nenhuma aproximação numérica passe do índice B-1
         bins = np.floor(orientacoes / largura_bin).astype(int)
         bins = np.clip(bins, 0, B - 1)
-        
+
         # Acumula as magnitudes nos respectivos compartimentos
-        for b in range(B):
-            H[b] = np.sum(magnitudes[bins == b])
-            
+        H = np.bincount(bins.ravel(), weights=magnitudes.ravel(), minlength=B).astype(np.float64)
+
         # Normalização L2 com epsilon de estabilização
         epsilon = 1e-6
         norma_l2 = np.sqrt(np.sum(H ** 2) + epsilon)
         H_hat = H / norma_l2
-        
         return H, H_hat
     
     @staticmethod
@@ -1851,15 +1853,9 @@ class mm:
         max_votos = np.max(contagem)
         
         # Encontra as classes empatadas com o maior número de votos
+        # np.where já retorna os índices em ordem crescente de classe,
+        # então o primeiro elemento já é a classe de menor id entre as empatadas
         classes_empatadas = np.where(contagem == max_votos)[0]
-        
-        if len(classes_empatadas) == 1:
-            return int(classes_empatadas[0])
-        else:
-            # Em caso de empate de votos, escolhe a classe que veio primeiro na lista do item 1 (menor id)
-            for c in range(num_classes):
-                if c in classes_empatadas:
-                    return c
         return int(classes_empatadas[0])
 
     @staticmethod
@@ -1889,14 +1885,8 @@ class mm:
         dc = [-1,  0,  1,  1,  1,  0, -1, -1]
         
         # Cria uma lista de matrizes deslocadas para processar de forma vetorizada (alta performance)
-        vizinhos = []
-        for r, c in zip(dr, dc):
-            vizinhos.append(f[1:L-1, 1:C-1] <= f[1+r:L-1+r, 1+c:C-1+c])
-            
-        bits = np.array(vizinhos, dtype=np.int32) # Formato (8, L-2, C-2)
-        
-        # Troca a lógica para g_p >= g_c de acordo com a regra de limiarização clássica
-        # f[1+r:...] é o g_p e f[1:L-1,...] é o g_c
+        # g_p >= g_c de acordo com a regra de limiarização clássica
+        # f[1+r:...] é o g_p e f[1:L-1,...] é o g_c, vetorizado para os 8 vizinhos de uma vez
         bits = np.array([np.where(f[1+r:L-1+r, 1+c:C-1+c] >= f[1:L-1, 1:C-1], 1, 0) for r, c in zip(dr, dc)])
         
         # 5. Código LBP vetorizado

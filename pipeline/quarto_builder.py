@@ -1200,6 +1200,8 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                     width_attr = " width=65%"
                 if label in ["fig-01-sim-map"]:
                     width_attr = " width=100%"
+                if label in ["fig-07-sim-ep05"]:
+                    width_attr = " width=95%"
 
                 new_cells.append(nbformat.v4.new_markdown_cell(':::'))
                 new_cells.append(nbformat.v4.new_markdown_cell(
