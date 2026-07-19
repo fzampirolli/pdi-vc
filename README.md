@@ -177,6 +177,7 @@ from IPython.display import HTML
 HTML("""...""")
 ```
 
+**Evite usar a tag `<svg>` diretamente no HTML do simulador.** O *script* de *screenshot* dá um tratamento especial a blocos que já têm um `<svg>` pronto no código, o que pode gerar um PNG em branco se o seu gráfico for desenhado via JavaScript. Para gráficos e desenhos, prefira montar tudo com `<div>`s estilizados (como no simulador do EP07_05, que pode ser usado como modelo) em vez de manipular um elemento `<svg>` — assim o PNG sai correto sem ajustes extras.
 ---
 
 ### Convenções de *labels* Quarto

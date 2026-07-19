@@ -8,33 +8,24 @@ C = int(input())
 f = mm.readImg(L, C, dtype='uint8')
 
 # 3. Parâmetros da grade
-linha_grade = input().split()
-G = int(linha_grade[0])
-S = int(linha_grade[1])
+G, S = map(int, input().split())
 
 # 4. Cálculo dos mapas estruturais LBP por pixel
 lbp_map, trans_map = mm.compute_lbp_map(f)
 
 # 6. Protótipos de treinamento e mapeamentos
-linha_classes = input().split()
-Ncl = int(linha_classes[0])
-nomes_classes = linha_classes[1:Ncl+1]
+nomes_classes = mm.readClasses()
 classe_para_id = {nome: i for i, nome in enumerate(nomes_classes)}
+Ncl = len(nomes_classes)
 
-# CORREÇÃO AQUI: No EP07_07 a linha contém apenas a métrica e o k (ex: "euclidiana 1")
-linha_knn = input().split()
-M = linha_knn[0]
-k = int(linha_knn[1])
+# Configuração do k-NN
+M, k = input().split()
+k = int(k)
 
+# 3. Treinamento — Lê as N linhas usando a função do morph
 N = int(input())
-X_train = []
-y_train = []
-for _ in range(N):
-    linha = input().split()
-    y_train.append(classe_para_id[linha[0]])
-    X_train.append([float(val) for val in linha[1:]])
-X_train = np.array(X_train)
-y_train = np.array(y_train)
+X_train, y_train = mm.readTrain(N, D=58, label_type=classe_para_id.get, label_pos='start') 
+# Nota: Ajuste o 'D' (dimensão) se o histograma do LBP tiver um tamanho fixo diferente (geralmente 58 para LBP u2)
 
 # 5 e 7. Varredura da grade por linha e coluna para extração e classificação
 y_pred = []
@@ -43,7 +34,7 @@ for i in range(G):
         r_start = i * S
         c_start = j * S
 
-        # Extrai o histograma normalizado do bloco tratando as restrições de borda global
+        # Extrai o histograma normalizado do bloco
         H_hat = mm.extract_block_histogram(lbp_map, trans_map, r_start, c_start, S, L, C)
 
         # Classifica por k-NN
