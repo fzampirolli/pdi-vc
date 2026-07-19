@@ -5,7 +5,7 @@ version 1.0 - https://github.com/fzampirolli/morph
 version 1.1 - https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py - compacto
 version 1.1.2 - com vários métodos para auxílio no cálculo de medidas usando cv2
 version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scipy.ndimage; lazy loading
-version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest, etc)
+version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest)
 Last update: Jul 2026
 """
 
@@ -1651,24 +1651,56 @@ class mm:
     # ── Aprendizado de máquina com VC ────────────────────────────────────────
 
     @staticmethod
-    def readTrain(N, D=2):
+    def readClasses():
+        """Lê C e os C nomes de classe na mesma linha. Retorna a lista, na ordem de leitura."""
+        linha = input().split()
+        C = int(linha[0])
+        return linha[1:1+C]
+
+    @staticmethod
+    def readTrain(N, D=2, label_type=int, label_pos='end'):
+        """
+        Lê N linhas de treinamento.
+        Padrão (compatível com o uso original): D reais seguidos do rótulo inteiro
+        no final da linha (label_pos='end', label_type=int).
+        Para rótulo como nome de classe no início da linha, use
+        label_pos='start' e label_type=str (ou uma função/dict de conversão, ex: label_to_id.get).
+        """
         np = mm._get_np()
-        X_train = []
-        y_train = []
+        X_train, y_train = [], []
         for _ in range(N):
             linha = input().split()
-            X_train.append([float(val) for val in linha[:D]])
-            y_train.append(int(linha[D]))
+            if label_pos == 'end':
+                X_train.append([float(v) for v in linha[:D]])
+                y_train.append(label_type(linha[D]))
+            else:  # 'start'
+                X_train.append([float(v) for v in linha[1:1+D]])
+                y_train.append(label_type(linha[0]))
         return np.array(X_train), np.array(y_train)
 
     @staticmethod
-    def readTest(Q, D=2):
+    def readTest(Q, D=2, label_type=None, label_pos='end'):
+        """
+        Lê Q linhas de teste.
+        Padrão (compatível com o uso original): apenas D reais, sem rótulo (label_type=None).
+        Se label_type for informado, também lê e retorna os rótulos reais —
+        útil quando o teste já traz a classe verdadeira, como no EP07_06.
+        """
         np = mm._get_np()
-        X_test = []
+        X_test, y_test = [], []
         for _ in range(Q):
             linha = input().split()
-            X_test.append([float(val) for val in linha[:D]])
-        return np.array(X_test)
+            if label_type is None:
+                X_test.append([float(v) for v in linha[:D]])
+            elif label_pos == 'end':
+                X_test.append([float(v) for v in linha[:D]])
+                y_test.append(label_type(linha[D]))
+            else:  # 'start'
+                X_test.append([float(v) for v in linha[1:1+D]])
+                y_test.append(label_type(linha[0]))
+        if label_type is None:
+            return np.array(X_test)
+        return np.array(X_test), np.array(y_test)
 
     @staticmethod
     def knn_predict(X_train, y_train, x_test, k):
