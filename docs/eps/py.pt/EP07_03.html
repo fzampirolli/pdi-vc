@@ -941,54 +941,210 @@ window.Quarto = {
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    // Teste fixo (★). "granular" difere do teste por 3 desvios pequenos e espalhados
-    // (favorecido pela euclidiana, que penaliza menos diferenças distribuídas);
-    // "listrada" difere por um único desvio grande concentrado numa dimensão
-    // (soma absoluta menor, favorecido pela Manhattan). "manchada" é apenas distratora.
-    var protos = [
-      {nome:"granular", h:[0.23, 0.40, 0.25]},
-      {nome:"listrada", h:[0.35, 0.28, 0.07]},
-      {nome:"manchada", h:[0.20, 0.60, 0.20]}
+
+    var classes = ["granular","listrada","manchada"];
+    var CORES = {granular:"#6366f1", listrada:"#f59e0b", manchada:"#10b981"};
+
+    var trainPts = [
+      {nome:"granular_1", cls:"granular", x:0.70, y:0.70},
+      {nome:"granular_2", cls:"granular", x:0.25, y:0.85},
+      {nome:"listrada_1", cls:"listrada", x:0.85, y:0.50},
+      {nome:"listrada_2", cls:"listrada", x:0.60, y:0.15},
+      {nome:"manchada_1", cls:"manchada", x:0.30, y:0.30},
+      {nome:"manchada_2", cls:"manchada", x:0.15, y:0.55}
     ];
-    var teste = {h:[0.35,0.28,0.37]};
-    var cards = root.querySelector('#ep0706_cards');
-    var dbg = root.querySelector('#ep0706_debug');
-    var be = root.querySelector('#ep0706_be');
-    var bm = root.querySelector('#ep0706_bm');
+    var testPts = [
+      {nome:"teste 1", cls:"granular", x:0.50, y:0.50},
+      {nome:"teste 2", cls:"listrada", x:0.70, y:0.20},
+      {nome:"teste 3", cls:"manchada", x:0.20, y:0.40}
+    ];
 
-    function dist(u, v, metrica){
-      var s = 0;
-      for(var i=0;i<u.length;i++){
-        if(metrica === 'euclidiana') s += (u[i]-v[i])*(u[i]-v[i]);
-        else s += Math.abs(u[i]-v[i]);
-      }
-      return metrica === 'euclidiana' ? Math.sqrt(s) : s;
+    var svg = root.querySelector("#ep0706v2_svg");
+    var legendaEl = root.querySelector("#ep0706v2_legenda");
+    var distsEl = root.querySelector("#ep0706v2_dists");
+    var votosEl = root.querySelector("#ep0706v2_votos");
+    var previsaoEl = root.querySelector("#ep0706v2_previsao");
+    var cmEl = root.querySelector("#ep0706v2_cm");
+    var accEl = root.querySelector("#ep0706v2_acc");
+    var dbg = root.querySelector("#ep0706v2_debug");
+
+    var be = root.querySelector("#ep0706v2_be"), bm = root.querySelector("#ep0706v2_bm");
+    var bk1 = root.querySelector("#ep0706v2_k1"), bk3 = root.querySelector("#ep0706v2_k3"), bk5 = root.querySelector("#ep0706v2_k5");
+    var bt0 = root.querySelector("#ep0706v2_t0"), bt1 = root.querySelector("#ep0706v2_t1"), bt2 = root.querySelector("#ep0706v2_t2");
+
+    var metrica = "euclidiana", k = 1, testSel = 0;
+
+    function dist(u, v){
+      var dx = u.x-v.x, dy = u.y-v.y;
+      if(metrica === "euclidiana") return Math.sqrt(dx*dx+dy*dy);
+      return Math.abs(dx)+Math.abs(dy);
     }
 
-    function render(metrica){
-      be.classList.toggle('ativo', metrica==='euclidiana');
-      bm.classList.toggle('ativo', metrica==='manhattan');
-      cards.innerHTML = '';
-      var distancias = protos.map(function(p){ return {nome:p.nome, d: dist(p.h, teste.h, metrica)}; });
-      var minD = Math.min.apply(null, distancias.map(function(d){return d.d;}));
-      distancias.forEach(function(d){
-        var ok = Math.abs(d.d - minD) < 1e-9;
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
-          (ok ? 'background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;' : 'background:#f9fafb;border:1px solid #e5e7eb;color:#4b5563;');
-        div.innerHTML = '<div style="font-weight:700;">'+d.nome+'</div><div style="font-family:monospace;margin-top:4px;">d='+d.d.toFixed(4)+'</div>' +
-          (ok ? '<div style="font-weight:700;">★ mais próximo</div>' : '');
-        cards.appendChild(div);
+    function knnPredict(xtest){
+      var ds = trainPts.map(function(p, i){ return {i:i, p:p, d:dist(xtest, p)}; });
+      ds.sort(function(a,b){ return a.d - b.d; }); // ordem estavel = desempate por ordem de leitura
+      var viz = ds.slice(0, k);
+      var votos = {}; classes.forEach(function(c){ votos[c]=0; });
+      viz.forEach(function(v){ votos[v.p.cls]++; });
+      var maxV = Math.max.apply(null, classes.map(function(c){return votos[c];}));
+      var empatados = classes.filter(function(c){ return votos[c]===maxV; });
+      var pred = empatados[0]; // primeira classe da lista entre as empatadas
+      return {pred:pred, viz:viz, votos:votos, empatados:empatados, ordenados:ds};
+    }
+
+    function svgNS(tag){ return document.createElementNS("http://www.w3.org/2000/svg", tag); }
+
+    function render(){
+      be.classList.toggle("ativo", metrica==="euclidiana");
+      bm.classList.toggle("ativo", metrica==="manhattan");
+      bk1.classList.toggle("ativo", k===1);
+      bk3.classList.toggle("ativo", k===3);
+      bk5.classList.toggle("ativo", k===5);
+      bt0.classList.toggle("ativo", testSel===0);
+      bt1.classList.toggle("ativo", testSel===1);
+      bt2.classList.toggle("ativo", testSel===2);
+
+      // Legenda
+      legendaEl.innerHTML = "";
+      classes.forEach(function(c){
+        var chip = document.createElement("div");
+        chip.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;color:#374151;";
+        chip.innerHTML = "<span style=\"width:10px;height:10px;border-radius:50%;background:"+CORES[c]+";display:inline-block;\"></span>"+c;
+        legendaEl.appendChild(chip);
       });
-      var vencedor = distancias.reduce(function(a,b){ return b.d < a.d ? b : a; });
-      dbg.textContent = 'métrica=' + metrica + '  |  classe prevista (k=1) = ' + vencedor.nome;
+
+      var xt = testPts[testSel];
+      var r = knnPredict(xt);
+      var vizIdx = r.viz.map(function(v){ return v.i; });
+
+      // ---- SVG: pontos de treino, linhas para vizinhos, estrela de teste ----
+      svg.innerHTML = "";
+      // grade leve
+      for(var g=1; g<4; g++){
+        var lineV = svgNS("line");
+        lineV.setAttribute("x1", g*25); lineV.setAttribute("y1", 0);
+        lineV.setAttribute("x2", g*25); lineV.setAttribute("y2", 100);
+        lineV.setAttribute("stroke", "#eee"); lineV.setAttribute("stroke-width", "0.4");
+        svg.appendChild(lineV);
+        var lineH = svgNS("line");
+        lineH.setAttribute("x1", 0); lineH.setAttribute("y1", g*25);
+        lineH.setAttribute("x2", 100); lineH.setAttribute("y2", g*25);
+        lineH.setAttribute("stroke", "#eee"); lineH.setAttribute("stroke-width", "0.4");
+        svg.appendChild(lineH);
+      }
+      // linhas ate os vizinhos (desenhadas antes dos pontos, para ficarem por baixo)
+      vizIdx.forEach(function(i){
+        var p = trainPts[i];
+        var line = svgNS("line");
+        line.setAttribute("x1", xt.x*100); line.setAttribute("y1", (1-xt.y)*100);
+        line.setAttribute("x2", p.x*100); line.setAttribute("y2", (1-p.y)*100);
+        line.setAttribute("stroke", CORES[p.cls]); line.setAttribute("stroke-width", "0.6");
+        line.setAttribute("stroke-dasharray", "1.5,1"); line.setAttribute("opacity", "0.7");
+        svg.appendChild(line);
+      });
+      // pontos de treino
+      trainPts.forEach(function(p, i){
+        var isViz = vizIdx.indexOf(i) !== -1;
+        if(isViz){
+          var halo = svgNS("circle");
+          halo.setAttribute("cx", p.x*100); halo.setAttribute("cy", (1-p.y)*100);
+          halo.setAttribute("r", 5); halo.setAttribute("fill", "none");
+          halo.setAttribute("stroke", CORES[p.cls]); halo.setAttribute("stroke-width", "0.8");
+          svg.appendChild(halo);
+        }
+        var c = svgNS("circle");
+        c.setAttribute("cx", p.x*100); c.setAttribute("cy", (1-p.y)*100);
+        c.setAttribute("r", 3.2);
+        c.setAttribute("fill", CORES[p.cls]);
+        c.setAttribute("stroke", "#fff"); c.setAttribute("stroke-width", "0.6");
+        c.setAttribute("opacity", isViz ? "1" : "0.55");
+        svg.appendChild(c);
+      });
+      // estrela de teste
+      var correto = (r.pred === xt.cls);
+      var estCor = correto ? "#16a34a" : "#dc2626";
+      var halo2 = svgNS("circle");
+      halo2.setAttribute("cx", xt.x*100); halo2.setAttribute("cy", (1-xt.y)*100);
+      halo2.setAttribute("r", 5.5); halo2.setAttribute("fill", "#fff");
+      halo2.setAttribute("stroke", estCor); halo2.setAttribute("stroke-width", "0.8");
+      svg.appendChild(halo2);
+      var txt = svgNS("text");
+      txt.setAttribute("x", xt.x*100); txt.setAttribute("y", (1-xt.y)*100+1.8);
+      txt.setAttribute("text-anchor", "middle"); txt.setAttribute("font-size", "6.5");
+      txt.setAttribute("fill", estCor);
+      txt.textContent = "\u2605";
+      svg.appendChild(txt);
+
+      // ---- Distancias ordenadas ----
+      distsEl.innerHTML = "";
+      r.ordenados.forEach(function(v, ord){
+        var dentroK = ord < k;
+        var row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between;padding:3px 8px;border-radius:6px;" +
+          (dentroK ? "background:"+CORES[v.p.cls]+"22;border:1px solid "+CORES[v.p.cls]+";" : "background:#f9fafb;border:1px solid #f1f1f1;color:#9ca3af;");
+        row.innerHTML = "<span>"+(dentroK?"✓ ":"　 ")+v.p.nome+" <span style=\"color:"+CORES[v.p.cls]+";font-weight:700;\">("+v.p.cls+")</span></span><span>d="+v.d.toFixed(4)+"</span>";
+        distsEl.appendChild(row);
+      });
+
+      // ---- Votacao ----
+      votosEl.innerHTML = "";
+      classes.forEach(function(c){
+        var venceu = (c === r.pred);
+        var empatou = r.empatados.length > 1 && r.empatados.indexOf(c) !== -1;
+        var div = document.createElement("div");
+        div.style.cssText = "text-align:center;border-radius:10px;padding:8px 14px;font-size:12px;" +
+          (venceu ? "background:"+CORES[c]+"22;border:2px solid "+CORES[c]+";" : "background:#f9fafb;border:1px solid #e5e7eb;color:#9ca3af;");
+        div.innerHTML = "<div style=\"font-weight:700;color:"+CORES[c]+";\">"+c+"</div><div style=\"font-size:16px;font-weight:700;\">"+r.votos[c]+"</div>" +
+          (empatou ? "<div style=\"font-size:9px;color:#b91c1c;\">empate</div>" : "");
+        votosEl.appendChild(div);
+      });
+      var msgEmpate = r.empatados.length > 1 ? " (empate entre "+r.empatados.join(", ")+" — desempate pela ordem da lista de classes)" : "";
+      previsaoEl.innerHTML = "Classe prevista: <span style=\"color:"+CORES[r.pred]+";\">"+r.pred+"</span>" + msgEmpate +
+        " &nbsp;|&nbsp; classe real: <span style=\"color:"+CORES[xt.cls]+";\">"+xt.cls+"</span> " + (correto ? "✅" : "❌");
+
+      // ---- Matriz de confusao + acuracia sobre as 3 amostras de teste ----
+      var cm = [[0,0,0],[0,0,0],[0,0,0]];
+      var acertos = 0;
+      var predsGlobais = [];
+      testPts.forEach(function(tp){
+        var rr = knnPredict(tp);
+        predsGlobais.push(rr.pred);
+        var iReal = classes.indexOf(tp.cls);
+        var iPrev = classes.indexOf(rr.pred);
+        cm[iReal][iPrev]++;
+        if(rr.pred === tp.cls) acertos++;
+      });
+      var acc = acertos/testPts.length;
+
+      var thead = "<tr><td></td>" + classes.map(function(c){ return "<td style=\"padding:4px 8px;color:"+CORES[c]+";font-weight:700;\">"+c.slice(0,4)+"</td>"; }).join("") + "</tr>";
+      var rows = classes.map(function(cReal, i){
+        var cells = classes.map(function(cPrev, j){
+          var v = cm[i][j];
+          var diag = (i===j);
+          var bg = v===0 ? "#fff" : (diag ? "#dcfce7" : "#fee2e2");
+          return "<td style=\"padding:4px 10px;text-align:center;border:1px solid #e5e7eb;background:"+bg+";\">"+v+"</td>";
+        }).join("");
+        return "<tr><td style=\"padding:4px 8px;color:"+CORES[cReal]+";font-weight:700;\">"+cReal.slice(0,4)+"</td>"+cells+"</tr>";
+      }).join("");
+      cmEl.innerHTML = thead + rows;
+      accEl.textContent = "Acuracia: " + acc.toFixed(4) + " (" + acertos + "/" + testPts.length + ")";
+
+      dbg.textContent = "M="+metrica+" k="+k+" | teste_sel="+xt.nome+" | y_pred(todas)=["+predsGlobais.join(", ")+"]";
     }
-    be.addEventListener('click', function(){ render('euclidiana'); });
-    bm.addEventListener('click', function(){ render('manhattan'); });
-    render('euclidiana');
+
+    be.addEventListener("click", function(){ metrica="euclidiana"; render(); });
+    bm.addEventListener("click", function(){ metrica="manhattan"; render(); });
+    bk1.addEventListener("click", function(){ k=1; render(); });
+    bk3.addEventListener("click", function(){ k=3; render(); });
+    bk5.addEventListener("click", function(){ k=5; render(); });
+    bt0.addEventListener("click", function(){ testSel=0; render(); });
+    bt1.addEventListener("click", function(){ testSel=1; render(); });
+    bt2.addEventListener("click", function(){ testSel=2; render(); });
+
+    render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0706');
+    var root = document.getElementById("sim-ep0706v2");
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
