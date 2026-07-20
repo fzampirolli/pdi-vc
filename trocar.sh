@@ -5,8 +5,8 @@
 #
 
 # Texto a ser substituído
-ORIGINAL="passando o código como string numa"
-DESTINO="passando o código como *string* numa"
+ORIGINAL="ACESSAR NOTEBOOKLM:"
+DESTINO="ACESSAR Gemini Notebook:"
 
 # Procura apenas nos notebooks dos capítulos usando Process Substitution
 while IFS= read -r -d '' ARQ; do
