@@ -1733,7 +1733,6 @@ class mm:
         return mm.readDataset(Q, D, label_type, label_pos)
 
     # ── k-NN (binário e multi-classe unificados) ─────────────────────────────
-
     @staticmethod
     def knn0(X_train, y_train, x_test, k, metric='euclidiana', num_classes=2, desempate='proximo'):
         """(didático) k-NN genérico — serve tanto para o caso binário quanto multi-classe.
@@ -1779,15 +1778,13 @@ class mm:
         return scaler.fit_transform(X_train), scaler.transform(X_test)
     
     # ── Matriz de confusão / métricas (binário e multi-classe unificados) ───
-
     @staticmethod
     def confusion0(y_true, y_pred, pos_label=1, num_classes=None):
         """(didático) Métricas de classificação.
         - Sem num_classes (padrão): modo binário — retorna VP, FP, FN, VN, acurácia,
-        precisão e revocação da classe pos_label (igual ao confusion0 original).
+        precisão e revocação da classe pos_label.
         - Com num_classes: modo multi-classe — retorna a matriz de confusão C x C,
-        acurácia global, precisão macro e revocação macro
-        (funde confusionm0 + confusionmatrixm0 originais)."""
+        acurácia global, precisão macro e revocação macro."""
         np = mm._get_np()
         if num_classes is not None:
             cm = np.zeros((num_classes, num_classes), dtype=int)
@@ -1818,9 +1815,9 @@ class mm:
     def confusion(y_true, y_pred, pos_label=1, num_classes=None):
         """(clássico) Matriz de confusão e métricas via sklearn.metrics.
         - Sem num_classes: modo binário — VP, FP, FN, VN, acurácia, precisão, revocação
-        da classe pos_label (igual ao confusion original).
+        da classe pos_label.
         - Com num_classes: modo multi-classe — cm, acurácia, precisão macro,
-        revocação macro (igual ao confusionm original)."""
+        revocação macro."""
         m = mm._get_sklmetrics()
         if num_classes is not None:
             cm = m.confusion_matrix(y_true, y_pred, labels=range(num_classes))  # força C x C mesmo se alguma classe não aparecer
@@ -1836,26 +1833,17 @@ class mm:
         return int(VP), int(FP), int(FN), int(VN), acuracia, precisao, revocacao
 
     # ── LBP (Local Binary Pattern) ────────────────────────────────────────────
-
     @staticmethod
     def lbp0(f, r=None, c=None, S=None):
         """(didático) LBP — três modos, escolhidos pelos parâmetros informados:
-
         1) lbp0(f)                    -> mapa completo: retorna (lbp_map, trans_map)
                                         para toda a imagem f (bordas globais zeradas).
-                                        [equivale ao antigo lbpmap0(f)]
-
         2) lbp0(f, r, c)               -> pixel único: retorna (lbp_codigo, transicoes,
-                                        classificacao) do pixel (r, c) de f.
-                                        [equivale ao antigo lbp0(m), mas agora recebe a
-                                        imagem toda + coordenadas, em vez de um bloco 3x3
-                                        pronto — se você já tem só o bloco 3x3 m, chame
-                                        com lbp0(m, 1, 1)]
-
+                                        se você já tem só o bloco 3x3 f, chame
+                                        com lbp0(f, 1, 1)]
         3) lbp0(f, r, c, S)             -> histograma de bloco: retorna H (10 compartimentos,
                                         normalizado) do bloco S x S com canto em (r, c),
                                         excluindo pixels de borda global da imagem f.
-                                        [equivale ao antigo lbphist0(...)]
         """
         np = mm._get_np()
         L, C = f.shape
@@ -1906,8 +1894,8 @@ class mm:
         bloco = mapa[r:r+S, c:c+S].astype(int)
         H, _ = np.histogram(bloco, bins=np.arange(P + 3))   # P+1 categorias uniformes + 1 não-uniforme
         return H / np.sum(H) if np.sum(H) > 0 else H.astype(np.float64)
+    
     # ── HOG (Histogram of Oriented Gradients) ────────────────────────────────
- 
     @staticmethod
     def hog0(magnitudes, orientacoes, B):
         """(didático) Histograma bruto e normalizado (L2) das orientações do gradiente de uma célula."""
