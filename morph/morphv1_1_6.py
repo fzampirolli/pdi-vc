@@ -6,20 +6,10 @@ version 1.1 - https://github.com/fzampirolli/pdi-vc/blob/master/morph/morph.py -
 version 1.1.2 - com vários métodos para auxílio no cálculo de medidas usando cv2
 version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scipy.ndimage; lazy loading
 version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest)
-version 1.1.7 - lazy loading de sklearn (neighbors, preprocessing, metrics) e skimage.feature
 Last update: Jul 2026
 """
 
-# Convenção de nomes:
-#   mm.<nome>   -> encapsula implementação clássica (cv2 / skimage / sklearn)
-#   mm.<nome>0  -> implementação manual/didática, com kernel planar
-#   mm.<nome>1  -> implementação manual/didática, com kernel não-planar
-
-# Imports lazy adicionais (mesmo padrão de _get_cv2/_get_np/_get_skmeasure do cabeçalho).
-
-
-
-__version__ = "1.1.7"
+__version__ = "1.1.6"
 
 from typing import Optional
 import sys
@@ -41,10 +31,6 @@ class mm:
     _plt = None
     _measure = None
     _scipy_ndimage = None
-    _sklneighbors = None
-    _sklpreprocessing = None
-    _sklmetrics = None
-    _skfeature = None
 
     @classmethod
     def _get_cv2(cls):
@@ -80,35 +66,6 @@ class mm:
             import scipy.ndimage as ndimage
             cls._scipy_ndimage = ndimage
         return cls._scipy_ndimage
-    
-    @classmethod
-    def _get_sklneighbors(cls):
-        if cls._sklneighbors is None:
-            import sklearn.neighbors as sklneighbors
-            cls._sklneighbors = sklneighbors
-        return cls._sklneighbors
- 
-    @classmethod
-    def _get_sklpreprocessing(cls):
-        if cls._sklpreprocessing is None:
-            import sklearn.preprocessing as sklpreprocessing
-            cls._sklpreprocessing = sklpreprocessing
-        return cls._sklpreprocessing
- 
-    @classmethod
-    def _get_sklmetrics(cls):
-        if cls._sklmetrics is None:
-            import sklearn.metrics as sklmetrics
-            cls._sklmetrics = sklmetrics
-        return cls._sklmetrics
- 
-    @classmethod
-    def _get_skfeature(cls):
-        if cls._skfeature is None:
-            from skimage import feature as skfeature
-            cls._skfeature = skfeature
-        return cls._skfeature
- 
 
     def __init__(self): pass
 
@@ -1699,228 +1656,312 @@ class mm:
         linha = input().split()
         C = int(linha[0])
         return linha[1:1+C]
-    
-    @staticmethod
-    def readDataset(num_linhas, D=2, label_type=None, label_pos='end'):
-        """
-        Lê 'num_linhas' de dados. 
-        Se label_type for informado, lê os rótulos e retorna (X, y).
-        Se label_type for None, lê apenas as D características e retorna X.
-        """
-        np = mm._get_np()
-        X, y = [], []
-        for _ in range(num_linhas):
-            linha = input().split()
-            if label_type is None:
-                X.append([float(v) for v in linha[:D]])
-            elif label_pos == 'end':
-                X.append([float(v) for v in linha[:D]])
-                y.append(label_type(linha[D]))
-            else:  # 'start'
-                X.append([float(v) for v in linha[1:1+D]])
-                y.append(label_type(linha[0]))
-                
-        if label_type is None:
-            return np.array(X)
-        return np.array(X), np.array(y)
- 
+
     @staticmethod
     def readTrain(N, D=2, label_type=int, label_pos='end'):
-        return mm.readDataset(N, D, label_type, label_pos)
+        """
+        Lê N linhas de treinamento.
+        Padrão (compatível com o uso original): D reais seguidos do rótulo inteiro
+        no final da linha (label_pos='end', label_type=int).
+        Para rótulo como nome de classe no início da linha, use
+        label_pos='start' e label_type=str (ou uma função/dict de conversão, ex: label_to_id.get).
+        """
+        np = mm._get_np()
+        X_train, y_train = [], []
+        for _ in range(N):
+            linha = input().split()
+            if label_pos == 'end':
+                X_train.append([float(v) for v in linha[:D]])
+                y_train.append(label_type(linha[D]))
+            else:  # 'start'
+                X_train.append([float(v) for v in linha[1:1+D]])
+                y_train.append(label_type(linha[0]))
+        return np.array(X_train), np.array(y_train)
 
     @staticmethod
     def readTest(Q, D=2, label_type=None, label_pos='end'):
-        return mm.readDataset(Q, D, label_type, label_pos)
-
-    # ── k-NN (binário e multi-classe unificados) ─────────────────────────────
-
-    @staticmethod
-    def knn0(X_train, y_train, x_test, k, metric='euclidiana', num_classes=2, desempate='proximo'):
-        """(didático) k-NN genérico — serve tanto para o caso binário quanto multi-classe.
-        metric: 'euclidiana' ou 'manhattan'.
-        desempate: 'proximo'  -> decide o vizinho mais próximo entre as classes empatadas (padrão do caso binário)
-                'menor_id' -> decide a menor classe entre as empatadas (padrão do caso multi-classe)
+        """
+        Lê Q linhas de teste.
+        Padrão (compatível com o uso original): apenas D reais, sem rótulo (label_type=None).
+        Se label_type for informado, também lê e retorna os rótulos reais —
+        útil quando o teste já traz a classe verdadeira, como no EP07_06.
         """
         np = mm._get_np()
-        if metric == 'euclidiana':
-            d = np.sqrt(np.sum((X_train - x_test) ** 2, axis=1))
-        else:  # manhattan
-            d = np.sum(np.abs(X_train - x_test), axis=1)
-        viz = y_train[np.argsort(d, kind='mergesort')[:k]]      # k mais próximos (ordenação estável)
-        contagem = np.bincount(viz, minlength=num_classes)
-        empatadas = np.where(contagem == np.max(contagem))[0]   # classes com mais votos
-        if desempate == 'menor_id':
-            return int(empatadas[0])                            # já em ordem crescente de classe
-        for c in viz:                                            # 'proximo': percorre do mais perto ao mais longe
-            if c in empatadas:
-                return int(c)
+        X_test, y_test = [], []
+        for _ in range(Q):
+            linha = input().split()
+            if label_type is None:
+                X_test.append([float(v) for v in linha[:D]])
+            elif label_pos == 'end':
+                X_test.append([float(v) for v in linha[:D]])
+                y_test.append(label_type(linha[D]))
+            else:  # 'start'
+                X_test.append([float(v) for v in linha[1:1+D]])
+                y_test.append(label_type(linha[0]))
+        if label_type is None:
+            return np.array(X_test)
+        return np.array(X_test), np.array(y_test)
 
     @staticmethod
-    def knn(X_train, y_train, x_test, k, metric='euclidiana'):
-        """(clássico) k-NN via sklearn — serve tanto para binário quanto multi-classe."""
-        p = 1 if metric == 'manhattan' else 2
-        clf = mm._get_sklneighbors().KNeighborsClassifier(n_neighbors=k, p=p)
-        clf.fit(X_train, y_train)
-        return int(clf.predict([x_test])[0])
-    
-    # ── Normalização z-score ──────────────────────────────────────────────────
-    @staticmethod
-    def zscore0(X_train, X_test):
-        """(didático) Normalização z-score (média/desvio padrão populacional)."""
+    def knn_predict(X_train, y_train, x_test, k):
         np = mm._get_np()
-        m, s = np.mean(X_train, axis=0), np.std(X_train, axis=0)
-        s_safe = np.where(s == 0, 1, s)                        # evita divisão por zero
-        return np.where(s == 0, 0.0, (X_train - m) / s_safe), np.where(s == 0, 0.0, (X_test - m) / s_safe)
- 
-    @staticmethod
-    def zscore(X_train, X_test):
-        """(clássico) Normalização z-score via sklearn.preprocessing.StandardScaler."""
-        scaler = mm._get_sklpreprocessing().StandardScaler()
-        return scaler.fit_transform(X_train), scaler.transform(X_test)
-    
-    # ── Matriz de confusão / métricas (binário e multi-classe unificados) ───
+        
+        # Distância euclidiana multidimensional genérica usando a lógica de matrizes do NumPy
+        distancias = np.sqrt(np.sum((X_train - x_test) ** 2, axis=1))
+
+        # argsort com 'mergesort' garante a ordenação estável idêntica ao critério do VPL
+        indices = np.argsort(distancias, kind='mergesort')[:k]
+        vizinhos = y_train[indices]
+
+        votos_0 = np.sum(vizinhos == 0)
+        votos_1 = np.sum(vizinhos == 1)
+
+        if votos_1 > votos_0:
+            return 1
+        elif votos_0 > votos_1:
+            return 0
+        else:
+            # Desempate estável defensivo: retorna a classe do vizinho mais próximo absoluto
+            return int(vizinhos[0])    
 
     @staticmethod
-    def confusion0(y_true, y_pred, pos_label=1, num_classes=None):
-        """(didático) Métricas de classificação.
-        - Sem num_classes (padrão): modo binário — retorna VP, FP, FN, VN, acurácia,
-        precisão e revocação da classe pos_label (igual ao confusion0 original).
-        - Com num_classes: modo multi-classe — retorna a matriz de confusão C x C,
-        acurácia global, precisão macro e revocação macro
-        (funde confusionm0 + confusionmatrixm0 originais)."""
+    def z_score_scale(X_train, X_test):
         np = mm._get_np()
-        if num_classes is not None:
-            cm = np.zeros((num_classes, num_classes), dtype=int)
-            for r, p in zip(y_true, y_pred): cm[r, p] += 1
-            acuracia = np.trace(cm) / np.sum(cm) if np.sum(cm) > 0 else 0.0
-            precisoes, revocacoes = [], []
-            for c in range(num_classes):
-                vp = cm[c, c]
-                fp = np.sum(cm[:, c]) - vp
-                fn = np.sum(cm[c, :]) - vp
-                precisoes.append(vp / (vp + fp) if (vp + fp) > 0 else 0.0)
-                revocacoes.append(vp / (vp + fn) if (vp + fn) > 0 else 0.0)
-            return cm, acuracia, np.mean(precisoes), np.mean(revocacoes)
-
-        # modo binário
+        
+        # Calcula média e desvio padrão populacional ao longo das colunas (axis=0)
+        means = np.mean(X_train, axis=0)
+        stds = np.std(X_train, axis=0)
+        
+        # Cria cópias para armazenar os dados normalizados
+        # X_train_norm = np.zeros_like(X_train)
+        # X_test_norm = np.zeros_like(X_test)
+        
+        # # Normaliza cada característica j (funciona para qualquer dimensão D)
+        # for j in range(X_train.shape[1]):
+        #     if stds[j] == 0:
+        #         X_train_norm[:, j] = 0.0
+        #         X_test_norm[:, j] = 0.0
+        #     else:
+        #         X_train_norm[:, j] = (X_train[:, j] - means[j]) / stds[j]
+        #         X_test_norm[:, j] = (X_test[:, j] - means[j]) / stds[j]
+        # ou simplesmente
+        stds_safe = np.where(stds == 0, 1, stds)
+        X_train_norm = np.where(stds == 0, 0.0, (X_train - means) / stds_safe)
+        X_test_norm  = np.where(stds == 0, 0.0, (X_test  - means) / stds_safe)
+                
+        return X_train_norm, X_test_norm
+    
+    @staticmethod
+    def confusion_matrix_metrics(y_true, y_pred, pos_label=1):
+        """
+        Calcula as métricas de avaliação. Suporta cenários binários e multi-classes.
+        Se for binário (ou focado em uma classe específica), retorna métricas detalhadas dessa classe.
+        """
+        np = mm._get_np()
+        
+        # Garante que as classes conhecidas considerem o pos_label e o neg_label padrão (0)
         classes = np.unique(np.concatenate([y_true, y_pred, [pos_label, 0]]))
-        neg_label = classes[classes != pos_label][0]
-        acuracia = np.sum(y_true == y_pred) / len(y_true) if len(y_true) > 0 else 0.0
-        VP = int(np.sum((y_true == pos_label) & (y_pred == pos_label)))
-        FP = int(np.sum((y_true != pos_label) & (y_pred == pos_label)))
-        FN = int(np.sum((y_true == pos_label) & (y_pred != pos_label)))
-        VN = int(np.sum((y_true == neg_label) & (y_pred == neg_label)))
-        precisao = (VP / (VP + FP)) if (VP + FP) > 0 else "indefinida"
-        revocacao = (VP / (VP + FN)) if (VP + FN) > 0 else "indefinida"
-        return VP, FP, FN, VN, acuracia, precisao, revocacao
+        N = len(y_true)
+        
+        # 1. Acurácia Global
+        acuracia = np.sum(y_true == y_pred) / N if N > 0 else 0.0
+
+        # 2. Cenário Binário (se houver apenas 2 classes no mapeamento geral)
+        def _vp_fp_fn(c):
+            vp = int(np.sum((y_true == c) & (y_pred == c)))
+            fp = int(np.sum((y_true != c) & (y_pred == c)))
+            fn = int(np.sum((y_true == c) & (y_pred != c)))
+            return vp, fp, fn
+
+        if len(classes) == 2:
+            neg_label = classes[classes != pos_label][0]
+            VP, FP, FN = _vp_fp_fn(pos_label)
+            VN = int(np.sum((y_true == neg_label) & (y_pred == neg_label)))
+            precisao = (VP / (VP + FP)) if (VP + FP) > 0 else "indefinida"
+            revocacao = (VP / (VP + FN)) if (VP + FN) > 0 else "indefinida"
+            return VP, FP, FN, VN, acuracia, precisao, revocacao
+
+        # bloco multi-classe agora reaproveita _vp_fp_fn(c) no loop
+
+        # 3. Cenário Multi-Classes Geral (Mais de 2 classes reais no problema)
+        # Remove os preenchimentos artificiais se houver classes de verdade a mais
+        classes_reais = np.unique(np.concatenate([y_true, y_pred]))
+        
+        precisoes_classes = []
+        revocacoes_classes = []
+        
+        for c in classes_reais:
+            vp_c = np.sum((y_true == c) & (y_pred == c))
+            fp_c = np.sum((y_true != c) & (y_pred == c))
+            fn_c = np.sum((y_true == c) & (y_pred != c))
+            
+            p_c = vp_c / (vp_c + fp_c) if (vp_c + fp_c) > 0 else 0.0
+            r_c = vp_c / (vp_c + fn_c) if (vp_c + fn_c) > 0 else 0.0
+            
+            precisoes_classes.append(p_c)
+            revocacoes_classes.append(r_c)
+            
+        precisao_macro = np.mean(precisoes_classes)
+        revocacao_macro = np.mean(revocacoes_classes)
+        
+        return None, None, None, None, acuracia, precisao_macro, revocacao_macro
     
     @staticmethod
-    def confusion(y_true, y_pred, pos_label=1, num_classes=None):
-        """(clássico) Matriz de confusão e métricas via sklearn.metrics.
-        - Sem num_classes: modo binário — VP, FP, FN, VN, acurácia, precisão, revocação
-        da classe pos_label (igual ao confusion original).
-        - Com num_classes: modo multi-classe — cm, acurácia, precisão macro,
-        revocação macro (igual ao confusionm original)."""
-        m = mm._get_sklmetrics()
-        if num_classes is not None:
-            cm = m.confusion_matrix(y_true, y_pred, labels=range(num_classes))  # força C x C mesmo se alguma classe não aparecer
-            acuracia = m.accuracy_score(y_true, y_pred)
-            precisao_macro = m.precision_score(y_true, y_pred, average='macro', zero_division=0)
-            revocacao_macro = m.recall_score(y_true, y_pred, average='macro', zero_division=0)
-            return cm, acuracia, precisao_macro, revocacao_macro
+    def lbp_neighborhood_metrics(m):
+        """
+        Calcula o código LBP e mapeia transições circulares para uma vizinhança 3x3.
+        Retorna o código decimal, quantidade de transições e string descritora da classificação.
+        """
+        np = mm._get_np()
+        
+        # Pixel central
+        gc = m[1, 1]
+        
+        # Índices ordenados em sentido horário conforme item 3 das diretrizes
+        # [0][0], [0][1], [0][2], [1][2], [2][2], [2][1], [2][0], [1][0]
+        linhas   = [0, 0, 0, 1, 2, 2, 2, 1]
+        colunas  = [0, 1, 2, 2, 2, 1, 0, 0]
+        
+        # Extrai os vizinhos em ordem e calcula a função limiar s(gp - gc)
+        vizinhos = m[linhas, colunas]
+        bits = np.where(vizinhos >= gc, 1, 0)
+        
+        # 5. Cálculo do Código LBP (LBP = somatório de s * 2^p)
+        potencias = 2 ** np.arange(8)
+        lbp_codigo = int(np.sum(bits * potencias))
+        
+        # 6. Contagem de Transições Circulares (incluindo o par s_7 com s_0)
+        # O np.roll(bits, -1) desloca o array para a esquerda trazendo s_0 para o lado de s_7
+        transicoes = int(np.sum(bits != np.roll(bits, -1)))
+        
+        # 7. Classificação por Uniformidade
+        classificacao = "UNIFORME" if transicoes <= 2 else "NAO_UNIFORME"
+        
+        return lbp_codigo, transicoes, classificacao
+    
+    @staticmethod
+    def hog_cell_histogram(magnitudes, orientacoes, B):
+        """
+        Calcula o histograma bruto e normalizado (L2) das orientações do gradiente para uma célula.
+        Suporta qualquer número de compartimentos B e matrizes de tamanho n x n.
+        """
+        np = mm._get_np()
+        largura_bin = 180.0 / B
 
-        VN, FP, FN, VP = m.confusion_matrix(y_true, y_pred, labels=[0, pos_label]).ravel()
-        acuracia = m.accuracy_score(y_true, y_pred)
-        precisao = m.precision_score(y_true, y_pred, pos_label=pos_label, zero_division="warn")
-        revocacao = m.recall_score(y_true, y_pred, pos_label=pos_label, zero_division="warn")
-        return int(VP), int(FP), int(FN), int(VN), acuracia, precisao, revocacao
+        # Calcula os índices dos compartimentos para todos os pixels
+        # np.clip garante de forma defensiva que nenhuma aproximação numérica passe do índice B-1
+        bins = np.floor(orientacoes / largura_bin).astype(int)
+        bins = np.clip(bins, 0, B - 1)
 
-    # ── LBP (Local Binary Pattern) ────────────────────────────────────────────
+        # Acumula as magnitudes nos respectivos compartimentos
+        H = np.bincount(bins.ravel(), weights=magnitudes.ravel(), minlength=B).astype(np.float64)
+
+        # Normalização L2 com epsilon de estabilização
+        epsilon = 1e-6
+        norma_l2 = np.sqrt(np.sum(H ** 2) + epsilon)
+        H_hat = H / norma_l2
+        return H, H_hat
+    
+    @staticmethod
+    def knn_predict_multi(X_train, y_train, x_test, k, metric, num_classes):
+        """
+        Executa a predição k-NN estável suportando métricas 'euclidiana' ou 'manhattan'
+        e desempate de votação determinístico baseado na prioridade numérica da classe.
+        """
+        np = mm._get_np()
+        
+        # 5. Cálculo da distância baseada no parâmetro M
+        if metric == 'euclidiana':
+            distancias = np.sqrt(np.sum((X_train - x_test) ** 2, axis=1))
+        else: # manhattan
+            distancias = np.sum(np.abs(X_train - x_test), axis=1)
+            
+        # Ordenação estável (mergesort) preserva ordem de leitura original para empates de distância
+        indices = np.argsort(distancias, kind='mergesort')[:k]
+        vizinhos = y_train[indices]
+        
+        # 6. Votação majoritária com desempate baseado na ordem da lista de classes (menor id numérico)
+        contagem = np.bincount(vizinhos, minlength=num_classes)
+        max_votos = np.max(contagem)
+        
+        # Encontra as classes empatadas com o maior número de votos
+        # np.where já retorna os índices em ordem crescente de classe,
+        # então o primeiro elemento já é a classe de menor id entre as empatadas
+        classes_empatadas = np.where(contagem == max_votos)[0]
+        return int(classes_empatadas[0])
 
     @staticmethod
-    def lbp0(f, r=None, c=None, S=None):
-        """(didático) LBP — três modos, escolhidos pelos parâmetros informados:
-
-        1) lbp0(f)                    -> mapa completo: retorna (lbp_map, trans_map)
-                                        para toda a imagem f (bordas globais zeradas).
-                                        [equivale ao antigo lbpmap0(f)]
-
-        2) lbp0(f, r, c)               -> pixel único: retorna (lbp_codigo, transicoes,
-                                        classificacao) do pixel (r, c) de f.
-                                        [equivale ao antigo lbp0(m), mas agora recebe a
-                                        imagem toda + coordenadas, em vez de um bloco 3x3
-                                        pronto — se você já tem só o bloco 3x3 m, chame
-                                        com lbp0(m, 1, 1)]
-
-        3) lbp0(f, r, c, S)             -> histograma de bloco: retorna H (10 compartimentos,
-                                        normalizado) do bloco S x S com canto em (r, c),
-                                        excluindo pixels de borda global da imagem f.
-                                        [equivale ao antigo lbphist0(...)]
+    def multi_confusion_matrix(y_true, y_pred, num_classes):
+        """Gera uma matriz de confusão C x C baseada nos IDs das classes."""
+        np = mm._get_np()
+        cm = np.zeros((num_classes, num_classes), dtype=int)
+        for r, p in zip(y_true, y_pred):
+            cm[r, p] += 1
+        return cm
+    
+    @staticmethod
+    def compute_lbp_map(f):
+        """
+        Calcula o código LBP e o número de transições para todos os pixels de f.
+        Zera as bordas globais da imagem. Retorna (mapa_lbp, mapa_transicoes).
         """
         np = mm._get_np()
         L, C = f.shape
-        dr, dc = [-1, -1, -1, 0, 1, 1, 1, 0], [-1, 0, 1, 1, 1, 0, -1, -1]  # 8 vizinhos, sentido horário
-
-        # calcula sempre o mapa completo (base para os três modos)
-        lbp_map, trans_map = np.zeros((L, C), dtype=np.int32), np.zeros((L, C), dtype=np.int32)
-        bits = np.array([np.where(f[1+dri:L-1+dri, 1+dci:C-1+dci] >= f[1:L-1, 1:C-1], 1, 0)
-                        for dri, dci in zip(dr, dc)])
+        lbp_map = np.zeros((L, C), dtype=np.int32)
+        trans_map = np.zeros((L, C), dtype=np.int32)
+        
+        # Deslocamentos para os 8 vizinhos em sentido horário a partir do canto superior esquerdo
+        # [lin-1][col-1], [lin-1][col], [lin-1][col+1], [lin][col+1], 
+        # [lin+1][col+1], [lin+1][col], [lin+1][col-1], [lin][col-1]
+        dr = [-1, -1, -1,  0,  1,  1,  1,  0]
+        dc = [-1,  0,  1,  1,  1,  0, -1, -1]
+        
+        # Cria uma lista de matrizes deslocadas para processar de forma vetorizada (alta performance)
+        # g_p >= g_c de acordo com a regra de limiarização clássica
+        # f[1+r:...] é o g_p e f[1:L-1,...] é o g_c, vetorizado para os 8 vizinhos de uma vez
+        bits = np.array([np.where(f[1+r:L-1+r, 1+c:C-1+c] >= f[1:L-1, 1:C-1], 1, 0) for r, c in zip(dr, dc)])
+        
+        # 5. Código LBP vetorizado
         potencias = (2 ** np.arange(8))[:, np.newaxis, np.newaxis]
         lbp_map[1:L-1, 1:C-1] = np.sum(bits * potencias, axis=0)
-        trans_map[1:L-1, 1:C-1] = np.sum(bits != np.roll(bits, -1, axis=0), axis=0)
+        
+        # 6. Transições circulares vetorizadas
+        bits_deslocados = np.roll(bits, -1, axis=0)
+        trans_map[1:L-1, 1:C-1] = np.sum(bits != bits_deslocados, axis=0)
+        
+        return lbp_map, trans_map
 
-        if r is None:                                     # modo 1: mapa completo
-            return lbp_map, trans_map
-
-        if S is None:                                      # modo 2: pixel único
-            codigo, transicoes = int(lbp_map[r, c]), int(trans_map[r, c])
-            classificacao = "UNIFORME" if transicoes <= 2 else "NAO_UNIFORME"
-            return codigo, transicoes, classificacao
-
-        # modo 3: histograma de bloco
-        bloco_lbp = lbp_map[r:r+S, c:c+S]
-        bloco_trans = trans_map[r:r+S, c:c+S]
-        r_idx, c_idx = np.ogrid[r:r+S, c:c+S]
-        valida = (r_idx > 0) & (r_idx < L - 1) & (c_idx > 0) & (c_idx < C - 1)
-        lbp_validos, trans_validos = bloco_lbp[valida], bloco_trans[valida]
-
+    @staticmethod
+    def extract_block_histogram(lbp_map, trans_map, r_start, c_start, S, L_global, C_global):
+        """Extrai o histograma LBP uniforme de 10 compartimentos para um bloco isolado, excluindo bordas globais."""
+        np = mm._get_np()
+        
+        # Recorta a região do bloco nos mapas correspondentes
+        bloco_lbp = lbp_map[r_start:r_start+S, c_start:c_start+S]
+        bloco_trans = trans_map[r_start:r_start+S, c_start:c_start+S]
+        
+        # Cria uma máscara para identificar pixels válidos (que não pertencem à borda global da imagem f)
+        r_indices, c_indices = np.ogrid[r_start:r_start+S, c_start:c_start+S]
+        mascara_valida = (r_indices > 0) & (r_indices < L_global - 1) & (c_indices > 0) & (c_indices < C_global - 1)
+        
+        lbp_validos = bloco_lbp[mascara_valida]
+        trans_validos = bloco_trans[mascara_valida]
+        
         H = np.zeros(10, dtype=np.float64)
-        if len(lbp_validos) == 0: return H
+        if len(lbp_validos) == 0:
+            return H
+            
+        # Determina os compartimentos com base na uniformidade dos bits válidos
         for l, t in zip(lbp_validos, trans_validos):
-            idx = bin(int(l))[2:].count('1') if t <= 2 else 9   # uniforme: popcount / não-uniforme: bin 9
-            H[idx] += 1
-        return H / np.sum(H)
+            if t <= 2:
+                # Contagem de bits 1 ativos usando popcount nativo por strings binárias
+                bin_str = bin(int(l))[2:]
+                popcount = bin_str.count('1')
+                H[popcount] += 1
+            else:
+                H[9] += 1
+                
+        # Normalização do histograma
+        H_hat = H / np.sum(H)
+        return H_hat
 
-    @staticmethod
-    def lbp(f, P=8, R=1, method='uniform', r=None, c=None, S=None):
-        """(clássico) LBP via skimage.feature.local_binary_pattern.
-        - Sem r/c/S: retorna o mapa LBP completo (igual ao lbp original).
-        - Com r, c, S: retorna o histograma (10 compartimentos, normalizado) do bloco
-        S x S com canto em (r, c), calculado a partir do mapa LBP uniforme
-        (categorias 0-8 = nº de bits 1 do padrão uniforme, categoria 9 = não-uniforme —
-        mapeamento direto do método 'uniform' do skimage)."""
-        mapa = mm._get_skfeature().local_binary_pattern(f, P=P, R=R, method=method)
-        if r is None:
-            return mapa
-        np = mm._get_np()
-        bloco = mapa[r:r+S, c:c+S].astype(int)
-        H, _ = np.histogram(bloco, bins=np.arange(P + 3))   # P+1 categorias uniformes + 1 não-uniforme
-        return H / np.sum(H) if np.sum(H) > 0 else H.astype(np.float64)
-    # ── HOG (Histogram of Oriented Gradients) ────────────────────────────────
- 
-    @staticmethod
-    def hog0(magnitudes, orientacoes, B):
-        """(didático) Histograma bruto e normalizado (L2) das orientações do gradiente de uma célula."""
-        np = mm._get_np()
-        bins = np.clip(np.floor(orientacoes / (180.0 / B)).astype(int), 0, B - 1)
-        H = np.bincount(bins.ravel(), weights=magnitudes.ravel(), minlength=B).astype(np.float64)
-        H_hat = H / np.sqrt(np.sum(H ** 2) + 1e-6)   # epsilon evita divisão por zero
-        return H, H_hat
- 
-    @staticmethod
-    def hog(f, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(1, 1)):
-        """(clássico) Descritor HOG via skimage.feature.hog."""
-        feature = mm._get_skfeature()
-        return feature.hog(f, orientations=orientations, pixels_per_cell=pixels_per_cell,
-                            cells_per_block=cells_per_block, feature_vector=True)
- 
