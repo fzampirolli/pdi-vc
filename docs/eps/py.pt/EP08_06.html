@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP08_02 — EP08_02 🟢 Homografia e RANSAC: A Votação por Inliers</title>
+  <title>EP08_06 — EP08_06 🔴 Segmentação de Instâncias em Imagem Real: Objetos Geométricos</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <style>
 /* Default styles provided by pandoc.
@@ -85,34 +85,38 @@ div.csl-indent {
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:120ch">
-<h3 class="anchored" data-anchor-id="ep08_02-homografia-e-ransac-a-votação-por-inliers" data-number="8.14.2"><span class="header-section-number">8.14.2</span> EP08_02 🟢 Homografia e RANSAC: A Votação por <em>Inliers</em></h3>
-<p>O RANSAC, apresentado na seção “Modelagem Matemática: Homografia e RANSAC”, repete um ciclo de três passos — sortear uma amostra mínima, estimar um modelo candidato, e contar quantas correspondências são consistentes com ele (os <strong><em>inliers</em></strong>) — mantendo ao final o modelo mais votado. A etapa de estimação do modelo a partir de 4 pontos (passo 2) envolve álgebra linear que foge ao escopo deste EP; aqui, você recebe diretamente um conjunto de homografias <strong>já candidatas</strong> — como se cada uma tivesse sido estimada a partir de uma amostra aleatória diferente — e é encarregado de reproduzir exatamente o passo decisivo do algoritmo: <strong>aplicar cada modelo a todas as correspondências e contar seus <em>inliers</em></strong>, escolhendo o vencedor.</p>
-<section class="level4" data-number="8.14.2.1" id="diretrizes-de-implementação-1">
-<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-1" data-number="8.14.2.1"><span class="header-section-number">8.14.2.1</span> 📋 Diretrizes de Implementação</h4>
+<h3 class="anchored" data-anchor-id="ep08_06-segmentação-de-instâncias-em-imagem-real-objetos-geométricos" data-number="8.14.6"><span class="header-section-number">8.14.6</span> EP08_06 🔴 Segmentação de Instâncias em Imagem Real: Objetos Geométricos</h3>
+<p>O exemplo de segmentação clássica deste capítulo separou “instâncias” de moedas por desconexão espacial na máscara binária resultante da limiarização de Otsu. Neste exercício você vai aplicar a mesma ideia — mas agora sobre uma imagem real com objetos geométricos variados — encadeando pré-processamento, binarização, extração de contornos (<code>cv2.findContours</code>) e validação do resultado contra um gabarito de <em>bounding boxes</em>.</p>
+<p>Diferente do exercício anterior (rotulagem sobre máscara já pronta), aqui você parte da <strong>imagem original</strong>: a qualidade da sua segmentação depende diretamente das escolhas de pré-processamento (filtragem, limiarização, operações morfológicas) feitas antes de rotular os componentes.</p>
+<section class="level4" data-number="8.14.6.1" id="diretrizes-de-implementação-5">
+<h4 class="anchored" data-anchor-id="diretrizes-de-implementação-5" data-number="8.14.6.1"><span class="header-section-number">8.14.6.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Correspondências:</strong> Ler o inteiro <span class="math inline">\(N\)</span> e, em seguida, <span class="math inline">\(N\)</span> linhas com quatro reais cada, <span class="math inline">\(x\ y\ x'\ y'\)</span> — um ponto da imagem A e seu correspondente (possivelmente incorreto) na imagem B, exatamente como produzido pela etapa de <em>matching</em> do EP08_01.</li>
-<li><strong>Modelos candidatos:</strong> Ler o inteiro <span class="math inline">\(K\)</span> (número de homografias candidatas) e o real <span class="math inline">\(\varepsilon\)</span> (limiar de erro de reprojeção). Em seguida, ler <span class="math inline">\(K\)</span> linhas, cada uma com nove reais <span class="math inline">\(h_{11}\ h_{12}\ h_{13}\ h_{21}\ h_{22}\ h_{23}\ h_{31}\ h_{32}\ h_{33}\)</span> — os elementos da matriz <span class="math inline">\(H\)</span> candidata, em ordem de leitura por linha (<em>row-major</em>).</li>
-<li><strong>Reprojeção:</strong> Para cada correspondência <span class="math inline">\((x,y,x',y')\)</span> e cada modelo candidato <span class="math inline">\(H_k\)</span>, calcular o ponto projetado <span class="math display">\[
-\begin{bmatrix} \hat x \\ \hat y \\ \hat w \end{bmatrix} = H_k \begin{bmatrix} x \\ y \\ 1 \end{bmatrix},
-\qquad
-(\hat x / \hat w,\ \hat y / \hat w)\ \text{é o ponto projetado.}
-\]</span></li>
-<li><strong>Erro de reprojeção:</strong> <span class="math inline">\(e = \sqrt{(\hat x/\hat w - x')^2 + (\hat y /\hat w - y')^2}\)</span>.</li>
-<li><strong>Contagem de <em>inliers</em>:</strong> Uma correspondência é um <em>inlier</em> do modelo <span class="math inline">\(H_k\)</span> se <span class="math inline">\(e \le \varepsilon\)</span>.</li>
-<li><strong>Seleção do melhor modelo:</strong> O modelo vencedor é o de maior número de <em>inliers</em>; em caso de empate, escolha o de <strong>menor índice</strong> <span class="math inline">\(k\)</span> (o primeiro encontrado durante o ciclo iterativo do RANSAC).</li>
-<li><strong>Saída:</strong> Para cada modelo <span class="math inline">\(k\)</span> de <span class="math inline">\(0\)</span> a <span class="math inline">\(K-1\)</span>, na ordem de leitura, imprimir <code>Modelo k: I inliers</code>. Ao final, imprimir <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+<li><strong>Entrada:</strong> a imagem de objetos geométricos disponível em: <code>00000.jpg</code></li>
+<li><strong>Pré-processamento e segmentação:</strong> aplicar os passos necessários (filtragem, binarização, morfologia) para isolar os objetos do fundo, sem recortar manualmente regiões da imagem.</li>
+<li><strong>Rotulagem e medição:</strong> para cada objeto segmentado, calcular:
+<ul>
+<li>área (número de pixels/contorno);</li>
+<li>centro de massa (centroide);</li>
+<li>tipo do objeto, conforme o conjunto <code>obj2</code> abaixo.</li>
+</ul></li>
+<li><strong>Anotação visual:</strong> escrever, no interior de cada objeto segmentado, sua área e a sigla do tipo (<code>obj2</code>).</li>
+<li><strong>Validação (acurácia):</strong> para cada objeto segmentado, verificar se o centro de massa detectado cai dentro de algum <em>boundbox</em> do arquivo TXT de gabarito, disponível em: <code>00000.txt</code>. Um objeto está corretamente segmentado quando seu centro pertence a exatamente um <em>boundbox</em> do tipo correspondente.</li>
+<li><strong>Saída:</strong> imprimir, para cada objeto detectado, seu identificador, tipo, área e se foi validado com sucesso (<code>acertou = 1</code>) ou não; ao final, imprimir a acurácia geral (proporção de objetos corretamente validados).</li>
 </ol>
 </section>
-<section class="level4" data-number="8.14.2.2" id="restrições-computacionais-1">
-<h4 class="anchored" data-anchor-id="restrições-computacionais-1" data-number="8.14.2.2"><span class="header-section-number">8.14.2.2</span> 📌 Restrições Computacionais</h4>
+<section class="level4" data-number="8.14.6.2" id="restrições-computacionais-5">
+<h4 class="anchored" data-anchor-id="restrições-computacionais-5" data-number="8.14.6.2"><span class="header-section-number">8.14.6.2</span> 📌 Restrições Computacionais</h4>
 <ul>
-<li><strong>Comparação inclusiva:</strong> um erro de reprojeção <strong>exatamente igual</strong> a <span class="math inline">\(\varepsilon\)</span> conta como <em>inlier</em> (<span class="math inline">\(e \le \varepsilon\)</span>).</li>
-<li><strong>Sem estimação de <span class="math inline">\(H\)</span>:</strong> as matrizes já são fornecidas prontas — não é necessário (nem esperado) resolver nenhum sistema linear.</li>
-<li><strong>Empate resolvido pelo menor índice</strong>, refletindo o comportamento natural de um algoritmo iterativo que percorre os modelos em ordem e só substitui o melhor encontrado até então quando um novo modelo o <strong>supera estritamente</strong>.</li>
+<li><p><strong>Sem recorte manual:</strong> toda a segmentação deve ser feita sobre a imagem completa.</p></li>
+<li><p><strong>Conjunto de classes fixo:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a aria-hidden="true" href="#cb47-1" tabindex="-1"></a>obj  <span class="op">=</span> [<span class="st">'Triangulo'</span>,<span class="st">'Quadrado'</span>,<span class="st">'Pendagono'</span>,<span class="st">'Hexagono'</span>,<span class="st">'Heptagono'</span>,<span class="st">'Circulo'</span>,<span class="st">'Elipse'</span>,<span class="st">'Estrela'</span>,<span class="st">'Cruz'</span>]</span>
+<span id="cb47-2"><a aria-hidden="true" href="#cb47-2" tabindex="-1"></a>obj2 <span class="op">=</span> [<span class="st">'Tria'</span>,<span class="st">'Quad'</span>,<span class="st">'Pent'</span>,<span class="st">'Hexa'</span>,<span class="st">'Hept'</span>,<span class="st">'Circ'</span>,<span class="st">'Elip'</span>,<span class="st">'Estr'</span>,<span class="st">'Cruz'</span>]</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div></li>
+<li><p><strong>Dimensão da imagem:</strong> 608×608 pixels — usada para desnormalizar as coordenadas do arquivo TXT.</p></li>
+<li><p><strong>Validação por centro de massa:</strong> um objeto só é considerado corretamente segmentado se seu centroide estiver estritamente dentro do <em>boundbox</em> do gabarito correspondente ao mesmo tipo de objeto.</p></li>
 </ul>
 </section>
-<section class="level4" data-number="8.14.2.3" id="fundamentação-teórica-1">
-<h4 class="anchored" data-anchor-id="fundamentação-teórica-1" data-number="8.14.2.3"><span class="header-section-number">8.14.2.3</span> 🧠 Fundamentação Teórica</h4>
+<section class="level4" data-number="8.14.6.3" id="fundamentação-teórica-5">
+<h4 class="anchored" data-anchor-id="fundamentação-teórica-5" data-number="8.14.6.3"><span class="header-section-number">8.14.6.3</span> 🧠 Fundamentação Teórica</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%"/>
@@ -121,101 +125,142 @@ div.csl-indent {
 <thead>
 <tr class="header">
 <th>Elemento</th>
-<th>Papel no RANSAC</th>
+<th>Papel na segmentação de instâncias</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Amostra mínima (4 pares)</td>
-<td>Suficiente para determinar os 8 graus de liberdade de uma homografia</td>
+<td>Pré-processamento (filtragem, limiarização)</td>
+<td>Etapa que produz a máscara binária a partir da imagem de intensidade original</td>
 </tr>
 <tr class="even">
-<td>Modelo candidato <span class="math inline">\(H_k\)</span></td>
-<td>Estimado a partir de uma amostra mínima; pode ser bom ou ruim, dependendo se a amostra continha <em>outliers</em></td>
+<td><code>cv2.findContours</code></td>
+<td>Extrai os contornos dos componentes conectados na máscara binária</td>
 </tr>
 <tr class="odd">
-<td>Erro de reprojeção</td>
-<td>Mede o quão bem o modelo “prevê” cada correspondência observada</td>
+<td>Momentos geométricos (<code>cv2.moments</code>)</td>
+<td>Permitem calcular o centro de massa (centroide) de cada contorno</td>
 </tr>
 <tr class="even">
-<td><em>Inlier</em> vs. <em>outlier</em></td>
-<td>Correspondências consistentes com o modelo vencedor (<em>inliers</em>) vs. as demais, tipicamente correspondências incorretas do <em>matching</em></td>
+<td><code>approxPolyDP</code> / vértices</td>
+<td>Auxilia na classificação do tipo de objeto (nº de lados aproximado)</td>
 </tr>
 <tr class="odd">
-<td>Refinamento final</td>
-<td>Na prática, após escolher o melhor modelo, o RANSAC o recalcula usando <strong>apenas</strong> seus <em>inliers</em> — passo não exigido neste EP</td>
+<td>Validação via <em>boundbox</em></td>
+<td>Confirma se a instância segmentada corresponde espacialmente a um objeto do gabarito, medindo a acurácia do método</td>
 </tr>
 </tbody>
 </table>
 </section>
-<section class="level4" data-number="8.14.2.4" id="especificação-de-entrada-e-saída-vpl-1">
-<h4 class="anchored" data-anchor-id="especificação-de-entrada-e-saída-vpl-1" data-number="8.14.2.4"><span class="header-section-number">8.14.2.4</span> 📦 Especificação de Entrada e Saída (VPL)</h4>
-<p><strong>Entrada:</strong></p>
-<ul>
-<li>Linha 1: Inteiro <span class="math inline">\(N\)</span>.</li>
-<li>Próximas <span class="math inline">\(N\)</span> linhas: quatro reais <span class="math inline">\(x\ y\ x'\ y'\)</span>.</li>
-<li>Próxima linha: Inteiro <span class="math inline">\(K\)</span> e real <span class="math inline">\(\varepsilon\)</span>.</li>
-<li>Próximas <span class="math inline">\(K\)</span> linhas: nove reais (elementos de <span class="math inline">\(H_k\)</span>, <em>row-major</em>).</li>
-</ul>
-<p><strong>Saída:</strong></p>
-<ul>
-<li><span class="math inline">\(K\)</span> linhas no formato <code>Modelo k: I inliers</code>.</li>
-<li>Última linha: <code>Melhor modelo: k_best com I_best inliers</code>.</li>
-</ul>
+<section class="level4" data-number="8.14.6.4" id="exemplo-de-saída-esperada">
+<h4 class="anchored" data-anchor-id="exemplo-de-saída-esperada" data-number="8.14.6.4"><span class="header-section-number">8.14.6.4</span> 📌 Exemplo de Saída Esperada</h4>
+<pre><code>Objeto 1: tipo=Circ, area=4521, validado=True
+Objeto 2: tipo=Quad, area=3987, validado=True
+Objeto 3: tipo=Estr, area=2765, validado=False
+...
+Acurácia: 88.89%</code></pre>
 </section>
-<section class="level4" data-number="8.14.2.5" id="exemplos-1">
-<h4 class="anchored" data-anchor-id="exemplos-1" data-number="8.14.2.5"><span class="header-section-number">8.14.2.5</span> 📌 Exemplos</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
-<col style="width: 33%"/>
-</colgroup>
-<thead>
-<tr class="header">
-<th>Entrada</th>
-<th>Saída</th>
-<th>Observação</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>5<br/>
-0 0 0 0<br/>
-1 1 2 2<br/>
-2 0 4 0<br/>
-0 2 0 4<br/>
-5 5 1 1<br/>
-2 0.5<br/>
-2 0 0 0 2 0 0 0 1<br/>
-1 0 0 0 1 0 0 0 1</td>
-<td>Modelo 0: 4 inliers<br/>
-Modelo 1: 1 inliers<br/>
-Melhor modelo: 0 com 4 inliers</td>
-<td>O Modelo 0 (escala ×2) explica corretamente 4 das 5 correspondências; a 5ª, <span class="math inline">\((5,5)\to(1,1)\)</span>, é um <em>outlier</em> que nenhum dos dois modelos explica bem.</td>
-</tr>
-</tbody>
-</table>
-<div class="cell" id="cell-fig-08-sim-ep02">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="132" id="fig-08-sim-ep02">
+<section class="level4" data-number="8.14.6.5" id="arquivos-de-referência-.jpg-e-.txt">
+<h4 class="anchored" data-anchor-id="arquivos-de-referência-.jpg-e-.txt" data-number="8.14.6.5"><span class="header-section-number">8.14.6.5</span> 📌 Arquivos de Referência (<code>.jpg</code> e <code>.txt</code>)</h4>
+<p>Para depuração local, são disponibilizados dois arquivos de referência (incluídos nesta entrega; ao integrá-los ao repositório do capítulo, salve-os em <code>all/cap08/dados/EP08/</code>):</p>
+<ul>
+<li>📥 <strong>Imagem (<code>00000.jpg</code>)</strong>: imagem de objetos geométricos utilizada como entrada do exercício. O objetivo é segmentar automaticamente cada objeto, determinar seu tipo e calcular suas medidas.</li>
+<li>📥 <strong>Gabarito (<code>00000.txt</code>)</strong>: arquivo contendo as <em>bounding boxes</em> normalizadas dos objetos presentes na imagem. Cada linha possui o identificador da classe e as coordenadas normalizadas dos cantos superior esquerdo e inferior direito, sendo utilizado para validar automaticamente a segmentação.</li>
+</ul>
+<p>A <a class="quarto-xref" href="#fig-08-ep06">Figura <span>8.20</span></a> apresenta a imagem de entrada e a mesma imagem com as <em>bounding boxes</em> desenhadas a partir do arquivo de gabarito.</p>
+<div class="cell" id="cell-fig-08-ep06">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a aria-hidden="true" href="#cb49-1" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb49-2"><a aria-hidden="true" href="#cb49-2" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
+<span id="cb49-3"><a aria-hidden="true" href="#cb49-3" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb49-4"><a aria-hidden="true" href="#cb49-4" tabindex="-1"></a></span>
+<span id="cb49-5"><a aria-hidden="true" href="#cb49-5" tabindex="-1"></a><span class="kw">def</span> garantir_e_baixar(nome):</span>
+<span id="cb49-6"><a aria-hidden="true" href="#cb49-6" tabindex="-1"></a>    pasta <span class="op">=</span> <span class="st">"dados/EP06"</span></span>
+<span id="cb49-7"><a aria-hidden="true" href="#cb49-7" tabindex="-1"></a>    caminho <span class="op">=</span> os.path.join(pasta, nome)</span>
+<span id="cb49-8"><a aria-hidden="true" href="#cb49-8" tabindex="-1"></a></span>
+<span id="cb49-9"><a aria-hidden="true" href="#cb49-9" tabindex="-1"></a>    os.makedirs(pasta, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb49-10"><a aria-hidden="true" href="#cb49-10" tabindex="-1"></a></span>
+<span id="cb49-11"><a aria-hidden="true" href="#cb49-11" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(caminho):</span>
+<span id="cb49-12"><a aria-hidden="true" href="#cb49-12" tabindex="-1"></a>        url <span class="op">=</span> (</span>
+<span id="cb49-13"><a aria-hidden="true" href="#cb49-13" tabindex="-1"></a>            <span class="st">"https://raw.githubusercontent.com/"</span></span>
+<span id="cb49-14"><a aria-hidden="true" href="#cb49-14" tabindex="-1"></a>            <span class="st">"fzampirolli/pdi-vc/master/all/cap08/dados/EP06/"</span></span>
+<span id="cb49-15"><a aria-hidden="true" href="#cb49-15" tabindex="-1"></a>            <span class="op">+</span> nome</span>
+<span id="cb49-16"><a aria-hidden="true" href="#cb49-16" tabindex="-1"></a>        )</span>
+<span id="cb49-17"><a aria-hidden="true" href="#cb49-17" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Baixando </span><span class="sc">{</span>nome<span class="sc">}</span><span class="ss">..."</span>)</span>
+<span id="cb49-18"><a aria-hidden="true" href="#cb49-18" tabindex="-1"></a>        urllib.request.urlretrieve(url, caminho)</span>
+<span id="cb49-19"><a aria-hidden="true" href="#cb49-19" tabindex="-1"></a></span>
+<span id="cb49-20"><a aria-hidden="true" href="#cb49-20" tabindex="-1"></a>    <span class="cf">return</span> caminho</span>
+<span id="cb49-21"><a aria-hidden="true" href="#cb49-21" tabindex="-1"></a></span>
+<span id="cb49-22"><a aria-hidden="true" href="#cb49-22" tabindex="-1"></a>img_arq <span class="op">=</span> garantir_e_baixar(<span class="st">"00000.jpg"</span>)</span>
+<span id="cb49-23"><a aria-hidden="true" href="#cb49-23" tabindex="-1"></a>txt_arq <span class="op">=</span> garantir_e_baixar(<span class="st">"00000.txt"</span>)</span>
+<span id="cb49-24"><a aria-hidden="true" href="#cb49-24" tabindex="-1"></a></span>
+<span id="cb49-25"><a aria-hidden="true" href="#cb49-25" tabindex="-1"></a>img <span class="op">=</span> mm.read(img_arq)</span>
+<span id="cb49-26"><a aria-hidden="true" href="#cb49-26" tabindex="-1"></a>img_bb <span class="op">=</span> mm.showBoundBox(img, txt_arq, fmt<span class="op">=</span><span class="st">"yolo"</span>, show<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb49-27"><a aria-hidden="true" href="#cb49-27" tabindex="-1"></a></span>
+<span id="cb49-28"><a aria-hidden="true" href="#cb49-28" tabindex="-1"></a>mm.show(</span>
+<span id="cb49-29"><a aria-hidden="true" href="#cb49-29" tabindex="-1"></a>    [img, img_bb],</span>
+<span id="cb49-30"><a aria-hidden="true" href="#cb49-30" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb49-31"><a aria-hidden="true" href="#cb49-31" tabindex="-1"></a>        <span class="st">"Imagem original"</span>,</span>
+<span id="cb49-32"><a aria-hidden="true" href="#cb49-32" tabindex="-1"></a>        <span class="st">"Bounding boxes do gabarito"</span></span>
+<span id="cb49-33"><a aria-hidden="true" href="#cb49-33" tabindex="-1"></a>    ],</span>
+<span id="cb49-34"><a aria-hidden="true" href="#cb49-34" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb49-35"><a aria-hidden="true" href="#cb49-35" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">10</span>,<span class="dv">5</span>)</span>
+<span id="cb49-36"><a aria-hidden="true" href="#cb49-36" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div class="quarto-float quarto-figure quarto-figure-center anchored" id="fig-08-ep06">
 <figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-08-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="sim-ep0802" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div aria-describedby="fig-08-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img class="img-fluid figure-img" src="cap08.py.pt_files/figure-html/fig-08-ep06-output-1.png"/>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 8.20: Imagem utilizada no EP08_06. À esquerda, a imagem original. À direita, a imagem com as <em>bounding boxes</em> do arquivo de gabarito.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" id="cell-fig-08-sim-ep06">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="145" id="fig-08-sim-ep06">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0806c" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: RANSAC — Contagem de Inliers</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 modelo: escala ×2</span>
+<span>🎮 Simulador: Acurácia de Segmentação em Múltiplos Objetos</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 acertou se centro ∈ bbox E tipo correto</span>
 </div>
 <div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">O modelo candidato mapeia (x,y) → (2x,2y). Ajuste o limiar ε e veja quais correspondências (pontos) tornam-se inliers (verde) ou outliers (vermelho).</p>
-<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#2980b9;">limiar ε</label>
-<span id="ep0802_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">0.50</span>
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
+      Cada forma tem um <i>boundbox</i> de gabarito (retângulo tracejado, com folga fixa de 10px em torno da forma) e um centro de massa detectado (ponto). Ajuste o ruído e o viés para ver os pontos escaparem do retângulo.
+    </p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#c0392b;">ruído de segmentação (px, raio máx.)</label><span id="ep0806c_ruido_v" style="font-family:monospace;font-weight:bold;color:#c0392b;">0</span></div>
+<input id="ep0806c_ruido" max="40" min="0" step="1" style="width:100%;accent-color:#c0392b;" type="range" value="0"/>
 </div>
-<input id="ep0802_sl" max="13" min="0" step="0.25" style="width:100%;accent-color:#2980b9;" type="range" value="0.5"/>
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#2980b9;">viés sistemático em x (px)</label><span id="ep0806c_bias_v" style="font-family:monospace;font-weight:bold;color:#2980b9;">0</span></div>
+<input id="ep0806c_bias" max="30" min="-30" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="0"/>
 </div>
-<div id="ep0802_cards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
-<div id="ep0802_debug" style="margin-top:18px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<div style="grid-column:1 / span 2;display:flex;align-items:center;gap:8px;">
+<input id="ep0806c_erro" style="accent-color:#8e44ad;width:16px;height:16px;" type="checkbox"/>
+<label style="font-size:12px;font-weight:bold;color:#8e44ad;">simular erro de classificação (2 objetos com tipo trocado)</label>
+</div>
+</div>
+<svg id="ep0806c_svg" style="width:100%;max-width:420px;display:block;margin:0 auto 16px auto;background:#0d0d0d;border-radius:12px;border:1px solid #333;" viewbox="0 0 360 340"></svg>
+<table class="caption-top" style="width:100%;border-collapse:collapse;font-size:11px;font-family:monospace;margin-bottom:12px;">
+<thead>
+<tr class="header" style="background:#f3efe6;">
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">id</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo real</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo detectado</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">dist. ao bbox (px)</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">dentro do bbox</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">acertou</th>
+</tr>
+</thead>
+<tbody id="ep0806c_tbody">
+</tbody>
+</table>
+<div id="ep0806c_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:12px;color:#1565c0;text-align:center;"></div>
 </div>
 </div>
 <script>
@@ -223,71 +268,193 @@ Melhor modelo: 0 com 4 inliers</td>
   function init(root){
     if(!root || root.dataset.init) return;
     root.dataset.init = "1";
-    var pontos = [
-      {x:0,y:0,xp:0,yp:0},
-      {x:1,y:1,xp:2,yp:2},
-      {x:2,y:0,xp:4,yp:0},
-      {x:0,y:2,xp:0,yp:4},
-      {x:5,y:5,xp:1,yp:1}
+
+    var ruidoEl = root.querySelector('#ep0806c_ruido'), ruidovEl = root.querySelector('#ep0806c_ruido_v');
+    var biasEl = root.querySelector('#ep0806c_bias'), biasvEl = root.querySelector('#ep0806c_bias_v');
+    var erroEl = root.querySelector('#ep0806c_erro');
+    var svg = root.querySelector('#ep0806c_svg');
+    var tbody = root.querySelector('#ep0806c_tbody');
+    var dbg = root.querySelector('#ep0806c_debug');
+
+    var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
+    var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
+    var PAD = 10; // folga fixa do boundbox em relação ao raio da forma
+    var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
+    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240]; // direção fixa do erro por objeto (graus)
+
+    var OBJS = [
+      {cx:55,  cy:45,  r:22},
+      {cx:150, cy:70,  r:24},
+      {cx:250, cy:50,  r:22},
+      {cx:320, cy:130, r:20},
+      {cx:90,  cy:190, r:24},
+      {cx:190, cy:220, r:24},
+      {cx:275, cy:190, r:24},
+      {cx:315, cy:270, r:22},
+      {cx:150, cy:150, r:18}
     ];
 
-    var slEl = root.querySelector('#ep0802_sl');
-    var vlEl = root.querySelector('#ep0802_vl');
-    var cards = root.querySelector('#ep0802_cards');
-    var dbg = root.querySelector('#ep0802_debug');
+    function svgShape(tipo, cx, cy, r, cor){
+      var s = '';
+      if(tipo==='Circ'){
+        s = '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+cor+'"/>';
+      } else if(tipo==='Elip'){
+        s = '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(r*1.1)+'" ry="'+(r*0.65)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Quad'){
+        s = '<rect x="'+(cx-r*0.8)+'" y="'+(cy-r*0.8)+'" width="'+(r*1.6)+'" height="'+(r*1.6)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Cruz'){
+        var w = r*0.5, l = r*1.4;
+        s = '<g fill="'+cor+'">'+
+            '<rect x="'+(cx-w/2)+'" y="'+(cy-l/2)+'" width="'+w+'" height="'+l+'"/>'+
+            '<rect x="'+(cx-l/2)+'" y="'+(cy-w/2)+'" width="'+l+'" height="'+w+'"/></g>';
+      } else {
+        var sides = {Tria:3, Pent:5, Hexa:6, Hept:7}[tipo];
+        var isStar = (tipo==='Estr');
+        var pts = [];
+        if(isStar){
+          var spikes=5, outer=r, inner=r*0.45;
+          for(var i=0;i<spikes*2;i++){
+            var rad = (i%2===0)?outer:inner;
+            var ang = Math.PI/spikes*i - Math.PI/2;
+            pts.push((cx+rad*Math.cos(ang)).toFixed(1)+','+(cy+rad*Math.sin(ang)).toFixed(1));
+          }
+        } else {
+          for(var i=0;i<sides;i++){
+            var ang = 2*Math.PI/sides*i - Math.PI/2;
+            pts.push((cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1));
+          }
+        }
+        s = '<polygon points="'+pts.join(' ')+'" fill="'+cor+'"/>';
+      }
+      return s;
+    }
+
+    // distância de um ponto até o retângulo (0 se estiver dentro)
+    function distToRect(px, py, x1, y1, x2, y2){
+      var dx = Math.max(x1-px, 0, px-x2);
+      var dy = Math.max(y1-py, 0, py-y2);
+      return Math.sqrt(dx*dx + dy*dy);
+    }
 
     function render(){
-      var eps = parseFloat(slEl.value);
-      vlEl.textContent = eps.toFixed(2);
-      cards.innerHTML = '';
-      var inliers = 0;
-      pontos.forEach(function(p, i){
-        var px = 2*p.x, py = 2*p.y;
-        var erro = Math.sqrt((px-p.xp)*(px-p.xp) + (py-p.yp)*(py-p.yp));
-        var dentro = erro <= eps;
-        if(dentro) inliers++;
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;border-radius:10px;padding:10px 6px;font-size:11px;' +
-          (dentro ? 'background:#dcfce7;border:1px solid #86efac;color:#14532d;' : 'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;');
-        div.innerHTML = '<div style="font-weight:700;">('+p.x+','+p.y+')→('+p.xp+','+p.yp+')</div>' +
-          '<div style="font-family:monospace;margin:4px 0;">erro='+erro.toFixed(2)+'</div>' +
-          '<div style="font-weight:700;">'+(dentro?'INLIER':'outlier')+'</div>';
-        cards.appendChild(div);
+      var ruido = parseInt(ruidoEl.value);
+      var bias = parseInt(biasEl.value);
+      var erroAtivo = erroEl.checked;
+      ruidovEl.textContent = ruido;
+      biasvEl.textContent = bias;
+
+      var svgContent = '';
+      var rows = '';
+      var acertos = 0;
+
+      OBJS.forEach(function(o, i){
+        var tipoReal = TIPOS[i];
+        var cor = CORES[i];
+
+        var bx1 = o.cx - (o.r+PAD), by1 = o.cy - (o.r+PAD);
+        var bx2 = o.cx + (o.r+PAD), by2 = o.cy + (o.r+PAD);
+
+        svgContent += '<g opacity="0.9">'+svgShape(tipoReal, o.cx, o.cy, o.r, cor)+'</g>';
+
+        // centro detectado: ruído radial (magnitude = slider * fator individual) + viés em x
+        var mag = ruido * FATOR[i];
+        var ang = ANGS[i] * Math.PI/180;
+        var dcx = o.cx + mag*Math.cos(ang) + bias;
+        var dcy = o.cy + mag*Math.sin(ang);
+
+        var dist = distToRect(dcx, dcy, bx1, by1, bx2, by2);
+        var dentro = dist === 0;
+
+        var corBbox = dentro ? '#27ae60' : '#c0392b';
+        svgContent += '<rect x="'+bx1+'" y="'+by1+'" width="'+(bx2-bx1)+'" height="'+(by2-by1)+'" fill="none" stroke="'+corBbox+'" stroke-dasharray="4,3" stroke-width="1.5"/>';
+
+        var tipoDetectado = tipoReal;
+        if(erroAtivo && (i===1 || i===6)){
+          tipoDetectado = TIPOS[(i+2)%TIPOS.length];
+        }
+        var tipoCorreto = (tipoDetectado === tipoReal);
+        var acertou = dentro && tipoCorreto;
+        if(acertou) acertos++;
+
+        var corPonto = acertou ? '#2ecc71' : '#e74c3c';
+        svgContent += '<line x1="'+o.cx+'" y1="'+o.cy+'" x2="'+dcx+'" y2="'+dcy+'" stroke="#888" stroke-width="1" stroke-dasharray="2,2"/>';
+        svgContent += '<circle cx="'+dcx+'" cy="'+dcy+'" r="4" fill="'+corPonto+'" stroke="white" stroke-width="1"/>';
+        svgContent += '<text x="'+(o.cx)+'" y="'+(by1-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
+
+        rows += '<tr>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+tipoReal+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(tipoCorreto?'':'color:#c0392b;font-weight:bold;')+'">'+tipoDetectado+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+dist.toFixed(1)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(dentro?'sim':'não')+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(acertou?'color:#27ae60;font-weight:bold;':'color:#c0392b;font-weight:bold;')+'">'+(acertou?'✔':'✘')+'</td>'+
+          '</tr>';
       });
-      dbg.textContent = 'ε = '+eps.toFixed(2)+'  |  inliers = '+inliers+' de '+pontos.length;
+
+      svg.innerHTML = svgContent;
+      tbody.innerHTML = rows;
+
+      var acc = (acertos/OBJS.length*100).toFixed(1);
+      dbg.textContent = 'Objetos validados: '+acertos+' / '+OBJS.length+'  →  Acurácia = '+acc+'%';
     }
-    slEl.addEventListener('input', render);
+
+    ruidoEl.addEventListener('input', render);
+    biasEl.addEventListener('input', render);
+    erroEl.addEventListener('change', render);
     render();
   }
   function tryInit(){
-    var root = document.getElementById('sim-ep0802');
+    var root = document.getElementById('sim-ep0806c');
     if(root) init(root); else setTimeout(tryInit, 200);
   }
   tryInit();
 })();
 </script>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 8.16: Simulador: RANSAC — Votação por Inliers entre Modelos Candidatos
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 8.21: Simulador: Acurácia de Segmentação em Múltiplos Objetos
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell" id="b53db1c6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a aria-hidden="true" href="#cb35-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_02.py</span>
-<span id="cb35-2"><a aria-hidden="true" href="#cb35-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="d7d41d2d">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_06.py</span>
+<span id="cb50-2"><a aria-hidden="true" href="#cb50-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP08_02.py</code></pre>
+<pre><code>Overwriting EP08_06.py</code></pre>
 </div>
 </div>
-<div class="cell" id="ced5ebb6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a aria-hidden="true" href="#cb37-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell" id="50b4582d">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a aria-hidden="true" href="#cb52-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_06.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP08_02.cases já existe em casos/
-📋 6 caso(s) carregado(s) de casos/EP08_02.cases
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP08_06.cases já existe em casos/
+📋 1 caso(s) carregado(s) de casos/EP08_06.cases
 
-🔍 Testando Python: EP08_02.py
-<span style="color:#f39c12;font-weight:500">⚠️ EP08_02.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
+🔍 Testando Python: EP08_06.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP08_06.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
+</div>
+</div>
+<div class="references csl-bib-body" data-entry-spacing="1" id="refs" role="list" style="display: none">
+<div class="csl-entry" id="ref-gonzalez2018digital" role="listitem">
+GONZALEZ, R. C.; WOODS, R. E. <strong>Digital Image Processing</strong>. 4th. ed. New York: Pearson, 2018.
+</div>
+<div class="csl-entry" id="ref-notebooklm2025" role="listitem">
+GOOGLE. <strong><span>NotebookLM</span></strong>. <a class="uri" href="https://notebooklm.google.com">https://notebooklm.google.com</a>, 2025.
+</div>
+<div class="csl-entry" id="ref-lienhart2002extended" role="listitem">
+LIENHART, Rainer; MAYDT, Jochen. <a href="https://doi.org/10.1109/ICIP.2002.1038171">An Extended Set of Haar-like Features for Rapid Object Detection</a>. <em>Em</em>: 2002.
+</div>
+<div class="csl-entry" id="ref-redmon2016you" role="listitem">
+REDMON, Joseph <em>et al.</em> <a href="https://doi.org/10.1109/CVPR.2016.91">You Only Look Once: Unified, Real-Time Object Detection</a>. <em>Em</em>: 2016.
+</div>
+<div class="csl-entry" id="ref-szeliski2022" role="listitem">
+SZELISKI, Richard. <strong><a href="https://szeliski.org/Book/">Computer Vision: Algorithms and Applications</a></strong>. 2. ed. <em>[S.l.]</em>: Springer, 2022.
+</div>
+<div class="csl-entry" id="ref-viola2001rapid" role="listitem">
+VIOLA, Paul; JONES, Michael. <a href="https://doi.org/10.1109/CVPR.2001.990517">Rapid Object Detection Using a Boosted Cascade of Simple Features</a>. <em>Em</em>: IEEE Computer Society, 2001.
+</div>
+<div class="csl-entry" id="ref-viola2004robust" role="listitem">
+VIOLA, Paul; JONES, Michael J. <a href="https://doi.org/10.1023/B:VISI.0000013087.49260.fb">Robust Real-Time Face Detection</a>. <strong>International Journal of Computer Vision</strong>, v. 57, n. 2, p. 137–154, 2004.
 </div>
 </div>
 </section>
