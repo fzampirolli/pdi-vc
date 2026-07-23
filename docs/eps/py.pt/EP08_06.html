@@ -91,17 +91,17 @@ div.csl-indent {
 <section class="level4" data-number="8.14.6.1" id="diretrizes-de-implementação-5">
 <h4 class="anchored" data-anchor-id="diretrizes-de-implementação-5" data-number="8.14.6.1"><span class="header-section-number">8.14.6.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Entrada:</strong> a imagem de objetos geométricos disponível em: <code>00000.jpg</code></li>
-<li><strong>Pré-processamento e segmentação:</strong> aplicar os passos necessários (filtragem, binarização, morfologia) para isolar os objetos do fundo, sem recortar manualmente regiões da imagem.</li>
-<li><strong>Rotulação e medição:</strong> para cada objeto segmentado, calcular:
+<li><strong>Entrada:</strong> utilizar a imagem <code>00000.jpg</code>.</li>
+<li><strong>Pré-processamento e segmentação:</strong> aplicar as etapas necessárias (filtragem, binarização e operações morfológicas) para separar automaticamente os objetos do fundo, sem recortes manuais.</li>
+<li><strong>Rotulação e medição:</strong> para cada objeto segmentado, determinar:
 <ul>
-<li>área (número de pixels/contorno);</li>
+<li>área;</li>
 <li>centro de massa (centroide);</li>
-<li>tipo do objeto, conforme o conjunto <code>obj2</code> abaixo.</li>
+<li>tipo, conforme o conjunto <code>obj2</code>.</li>
 </ul></li>
-<li><strong>Anotação visual:</strong> escrever, no interior de cada objeto segmentado, sua área e a sigla do tipo (<code>obj2</code>).</li>
-<li><strong>Validação (acurácia):</strong> para cada objeto segmentado, verificar se o centro de massa detectado cai dentro de algum <em>boundbox</em> do arquivo TXT de gabarito, disponível em: <code>00000.txt</code>. Um objeto está corretamente segmentado quando seu centro pertence a exatamente um <em>boundbox</em> do tipo correspondente.</li>
-<li><strong>Saída:</strong> imprimir, para cada objeto detectado, seu identificador, tipo, área e se foi validado com sucesso (<code>acertou = 1</code>) ou não; ao final, imprimir a acurácia geral (proporção de objetos corretamente validados).</li>
+<li><strong>Anotação visual:</strong> escrever, no interior de cada objeto, sua área e a sigla do tipo (<code>obj2</code>).</li>
+<li><strong>Validação (IoU):</strong> calcular o <em>Intersection over Union</em> (IoU) entre o <em>bounding box</em> detectado (<code>cv2.boundingRect</code>) e o <em>bounding box</em> de gabarito do tipo correspondente. Um objeto é considerado corretamente segmentado apenas se houver exatamente um <em>bounding box</em> do tipo correto com <strong>IoU ≥ 0,5</strong>.</li>
+<li><strong>Saída:</strong> imprimir, para cada objeto detectado, seu identificador, tipo, área e se foi validado com sucesso (<code>acertou=1</code>) ou não. A impressão deve seguir a ordem das classes de <code>obj2</code> (0=Tria … 8=Cruz); dentro da mesma classe, ordenar os objetos pela coordenada vertical do centroide (<code>cy</code>) crescente. Ao final, imprimir a acurácia geral.</li>
 </ol>
 </section>
 <section class="level4" data-number="8.14.6.2" id="restrições-computacionais-5">
@@ -155,11 +155,10 @@ div.csl-indent {
 </section>
 <section class="level4" data-number="8.14.6.4" id="exemplo-de-saída-esperada">
 <h4 class="anchored" data-anchor-id="exemplo-de-saída-esperada" data-number="8.14.6.4"><span class="header-section-number">8.14.6.4</span> 📌 Exemplo de Saída Esperada</h4>
-<pre><code>Objeto 1: tipo=Circ, area=4521, validado=True
-Objeto 2: tipo=Quad, area=3987, validado=True
-Objeto 3: tipo=Estr, area=2765, validado=False
+<pre><code>Objeto 1: tipo=Cruz, area=674, bbox=(120,45,38,52), validado=True
 ...
 Acurácia: 88.89%</code></pre>
+<p><strong>Parâmetros fixos para reprodutibilidade:</strong> para que a saída bata com o gabarito de correção automática, utilize exatamente: filtro de área mínima de 300 pixels; <code>cv2.approxPolyDP</code> com <code>epsilon = 0.02 * perímetro</code>; limiar de solidez 0.92 e contagem de vértices ≥ 9 (com ≥ 11 para diferenciar Cruz de Estrela) para formas côncavas; razão de aspecto 1.15 para diferenciar Círculo de Elipse; limiar de IoU = 0.5 na validação.</p>
 </section>
 <section class="level4" data-number="8.14.6.5" id="arquivos-de-referência-.jpg-e-.txt">
 <h4 class="anchored" data-anchor-id="arquivos-de-referência-.jpg-e-.txt" data-number="8.14.6.5"><span class="header-section-number">8.14.6.5</span> 📌 Arquivos de Referência (<code>.jpg</code> e <code>.txt</code>)</h4>
@@ -220,28 +219,32 @@ Figura 8.20: Imagem utilizada no EP08_06. À esquerda, a imagem original. À di
 </div>
 </div>
 <div class="cell" id="cell-fig-08-sim-ep06">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="12" id="fig-08-sim-ep06">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="1" id="fig-08-sim-ep06">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-08-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0806c" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
 <span>🎮 Simulador: Acurácia de Segmentação em Múltiplos Objetos</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 acertou se centro ∈ bbox E tipo correto</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 acertou se IoU ≥ limiar E tipo correto</span>
 </div>
 <div style="padding:20px;background:white;overflow:auto">
 <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
-      Cada forma tem um <i>boundbox</i> de gabarito (retângulo tracejado, com folga fixa de 4px em torno da forma) e um centro de massa detectado (ponto). Ajuste o ruído e o viés para ver os pontos escaparem do retângulo.
+      Cada forma tem um <i>boundbox</i> de gabarito (retângulo tracejado, justo em torno da forma) e um <i>boundbox</i> detectado (retângulo sólido, deslocado/ruidoso). Ajuste o ruído, o viés e o limiar de IoU para ver a validação mudar.
     </p>
 <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 <div>
-<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#c0392b;">ruído de segmentação (px, raio máx.)</label><span id="ep0806c_ruido_v" style="font-family:monospace;font-weight:bold;color:#c0392b;">0</span></div>
-<input id="ep0806c_ruido" max="40" min="0" step="1" style="width:100%;accent-color:#c0392b;" type="range" value="0"/>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#c0392b;">ruído de segmentação (px, jitter máx. por lado)</label><span id="ep0806c_ruido_v" style="font-family:monospace;font-weight:bold;color:#c0392b;">0</span></div>
+<input id="ep0806c_ruido" max="20" min="0" step="1" style="width:100%;accent-color:#c0392b;" type="range" value="0"/>
 </div>
 <div>
 <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#2980b9;">viés sistemático em x (px)</label><span id="ep0806c_bias_v" style="font-family:monospace;font-weight:bold;color:#2980b9;">0</span></div>
-<input id="ep0806c_bias" max="30" min="-30" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="0"/>
+<input id="ep0806c_bias" max="20" min="-20" step="1" style="width:100%;accent-color:#2980b9;" type="range" value="0"/>
 </div>
-<div style="grid-column:1 / span 2;display:flex;align-items:center;gap:8px;">
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#27ae60;">limiar de IoU</label><span id="ep0806c_thr_v" style="font-family:monospace;font-weight:bold;color:#27ae60;">0.50</span></div>
+<input id="ep0806c_thr" max="0.9" min="0.1" step="0.05" style="width:100%;accent-color:#27ae60;" type="range" value="0.5"/>
+</div>
+<div style="display:flex;align-items:center;gap:8px;">
 <input id="ep0806c_erro" style="accent-color:#8e44ad;width:16px;height:16px;" type="checkbox"/>
 <label style="font-size:12px;font-weight:bold;color:#8e44ad;">simular erro de classificação (2 objetos com tipo trocado)</label>
 </div>
@@ -253,8 +256,8 @@ Figura 8.20: Imagem utilizada no EP08_06. À esquerda, a imagem original. À di
 <th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">id</th>
 <th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo real</th>
 <th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo detectado</th>
-<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">dist. ao bbox (px)</th>
-<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">dentro do bbox</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">IoU</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">≥ limiar</th>
 <th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">acertou</th>
 </tr>
 </thead>
@@ -278,21 +281,22 @@ function svgNS(tag){
 
     var ruidoEl = root.querySelector('#ep0806c_ruido'), ruidovEl = root.querySelector('#ep0806c_ruido_v');
     var biasEl = root.querySelector('#ep0806c_bias'), biasvEl = root.querySelector('#ep0806c_bias_v');
+    var thrEl = root.querySelector('#ep0806c_thr'), thrvEl = root.querySelector('#ep0806c_thr_v');
     var erroEl = root.querySelector('#ep0806c_erro');
-var svgWrap = root.querySelector('#ep0806c_svg'); // agora é uma <div>; o <svg> é criado via JS dentro do render()
-var svgEl = svgNS('svg');
-svgEl.setAttribute('viewBox', '0 0 360 340');
-svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
-svgWrap.appendChild(svgEl);
+    var svgWrap = root.querySelector('#ep0806c_svg');
+    var svgEl = svgNS('svg');
+    svgEl.setAttribute('viewBox', '0 0 360 340');
+    svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
+    svgWrap.appendChild(svgEl);
 
     var tbody = root.querySelector('#ep0806c_tbody');
     var dbg = root.querySelector('#ep0806c_debug');
 
     var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
     var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
-    var PAD = 2; // folga fixa do boundbox em relação ao raio da forma
     var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
-    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240]; // direção fixa do erro por objeto (graus)
+    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240];      // direção fixa do erro por objeto (graus)
+    var SCALE = [0.9, 1.15, 0.8, 1.2, 1.0, 0.95, 1.1, 1.25, 0.85]; // fator de encolhimento/expansão do bbox (fixo)
 
     var OBJS = [
       {cx:55,  cy:45,  r:22},
@@ -341,19 +345,33 @@ svgWrap.appendChild(svgEl);
       return s;
     }
 
-    // distância de um ponto até o retângulo (0 se estiver dentro)
-    function distToRect(px, py, x1, y1, x2, y2){
-      var dx = Math.max(x1-px, 0, px-x2);
-      var dy = Math.max(y1-py, 0, py-y2);
-      return Math.sqrt(dx*dx + dy*dy);
+    // bbox "verdadeiro": retângulo justo em torno da forma (sem folga artificial)
+    function trueBBox(tipo, cx, cy, r){
+      var hw = r, hh = r;
+      if(tipo==='Elip'){ hw = r*1.1; hh = r*0.65; }
+      else if(tipo==='Quad'){ hw = r*0.8; hh = r*0.8; }
+      else if(tipo==='Cruz'){ hw = r*0.7; hh = r*0.7; }
+      return [cx-hw, cy-hh, cx+hw, cy+hh];
+    }
+
+    function iou(a, b){
+      var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+      var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+      var inter = Math.max(0, x2-x1) * Math.max(0, y2-y1);
+      var areaA = (a[2]-a[0])*(a[3]-a[1]);
+      var areaB = (b[2]-b[0])*(b[3]-b[1]);
+      var uni = areaA + areaB - inter;
+      return uni > 0 ? inter/uni : 0;
     }
 
     function render(){
       var ruido = parseInt(ruidoEl.value);
       var bias = parseInt(biasEl.value);
+      var thr = parseFloat(thrEl.value);
       var erroAtivo = erroEl.checked;
       ruidovEl.textContent = ruido;
       biasvEl.textContent = bias;
+      thrvEl.textContent = thr.toFixed(2);
 
       var svgContent = '';
       var rows = '';
@@ -363,49 +381,46 @@ svgWrap.appendChild(svgEl);
         var tipoReal = TIPOS[i];
         var cor = CORES[i];
 
-        var bx1 = o.cx - (o.r+PAD), by1 = o.cy - (o.r+PAD);
-        var bx2 = o.cx + (o.r+PAD), by2 = o.cy + (o.r+PAD);
-
+        var gtBox = trueBBox(tipoReal, o.cx, o.cy, o.r);
         svgContent += '<g opacity="0.9">'+svgShape(tipoReal, o.cx, o.cy, o.r, cor)+'</g>';
+        svgContent += '<rect x="'+gtBox[0]+'" y="'+gtBox[1]+'" width="'+(gtBox[2]-gtBox[0])+'" height="'+(gtBox[3]-gtBox[1])+'" fill="none" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.2"/>';
 
-        // centro detectado: ruído radial (magnitude = slider * fator individual) + viés em x
+        // bbox detectado: escala fixa individual + jitter (ruído) + viés em x
+        var scl = SCALE[i];
         var mag = ruido * FATOR[i];
         var ang = ANGS[i] * Math.PI/180;
-        var dcx = o.cx + mag*Math.cos(ang) + bias;
-        var dcy = o.cy + mag*Math.sin(ang);
+        var jx = mag*Math.cos(ang), jy = mag*Math.sin(ang);
+        var dw = (gtBox[2]-gtBox[0]) * scl, dh = (gtBox[3]-gtBox[1]) * scl;
+        var dcx = o.cx + jx + bias, dcy = o.cy + jy;
+        var detBox = [dcx-dw/2, dcy-dh/2, dcx+dw/2, dcy+dh/2];
 
-        var dist = distToRect(dcx, dcy, bx1, by1, bx2, by2);
-        var dentro = dist === 0;
+        var val = iou(gtBox, detBox);
+        var passaLimiar = val >= thr;
 
-        var corBbox = dentro ? '#27ae60' : '#c0392b';
-        svgContent += '<rect x="'+bx1+'" y="'+by1+'" width="'+(bx2-bx1)+'" height="'+(by2-by1)+'" fill="none" stroke="'+corBbox+'" stroke-dasharray="4,3" stroke-width="1.5"/>';
+        var corDet = passaLimiar ? '#27ae60' : '#c0392b';
+        svgContent += '<rect x="'+detBox[0]+'" y="'+detBox[1]+'" width="'+(detBox[2]-detBox[0])+'" height="'+(detBox[3]-detBox[1])+'" fill="none" stroke="'+corDet+'" stroke-width="1.6"/>';
 
         var tipoDetectado = tipoReal;
         if(erroAtivo && (i===1 || i===6)){
           tipoDetectado = TIPOS[(i+2)%TIPOS.length];
         }
         var tipoCorreto = (tipoDetectado === tipoReal);
-        var acertou = dentro && tipoCorreto;
+        var acertou = passaLimiar && tipoCorreto;
         if(acertou) acertos++;
 
-        var corPonto = acertou ? '#2ecc71' : '#e74c3c';
-        svgContent += '<line x1="'+o.cx+'" y1="'+o.cy+'" x2="'+dcx+'" y2="'+dcy+'" stroke="#888" stroke-width="1" stroke-dasharray="2,2"/>';
-        svgContent += '<circle cx="'+dcx+'" cy="'+dcy+'" r="4" fill="'+corPonto+'" stroke="white" stroke-width="1"/>';
-        svgContent += '<text x="'+(o.cx)+'" y="'+(by1-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
+        svgContent += '<text x="'+(o.cx)+'" y="'+(gtBox[1]-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
 
         rows += '<tr>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+tipoReal+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(tipoCorreto?'':'color:#c0392b;font-weight:bold;')+'">'+tipoDetectado+'</td>'+
-          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+dist.toFixed(1)+'</td>'+
-          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(dentro?'sim':'não')+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+val.toFixed(2)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(passaLimiar?'sim':'não')+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(acertou?'color:#27ae60;font-weight:bold;':'color:#c0392b;font-weight:bold;')+'">'+(acertou?'✔':'✘')+'</td>'+
           '</tr>';
       });
 
-svgEl.innerHTML = svgContent;
-
-
+      svgEl.innerHTML = svgContent;
       tbody.innerHTML = rows;
 
       var acc = (acertos/OBJS.length*100).toFixed(1);
@@ -414,6 +429,7 @@ svgEl.innerHTML = svgContent;
 
     ruidoEl.addEventListener('input', render);
     biasEl.addEventListener('input', render);
+    thrEl.addEventListener('input', render);
     erroEl.addEventListener('change', render);
     render();
   }
@@ -426,7 +442,7 @@ svgEl.innerHTML = svgContent;
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep06-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 8.21: Simulador: Acurácia de Segmentação em Múltiplos Objetos
+Figura 8.21: Simulador: Acurácia de Segmentação em Múltiplos Objetos (IoU)
 </figcaption>
 </figure>
 </div>
@@ -435,10 +451,10 @@ Figura 8.21: Simulador: Acurácia de Segmentação em Múltiplos Objetos
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_06.py</span>
 <span id="cb50-2"><a aria-hidden="true" href="#cb50-2" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP08_06.py</code></pre>
+<pre><code>Writing EP08_06.py</code></pre>
 </div>
 </div>
-<div class="cell" id="50b4582d">
+<div class="cell" id="719154f9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a aria-hidden="true" href="#cb52-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_06.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP08_06.cases já existe em casos/
@@ -1453,21 +1469,22 @@ function svgNS(tag){
 
     var ruidoEl = root.querySelector('#ep0806c_ruido'), ruidovEl = root.querySelector('#ep0806c_ruido_v');
     var biasEl = root.querySelector('#ep0806c_bias'), biasvEl = root.querySelector('#ep0806c_bias_v');
+    var thrEl = root.querySelector('#ep0806c_thr'), thrvEl = root.querySelector('#ep0806c_thr_v');
     var erroEl = root.querySelector('#ep0806c_erro');
-var svgWrap = root.querySelector('#ep0806c_svg'); // agora é uma <div>; o <svg> é criado via JS dentro do render()
-var svgEl = svgNS('svg');
-svgEl.setAttribute('viewBox', '0 0 360 340');
-svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
-svgWrap.appendChild(svgEl);
+    var svgWrap = root.querySelector('#ep0806c_svg');
+    var svgEl = svgNS('svg');
+    svgEl.setAttribute('viewBox', '0 0 360 340');
+    svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
+    svgWrap.appendChild(svgEl);
 
     var tbody = root.querySelector('#ep0806c_tbody');
     var dbg = root.querySelector('#ep0806c_debug');
 
     var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
     var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
-    var PAD = 2; // folga fixa do boundbox em relação ao raio da forma
     var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
-    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240]; // direção fixa do erro por objeto (graus)
+    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240];      // direção fixa do erro por objeto (graus)
+    var SCALE = [0.9, 1.15, 0.8, 1.2, 1.0, 0.95, 1.1, 1.25, 0.85]; // fator de encolhimento/expansão do bbox (fixo)
 
     var OBJS = [
       {cx:55,  cy:45,  r:22},
@@ -1516,19 +1533,33 @@ svgWrap.appendChild(svgEl);
       return s;
     }
 
-    // distância de um ponto até o retângulo (0 se estiver dentro)
-    function distToRect(px, py, x1, y1, x2, y2){
-      var dx = Math.max(x1-px, 0, px-x2);
-      var dy = Math.max(y1-py, 0, py-y2);
-      return Math.sqrt(dx*dx + dy*dy);
+    // bbox "verdadeiro": retângulo justo em torno da forma (sem folga artificial)
+    function trueBBox(tipo, cx, cy, r){
+      var hw = r, hh = r;
+      if(tipo==='Elip'){ hw = r*1.1; hh = r*0.65; }
+      else if(tipo==='Quad'){ hw = r*0.8; hh = r*0.8; }
+      else if(tipo==='Cruz'){ hw = r*0.7; hh = r*0.7; }
+      return [cx-hw, cy-hh, cx+hw, cy+hh];
+    }
+
+    function iou(a, b){
+      var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+      var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+      var inter = Math.max(0, x2-x1) * Math.max(0, y2-y1);
+      var areaA = (a[2]-a[0])*(a[3]-a[1]);
+      var areaB = (b[2]-b[0])*(b[3]-b[1]);
+      var uni = areaA + areaB - inter;
+      return uni > 0 ? inter/uni : 0;
     }
 
     function render(){
       var ruido = parseInt(ruidoEl.value);
       var bias = parseInt(biasEl.value);
+      var thr = parseFloat(thrEl.value);
       var erroAtivo = erroEl.checked;
       ruidovEl.textContent = ruido;
       biasvEl.textContent = bias;
+      thrvEl.textContent = thr.toFixed(2);
 
       var svgContent = '';
       var rows = '';
@@ -1538,49 +1569,46 @@ svgWrap.appendChild(svgEl);
         var tipoReal = TIPOS[i];
         var cor = CORES[i];
 
-        var bx1 = o.cx - (o.r+PAD), by1 = o.cy - (o.r+PAD);
-        var bx2 = o.cx + (o.r+PAD), by2 = o.cy + (o.r+PAD);
-
+        var gtBox = trueBBox(tipoReal, o.cx, o.cy, o.r);
         svgContent += '<g opacity="0.9">'+svgShape(tipoReal, o.cx, o.cy, o.r, cor)+'</g>';
+        svgContent += '<rect x="'+gtBox[0]+'" y="'+gtBox[1]+'" width="'+(gtBox[2]-gtBox[0])+'" height="'+(gtBox[3]-gtBox[1])+'" fill="none" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.2"/>';
 
-        // centro detectado: ruído radial (magnitude = slider * fator individual) + viés em x
+        // bbox detectado: escala fixa individual + jitter (ruído) + viés em x
+        var scl = SCALE[i];
         var mag = ruido * FATOR[i];
         var ang = ANGS[i] * Math.PI/180;
-        var dcx = o.cx + mag*Math.cos(ang) + bias;
-        var dcy = o.cy + mag*Math.sin(ang);
+        var jx = mag*Math.cos(ang), jy = mag*Math.sin(ang);
+        var dw = (gtBox[2]-gtBox[0]) * scl, dh = (gtBox[3]-gtBox[1]) * scl;
+        var dcx = o.cx + jx + bias, dcy = o.cy + jy;
+        var detBox = [dcx-dw/2, dcy-dh/2, dcx+dw/2, dcy+dh/2];
 
-        var dist = distToRect(dcx, dcy, bx1, by1, bx2, by2);
-        var dentro = dist === 0;
+        var val = iou(gtBox, detBox);
+        var passaLimiar = val >= thr;
 
-        var corBbox = dentro ? '#27ae60' : '#c0392b';
-        svgContent += '<rect x="'+bx1+'" y="'+by1+'" width="'+(bx2-bx1)+'" height="'+(by2-by1)+'" fill="none" stroke="'+corBbox+'" stroke-dasharray="4,3" stroke-width="1.5"/>';
+        var corDet = passaLimiar ? '#27ae60' : '#c0392b';
+        svgContent += '<rect x="'+detBox[0]+'" y="'+detBox[1]+'" width="'+(detBox[2]-detBox[0])+'" height="'+(detBox[3]-detBox[1])+'" fill="none" stroke="'+corDet+'" stroke-width="1.6"/>';
 
         var tipoDetectado = tipoReal;
         if(erroAtivo && (i===1 || i===6)){
           tipoDetectado = TIPOS[(i+2)%TIPOS.length];
         }
         var tipoCorreto = (tipoDetectado === tipoReal);
-        var acertou = dentro && tipoCorreto;
+        var acertou = passaLimiar && tipoCorreto;
         if(acertou) acertos++;
 
-        var corPonto = acertou ? '#2ecc71' : '#e74c3c';
-        svgContent += '<line x1="'+o.cx+'" y1="'+o.cy+'" x2="'+dcx+'" y2="'+dcy+'" stroke="#888" stroke-width="1" stroke-dasharray="2,2"/>';
-        svgContent += '<circle cx="'+dcx+'" cy="'+dcy+'" r="4" fill="'+corPonto+'" stroke="white" stroke-width="1"/>';
-        svgContent += '<text x="'+(o.cx)+'" y="'+(by1-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
+        svgContent += '<text x="'+(o.cx)+'" y="'+(gtBox[1]-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
 
         rows += '<tr>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+tipoReal+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(tipoCorreto?'':'color:#c0392b;font-weight:bold;')+'">'+tipoDetectado+'</td>'+
-          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+dist.toFixed(1)+'</td>'+
-          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(dentro?'sim':'não')+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+val.toFixed(2)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(passaLimiar?'sim':'não')+'</td>'+
           '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(acertou?'color:#27ae60;font-weight:bold;':'color:#c0392b;font-weight:bold;')+'">'+(acertou?'✔':'✘')+'</td>'+
           '</tr>';
       });
 
-svgEl.innerHTML = svgContent;
-
-
+      svgEl.innerHTML = svgContent;
       tbody.innerHTML = rows;
 
       var acc = (acertos/OBJS.length*100).toFixed(1);
@@ -1589,6 +1617,7 @@ svgEl.innerHTML = svgContent;
 
     ruidoEl.addEventListener('input', render);
     biasEl.addEventListener('input', render);
+    thrEl.addEventListener('input', render);
     erroEl.addEventListener('change', render);
     render();
   }
