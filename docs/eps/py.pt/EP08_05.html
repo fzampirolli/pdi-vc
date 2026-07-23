@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP08_05 — EP08_05 🔴 Rotulagem de Componentes Conectados: Segmentação Clássica de Instâncias</title>
+  <title>EP08_05 — EP08_05 🔴 Rotulação de Componentes Conectados: Segmentação de Instâncias</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <style>
 /* Default styles provided by pandoc.
@@ -85,7 +85,7 @@ div.csl-indent {
 </head>
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:120ch">
-<h3 class="anchored" data-anchor-id="ep08_05-rotulagem-de-componentes-conectados-segmentação-clássica-de-instâncias" data-number="8.14.5"><span class="header-section-number">8.14.5</span> EP08_05 🔴 Rotulagem de Componentes Conectados: Segmentação Clássica de Instâncias</h3>
+<h3 class="anchored" data-anchor-id="ep08_05-rotulação-de-componentes-conectados-segmentação-de-instâncias" data-number="8.14.5"><span class="header-section-number">8.14.5</span> EP08_05 🔴 Rotulação de Componentes Conectados: Segmentação de Instâncias</h3>
 <p>O exemplo de segmentação clássica deste capítulo separou “instâncias” de moedas simplesmente pela sua desconexão espacial na máscara binária resultante da limiarização de Otsu. Essa etapa final — rotular cada componente conectado com um identificador de instância — é exatamente o que você foi encarregado de implementar aqui, do zero, sobre uma máscara binária já pronta (0 = fundo, 1 = objeto), como se fosse uma reimplementação manual de <code>cv2.connectedComponents</code>.</p>
 <p>Este exercício também expõe, de forma muito concreta, a limitação discutida no capítulo: o resultado depende inteiramente de como se define “vizinhança” entre pixels — e, como você verá no segundo exemplo, dois pixels em diagonal podem ser considerados a mesma instância ou instâncias diferentes, dependendo exclusivamente da <strong>conectividade</strong> escolhida, não de qualquer noção semântica de objeto.</p>
 <section class="level4" data-number="8.14.5.1" id="diretrizes-de-implementação-4">
@@ -311,7 +311,7 @@ Total de instâncias: 1</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura 8.19: Simulador: Rotulagem de Componentes Conectados — Conectividade 4 vs. 8
+Figura 8.19: Simulador: Rotulação de Componentes Conectados — Conectividade 4 vs. 8
 </figcaption>
 </figure>
 </div>
@@ -1302,6 +1302,12 @@ document.getElementById("orb8_btnNoise").addEventListener("click", function(){
 })();
 </script>
 <script>
+
+function svgNS(tag){
+  var SVG_NS = "http" + "://www.w3.org/2000/svg";
+  return document.createElementNS(SVG_NS, tag);
+}
+
 (function(){
   function init(root){
     if(!root || root.dataset.init) return;
@@ -1310,13 +1316,18 @@ document.getElementById("orb8_btnNoise").addEventListener("click", function(){
     var ruidoEl = root.querySelector('#ep0806c_ruido'), ruidovEl = root.querySelector('#ep0806c_ruido_v');
     var biasEl = root.querySelector('#ep0806c_bias'), biasvEl = root.querySelector('#ep0806c_bias_v');
     var erroEl = root.querySelector('#ep0806c_erro');
-    var svg = root.querySelector('#ep0806c_svg');
+var svgWrap = root.querySelector('#ep0806c_svg'); // agora é uma <div>; o <svg> é criado via JS dentro do render()
+var svgEl = svgNS('svg');
+svgEl.setAttribute('viewBox', '0 0 360 340');
+svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
+svgWrap.appendChild(svgEl);
+
     var tbody = root.querySelector('#ep0806c_tbody');
     var dbg = root.querySelector('#ep0806c_debug');
 
     var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
     var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
-    var PAD = 10; // folga fixa do boundbox em relação ao raio da forma
+    var PAD = 2; // folga fixa do boundbox em relação ao raio da forma
     var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
     var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240]; // direção fixa do erro por objeto (graus)
 
@@ -1429,7 +1440,9 @@ document.getElementById("orb8_btnNoise").addEventListener("click", function(){
           '</tr>';
       });
 
-      svg.innerHTML = svgContent;
+svgEl.innerHTML = svgContent;
+
+
       tbody.innerHTML = rows;
 
       var acc = (acertos/OBJS.length*100).toFixed(1);
