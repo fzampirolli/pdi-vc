@@ -1199,7 +1199,8 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 if label in ["fig-04-sim-cdil"]:
                     width_attr = " width=65%"
                 if label in ["fig-01-sim-map", "fig-07-sim-ep06", "fig-08-sim-ep06", 
-                             "fig-09-sim-camada-convolucional", "fig-09-sim-arquitetura"]:
+                             "fig-09-sim-camada-convolucional", "fig-09-sim-arquitetura",
+                             "fig-09-sim-gradiente-kernel"]:
                     width_attr = " width=100%"
                 if label in ["fig-07-sim-ep05"]:
                     width_attr = " width=90%"
