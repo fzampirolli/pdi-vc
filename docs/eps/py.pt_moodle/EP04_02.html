@@ -1,0 +1,224 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP04_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_02 📊 Limiarização Automática de Otsu</h2>
+<p>Escolher manualmente o limiar <em>T</em> funciona quando a iluminação é estável, mas em <strong>microscopia digital</strong> e em <strong>inspeção de lâminas de sangue</strong>, cada amostra tem um contraste diferente — um limiar fixo falharia de imagem para imagem. O <strong>método de Otsu</strong> resolve isso encontrando, sozinho, o limiar que <strong>maximiza a separação estatística</strong> entre as duas classes de pixels, tornando a segmentação automática e adaptativa. Ver na Figura 4.31 uma simulação deste EP.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><p><strong>Dimensões:</strong> Ler os inteiros <em>L</em> (linhas) e <em>C</em> (colunas).</p></li>
+<li><p><strong>Dados:</strong> Ler os valores inteiros da matriz original linha a linha.</p></li>
+<li><p><strong>Histograma:</strong> Construir o histograma <em>h</em>[<em>i</em>], i=0,\dots,255, contando quantos pixels têm valor <em>i</em>.</p></li>
+<li><p><strong>Busca do limiar:</strong> Para cada candidato <em>T</em> de 1 a 255, calcular a <strong>variância entre classes</strong>: σ_<em>B</em>^2(<em>T</em>) = (<em>n</em>_0 · <em>n</em>_1)/(<em>N</em>^2)\,(<em>m</em>_0 - <em>m</em>_1)^2 onde <em>n</em>_0,<em>n</em>_1 são as quantidades de pixels com valor &lt;<em>T</em> e ≥ <em>T</em>, <em>m</em>_0,<em>m</em>_1 são suas médias, e N=<em>L</em>× <em>C</em>.</p></li>
+<li><p><strong>Escolha:</strong> O limiar ótimo <em>T</em>^* é o que maximiza σ_<em>B</em>^2(<em>T</em>) (em caso de empate, manter o <strong>primeiro</strong> encontrado).</p></li>
+<li><p>Aplicação: Binarizar a imagem usando T*, aplicando: <em>p</em>' =
+255, se <em>p</em> &gt; <em>T</em>^*; 0, se <em>p</em> \le <em>T</em>^*</p></li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Candidatos válidos:</strong> Ignorar <em>T</em> que deixe <em>n</em>_0=0 ou <em>n</em>_1=0 (classe vazia).</li>
+<li><strong>Empate:</strong> Sempre manter o <strong>primeiro</strong> <em>T</em> que atingiu o valor máximo de σ_<em>B</em>^2.</li>
+<li><strong>Tipo:</strong> <em>T</em>^* e a matriz de saída devem ser inteiros.</li>
+<li><strong>Convenção OpenCV:</strong> A binarização segue <code>cv2.THRESL_BINARY</code>; pixels com valor exatamente igual a <em>T</em>^* tornam-se pretos.</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Conceito</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>σ_<em>B</em>^2(<em>T</em>) alta</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Classes bem separadas em <em>T</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>T</em> é um bom candidato a limiar</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Histograma bimodal</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dois “morros” distintos</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Otsu encontra o vale entre eles</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Histograma unimodal</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Um único “morro”</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Otsu ainda escolhe <em>algum</em> <em>T</em>, mas a segmentação é pouco confiável</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linhas seguintes: Elementos inteiros da matriz original.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Matriz binarizada em <em>L</em> linhas e <em>C</em> colunas, valores 0 ou 255.</li>
+</ul>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+4<br/>
+12 12 12 200<br/>
+12 12 200 200<br/>
+12 200 200 200<br/>
+200 200 200 200</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 255<br/>
+0 0 255 255<br/>
+0 255 255 255<br/>
+255 255 255 255</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Histograma bimodal claro: 12 e 200</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+2<br/>
+10 250</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 250</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Apenas dois valores: <em>T</em>^* fica no maior</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-04-sim-otsu">
+<div id="sim-ep0402" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Otsu Automático</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">📊 T* = argmax σ²ᴮ(T)</span>
+
+</div><div style="padding:20px;background:white;overflow:auto">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">👆 Clique esquerdo escurece, clique direito clarece o pixel — veja o T* mudar sozinho</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div id="ep0402_hist" style="display:flex;align-items:flex-end;gap:2px;height:100px;"></div>
+<p id="ep0402_info" style="text-align:center;font-size:12px;color:#555;margin-top:8px;">T* = -</p>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Entrada Original (clicável)</p>
+<div id="ep0402_grid_orig" style="display:grid;grid-template-columns:repeat(4,42px);gap:4px;justify-content:center;"></div>
+</div>
+<div style="text-align:center;background:white;border:1px solid #eee;padding:15px;border-radius:12px;">
+<p style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:12px;">Resultado (Otsu)</p>
+<div id="ep0402_grid_new" style="display:grid;grid-template-columns:repeat(4,42px);gap:4px;justify-content:center;"></div>
+</div>
+</div>
+<div style="text-align:center;margin-top:15px;">
+<button id="ep0402_btn_new" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #ccc;background:white;cursor:pointer;">🎲 Nova Imagem (gera dois grupos)</button>
+</div>
+</div>
+<script>
+(function initSimEp0402() {
+  var container = document.getElementById('sim-ep0402');
+  if (!container) { setTimeout(initSimEp0402, 100); return; }
+
+var gO = document.getElementById('ep0402_grid_orig');
+    var gN = document.getElementById('ep0402_grid_new');
+    var info = document.getElementById('ep0402_info');
+    var hist = document.getElementById('ep0402_hist');
+    var btnNew = document.getElementById('ep0402_btn_new');
+var pixels = [];
+
+    function generate(){
+      var c1 = 20 + Math.floor(Math.random()*40);
+      var c2 = 180 + Math.floor(Math.random()*60);
+      pixels = [];
+      for (var i=0;i<16;i++){
+        var base = (Math.random()<0.5) ? c1 : c2;
+        pixels.push(Math.max(0, Math.min(255, base + Math.floor(Math.random()*16-8))));
+      }
+    }
+
+    function otsu(pix){
+      var histArr = new Array(256).fill(0);
+      pix.forEach(function(p){ histArr[p]++; });
+      var N = pix.length, bestVar = -1, bestT = 0;
+      var total = pix.reduce(function(a,b){return a+b;}, 0);
+      for (var T=1; T<256; T++){
+        var n0=0, s0=0;
+        for (var i=0;i<T;i++){ n0+=histArr[i]; s0+=i*histArr[i]; }
+        var n1 = N-n0, s1 = total-s0;
+        if (n0===0 || n1===0) continue;
+        var m0=s0/n0, m1=s1/n1;
+        var v=(n0*n1)*(m0-m1)*(m0-m1)/(N*N);
+        if (v>bestVar){ bestVar=v; bestT=T; }
+      }
+      return bestT;
+    }
+
+    function renderOrig(){
+      gO.innerHTML='';
+      pixels.forEach(function(p, idx){
+        var c = document.createElement('div');
+        c.style.cssText='width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border-radius:4px;border:1px solid #eee;cursor:pointer;';
+        c.style.background='rgb('+p+','+p+','+p+')';
+        c.style.color = p>128 ? 'black' : 'white';
+        c.innerText = p;
+        c.title = 'clique esquerdo: -25 | clique direito: +25';
+        c.onclick = function(){ pixels[idx] = Math.max(0, pixels[idx]-25); render(); };
+        c.oncontextmenu = function(e){ e.preventDefault(); pixels[idx] = Math.min(255, pixels[idx]+25); render(); };
+        gO.appendChild(c);
+      });
+    }
+
+    function renderHist(T){
+      hist.innerHTML = '';
+      var histArr = new Array(256).fill(0);
+      pixels.forEach(function(p){ histArr[p]++; });
+      var maxH = Math.max.apply(null, histArr);
+      for (var i=0;i<256;i+=4){
+        var h = (histArr[i]/(maxH||1))*100;
+        var bar = document.createElement('div');
+        var col = (i>=T) ? '#2980b9' : '#888';
+        bar.style.cssText = 'flex:1;height:'+h+'%;background:'+col+';border-radius:2px 2px 0 0;';
+        hist.appendChild(bar);
+      }
+    }
+
+    function render(){
+      var T = otsu(pixels);
+      info.innerHTML = 'T* encontrado = <b>'+T+'</b>';
+      renderOrig();
+      renderHist(T);
+      gN.innerHTML='';
+      pixels.forEach(function(p){
+        var res = (p>T) ? 255 : 0;
+        var c = document.createElement('div');
+        c.style.cssText='width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border-radius:4px;border:1px solid #ddd;';
+        c.style.background='rgb('+res+','+res+','+res+')';
+        c.style.color = res>128 ? 'black' : 'white';
+        c.innerText = res;
+        gN.appendChild(c);
+      });
+    }
+
+    btnNew.onclick = function(){ generate(); render(); };
+
+    generate();
+    render();
+  
+})();
+</script>
+</div>
+</div>
+</div></div>
