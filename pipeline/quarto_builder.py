@@ -743,67 +743,6 @@ def _get_quarto_latex_path() -> str | None:
             return str(p)
     return None
 
-def _screenshot_html_cells_old(qdir: Path, all_root: Path):
-    """Lê notebooks ORIGINAIS de all/ para gerar screenshots."""
-    from playwright.sync_api import sync_playwright
-
-    for cap_link in qdir.iterdir():
-        if not re.match(r'cap\d+', cap_link.name):
-            continue
-        cap = cap_link.name
-        img_dir = all_root / cap / 'imagens'
-        img_dir.mkdir(parents=True, exist_ok=True)
-
-        for nb_path in (all_root / cap).glob('*.ipynb'):
-            nb = nbformat.read(nb_path, as_version=4)
-
-            for cell in nb.cells:
-                if cell.cell_type != 'code':
-                    continue
-                if 'HTML("""' not in cell.source and "HTML('''" not in cell.source:
-                    continue
-
-                label = None
-                for line in cell.source.splitlines():
-                    m = re.match(r'#\|\s*label:\s*(\S+)', line)
-                    if m:
-                        label = m.group(1)
-                        break
-                if not label:
-                    continue
-
-                png_path = img_dir / f'{label}.png'
-                if png_path.exists():
-                    print(f'  ✓ Screenshot já existe: {png_path.name}')
-                    continue
-
-                m = re.search(r'HTML\("""(.*?)"""\)', cell.source, re.DOTALL)
-                if not m:
-                    m = re.search(r"HTML\('''(.*?)'''\)", cell.source, re.DOTALL)
-                if not m:
-                    continue
-
-                html_content = m.group(1)
-                tmp_html = qdir / f'_tmp_{label}.html'
-                tmp_html.write_text(f'''<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>body {{ margin: 0; background: white; }}</style>
-</head><body>{html_content}</body></html>''', encoding='utf-8')
-
-                try:
-                    with sync_playwright() as p:
-                        browser = p.chromium.launch()
-                        page = browser.new_page(viewport={'width': 900, 'height': 600})
-                        page.goto(f'file://{tmp_html.resolve()}')
-                        page.wait_for_timeout(1500)
-                        page.screenshot(path=str(png_path), full_page=False)
-                        browser.close()
-                    print(f'  📸 Screenshot: {png_path.name}')
-                except Exception as e:
-                    print(f'  ⚠ Falha screenshot {label}: {e}')
-                finally:
-                    tmp_html.unlink(missing_ok=True)
-
 def extract_html(cell_source):
     # Remove magic commands antes do parse
     lines = cell_source.split('\n')
@@ -955,6 +894,16 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                         page.screenshot(path=str(png_path), full_page=False)
 
                         browser.close()
+
+                    # Grava o DPI real refletindo o device_scale_factor usado.
+                    # Sem isso, o PNG fica com pixels 'scale'x maiores do que o
+                    # tamanho físico intencionado, e qualquer cálculo posterior
+                    # (ex.: _patch_html_cells_for_pdf) que faça w/dpi vai achar
+                    # a imagem maior do que realmente é.
+                    if scale != 1.0:
+                        with Image.open(png_path) as im:
+                            im.save(png_path, dpi=(96 * scale, 96 * scale))
+
                     print(f'  📸 Screenshot: {png_path.name}')
                 except Exception as e:
                     print(f'  ⚠ Falha screenshot {label}: {e}')
@@ -986,9 +935,13 @@ def _fix_html_outputs_for_pdf(nb_root: Path):
                 nbformat.write(nb, nb_path)
                 print(f'  ✓ HTML outputs limpos: {fname}')
 
+from PIL import Image
+
 def _capture_html_output_as_png(html_content: str, out_path: Path,
-                                  width: int = 900, height: int = 600) -> bool:
-    """Renderiza uma string HTML isolada e salva screenshot em out_path."""
+                                  width: int = 900, height: int = 600,
+                                  target_dpi: int = 175,
+                                  max_print_width_in: float = 6.3,
+                                  max_print_height_in: float = 9.0) -> bool:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     wrapper = f"""<!DOCTYPE html>
@@ -1009,9 +962,38 @@ def _capture_html_output_as_png(html_content: str, out_path: Path,
             browser = p.chromium.launch()
             page = browser.new_page(viewport={'width': width, 'height': height})
             page.goto(f'file://{tmp_html.resolve()}')
-            page.wait_for_timeout(800)  # tempo pro JS/plot renderizar
+            page.wait_for_timeout(800)
+
+            content_size = page.evaluate("""
+                () => ({
+                    width: Math.ceil(document.documentElement.scrollWidth),
+                    height: Math.ceil(document.documentElement.scrollHeight)
+                })
+            """)
+            page.set_viewport_size({
+                'width': max(content_size['width'], width),
+                'height': max(content_size['height'], height)
+            })
+            page.wait_for_timeout(200)
             page.screenshot(path=str(out_path), full_page=True)
             browser.close()
+
+        # ── Pós-processamento: redimensiona pro DPI de impressão-alvo ──
+        with Image.open(out_path) as im:
+            w, h = im.size
+
+            # Tamanho máximo em pixels permitido pra caber na página, no DPI escolhido
+            max_w_px = int(max_print_width_in * target_dpi)
+            max_h_px = int(max_print_height_in * target_dpi)
+
+            scale = min(max_w_px / w, max_h_px / h, 1.0)  # nunca amplia, só reduz
+
+            if scale < 1.0:
+                new_w, new_h = int(w * scale), int(h * scale)
+                im = im.resize((new_w, new_h), Image.LANCZOS)
+
+            im.save(out_path, dpi=(target_dpi, target_dpi), optimize=True)
+
         return True
     except Exception as e:
         print(f'    ✗ Falha ao capturar {out_path.name}: {e}')
@@ -1178,31 +1160,27 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                         w, h = im.size
                         dpi = im.info.get('dpi', (96, 96))[0] or 96
 
-                    # Largura útil da página no PDF (em polegadas).
+                    # Largura e altura úteis da página no PDF (polegadas).
                     # Ajuste conforme os margins usados no LaTeX/geometry (cover_hook.tex).
-                    PAGE_CONTENT_WIDTH_IN = 6.3  # ex.: A4 (21cm) - 2cm - 2cm margens ≈ 6.69in; ajuste fino se necessário
+                    PAGE_CONTENT_WIDTH_IN = 7.09
+                    PAGE_CONTENT_HEIGHT_IN = 10.12
 
                     img_width_in = w / dpi
-                    pct = (img_width_in / PAGE_CONTENT_WIDTH_IN) * 100
-                    pct = max(25, min(100, round(pct)))  # evita imagens minúsculas ou explosão >100%
+                    img_height_in = h / dpi
 
-                    # Imagens em retrato (mais altas que largas) ainda recebem um teto
-                    # adicional para não estourar a altura da página.
-                    if h > w:
-                        pct = min(pct, 60)
+                    pct_by_width = (PAGE_CONTENT_WIDTH_IN / img_width_in) * 100
+                    pct_by_height = (PAGE_CONTENT_HEIGHT_IN / img_height_in) * 100
 
+                    # usa o mais restritivo dos dois, pra nunca estourar largura NEM altura
+                    pct = min(pct_by_width, pct_by_height, 100)
+                    pct = max(25, round(pct))  # evita imagens minúsculas
+                    print("*"*50)
+                    print(pct)
+                    
                     if pct < 100:
                         width_attr = f' width={pct}%'
                 except Exception:
                     pass
-
-                if label in ["fig-04-sim-cdil"]:
-                    width_attr = " width=65%"
-                if label in ["fig-01-sim-map", "fig-07-sim-ep06", "fig-08-sim-ep06", 
-                             "fig-09-sim-camada-convolucional", "fig-09-sim-arquitetura"]:
-                    width_attr = " width=100%"
-                if label in ["fig-07-sim-ep05","fig-09-sim-gradiente-kernel"]:
-                    width_attr = " width=90%"
 
                 new_cells.append(nbformat.v4.new_markdown_cell(':::'))
                 new_cells.append(nbformat.v4.new_markdown_cell(
