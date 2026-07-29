@@ -7,7 +7,7 @@ version 1.1.2 - com vários métodos para auxílio no cálculo de medidas usando
 version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scipy.ndimage; lazy loading
 version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest)
 version 1.1.7 - lazy loading de sklearn (neighbors, preprocessing, metrics) e skimage.feature
-version 1.1.8 - showNet para mostrar arquitetura de rede pytorch
+version 1.1.8 - showNet e showTrainCurves para mostrar arquitetura de rede pytorch
 Last update: Jul 2026
 """
 
@@ -2082,3 +2082,85 @@ class mm:
 
         plt.show()
         return ativacoes
+
+    @staticmethod
+    def showTrainCurves(historico_perda: list, historico_acc: list,
+                        titulo: Optional[str] = None,
+                        subtitulo: Optional[str] = None,
+                        cor_perda: str = "#C1443A", cor_acc: str = "#2F6F9F",
+                        figsize: tuple = (7, 4.2), dpi: int = 170,
+                        show: bool = True) -> "plt.Figure":
+        """Plota a evolução da perda de treino e da acurácia de teste ao
+        longo das épocas, em eixos duplos, no mesmo estilo visual didático
+        usado por showNet (cores suaves, grid discreto, anotação do melhor
+        resultado).
+
+        Parameters
+        ----------
+        historico_perda : lista com a perda média por época (treino).
+        historico_acc : lista com a acurácia por época (teste/validação).
+        titulo, subtitulo : título e subtítulo da figura.
+        cor_perda, cor_acc : cores das curvas de perda e acurácia.
+        show : se True, exibe a figura via plt.show().
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+        """
+        np = mm._get_np()
+        plt = mm._get_plt()
+
+        epocas = np.arange(1, len(historico_perda) + 1)
+        melhor_ep = int(np.argmax(historico_acc))
+        melhor_acc = historico_acc[melhor_ep]
+
+        fig, ax1 = plt.subplots(figsize=figsize, dpi=dpi, facecolor="#FAFBFC")
+        ax1.set_facecolor("#FAFBFC")
+
+        # -------- perda (eixo esquerdo) --------
+        ax1.plot(epocas, historico_perda, color=cor_perda, linewidth=1.8,
+                label="Perda (treino)", zorder=3)
+        ax1.fill_between(epocas, historico_perda, color=cor_perda, alpha=0.08, zorder=1)
+        ax1.set_xlabel("Época", fontsize=10.5, color="#1a2a3a")
+        ax1.set_ylabel("Perda (Entropia Cruzada)", fontsize=10.5, color=cor_perda)
+        ax1.tick_params(axis="y", labelcolor=cor_perda)
+        ax1.tick_params(axis="x", colors="#4a5a6a")
+
+        # -------- acurácia (eixo direito) --------
+        ax2 = ax1.twinx()
+        ax2.plot(epocas, historico_acc, color=cor_acc, linewidth=1.8,
+                label="Acurácia (teste)", zorder=3)
+        ax2.scatter([epocas[melhor_ep]], [melhor_acc], color=cor_acc, s=45,
+                    zorder=4, edgecolor="white", linewidth=1)
+        ax2.annotate(f"melhor: {melhor_acc:.3f}\n(ép. {epocas[melhor_ep]})",
+                    xy=(epocas[melhor_ep], melhor_acc),
+                    xytext=(8, -32), textcoords="offset points",
+                    fontsize=8.5, color=cor_acc,
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                            edgecolor="none", alpha=0.75))
+        ax2.set_ylabel("Acurácia", fontsize=10.5, color=cor_acc)
+        ax2.tick_params(axis="y", labelcolor=cor_acc)
+        ax2.set_ylim(0, 1.05)
+
+        # -------- estética geral --------
+        for spine in ["top"]:
+            ax1.spines[spine].set_visible(False)
+            ax2.spines[spine].set_visible(False)
+        ax1.grid(axis="y", color="#E4E9ED", linewidth=0.7, zorder=0)
+
+        linhas1, rotulos1 = ax1.get_legend_handles_labels()
+        linhas2, rotulos2 = ax2.get_legend_handles_labels()
+        ax1.legend(linhas1 + linhas2, rotulos1 + rotulos2,
+                loc="center right", frameon=False, fontsize=9)
+
+        if titulo:
+            fig.suptitle(titulo, fontsize=13.5, fontweight="bold", color="#1a2a3a", y=1.06)
+        if subtitulo:
+            fig.text(0.5, 0.99, subtitulo, ha="center", fontsize=9.5,
+                    color="#4a5a6a", style="italic")
+
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.86)
+        if show:
+            plt.show()
+        return fig
