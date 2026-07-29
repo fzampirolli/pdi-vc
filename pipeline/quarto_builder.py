@@ -1127,23 +1127,6 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                 except Exception as e:
                     print(f'  ⚠ Erro gerando PNG de {label}: {e}')
 
-            # if png_exists:
-            #     new_cells.append(nbformat.v4.new_markdown_cell(
-            #         '::: {.content-visible when-format="html"}'
-            #     ))
-            #     cell.outputs = []
-            #     cell.execution_count = None
-            #     new_cells.append(cell)
-            #     cap_str = fig_cap or label
-            #     new_cells.append(nbformat.v4.new_markdown_cell(':::'))
-            #     new_cells.append(nbformat.v4.new_markdown_cell(
-            #         f'::: {{.content-visible when-format="pdf"}}\n'
-            #         f'![ {cap_str} ]({png_rel}){{#fig-{label[4:]}}}\n'
-            #         f':::'
-            #     ))
-            #     modified = True
-            #     print(f'  ✓ Patch condicional: {label}')
-
             if png_exists:
                 new_cells.append(nbformat.v4.new_markdown_cell(
                     '::: {.content-visible when-format="html"}'
@@ -1158,27 +1141,30 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                     from PIL import Image
                     with Image.open(png_abs) as im:
                         w, h = im.size
-                        dpi = im.info.get('dpi', (96, 96))[0] or 96
 
-                    # Largura e altura úteis da página no PDF (polegadas).
-                    # Ajuste conforme os margins usados no LaTeX/geometry (cover_hook.tex).
+                    aspect = w / h
+
                     PAGE_CONTENT_WIDTH_IN = 7.09
                     PAGE_CONTENT_HEIGHT_IN = 10.12
 
-                    img_width_in = w / dpi
-                    img_height_in = h / dpi
+                    CM_TO_IN = 1 / 2.54
+                    CAPTION_RESERVE_IN = 1 * CM_TO_IN  # ~0.3937in reservado pra legenda
 
-                    pct_by_width = (PAGE_CONTENT_WIDTH_IN / img_width_in) * 100
-                    pct_by_height = (PAGE_CONTENT_HEIGHT_IN / img_height_in) * 100
+                    # altura útil real, descontando a legenda
+                    AVAILABLE_HEIGHT_IN = PAGE_CONTENT_HEIGHT_IN - CAPTION_RESERVE_IN
 
-                    # usa o mais restritivo dos dois, pra nunca estourar largura NEM altura
-                    pct = min(pct_by_width, pct_by_height, 100)
-                    pct = max(25, round(pct))  # evita imagens minúsculas
-                    print("*"*50)
-                    print(pct)
-                    
-                    if pct < 100:
-                        width_attr = f' width={pct}%'
+                    height_at_full_width_in = PAGE_CONTENT_WIDTH_IN / aspect
+
+                    if height_at_full_width_in <= AVAILABLE_HEIGHT_IN:
+                        width_attr = ' width=100%'
+                    else:
+                        # força largura total + altura no limite (já descontando legenda) -> distorce levemente
+                        width_attr = f' width=100% height={AVAILABLE_HEIGHT_IN:.3f}in'
+
+                    # exceção manual: simulador cdil fica exagerado em 100%, forçar 50%
+                    if png_abs.stem == 'fig-04-sim-cdil':
+                        width_attr = ' width=50%'
+
                 except Exception:
                     pass
 
@@ -1690,18 +1676,6 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
             _render_pdf_with_patched_tex(qdir, env)
             continue
             
-            #   if f == 'pdf':
-            #       nb_root = qdir.parent.parent / qdir.name
-            #       _screenshot_html_cells(qdir, all_root)
-            #       _fix_html_outputs_for_pdf(nb_root)
-            #       _patch_html_cells_for_pdf(qdir, all_root)
-            #       env['QUARTO_FMT'] = 'pdf'
-            #       # Quarto gera o .tex com keep-tex:true antes de compilar;
-            #       # rodamos quarto render --to latex primeiro para obter o .tex,
-            #       # patcheamos, depois compilamos manualmente com lualatex.
-            #       _render_pdf_with_patched_tex(qdir, env)
-            #       continue  # pula o subprocess.run genérico abaixo
-
           print(f'  $ cd {qdir.name} && quarto render --to {f}')
           try:
               r = subprocess.run(
