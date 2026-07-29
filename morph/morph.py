@@ -7,6 +7,7 @@ version 1.1.2 - com vários métodos para auxílio no cálculo de medidas usando
 version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scipy.ndimage; lazy loading
 version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest)
 version 1.1.7 - lazy loading de sklearn (neighbors, preprocessing, metrics) e skimage.feature
+version 1.1.8 - showNet para mostrar arquitetura de rede pytorch
 Last update: Jul 2026
 """
 
@@ -17,9 +18,7 @@ Last update: Jul 2026
 
 # Imports lazy adicionais (mesmo padrão de _get_cv2/_get_np/_get_skmeasure do cabeçalho).
 
-
-
-__version__ = "1.1.7"
+__version__ = "1.1.8"
 
 from typing import Optional
 import sys
@@ -45,6 +44,8 @@ class mm:
     _sklpreprocessing = None
     _sklmetrics = None
     _skfeature = None
+    _torch = None
+    _nn = None
 
     @classmethod
     def _get_cv2(cls):
@@ -109,7 +110,20 @@ class mm:
             cls._skfeature = skfeature
         return cls._skfeature
  
+    @classmethod
+    def _get_torch(cls):
+        if cls._torch is None:
+            import torch
+            cls._torch = torch
+        return cls._torch
 
+    @classmethod
+    def _get_nn(cls):
+        if cls._nn is None:
+            import torch.nn as nn
+            cls._nn = nn
+        return cls._nn
+    
     def __init__(self): pass
 
     # ── UTILITIES ────────────────────────────────────────────────────────────
@@ -1911,4 +1925,160 @@ class mm:
         feature = mm._get_skfeature()
         return feature.hog(f, orientations=orientations, pixels_per_cell=pixels_per_cell,
                             cells_per_block=cells_per_block, feature_vector=True)
- 
+
+    # ---- Aprendizado Profundo
+
+    @staticmethod
+    def showNet(model: "torch.nn.Module", x: "torch.Tensor",
+                track_types: Optional[tuple] = None,
+                cmap_conv: str = "Blues", cmap_fc: str = "Greens",
+                ncols: int = 4, dpi: int = 170,
+                figsize: Optional[tuple] = None,
+                titulo: Optional[str] = None,
+                subtitulo: Optional[str] = None) -> dict:
+        """Executa um forward pass em `model` e exibe, lado a lado, o fluxo de
+        ativações por camada — genérico para qualquer nn.Module, sem precisar
+        conhecer nomes específicos de camadas.
+
+        Por padrão rastreia Conv2d, Linear e pooling (MaxPool2d/AvgPool2d);
+        cada painel é colorido pelo TIPO da camada (entrada, Conv2d, Pool,
+        Linear, saída).
+
+        Parameters
+        ----------
+        model : nn.Module já instanciado.
+        x : tensor de entrada (formato aceito por model.forward).
+        track_types : tupla de tipos de camada a capturar (padrão: Conv2d,
+                    Linear, MaxPool2d, AvgPool2d).
+        cmap_conv, cmap_fc : colormaps para mapas espaciais e vetores densos.
+        ncols : nº de colunas no mosaico de cada camada espacial.
+        titulo, subtitulo : título/legenda gerais da figura.
+
+        Returns
+        -------
+        dict com as ativações capturadas, por nome de camada.
+        """
+        torch = mm._get_torch()
+        nn = mm._get_nn()
+        np = mm._get_np()
+        plt = mm._get_plt()
+        from matplotlib.patches import FancyArrowPatch
+
+        track_types = track_types or (nn.Conv2d, nn.Linear, nn.MaxPool2d, nn.AvgPool2d)
+
+        PALETA = {
+            "entrada": dict(bg="#F1EAD7", edge="#C9B98A"),
+            "Conv2d":  dict(bg="#EAF2FA", edge="#2F6F9F"),
+            "MaxPool2d": dict(bg="#FAFAF7", edge="#C9C2AE"),
+            "AvgPool2d": dict(bg="#FAFAF7", edge="#C9C2AE"),
+            "Linear":  dict(bg="#EAF7EE", edge="#4E9A66"),
+            "saida":   dict(bg="#FCE8E6", edge="#C1443A"),
+        }
+
+        estagios_capturados, hooks = [], []
+
+        def _hook(nome, tipo):
+            def fn(_mod, _inp, out):
+                estagios_capturados.append((nome, tipo, out.detach()))
+            return fn
+
+        for nome, modulo in model.named_modules():
+            if isinstance(modulo, track_types):
+                hooks.append(modulo.register_forward_hook(_hook(nome, type(modulo).__name__)))
+
+        was_training = model.training
+        model.eval()
+        with torch.no_grad():
+            model(x)
+        for h in hooks:
+            h.remove()
+        model.train(was_training)
+
+        contagem = {}
+        estagios = [("entrada", x, "entrada")]
+        for i, (nome, tipo, tensor) in enumerate(estagios_capturados):
+            contagem[nome] = contagem.get(nome, 0) + 1
+            rotulo = nome if contagem[nome] == 1 else f"{nome} #{contagem[nome]}"
+            eh_ultima = (i == len(estagios_capturados) - 1)
+            estagios.append((rotulo, tensor, "saida" if eh_ultima else tipo))
+        ativacoes = {rotulo: tensor for rotulo, tensor, _ in estagios[1:]}
+
+        n = len(estagios)
+        fig = plt.figure(figsize=figsize or (2.7 * n, 3.4), dpi=dpi, facecolor="#FAFBFC")
+        gs = fig.add_gridspec(1, n, wspace=0.55, left=0.02, right=0.985, top=0.68, bottom=0.08)
+        axes = []
+
+        for col, (nome, tensor, tipo) in enumerate(estagios):
+            cor = PALETA.get(tipo, PALETA["Linear"])
+            ax = fig.add_subplot(gs[0, col])
+            for s in ax.spines.values():
+                s.set_visible(False)
+            ax.set_xticks([]); ax.set_yticks([])
+            arr = tensor.detach().cpu().numpy()[0]
+            dim_txt = "×".join(str(d) for d in tensor.shape[1:]) or "1"
+            ax.set_title(f"{nome}\n" + r"$\mathtt{" + dim_txt.replace("×", r"\times") + "}$",
+                        fontsize=10.5, fontweight="bold", color="#1a2a3a", pad=14)
+
+            if arr.ndim == 3:
+                c, h, w = arr.shape
+                rows = int(np.ceil(c / ncols))
+                gap = 0.05
+                cell_w = (1 - gap * (ncols + 1)) / ncols
+                cell_h = (1 - gap * (rows + 1)) / rows
+                vmin, vmax = arr.min(), arr.max()
+                for i in range(c):
+                    r, cc = divmod(i, ncols)
+                    x0 = gap + cc * (cell_w + gap)
+                    y0 = 1 - gap - (r + 1) * cell_h - r * gap
+                    sub = ax.inset_axes([x0, y0, cell_w, cell_h])
+                    sub.imshow(arr[i], cmap=cmap_conv, vmin=vmin, vmax=vmax)
+                    sub.set_xticks([]); sub.set_yticks([])
+                    for s in sub.spines.values():
+                        s.set_edgecolor("#ffffff"); s.set_linewidth(0.6)
+            elif tipo == "saida":
+                vals = arr.ravel()
+                sub = ax.inset_axes([0.05, 0.05, 0.90, 0.85])
+                pred = int(np.argmax(vals))
+                cores = [cor["edge"] if i == pred else "#E7B7B2" for i in range(len(vals))]
+                sub.bar(range(len(vals)), vals, color=cores, edgecolor=cor["edge"], linewidth=0.6)
+                sub.set_xticks(range(len(vals))); sub.set_xticklabels(range(len(vals)), fontsize=7)
+                sub.set_yticks([])
+                for s in ["top", "right", "left"]:
+                    sub.spines[s].set_visible(False)
+                sub.axhline(0, color=cor["edge"], linewidth=0.5)
+            elif arr.ndim == 1:
+                side_cols = min(8, len(arr))
+                rows = int(np.ceil(len(arr) / side_cols))
+                pad = np.full(rows * side_cols, np.nan)
+                pad[:len(arr)] = arr
+                sub = ax.inset_axes([0.10, 0.15, 0.80, 0.70])
+                sub.imshow(pad.reshape(rows, side_cols), cmap=cmap_fc, aspect="auto")
+                sub.set_xticks([]); sub.set_yticks([])
+                for s in sub.spines.values():
+                    s.set_edgecolor(cor["edge"]); s.set_linewidth(1.2)
+            else:
+                sub = ax.inset_axes([0.15, 0.05, 0.70, 0.90])
+                sub.imshow(arr.squeeze(), cmap="gray_r")
+                sub.set_xticks([]); sub.set_yticks([])
+                for s in sub.spines.values():
+                    s.set_edgecolor(cor["edge"]); s.set_linewidth(1.5)
+
+            axes.append(ax)
+
+        fig.canvas.draw()
+        for a, b in zip(axes[:-1], axes[1:]):
+            pa, pb = a.get_position(), b.get_position()
+            y = (pa.y0 + pa.y1) / 2 + 0.02
+            fig.patches.append(FancyArrowPatch(
+                (pa.x1 + 0.003, y), (pb.x0 - 0.003, y),
+                transform=fig.transFigure, arrowstyle="-|>", mutation_scale=14,
+                linewidth=1.4, color="#8ba9c4", shrinkA=0, shrinkB=0, zorder=10))
+
+        if titulo:
+            fig.suptitle(titulo, fontsize=14.5, fontweight="bold", color="#1a2a3a", y=0.99, wrap=True)
+        if subtitulo:
+            fig.text(0.5, 0.88, subtitulo, ha="center", fontsize=10.5,
+                    color="#4a5a6a", style="italic", wrap=True)
+
+        plt.show()
+        return ativacoes
