@@ -1,0 +1,175 @@
+## Sobre o MCTest {#apendice-mctest}
+
+🚧 **Em construção!**
+
+O **MCTest** é o sistema de código aberto [@zampirolli2023mctest], utilizado para a criação e correção automática de exames parametrizados, incluindo questões de múltipla escolha, dissertativas e de programação (estas últimas integradas ao VPL do Moodle, descrito no [Apêndice B](#apendice-moodle)). A versão do MCTest utilizada neste livro é a 5.4, disponível em código aberto em **[github.com/fzampirolli/mctest](https://github.com/fzampirolli/mctest)**.
+
+### A.1 Instalação do MCTest {.unnumbered}
+
+A instalação recomendada utiliza o VirtualBox com Ubuntu 22.04. No terminal do Ubuntu, como *root*, execute:
+
+```bash
+wget https://raw.githubusercontent.com/fzampirolli/mctest/master/_setup-all.sh
+```
+
+Em seguida, substitua `yourLogin` pelo nome do usuário local e execute:
+
+```bash
+sed -i 's/\/home\/fz\//\/home\/yourLogin\//g' _setup-all.sh
+source _setup-all.sh
+pip install mysqlclient
+```
+
+Após alguns minutos, o MCTest estará configurado. Para executá-lo:
+
+```bash
+source /home/yourLogin/PycharmProjects/runDjango.sh
+```
+
+O sistema fica então acessível em `http://127.0.0.1:8000`.
+
+### A.2 Criando um exame no MCTest {.unnumbered}
+
+No MCTest, todo exame é configurado em uma tela de **Exame**, que reúne Turmas, Tópicos (associados a uma disciplina, como PDI-VC) e Questões — cada questão pertence a um único tópico. Além dos atributos de banco de dados, o exame possui parâmetros próprios, como o número de questões sorteadas e o número de variações geradas.
+
+No caso das duas provas descritas na @sec-contexto-desta-edicao, foi definido um conjunto de questões parametrizadas por prova, das quais um subconjunto é sorteado aleatoriamente para cada variação, totalizando **110 variações** distintas — uma por estudante matriculado nas turmas.
+
+O botão **Create-Variations** gera um novo conjunto de variações a cada acionamento. Quando as questões estão associadas a atividades VPL, o professor recebe por e-mail um arquivo `*linker.json` contendo todos os casos de teste das variações geradas. O botão **Create-PDF** gera, para cada turma, um PDF com as provas sorteadas por estudante, além de um arquivo `*students_variations.csv` com nome, e-mail e variação sorteada de cada aluno.
+
+::: {.callout-important}
+### Atenção {.unnumbered}
+Cada acionamento do botão **Create-Variations** gera um novo conjunto de variações de exames. Após imprimir o PDF, é fundamental **não alterar os atributos da questão**, sob risco de invalidar a correção automática das provas já impressas ou aplicadas.
+:::
+
+### A.3 Criando uma questão paramétrica {.unnumbered}
+
+Uma questão paramétrica no MCTest combina três elementos:
+
+1. **Descrição** — o enunciado da questão, escrito em LaTeX, contendo variáveis entre `[[code:variavel]]`, que são substituídas pelo valor sorteado para cada aluno;
+2. **Bloco de definição** (`[[def: ... ]]`) — um trecho de código Python, embutido na própria questão, responsável por sortear os parâmetros, calcular a solução de referência e montar os casos de teste;
+3. **Casos de teste para o Moodle** (bloco `moodle_cases`) — dicionário serializado em JSON contendo as entradas e saídas esperadas, consumido pela atividade VPL.
+
+Um exemplo simplificado de definição de questão (adaptado da geração de um tabuleiro de xadrez `h × w`) é:
+
+```python
+[[def:
+import json
+import numpy as np
+
+# PARÂMETROS USADOS NA DESCRIÇÃO DA QUESTÃO
+height = np.random.randint(5, 15)
+
+def chess(h, w):
+    m = np.zeros((h, w), dtype='int')
+    for i in range(h):
+        for j in range(w):
+            if (i + j) % 2:
+                m[i][j] = 1
+    return m
+
+inp_list, out_list, test_cases = [], [], 4
+for i in range(test_cases):
+    width = int(np.random.randint(500, 1500) / 100)
+    inp = str(width) + '\n'
+    out = mm.drawImage(chess(height, width))
+    inp_list.append(inp)
+    out_list.append(out)
+
+cases = {'input': inp_list, 'output': out_list}
+moodle_cases = json.dumps(cases)
+
+caso0_inp = cases['input'][0]
+caso0_out = cases['output'][0]
+]]
+```
+
+O valor de `height` é sorteado uma única vez por variação (para aparecer no enunciado), enquanto `width` é sorteado a cada caso de teste, aumentando a robustez da correção automática. Note o uso do método `mm.drawImage()`, da própria `morph.py`, para formatar a matriz de saída como texto simples — facilitando a comparação exata entre a saída do aluno e o gabarito.
+
+Ao acionar **Create-PDF** na tela da questão, uma nova variação é gerada a cada clique, permitindo conferir o enunciado antes de publicá-lo.
+
+Para as duas provas da disciplina, esse mecanismo foi utilizado de forma mais ampla: cada questão paramétrica define não apenas os valores numéricos, mas também, em alguns casos, pequenas variações estruturais no enunciado (por exemplo, qual direção cardinal — Norte, Sul, Leste, Oeste — deve ser avaliada), dificultando a busca por soluções prontas na internet ou em ferramentas de IA generativa.
+
+### A.4 Exemplo real: uma questão do Simulado 4 {.unnumbered}
+
+Para ilustrar o mecanismo descrito na seção anterior com um caso concreto, apresenta-se a seguir uma questão efetivamente aplicada no **Simulado 4** (tópico *im4-Operadores Morfológicos*, dificuldade 1, taxonomia de Bloom "remember"), do tipo questão de programação parametrizada com integração Moodle+VPL.
+
+A questão pede ao estudante que escreva um programa capaz de:
+
+- ler uma imagem binária, corrompida por ruído sal e pimenta, contendo ao menos dois objetos geométricos isolados;
+- aplicar filtragem morfológica (abertura seguida de fechamento) para eliminar o ruído;
+- extrair, a partir da imagem filtrada, as medidas geométricas de cada objeto (área, perímetro, centro, bounding box, circularidade, solidez e número de vértices), usando a função auxiliar `mm.measure`;
+- ordenar os objetos por posição (coordenada X do bounding box, com Y como critério de desempate) e reatribuir os identificadores sequencialmente;
+- imprimir a matriz limpa e a tabela de medidas no formato esperado pelo corretor automático.
+
+No bloco `[[def: ... ]]` correspondente, um gerador de cena (`gerarCena`) sorteia aleatoriamente a altura e a largura da imagem, o tipo, o tamanho e a posição de cada objeto (quadrado, retângulo, triângulo ou bloco), garantindo que eles não se sobreponham, e em seguida acrescenta ruído sal e pimenta com 3% de probabilidade por pixel. Dez casos de teste distintos são gerados dessa forma para cada variação da prova, e o par entrada/saída do primeiro caso é reaproveitado no próprio enunciado como exemplo para o estudante. O texto do enunciado é montado na própria variável Python `texto` e reutilizado tanto no PDF impresso quanto na atividade VPL do Moodle (via `cases['description']`), garantindo que aluno e corretor vejam exatamente a mesma redação. A biblioteca de morfologia (`mm`) é importada diretamente de `morph.py`, também disponível como módulo utilitário do próprio MCTest.
+
+Em resumo, o enunciado pede ao estudante um programa que:
+
+1. leia, na primeira linha, dois inteiros H e W (altura e largura da imagem);
+2. leia as H linhas seguintes da matriz binária (0s e 1s separados por espaço), usando `mm.readImg(H, W)`;
+3. aplique filtragem morfológica para remover o ruído sal e pimenta;
+4. imprima a matriz já filtrada, em 0s e 1s separados por espaço;
+5. extraia as medidas geométricas dos objetos com `mm.measure(imgLimpa)`;
+6. ordene os objetos e imprima a tabela de medidas no formato esperado.
+
+O enunciado ainda traz duas observações importantes para a correção automática: (i) a área calculada pelo OpenCV (`cv2.contourArea`) corresponde ao polígono contínuo delimitado pelos centros dos pixels de borda, sendo por isso menor do que a simples contagem de pixels 1 (`np.sum`); e (ii) a lista de objetos deve ser ordenada em ordem crescente pela coordenada X do bounding box (`bbox[0]`), usando a coordenada Y (`bbox[1]`) como critério de desempate, com os IDs reatribuídos sequencialmente de 1 a N após a ordenação.
+
+Na questão, o texto do enunciado não é fixo: ele é montado dentro do próprio bloco `[[def: ... ]]`, na variável Python `texto`, e inserido na descrição via `[[code:texto]]`. Isso permite, por exemplo, trocar frases, valores ou até a regra de ordenação em variações futuras da questão sem tocar no restante do código. A estrutura real utilizada (com trechos de sorteio de cenário omitidos por brevidade) é:
+
+```python
+[[code:texto]]
+
+\vspace{2mm}\noindent\textbf{Exemplo de Entrada:}\vspace{-2mm}\
+\begin{verbatim}
+[[code:caso0_inp]]
+\end{verbatim}
+\vspace{-2mm}\noindent\textbf{Exemplo de Saída:}\vspace{-2mm}\
+\begin{verbatim}
+[[code:caso0_out]]
+\end{verbatim}
+
+\begin{comment}
+[[code:moodle_cases]]
+\end{comment}
+
+[[def:
+import json
+import numpy as np
+import cv2
+from morph import mm  # também disponível como módulo utilitário do MCTest
+
+# ... geração da cena, do ruído e dos 10 casos de teste (inplist/outlist) ...
+
+# ENUNCIADO COMPLETO, COM EXPLICAÇÃO DE ÁREA E DE ORDENAÇÃO
+texto = (
+    "Uma imagem binária corrompida por ruído sal e pimenta contém no mínimo dois objetos geométricos isolados.\n\n"
+    "Escreva um programa que:\n"
+    "1. Leia dois inteiros ..."
+)
+
+cases = {}
+cases['skills']      = ["morfologia matematica", "remocao de ruido", "mm.measure", "tabulacao"]
+cases['description'] = [{"text": texto}]  # aparece no Moodle, diferente para cada aluno!
+cases['input']       = np.array(inplist).tolist()
+cases['output']      = np.array(outlist).tolist()
+
+moodle_cases = json.dumps(cases)
+caso0_inp = cases['input'][0]
+caso0_out = cases['output'][0]
+]]
+```
+
+Note que `cases['description']` é o mesmo texto que alimenta tanto o PDF impresso quanto a atividade VPL no Moodle — como `texto` é gerado dentro do bloco `[[def: ...]]`, ele pode variar de aluno para aluno junto com os demais parâmetros sorteados, embora nesta questão específica apenas os dados numéricos (imagem, casos de teste) mudem entre variações.
+
+Abaixo, a fotografia da questão efetivamente gerada e impressa para uma das 110 variações do Simulado 4, mostrando o enunciado, a imagem de entrada ruidosa e o exemplo de saída esperado (imagem filtrada e tabela de medidas):
+
+::: {#fig-simulado4-morfologia}
+![](includes/questao-simulado4-morfologia.png){width=80% fig-align="center"}
+
+Questão real gerada pelo MCTest para o Simulado 4 — tópico "Operadores Morfológicos".
+:::
+
+
+### A.5 Considerações finais {.unnumbered}
+
+Este apêndice resumiu os passos para instalar o MCTest, criar exames e construir questões parametrizadas com integração ao VPL do Moodle. O uso combinado de variáveis sorteadas na descrição (`[[code:...]]`) e de código Python embutido na própria questão (`[[def: ... ]]`) permite gerar centenas de variações de prova a partir de um único modelo, cada uma corrigida automaticamente e de forma consistente. O exemplo real do Simulado 4 (Seção A.4) ilustra como esse mecanismo é usado na prática para gerar questões de programação com cenários visuais distintos por aluno. O [Apêndice B](#apendice_b_moodle) detalha como essas variações são publicadas e corrigidas no Moodle, e o [Apêndice C](#apendice_c_seb) descreve como restringir o acesso às provas por meio do SEB.

@@ -7,6 +7,7 @@ Constrói uma pasta Quarto auto-suficiente para cada combo:
         _quarto.yml      ← gerado aqui
         index.qmd        ← gerado aqui (idioma correto)
         prefacio.qmd     ← gerado aqui (prefácio do livro)
+        apendice*.qmd    ← apêndices do livro
         capa.tex         ← gerado aqui (capa do PDF, via include-before-body)
         capXX/           ← symlink → gen/<combo>/capXX/
         references.bib   ← symlink → ../../references.bib
@@ -105,22 +106,85 @@ def _get_emoji_font() -> str:
 # ── Fonte de emoji dependente do SO ──────────────────────────────────────────
 EMOJI_FONT = _get_emoji_font()
 
+def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
+    """
+    Lê um .qmd de includes/<filename>, aplicando substituição i18n.
+    Retorna None se o arquivo não existir (quem chama decide o fallback).
+    """
+    path = Path('includes') / filename
+    if not path.exists():
+        return None
+    content = path.read_text(encoding='utf-8')
+    print(f'  ✓ {filename} lido de {path}')
+    lang_label = LANGUAGES[combo.lang].label
+    content = content.replace('{{lang_label}}', lang_label)
+    locale_label = LOCALES[combo.locale].label
+    content = content.replace('{{locale_label}}', locale_label)
+    return content
+
+
+# def _prefacio_qmd(combo: Combo) -> str:
+#     """
+#     Lê o prefácio do arquivo includes/prefacio.qmd.
+#     Se o arquivo não existir, gera um prefácio padrão com suporte a i18n.
+#     """
+#     content = _read_include_qmd('prefacio.qmd', combo)
+#     if content is not None:
+#         return content
+
+#     content = prefacio_path.read_text(encoding='utf-8')
+#     print(f'  ✓ Prefácio lido de {prefacio_path}')
+#     lang_label = LANGUAGES[combo.lang].label
+#     content = content.replace('{{lang_label}}', lang_label)
+#     locale_label = LOCALES[combo.locale].label
+#     content = content.replace('{{locale_label}}', locale_label)
+#     return content
+
 def _prefacio_qmd(combo: Combo) -> str:
     """
-    Lê o prefácio do arquivo includes/prefacio.qmd.
-    Se o arquivo não existir, gera um prefácio padrão com suporte a i18n.
+    Lê o prefácio do arquivo includes/prefacio.qmd e acrescenta o gatilho
+    \\mainmatter (raw LaTeX, ignorado em HTML) ao final.
     """
-    prefacio_path = Path('includes/prefacio.qmd')
+    content = _read_include_qmd('prefacio.qmd', combo)
+    if content is None:
+        raise FileNotFoundError(
+            'includes/prefacio.qmd não encontrado — arquivo obrigatório.'
+        )
 
-    if prefacio_path.exists():
-        content = prefacio_path.read_text(encoding='utf-8')
-        print(f'  ✓ Prefácio lido de {prefacio_path}')
-        lang_label = LANGUAGES[combo.lang].label
-        content = content.replace('{{lang_label}}', lang_label)
-        locale_label = LOCALES[combo.locale].label
-        content = content.replace('{{locale_label}}', locale_label)
-        return content
+    content += (
+        '\n\n```{=latex}\n'
+        '\\mainmatter\n'
+        '```\n'
+    )
+    return content
 
+def _apendice_filenames() -> list[str]:
+    """
+    Descobre os apêndices disponíveis em includes/, na ordem alfabética
+    (apendice_a_*.qmd, apendice_b_*.qmd, ...), garantindo A, B, C, D em ordem.
+    """
+    return sorted(
+        p.name for p in Path('includes').glob('apendice*.qmd')
+    )
+
+def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
+    """
+    Lê a ficha catalográfica de includes/ficha_catalografica.qmd.
+    Retorna None se o arquivo não existir (nesse caso, a página não é incluída).
+    """
+    return _read_include_qmd('ficha_catalografica.qmd', combo)
+
+def _apendice_qmds(combo: Combo) -> dict[str, str]:
+    """
+    Lê todos os apêndices de includes/, aplicando substituição i18n.
+    Retorna {nome_do_arquivo: conteúdo}, na ordem em que devem aparecer no livro.
+    """
+    result = {}
+    for filename in _apendice_filenames():
+        content = _read_include_qmd(filename, combo)
+        if content is not None:
+            result[filename] = content
+    return result
 
 def _refs_qmd(combo: Combo) -> str:
     title = UI_STRINGS[combo.locale].get('references_title', 'Referências')
@@ -148,6 +212,30 @@ def _process_attachments(combo: Combo, nb_root: Path, qdir: Path, all_root: Path
                 print(f'  ✓ Anexo: {cap}/{attachment.name}')
 
 
+def _write_apendice_qmds(qdir: Path, combo: Combo) -> list[str]:
+    """
+    Lê os apêndices de includes/apendice*.qmd (ordem alfabética garante A, B, C, D...),
+    aplica substituição i18n e escreve cada um em qdir.
+    Retorna a lista de nomes de arquivo escritos, na ordem em que devem entrar no livro.
+    """
+    written: list[str] = []
+    for path in sorted(Path('includes').glob('apendice*.qmd')):
+        content = _read_include_qmd(path.name, combo)
+        if content is None:
+            continue
+        (qdir / path.name).write_text(content, encoding='utf-8')
+        written.append(path.name)
+        print(f'  ✓ Apêndice escrito: {path.name}')
+    return written
+
+
+def _mainmatter_qmd() -> str:
+    """
+    Marcador que dispara \mainmatter no PDF (reinicia numeração em 1, arábico,
+    e reativa numeração de capítulos). Ignorado nos demais formatos (HTML etc.).
+    """
+    return '```{=latex}\n\\mainmatter\n```\n'
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Builder
 # ─────────────────────────────────────────────────────────────────────────────
@@ -171,8 +259,20 @@ class QuartoBuilder:
         qdir.mkdir(parents=True, exist_ok=True)
 
         (qdir / 'index.qmd').write_text(_index_qmd(combo), encoding='utf-8')
+
+        ficha = _ficha_catalografica_qmd(combo)
+        if ficha is not None:
+            (qdir / 'ficha_catalografica.qmd').write_text(ficha, encoding='utf-8')
+
+        (qdir / 'prefacio.qmd').write_text(_prefacio_qmd(combo), encoding='utf-8')
+
         (qdir / 'prefacio.qmd').write_text(_prefacio_qmd(combo), encoding='utf-8')
         (qdir / 'referencias.qmd').write_text(_refs_qmd(combo), encoding='utf-8')
+
+        # ── Apêndices do livro (apendice_a_*.qmd, apendice_b_*.qmd, ...) ──────
+        apendice_files = _write_apendice_qmds(qdir, combo)
+
+        (qdir / 'mainmatter.qmd').write_text(_mainmatter_qmd(), encoding='utf-8')
 
         self._write_custom_css(qdir)
 
@@ -188,7 +288,7 @@ class QuartoBuilder:
         cover_abs = (self.root / 'includes' / 'capa_girassol.png').resolve()
         self._write_cover_tex(qdir, cover_abs)
 
-        yml = self._quarto_yml(combo, nb_root)
+        yml = self._quarto_yml(combo, nb_root, apendice_files=apendice_files)
         (qdir / '_quarto.yml').write_text(yml, encoding='utf-8')
         shutil.copy2(self.root / 'includes' / 'favicon.ico', qdir / 'favicon.ico')
         (qdir / 'fvextra.tex').write_text(
@@ -199,6 +299,8 @@ class QuartoBuilder:
         )
 
         print(f'  ✓ Quarto dir: {qdir.relative_to(self.root)}')
+        if apendice_files:
+            print(f'    apêndices:  {", ".join(apendice_files)}')
         print(f'    render  :  cd {qdir.relative_to(self.root)} && quarto render --to html')
         return qdir
 
@@ -223,20 +325,36 @@ class QuartoBuilder:
                 if all_imagens.exists() and not gen_imagens.exists():
                     gen_imagens.symlink_to(all_imagens.resolve())
 
-    def _write_cover_tex(self, qdir: Path, cover_abs: Path):
-        """
-        Salva o path da capa para uso no pós-processamento do .tex.
-        O cover_hook.tex é um marcador vazio — a capa é injetada por _fix_tex_cover().
-        """
-        (qdir / 'cover_hook.tex').unlink(missing_ok=True)
-        (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
+    # def _write_cover_tex(self, qdir: Path, cover_abs: Path):
+    #     """
+    #     Salva o path da capa para uso no pós-processamento do .tex.
+    #     O cover_hook.tex é um marcador vazio — a capa é injetada por _fix_tex_cover().
+    #     """
+    #     (qdir / 'cover_hook.tex').unlink(missing_ok=True)
+    #     (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
 
-        # Salva o path para uso posterior em _fix_tex_cover
+    #     # Salva o path para uso posterior em _fix_tex_cover
+    #     (qdir / '.cover_abs').write_text(str(cover_abs), encoding='utf-8')
+    #     # cover_hook.tex vazio — só carrega etoolbox sem fazer nada
+    #     (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
+
+    #     print('  ✓ Gerado cover_hook.tex')
+        
+    def _write_cover_tex(self, qdir: Path, cover_abs: Path) -> None:
+        content = (
+            r'\frontmatter' + '\n'
+            r'\thispagestyle{empty}' + '\n'
+            r'\begin{center}' + '\n'
+            r'\vspace*{\fill}' + '\n'
+            rf'\includegraphics[width=\textwidth]{{{cover_abs}}}' + '\n'
+            r'\vspace*{\fill}' + '\n'
+            r'\end{center}' + '\n'
+            r'\clearpage' + '\n'
+        )
+        (qdir / 'capa.tex').write_text(content, encoding='utf-8')
+
+        # restaura o marcador que _fix_tex_cover precisa para o patch do .tex completo
         (qdir / '.cover_abs').write_text(str(cover_abs), encoding='utf-8')
-        # cover_hook.tex vazio — só carrega etoolbox sem fazer nada
-        (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
-
-        print('  ✓ Gerado cover_hook.tex')
         
     def _write_custom_css(self, qdir: Path):
         """
@@ -457,15 +575,24 @@ pre {
         blocks.append('    - referencias.qmd')
         return '\n'.join(blocks) if blocks else '    - index.qmd'
 
-    def _quarto_yml(self, combo: Combo, nb_root: Path) -> str:
+    def _quarto_yml(self, combo: Combo, nb_root: Path,
+                        apendice_files: Optional[list[str]] = None) -> str:
         lang_obj    = LANGUAGES[combo.lang]
         locale_obj  = LOCALES[combo.locale]
         lang_label  = lang_obj.label
         quarto_lang = locale_obj.quarto_lang
 
+        apendice_files = apendice_files or []
+
         subtitle = (UI_STRINGS[combo.locale]['book_subtitle']
                     .format(lang_label=lang_label))
+
         chapters = self._chapter_blocks(combo, nb_root)
+
+        appendices_block = ''
+        if apendice_files:
+            items = '\n'.join(f'    - {f}' for f in apendice_files)
+            appendices_block = f'\n  appendices:\n{items}'
 
         output_dir   = str((self.root / 'gen' / 'book' / combo.key).resolve())
         bib_path     = (self.root / 'references.bib').resolve()
@@ -504,10 +631,10 @@ book:
 
   chapters:
     - index.qmd
+    - ficha_catalografica.qmd
     - prefacio.qmd
 {chapters}
-
-
+{appendices_block}
 bibliography: "{bib_path}"
 csl: "{csl_path}"
 
@@ -1251,7 +1378,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
     # Busca .tex em qdir E em output_dir
     def _find_tex(search_dir: Path):
         return [t for t in search_dir.rglob('*.tex')   # ← rglob em vez de glob
-                if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+                if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex')]
 
     tex_files = _find_tex(qdir)
     if not tex_files and output_dir.exists():
@@ -1319,7 +1446,7 @@ def _fix_tex_cover(qdir: Path):
 
     def _find_tex(search_dir: Path):
         return [t for t in search_dir.rglob('*.tex')
-                if t.name not in ('cover_hook.tex', 'fvextra.tex')]
+                if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex')]
 
     tex_files = _find_tex(qdir)
     if not tex_files and output_dir.exists():
@@ -1468,6 +1595,7 @@ def _fix_tex_cover(qdir: Path):
 """.replace('EMOJI_FONT_PLACEHOLDER', EMOJI_FONT)
 
     cover_block = rf"""
+\frontmatter
 % ── Capa ─────────────────────────────────────────────────────────
 \begin{{titlepage}}
 \thispagestyle{{empty}}
@@ -1493,11 +1621,9 @@ def _fix_tex_cover(qdir: Path):
 {{\large \today\par}}
 \end{{center}}
 \end{{titlepage}}
-
 % ── Ajustes globais do TOC ──────────────────────────────────────
 \clearpage
 \pagestyle{{plain}}
-\pagenumbering{{arabic}}
 \makeatother
 \tableofcontents
 \clearpage
@@ -1505,6 +1631,7 @@ def _fix_tex_cover(qdir: Path):
 \clearpage
 \listoftables
 \clearpage
+\mainmatter
 """
 
     # Injeta o preâmbulo e a capa em uma única substituição estruturada
