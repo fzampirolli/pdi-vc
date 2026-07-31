@@ -1,0 +1,489 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_07 🟡 Remoção de Ruído Sal e Pimenta e Medição de Objetos</h2>
+<p>Neste exercício, você aplicará filtragem morfológica para limpar uma imagem binária corrompida por ruído do tipo <strong>sal e pimenta</strong> (píxeis isolados de valor <code>1</code> no fundo e <code>0</code> no interior dos objetos). Após a limpeza, o programa deve extrair as medições geométricas dos componentes conectados remanescentes, ordená-los e exibir a tabela final de métricas.</p>
+<div style="background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#333;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><p><strong>Entrada:</strong> ler dois inteiros <em>H</em> e <em>W</em> (altura e largura da imagem) na primeira linha e, em seguida, as <em>H</em> linhas com a matriz binária contendo píxeis <code>0</code> e <code>1</code> separados por espaço.</p></li>
+<li><p><strong>Filtragem Morfológica:</strong> aplicar encadeamento de <strong>Abertura</strong> (para eliminar o ruído sal no fundo) seguido de <strong>Fechamento</strong> (para preencher o ruído pimenta dentro dos objetos) com elemento estruturante 3 × 3.</p></li>
+<li><p><strong>Impressão da Imagem Limpa:</strong> imprimir a matriz resultante em valores <code>0</code> e <code>1</code> separados por espaço.</p></li>
+<li><p><strong>Medição Geométricas:</strong> para cada objeto identificado na matriz limpa, extrair:</p></li>
+</ol>
+<ul>
+<li><p><code>id</code>: identificador numérico sequencial (reatribuído após a ordenação);</p></li>
+<li><p><code>area</code>: área calculada via contorno (<code>cv2.contourArea</code>);</p></li>
+<li><p><code>perimeter</code>: perímetro do contorno (<code>cv2.arcLength</code>);</p></li>
+<li><p><code>cx</code>, <code>cy</code>: centro de massa (centroide via <code>cv2.moments</code>);</p></li>
+<li><p><code>x</code>, <code>y</code>, <code>w</code>, <code>h</code>: coordenadas do retângulo delimitador (<code>cv2.boundingRect</code>);</p></li>
+<li><p><code>circularity</code>: circularidade dada por \frac4 \pi · áreaperímetro^2;</p></li>
+<li><p><code>solidity</code>: solidez dada pela razão \fracáreaárea do fecho convexo;</p></li>
+<li><p><code>vertices</code>: número de vértices aproximado do polígono (<code>cv2.approxPolyDP</code> com \epsilon = 0.02 × perímetro).</p></li>
+</ul>
+<ol start="5" type="1">
+<li><strong>Ordenação e Saída:</strong> ordenar os objetos em ordem crescente pela posição <em>X</em> do retângulo delimitador (<code>bbox[0]</code>); em caso de empate, usar a posição <em>Y</em> (<code>bbox[1]</code>). Reatribuir os <code>id</code>s de 1 a <em>N</em> e imprimir a tabela formatada.</li>
+</ol>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Restrições e Regras de Ordenação</h4>
+<ul>
+<li><strong>Regra de Ordenação dos Objetos:</strong></li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a>medidas.sort(key<span class="op">=</span><span class="kw">lambda</span> m: (m[<span class="st">'bbox'</span>][<span class="dv">0</span>], m[<span class="st">'bbox'</span>][<span class="dv">1</span>]))</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<ul>
+<li><strong>Diferença de Área:</strong> A área calculada pelo OpenCV (<code>cv2.contourArea</code>) mede a área do polígono contínuo delimitado pelos centros dos píxeis de borda, resultando em valores numéricos menores do que a simples contagem discreta de píxeis <code>1</code> (<code>np.sum</code>).</li>
+</ul>
+</div>
+<div style="background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e7e34;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Operação / Métrica</th>
+<th style="padding:10px;border:1px solid #ddd;">Função na Filtragem e Caracterização</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Abertura Morfológica</strong> (\circ)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Erosão seguida de dilatação: remove ruídos brilhantes isolados (<em>sal</em>).</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Fechamento Morfológico</strong> (\bullet)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dilatação seguida de erosão: preenche pequenos buracos escuros no interior dos objetos (<em>pimenta</em>).</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong><code>cv2.boundingRect</code></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Retorna (<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>), o menor retângulo alinhado aos eixos que envolve o objeto.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Circularidade e Solidez</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Descrevem a compactação e a convexidade geométrica do componente.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#856404;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8 9<br/>
+0 0 0 0 0 0 0 0 0<br/>
+0 0 0 1 1 1 1 0 0<br/>
+0 0 0 1 1 1 1 0 0<br/>
+0 0 0 1 1 1 1 0 0<br/>
+0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 1 1<br/>
+0 0 0 0 0 0 0 1 1<br/>
+0 0 0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">id area perimeter cx cy x y w h circularity solidity vertices<br/>
+1 9.0 12.0 3.5 2.0 3 1 4 3 0.79 1.000 4<br/>
+2 4.0 8.0 7.5 5.5 7 5 2 2 0.79 1.000 4</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-08-sim-ep07">
+<div id="sim-ep0807" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🧮 Simulador: Morfologia Comutável (4-C / 8-C) &amp; Métricas OpenCV</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Sal + Pimenta → Abertura → Fechamento → Medição</span>
+<div style="padding:16px;background:#ffffff;">
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+<div style="flex:2;min-width:260px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">ETAPA DO PROCESSAMENTO MORFOLÓGICO</div>
+<div style="display:flex;gap:4px;background:#f1ead7;border:1px solid #e4dcc8;border-radius:11px;padding:3px;">
+<button id="ep0807_btnOrig" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:700;border:none;background:#26241d;color:#fbf7ee;cursor:pointer;border-radius:9px;white-space:nowrap;">1. Ruidosa</button>
+<button id="ep0807_btnAbert" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:#8a8371;cursor:pointer;border-radius:9px;white-space:nowrap;">2. Abertura</button>
+<button id="ep0807_btnFech" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:#8a8371;cursor:pointer;border-radius:9px;white-space:nowrap;">3. Fechamento</button>
+</div>
+</div>
+<div style="flex:1;min-width:140px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">ELEMENTO ESTRUTURANTE</div>
+<div style="display:flex;gap:4px;background:#f1ead7;border:1px solid #e4dcc8;border-radius:11px;padding:3px;">
+<button id="ep0807_btnConn4" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:700;border:none;background:#26241d;color:#fbf7ee;cursor:pointer;border-radius:9px;white-space:nowrap;">4-Conectado</button>
+<button id="ep0807_btnConn8" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:#8a8371;cursor:pointer;border-radius:9px;white-space:nowrap;">8-Conectado</button>
+</div>
+</div>
+<div style="min-width:140px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">EXIBIÇÃO DOS PÍXEIS</div>
+<div style="display:flex;gap:4px;background:#f1ead7;border:1px solid #e4dcc8;border-radius:11px;padding:3px;">
+<button id="ep0807_btnVal" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:700;border:none;background:#26241d;color:#fbf7ee;cursor:pointer;border-radius:9px;white-space:nowrap;">Valores (0/1)</button>
+<button id="ep0807_btnCor" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:#8a8371;cursor:pointer;border-radius:9px;white-space:nowrap;">Cores (P&amp;W)</button>
+</div>
+</div>
+<div>
+<button id="ep0807_btnRandom" style="background:#26241d;color:#7ee7c6;border:none;padding:8px 14px;font-size:11px;font-weight:700;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:monospace;">🎲 Gerar Cenário Aleatório</button>
+</div>
+</div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;margin-bottom:14px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:8px;text-align:left;">VISUALIZAÇÃO DA MATRIZ DE PÍXEIS DE ENTRADA / PROCESSADA</div>
+<div id="ep0807_grid_container" style="overflow-x:auto;padding-bottom:4px;"></div>
+</div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">TABELA DE MEDIÇÕES DOS OBJETOS (CALCULADO APÓS ABERTURA E FECHAMENTO)</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">id</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">area</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">perimeter</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">cx</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">cy</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">x</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">y</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">w</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">h</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">circularity</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">solidity</th>
+<th data-quarto-table-cell-role="th" style="padding:10px;border:1px solid #ddd;">vertices</th>
+</tr>
+</thead>
+<tbody id="ep0807_tbody">
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0807Init) return;
+    root.dataset.ep0807Init = "1";
+
+    var H = 12, W = 28;
+    var imgBase = [], imgRuido = [], imgAbertura = [], imgLimpa = [];
+    var medidasObjetos = [];
+    var etapaAtual = 'ruido', modoExibicao = 'val', modoConectividade = 4;
+
+    var elBtnOrig = root.querySelector('#ep0807_btnOrig');
+    var elBtnAbert = root.querySelector('#ep0807_btnAbert');
+    var elBtnFech = root.querySelector('#ep0807_btnFech');
+    var elBtnConn4 = root.querySelector('#ep0807_btnConn4');
+    var elBtnConn8 = root.querySelector('#ep0807_btnConn8');
+    var elBtnVal = root.querySelector('#ep0807_btnVal');
+    var elBtnCor = root.querySelector('#ep0807_btnCor');
+    var elBtnRandom = root.querySelector('#ep0807_btnRandom');
+    var elGridContainer = root.querySelector('#ep0807_grid_container');
+    var elTbody = root.querySelector('#ep0807_tbody');
+
+    var neighbors4 = [[0,0], [-1,0], [1,0], [0,-1], [0,1]];
+    var neighbors8 = [[0,0], [-1,0], [1,0], [0,-1], [0,1], [-1,-1], [-1,1], [1,-1], [1,1]];
+
+    function dilate(mat, conn) {
+      var neighbors = conn === 8 ? neighbors8 : neighbors4;
+      var res = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var hit = false;
+          for (var i = 0; i < neighbors.length; i++) {
+            var nr = r + neighbors[i][0], nc = c + neighbors[i][1];
+            if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+              if (mat[nr][nc] === 1) { hit = true; break; }
+            }
+          }
+          res[r][c] = hit ? 1 : 0;
+        }
+      }
+      return res;
+    }
+
+    function erode(mat, conn) {
+      var neighbors = conn === 8 ? neighbors8 : neighbors4;
+      var res = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var fit = true;
+          for (var i = 0; i < neighbors.length; i++) {
+            var nr = r + neighbors[i][0], nc = c + neighbors[i][1];
+            if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+              if (mat[nr][nc] !== 1) { fit = false; break; }
+            } else { fit = false; }
+          }
+          res[r][c] = fit ? 1 : 0;
+        }
+      }
+      return res;
+    }
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length, m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureOpenCV(mat) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.01);
+        medidas.push({
+          area: area, perimeter: per, cx: moments.cx, cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0, vertices: poly.length
+        });
+      });
+      medidas.sort(function(a, b) { return a.x !== b.x ? a.x - b.x : a.y - b.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function recalcularMorfologia() {
+      imgAbertura = dilate(erode(imgRuido, modoConectividade), modoConectividade);
+      imgLimpa = erode(dilate(imgAbertura, modoConectividade), modoConectividade);
+      medidasObjetos = measureOpenCV(imgLimpa);
+      renderGrid();
+      renderTabela();
+    }
+
+    function gerarCenarioAleatorio() {
+      imgBase = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var numObjetos = Math.floor(Math.random() * 2) + 2; 
+      var setores = [ { minC: 1, maxC: 8 }, { minC: 10, maxC: 17 }, { minC: 19, maxC: 25 } ];
+      var objetoPixels = [];
+      for (var o = 0; o < numObjetos; o++) {
+        var setor = setores[o];
+        var tipoForma = Math.floor(Math.random() * 3);
+        var objW = Math.floor(Math.random() * 2) + 4, objH = Math.floor(Math.random() * 2) + 4;
+        var startC = Math.floor(Math.random() * (setor.maxC - setor.minC - objW + 1)) + setor.minC;
+        var startR = Math.floor(Math.random() * (H - 4 - objH + 1)) + 2;
+        for (var r = 0; r < objH; r++) {
+          for (var c = 0; c < objW; c++) {
+            var pr = startR + r, pc = startC + c, isObj = false;
+            if (tipoForma === 0) isObj = true;
+            else if (tipoForma === 1) { if (r >= objH / 2 || c < objW / 2) isObj = true; }
+            else if (tipoForma === 2) { if (r < objH / 2 || (c >= Math.floor(objW / 3) && c <= Math.floor(2 * objW / 3))) isObj = true; }
+            if (isObj) { imgBase[pr][pc] = 1; objetoPixels.push([pr, pc]); }
+          }
+        }
+      }
+      imgRuido = JSON.parse(JSON.stringify(imgBase));
+      var qtdSal = Math.floor(Math.random() * 2) + 2;
+      for (var s = 0; s < qtdSal; s++) {
+        var sr = Math.floor(Math.random() * (H - 2)) + 1, sc = Math.floor(Math.random() * (W - 2)) + 1;
+        if (imgBase[sr][sc] === 0) imgRuido[sr][sc] = 1;
+      }
+      var shuffledObj = objetoPixels.filter(function(p){ return p[0] > 0 && p[0] < H-1 && p[1] > 0 && p[1] < W-1; }).sort(function() { return 0.5 - Math.random(); });
+      var qtdPimenta = Math.max(1, Math.floor(shuffledObj.length * 0.10));
+      for (var p = 0; p < qtdPimenta; p++) { imgRuido[shuffledObj[p][0]][shuffledObj[p][1]] = 0; }
+      recalcularMorfologia();
+    }
+
+    function renderGrid(){
+      var mat = imgRuido;
+      if (etapaAtual === 'abertura') mat = imgAbertura;
+      if (etapaAtual === 'fechamento') mat = imgLimpa;
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var val = mat[r][c], cell = document.createElement('div');
+          var bg = val === 1 ? '#26241d' : '#ffffff';
+          var fg = val === 1 ? '#7ee7c6' : '#8a8371';
+          cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:monospace;user-select:none;background:' + bg + ';color:' + fg + ';';
+          if (modoExibicao === 'val') cell.textContent = val; else cell.textContent = '';
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="12" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado após o processamento morfológico.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cx.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cy.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.x + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.y + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.w + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.h + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    function setEtapa(etapa, btn){
+      [elBtnOrig, elBtnAbert, elBtnFech].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      etapaAtual = etapa; renderGrid();
+    }
+
+    function setConectividade(conn, btn){
+      [elBtnConn4, elBtnConn8].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      modoConectividade = conn; recalcularMorfologia();
+    }
+
+    function setModo(modo, btn){
+      [elBtnVal, elBtnCor].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      modoExibicao = modo; renderGrid();
+    }
+
+    elBtnOrig.addEventListener('click', function(){ setEtapa('ruido', elBtnOrig); });
+    elBtnAbert.addEventListener('click', function(){ setEtapa('abertura', elBtnAbert); });
+    elBtnFech.addEventListener('click', function(){ setEtapa('fechamento', elBtnFech); });
+    elBtnConn4.addEventListener('click', function(){ setConectividade(4, elBtnConn4); });
+    elBtnConn8.addEventListener('click', function(){ setConectividade(8, elBtnConn8); });
+    elBtnVal.addEventListener('click', function(){ setModo('val', elBtnVal); });
+    elBtnCor.addEventListener('click', function(){ setModo('cor', elBtnCor); });
+    elBtnRandom.addEventListener('click', function(){ gerarCenarioAleatorio(); });
+
+    gerarCenarioAleatorio();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0807');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div>
+</div>
+</div></div>
