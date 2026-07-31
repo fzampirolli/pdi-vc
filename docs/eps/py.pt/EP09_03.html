@@ -1850,12 +1850,12 @@ window.Quarto = {
       // Curva -log(x)
       ctx.strokeStyle = "#2F6F9F"; ctx.lineWidth = 2;
       ctx.beginPath();
-      for(var x=0.02; x<=0.98; x+=0.01){
+      for(var x=0.002; x<=0.98; x+=0.01){
         var loss = -Math.log(x);
         var cx = 30 + x * (W - 40);
         var cy = (H - 20) - (loss / 4.0) * (H - 30);
         cy = Math.max(10, Math.min(H-20, cy));
-        if(x === 0.02) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+        if(x === 0.002) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
       }
       ctx.stroke();
 
@@ -3191,7 +3191,7 @@ window.Quarto = {
       btnTreinar.textContent = '⏸ Pausar';
       autoplayInterval = setInterval(function(){
         var resultado = passoDeTreinamento();
-        if (resultado.loss < 0.02 && resultado.acuracia === 1){ pararAutoplay(); }
+        if (resultado.loss < 0.002 && resultado.acuracia === 1){ pararAutoplay(); }
       }, 120);
     });
 
@@ -3250,16 +3250,6 @@ window.Quarto = {
   };
   var cap09kgrad_ALVOS = { diagonal: 9, vertical: 8 };
 
-  function cap09kgrad_inicializarKernel(rng){
-    var K = [];
-    for (var r = 0; r < 3; r++){
-      var row = [];
-      for (var c = 0; c < 3; c++) row.push(Number(((rng() - 0.5)).toFixed(2)));
-      K.push(row);
-    }
-    return K;
-  }
-
   function cap09kgrad_forward(K, X){
     var Z = [], A = [];
     for (var r = 0; r < 4; r++){
@@ -3277,6 +3267,24 @@ window.Quarto = {
     for (var r2 = 0; r2 < 4; r2++)
       for (var c2 = 0; c2 < 4; c2++) S += A[r2][c2];
     return { Z: Z, A: A, S: S };
+  }
+
+  function cap09kgrad_inicializarKernelVivo(startSeed, X){
+    var seedAtual = startSeed;
+    var K, cache;
+    for (var tentativas = 0; tentativas < 500; tentativas++){
+      var rng = cap09kgrad_criarRng(seedAtual);
+      K = [];
+      for (var r = 0; r < 3; r++){
+        var row = [];
+        for (var c = 0; c < 3; c++) row.push(Number(((rng() - 0.5)).toFixed(2)));
+        K.push(row);
+      }
+      cache = cap09kgrad_forward(K, X);
+      if (cache.S > 0) return K;
+      seedAtual++;
+    }
+    return K;
   }
 
   function cap09kgrad_calcularErro(cache, alvo){
@@ -3341,10 +3349,9 @@ window.Quarto = {
     var padraoAtual = "diagonal";
     var X = cap09kgrad_PADROES[padraoAtual];
     var alvo = cap09kgrad_ALVOS[padraoAtual];
-    var lr = 0.02;
+    var lr = 0.002;
 
-    var rng = cap09kgrad_criarRng(7);
-    var K = cap09kgrad_inicializarKernel(rng);
+    var K = cap09kgrad_inicializarKernelVivo(7, X);
     var historicoKernel = [];
 
     var cacheForward = cap09kgrad_forward(K, X);
@@ -3360,6 +3367,9 @@ window.Quarto = {
 
     var elBtnDiagonal = root.querySelector('#cap09kgrad_btnDiagonal');
     var elBtnVertical = root.querySelector('#cap09kgrad_btnVertical');
+    var elLr0005 = root.querySelector('#cap09kgrad_lr0005');
+    var elLr002 = root.querySelector('#cap09kgrad_lr002');
+    var elLr02 = root.querySelector('#cap09kgrad_lr02');
     var elGradeX = root.querySelector('#cap09kgrad_gradeX');
     var elGradeZ = root.querySelector('#cap09kgrad_gradeZ');
     var elGradeA = root.querySelector('#cap09kgrad_gradeA');
@@ -3593,6 +3603,7 @@ window.Quarto = {
       ctxLoss.clearRect(0,0,Wc,Hc);
       ctxLoss.strokeStyle = '#E4DCC8'; ctxLoss.lineWidth = 1;
       ctxLoss.strokeRect(0.5,0.5,Wc-1,Hc-1);
+
       if (historicoLoss.length < 2){
         ctxLoss.fillStyle = '#B8AE94';
         ctxLoss.font = '10px Inter, sans-serif';
@@ -3600,15 +3611,40 @@ window.Quarto = {
         ctxLoss.fillText('perda aparecerá aqui', Wc/2, Hc/2+3);
         return;
       }
-      var maxLoss = Math.max.apply(null, historicoLoss); maxLoss = Math.max(maxLoss, 0.01);
-      var padL=8,padR=8,padT=8,padB=8;
-      var plotW = Wc-padL-padR, plotH = Hc-padT-padB;
-      ctxLoss.strokeStyle = '#2F5FA8'; ctxLoss.lineWidth = 1.6;
+
+      var maxLoss = Math.max.apply(null, historicoLoss);
+      maxLoss = Math.max(maxLoss, 0.01);
+
+      var padL = 30, padR = 8, padT = 10, padB = 14;
+      var plotW = Wc - padL - padR, plotH = Hc - padT - padB;
+
+      ctxLoss.strokeStyle = '#EDE7D6';
+      ctxLoss.lineWidth = 1;
       ctxLoss.beginPath();
-      historicoLoss.forEach(function(v,i){
-        var x = padL + (historicoLoss.length===1?0:(i/(historicoLoss.length-1))*plotW);
-        var y = padT + (1 - v/maxLoss)*plotH;
-        if (i===0) ctxLoss.moveTo(x,y); else ctxLoss.lineTo(x,y);
+      ctxLoss.moveTo(padL, padT); ctxLoss.lineTo(Wc - padR, padT);
+      ctxLoss.moveTo(padL, Hc - padB); ctxLoss.lineTo(Wc - padR, Hc - padB);
+      ctxLoss.stroke();
+
+      ctxLoss.strokeStyle = '#1E8F6F';
+      ctxLoss.setLineDash([2, 2]);
+      ctxLoss.beginPath();
+      ctxLoss.moveTo(padL, Hc - padB); ctxLoss.lineTo(Wc - padR, Hc - padB);
+      ctxLoss.stroke();
+      ctxLoss.setLineDash([]);
+
+      ctxLoss.fillStyle = '#8A8371';
+      ctxLoss.font = '8px JetBrains Mono, monospace';
+      ctxLoss.textAlign = 'right';
+      ctxLoss.fillText(maxLoss.toFixed(1), padL - 3, padT + 3);
+      ctxLoss.fillText('0.0', padL - 3, Hc - padB + 2);
+
+      ctxLoss.strokeStyle = '#2F5FA8'; 
+      ctxLoss.lineWidth = 1.6;
+      ctxLoss.beginPath();
+      historicoLoss.forEach(function(v, i){
+        var x = padL + (historicoLoss.length === 1 ? 0 : (i / (historicoLoss.length - 1)) * plotW);
+        var y = padT + (1 - v / maxLoss) * plotH;
+        if (i === 0) ctxLoss.moveTo(x, y); else ctxLoss.lineTo(x, y);
       });
       ctxLoss.stroke();
     }
@@ -3620,12 +3656,23 @@ window.Quarto = {
       var passoPrevisto = lr * gAtual;
       var kNovoPrevisto = kAtual - passoPrevisto;
 
+      if (cacheForward.S <= 0){
+        elNotaAtualizacao.innerHTML = 
+          '<div style="background:#FDF2F2;border:1px solid #F87171;border-radius:8px;padding:8px 10px;color:#991B1B;">' +
+          '<b>⚡ Colapso por ReLU Morta (S = 0.000):</b><br>' +
+          'Todas as ativações Z &le; 0 foram zeradas pela ReLU. O erro dZ = 0, zerando o gradiente (&nabla;K = 0).<br>' +
+          '• A perda travou em L = &frac12;&middot;(0 &minus; ' + alvo + ')&sup2; = ' + cacheErro.loss.toFixed(1) + '.<br>' +
+          '• <b>Como resolver:</b> Reduza a taxa &eta;, clique em <b>"⏮ Desfazer passo"</b> ou em <b>"🎲 Novo kernel aleatório"</b>.' +
+          '</div>';
+        return;
+      }
+
       if (ultimoGradiente === null){
         elNotaAtualizacao.innerHTML = 
           '<div style="text-align:left;">' +
           '<b>Estado Inicial do peso K[' + kr + '][' + kc + '] = ' + kAtual.toFixed(3) + ':</b><br>' +
           '• <b>Gradiente visível acumulado (&nabla;K):</b> <b style="color:#2F6F9F;">' + gAtual.toFixed(3) + '</b> (soma dos 16 votos dZ &times; X)<br>' +
-          '• <b>Passo de ajuste previsto (&eta; &times; &nabla;K):</b> 0.02 &times; (' + gAtual.toFixed(3) + ') = <b>' + passoPrevisto.toFixed(4) + '</b><br>' +
+          '• <b>Passo de ajuste previsto (&eta; &times; &nabla;K):</b> ' + lr + ' &times; (' + gAtual.toFixed(3) + ') = <b>' + passoPrevisto.toFixed(4) + '</b><br>' +
           '• <b>Novo Peso previsto:</b> K &larr; ' + kAtual.toFixed(3) + ' &minus; (' + passoPrevisto.toFixed(4) + ') = <b>' + kNovoPrevisto.toFixed(3) + '</b><br>' +
           '<br><span style="color:#8A8371;">Clique em <b>"▶ Aplicar passo de gradiente descendente"</b> para atualizar a matriz.</span>' +
           '</div>';
@@ -3639,8 +3686,8 @@ window.Quarto = {
       elNotaAtualizacao.innerHTML = 
         '<div style="text-align:left;">' +
         '<b>Última atualização aplicada ao peso K[' + kr + '][' + kc + ']:</b><br>' +
-        '1. <b>Taxa (&eta;):</b> <span class="cap09kgrad_mono">0.02</span> | <b>&nabla;K aplicado:</b> <span class="cap09kgrad_mono">' + gValAnterior.toFixed(3) + '</span><br>' +
-        '2. <b>Passo executado:</b> 0.02 &times; (' + gValAnterior.toFixed(3) + ') = <b>' + passoAplicado.toFixed(4) + '</b><br>' +
+        '1. <b>Taxa (&eta;):</b> <span class="cap09kgrad_mono">' + lr + '</span> | <b>&nabla;K aplicado:</b> <span class="cap09kgrad_mono">' + gValAnterior.toFixed(3) + '</span><br>' +
+        '2. <b>Passo executado:</b> ' + lr + ' &times; (' + gValAnterior.toFixed(3) + ') = <b>' + passoAplicado.toFixed(4) + '</b><br>' +
         '3. <b>Resultado:</b> K &larr; ' + kAntigoVal.toFixed(3) + ' &minus; (' + passoAplicado.toFixed(4) + ') = <b>' + kAtual.toFixed(3) + '</b><br>' +
         '<br><span style="color:#2F6F9F;"><b>Novo gradiente pronto na matriz atual:</b> &nabla;K = <b>' + gAtual.toFixed(3) + '</b></span>' +
         '</div>';
@@ -3738,8 +3785,7 @@ window.Quarto = {
     }
 
     function novoKernelAleatorio(){
-      var rngNovo = cap09kgrad_criarRng(Date.now() % 2147483647);
-      K = cap09kgrad_inicializarKernel(rngNovo);
+      K = cap09kgrad_inicializarKernelVivo(Date.now() % 2147483647, X);
       historicoKernel = [];
       epocaAtual = 0;
       ultimoGradiente = null;
@@ -3759,6 +3805,12 @@ window.Quarto = {
       padraoAtual = novoPadrao;
       X = cap09kgrad_PADROES[padraoAtual];
       alvo = cap09kgrad_ALVOS[padraoAtual];
+
+      var checagem = cap09kgrad_forward(K, X);
+      if (checagem.S <= 0){
+        K = cap09kgrad_inicializarKernelVivo(7, X);
+      }
+
       historicoKernel = [];
       epocaAtual = 0;
       ultimoGradiente = null;
@@ -3772,8 +3824,19 @@ window.Quarto = {
       renderizarTudo();
     }
 
+    function alterarLr(novaLr, btnAtivo){
+      [elLr0005, elLr002, elLr02].forEach(function(b){ b.classList.remove('cap09kgrad_active'); });
+      btnAtivo.classList.add('cap09kgrad_active');
+      lr = novaLr;
+      renderizarTudo();
+    }
+
     elBtnDiagonal.addEventListener('click', function(){ trocarPadrao('diagonal', elBtnDiagonal); });
     elBtnVertical.addEventListener('click', function(){ trocarPadrao('vertical', elBtnVertical); });
+    elLr0005.addEventListener('click', function(){ alterarLr(0.0005, elLr0005); });
+    elLr002.addEventListener('click', function(){ alterarLr(0.002, elLr002); });
+    elLr02.addEventListener('click', function(){ alterarLr(0.02, elLr02); });
+
     elBtnAvancar.addEventListener('click', avancarPosicao);
     elBtnVoltarPos.addEventListener('click', voltarPosicao);
     elBtnSomarTudo.addEventListener('click', somarTudoAutomatico);
