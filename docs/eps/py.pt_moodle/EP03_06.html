@@ -118,195 +118,9 @@
 </tbody>
 </table>
 <div class="cell" id="cell-fig-03-sim-filtro-media">
-<style>
-.ep0306-cell{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;border-radius:6px;transition:background 0.1s,transform 0.1s,box-shadow 0.1s;}
-.ep0306-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;text-align:center;}
-.ep0306-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;}
-.ep0306-grid{display:grid;gap:4px;justify-content:center;margin-top:12px;}
-.ep0306-stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 14px;font-size:12px;color:var(--color-text-secondary);text-align:center;}
-.ep0306-stat b{font-weight:500;font-size:15px;display:block;color:var(--color-text-primary);}
-.ep0306-kbtn{padding:6px 16px;font-size:12px;border-radius:var(--border-radius-md);cursor:pointer;border:2px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);transition:all 0.15s;}
-.ep0306-kbtn.active{background:#E6F1FB;border-color:#185FA5;color:#0C447C;font-weight:500;}
-</style>
-<h2 class="sr-only anchored" data-anchor-id="exemplos-5">Simulador de filtro de média com kernel 3×3 ou 5×5: passe o mouse nas células do resultado para visualizar a janela de vizinhança.</h2>
-<div id="ep0306-sim-media-03" style="max-width:900px;margin:0 auto;padding:4px 0 16px;">
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-<span style="font-size:13px;font-weight:500;color:var(--color-text-secondary);">Tamanho do kernel:</span>
-<button class="ep0306-kbtn active" id="ep0306-btn-k3" onclick="ep0306SetKernel(3)">3 × 3  <span style="font-weight:400;font-size:11px;">(9 vizinhos)</span></button>
-<button class="ep0306-kbtn" id="ep0306-btn-k5" onclick="ep0306SetKernel(5)">5 × 5  <span style="font-weight:400;font-size:11px;">(25 vizinhos)</span></button>
-<button id="ep0306-btn-new" style="margin-left:auto;font-size:12px;padding:6px 14px;">
-<i aria-hidden="true" class="ti ti-dice"></i> Nova imagem
-    </button>
-<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px;">
-<div class="ep0306-card">
-<p class="ep0306-label">Imagem original f (7×7)</p>
-<p style="font-size:11px;color:var(--color-text-secondary);margin:0;">com ruído sal e pimenta</p>
-<div class="ep0306-grid" id="ep0306-grid-f"></div>
-</div>
-<div class="ep0306-card" style="border:2px solid #185FA5;">
-<p class="ep0306-label" style="color:#185FA5;">Resultado g (filtro suavizado)</p>
-<p style="font-size:11px;color:#185FA5;margin:0;">passe o mouse para inspecionar</p>
-<div class="ep0306-grid" id="ep0306-grid-result"></div>
-</div>
-</div>
-<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
-<span style="font-size:12px;font-weight:500;color:var(--color-text-secondary);">Legenda</span>
-<div style="display:flex;align-items:center;gap:8px;">
-<div style="width:20px;height:20px;background:#FAEEDA;border:2px dashed #BA7517;border-radius:4px;"></div>
-<span style="font-size:12px;color:var(--color-text-secondary);">Janela do kernel (vizinhos)</span>
-</div>
-<div style="display:flex;align-items:center;gap:8px;">
-<div style="width:20px;height:20px;background:#E1F5EE;border:1.5px solid #1D9E75;border-radius:4px;"></div>
-<span style="font-size:12px;color:var(--color-text-secondary);">Borda — copiada sem filtro</span>
-</div>
-<div style="display:flex;align-items:center;gap:8px;">
-<div style="width:20px;height:20px;background:#E6F1FB;border:1.5px solid #185FA5;border-radius:4px;"></div>
-<span style="font-size:12px;color:var(--color-text-secondary);">Pixel inspecionado</span>
-</div>
-</div>
-<div id="ep0306-debug" style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:var(--border-radius-md);padding:10px 14px;font-family:var(--font-mono);font-size:12px;color:#0C447C;text-align:center;min-height:38px;line-height:1.6;">
-    Passe o mouse sobre um pixel interno do resultado para ver o cálculo.
-  </div>
-</div>
-<script>
-
-(function(){
-  const EP0306_ROWS = 7, EP0306_COLS = 7, EP0306_N = 49;
-  let ep0306Pixels = [], ep0306Result = [], ep0306KSize = 3, ep0306Radius = 1;
-
-  function ep0306GenPixels() {
-    ep0306Pixels = Array.from({ length: EP0306_N }, () => {
-      let v = 60 + Math.floor(Math.random() * 60);
-      if (Math.random() > 0.82) v = Math.random() > 0.5 ? 255 : 0;
-      return v;
-    });
-  }
-
-  function ep0306CalcFilter() {
-    ep0306Result = [...ep0306Pixels];
-    ep0306Radius = Math.floor(ep0306KSize / 2);
-    for (let r = 0; r < EP0306_ROWS; r++) {
-      for (let c = 0; c < EP0306_COLS; c++) {
-        if (r >= ep0306Radius && r < EP0306_ROWS - ep0306Radius && c >= ep0306Radius && c < EP0306_COLS - ep0306Radius) {
-          let sum = 0, cnt = 0;
-          for (let s = -ep0306Radius; s <= ep0306Radius; s++)
-            for (let t = -ep0306Radius; t <= ep0306Radius; t++) { sum += ep0306Pixels[(r+s)*EP0306_COLS+(c+t)]; cnt++; }
-          ep0306Result[r*EP0306_COLS+c] = Math.round(sum/cnt);
-        }
-      }
-    }
-  }
-
-  function ep0306TC(g){ return g > 140 ? '#111' : '#eee'; }
-
-  function ep0306HighlightKernel(tr, tc, on) {
-    const cells = document.getElementById('ep0306-grid-f').children;
-    for (let r = 0; r < EP0306_ROWS; r++) {
-      for (let c = 0; c < EP0306_COLS; c++) {
-        const idx = r*EP0306_COLS+c;
-        if (!cells[idx]) continue;
-        const p = ep0306Pixels[idx];
-        if (on && Math.abs(r-tr) <= ep0306Radius && Math.abs(c-tc) <= ep0306Radius) {
-          cells[idx].style.background = '#FAEEDA';
-          cells[idx].style.color = '#633806';
-          cells[idx].style.boxShadow = '0 0 0 2px #BA7517 inset';
-        } else {
-          cells[idx].style.background = `rgb(${p},${p},${p})`;
-          cells[idx].style.color = ep0306TC(p);
-          cells[idx].style.boxShadow = 'none';
-        }
-      }
-    }
-  }
-
-  function ep0306Render() {
-    const gf = document.getElementById('ep0306-grid-f');
-    const gr = document.getElementById('ep0306-grid-result');
-    const cols = `repeat(${EP0306_COLS}, 42px)`;
-    gf.style.gridTemplateColumns = cols;
-    gr.style.gridTemplateColumns = cols;
-    gf.innerHTML = ''; gr.innerHTML = '';
-
-    for (let i = 0; i < EP0306_N; i++) {
-      const r = Math.floor(i/EP0306_COLS), c = i%EP0306_COLS;
-      const p = ep0306Pixels[i], res = ep0306Result[i];
-      const isBorder = r < ep0306Radius || r >= EP0306_ROWS-ep0306Radius || c < ep0306Radius || c >= EP0306_COLS-ep0306Radius;
-
-      const cf = document.createElement('div');
-      cf.className = 'ep0306-cell';
-      cf.style.background = `rgb(${p},${p},${p})`;
-      cf.style.color = ep0306TC(p);
-      cf.style.border = '0.5px solid rgba(128,128,128,0.15)';
-      cf.innerText = p;
-      gf.appendChild(cf);
-
-      const cr = document.createElement('div');
-      cr.className = 'ep0306-cell';
-      cr.style.background = `rgb(${res},${res},${res})`;
-      cr.style.color = ep0306TC(res);
-      cr.innerText = res;
-
-      if (isBorder) {
-        cr.style.border = '1.5px solid #1D9E75';
-        cr.style.background = '#E1F5EE';
-        cr.style.color = '#085041';
-        cr.onmouseenter = () => {
-          document.getElementById('ep0306-debug').innerHTML =
-            `Pixel (${r},${c}) é <b>borda</b>: valor herdado do original sem cálculo &nbsp;→&nbsp; <b>${res}</b>`;
-        };
-        cr.onmouseleave = () => ep0306ResetDebug();
-      } else {
-        cr.style.border = '0.5px solid var(--color-border-tertiary)';
-        cr.style.cursor = 'pointer';
-        cr.onmouseenter = () => {
-          ep0306HighlightKernel(r, c, true);
-          cr.style.transform = 'scale(1.12)';
-          cr.style.boxShadow = '0 0 0 2px #185FA5 inset';
-          cr.style.background = '#E6F1FB';
-          cr.style.color = '#0C447C';
-          const neighbors = [];
-          for (let s = -ep0306Radius; s <= ep0306Radius; s++)
-            for (let t = -ep0306Radius; t <= ep0306Radius; t++)
-              neighbors.push(ep0306Pixels[(r+s)*EP0306_COLS+(c+t)]);
-          const k = ep0306KSize * ep0306KSize;
-          document.getElementById('ep0306-debug').innerHTML =
-            `Pixel (${r},${c}): round( (${neighbors.join(' + ')}) / ${k} ) &nbsp;=&nbsp; <b>${res}</b>`;
-        };
-        cr.onmouseleave = () => {
-          ep0306HighlightKernel(r, c, false);
-          cr.style.transform = 'scale(1)';
-          cr.style.boxShadow = 'none';
-          cr.style.background = `rgb(${res},${res},${res})`;
-          cr.style.color = ep0306TC(res);
-          ep0306ResetDebug();
-        };
-      }
-      gr.appendChild(cr);
-    }
-  }
-
-  function ep0306ResetDebug() {
-    document.getElementById('ep0306-debug').innerText =
-      'Passe o mouse sobre um pixel interno do resultado para ver o cálculo.';
-  }
-
-  window.ep0306SetKernel = function(k) {
-    ep0306KSize = k;
-    document.getElementById('ep0306-btn-k3').classList.toggle('active', k===3);
-    document.getElementById('ep0306-btn-k5').classList.toggle('active', k===5);
-    ep0306CalcFilter();
-    ep0306Render();
-  };
-
-  document.getElementById('ep0306-btn-new').onclick = () => {
-    ep0306GenPixels(); ep0306CalcFilter(); ep0306Render();
-  };
-
-  ep0306GenPixels(); ep0306CalcFilter(); ep0306Render();
-})();
-
-</script>
-</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-filtro-media-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 3.31: Simulador EP03_06: Filtro de Média com Kernel N×N
+</figcaption>
 </div>
 <div class="cell" id="ep0306_write">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a aria-hidden="true" href="#cb68-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_06.py</span>
@@ -325,5 +139,250 @@
 <span style="color:#f39c12;font-weight:500">⚠️ EP03_06.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
+</div><div id="sim-ep0306-media" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🔲 Simulador EP03_06: Filtro de Média com Kernel N×N</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">g = Média(Vizinhos)</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Selecione o tamanho do kernel e passe o mouse sobre os píxeis do resultado para inspecionar a vizinhança e o cálculo da média aritmética.</p>
+<!-- Barra de Controles / Seleção de Kernel -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span style="font-size:11px;font-weight:700;color:#26241d;">Tamanho do kernel:</span>
+<button id="sim_ep0306_btn_k3" style="padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #2980b9;background:#ebf4fd;color:#2980b9;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">3 × 3 (9 vizinhos)</button>
+<button id="sim_ep0306_btn_k5" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">5 × 5 (25 vizinhos)</button>
+</div>
+<button id="sim_ep0306_btnNew" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nova Imagem</button>
+</div>
+<!-- Comparativo Lado a Lado: Original vs Resultado -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Imagem Original (7x7) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Imagem Original f (7×7)</span>
+<span style="font-size:10px;color:#8a8371;display:block;margin-bottom:10px;">Com ruído sal e pimenta</span>
+<div id="sim_ep0306_grid_f" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Resultado Suavizado -->
+<div style="background:#fafaf7;border:2px solid #2980b9;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Resultado g (Filtro Suavizado)</span>
+<span style="font-size:10px;color:#2980b9;display:block;margin-bottom:10px;">Passe o mouse para inspecionar</span>
+<div id="sim_ep0306_grid_result" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+<!-- Legenda -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:10px;padding:10px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
+<span style="font-size:11px;font-weight:700;color:#5e5a4a;">Legenda:</span>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#fef5e7;border:1.5px dashed #b9770e;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Janela do Kernel</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#eafaf1;border:1.5px solid #27ae60;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Borda (Copiada)</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#ebf4fd;border:1.5px solid #2980b9;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Pixel Inspecionado</span>
+</div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0306_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:10px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;min-height:36px;line-height:1.5;">
+      Passe o mouse sobre um pixel interno do resultado para ver o cálculo da média.
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0306(root){
+    if (!root || root.dataset.simEp0306Init) return;
+    root.dataset.simEp0306Init = "1";
+
+    var ROWS = 7, COLS = 7, N = 49;
+    var pixels = [], result = [], kSize = 3, radius = 1;
+
+    var gridF   = root.querySelector('#sim_ep0306_grid_f');
+    var gridRes = root.querySelector('#sim_ep0306_grid_result');
+    var debug   = root.querySelector('#sim_ep0306_debug');
+    var btnK3   = root.querySelector('#sim_ep0306_btn_k3');
+    var btnK5   = root.querySelector('#sim_ep0306_btn_k5');
+    var btnNew  = root.querySelector('#sim_ep0306_btnNew');
+
+    function generatePixels() {
+      pixels = Array.from({ length: N }, function(){
+        var v = 60 + Math.floor(Math.random() * 60);
+        if (Math.random() > 0.82) v = Math.random() > 0.5 ? 255 : 0;
+        return v;
+      });
+    }
+
+    function calculateFilter() {
+      result = pixels.slice();
+      radius = Math.floor(kSize / 2);
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (r >= radius && r < ROWS - radius && c >= radius && c < COLS - radius) {
+            var sum = 0, cnt = 0;
+            for (var s = -radius; s <= radius; s++) {
+              for (var t = -radius; t <= radius; t++) {
+                sum += pixels[(r + s) * COLS + (c + t)];
+                cnt++;
+              }
+            }
+            result[r * COLS + c] = Math.round(sum / cnt);
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+
+    function highlightKernel(tr, tc, on) {
+      var cells = gridF.children;
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var idx = r * COLS + c;
+          if (!cells[idx]) continue;
+          var p = pixels[idx];
+          if (on && Math.abs(r - tr) <= radius && Math.abs(c - tc) <= radius) {
+            cells[idx].style.background = '#fef5e7';
+            cells[idx].style.color = '#b9770e';
+            cells[idx].style.boxShadow = '0 0 0 2px #b9770e inset';
+          } else {
+            cells[idx].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+            cells[idx].style.color = textColor(p);
+            cells[idx].style.boxShadow = 'none';
+          }
+        }
+      }
+    }
+
+    function render() {
+      var cols = 'repeat(' + COLS + ', 42px)';
+      gridF.style.gridTemplateColumns = cols;
+      gridRes.style.gridTemplateColumns = cols;
+      gridF.innerHTML = '';
+      gridRes.innerHTML = '';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], res = result[i];
+        var isBorder = r < radius || r >= ROWS - radius || c < radius || c >= COLS - radius;
+
+        // Célula Original f
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '2px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel (' + row + ',' + col + ') é <b>borda</b>: valor herdado do original sem cálculo &nbsp;→&nbsp; <b>' + val + '</b>';
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              highlightKernel(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var neighbors = [];
+              for (var s = -radius; s <= radius; s++) {
+                for (var t = -radius; t <= radius; t++) {
+                  neighbors.push(pixels[(row + s) * COLS + (col + t)]);
+                }
+              }
+              var kTotal = kSize * kSize;
+              debug.innerHTML = 'Pixel (' + row + ',' + col + '): round( (' + neighbors.join(' + ') + ') / ' + kTotal + ' ) &nbsp;=&nbsp; <b>' + val + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlightKernel(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + val + ',' + val + ',' + val + ')';
+              cr.style.color = textColor(val);
+              resetDebug();
+            });
+          })(r, c, res);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um pixel interno do resultado para ver o cálculo da média.';
+    }
+
+    function setKernel(k) {
+      kSize = k;
+      if (k === 3) {
+        btnK3.style.background = '#ebf4fd';
+        btnK3.style.borderColor = '#2980b9';
+        btnK3.style.color = '#2980b9';
+        btnK3.style.fontWeight = '700';
+
+        btnK5.style.background = '#f1ead7';
+        btnK5.style.borderColor = '#e4dcc8';
+        btnK5.style.color = '#5e5a4a';
+        btnK5.style.fontWeight = '600';
+      } else {
+        btnK5.style.background = '#ebf4fd';
+        btnK5.style.borderColor = '#2980b9';
+        btnK5.style.color = '#2980b9';
+        btnK5.style.fontWeight = '700';
+
+        btnK3.style.background = '#f1ead7';
+        btnK3.style.borderColor = '#e4dcc8';
+        btnK3.style.color = '#5e5a4a';
+        btnK3.style.fontWeight = '600';
+      }
+      calculateFilter();
+      render();
+    }
+
+    btnK3.addEventListener('click', function(){ setKernel(3); });
+    btnK5.addEventListener('click', function(){ setKernel(5); });
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      calculateFilter();
+      render();
+    });
+
+    generatePixels();
+    calculateFilter();
+    render();
+  }
+
+  function tryInitSimEP0306(){
+    var root = document.getElementById('sim-ep0306-media');
+    if (root) initSimEP0306(root); else setTimeout(tryInitSimEP0306, 200);
+  }
+  tryInitSimEP0306();
+})();
+
+</script>
 </div>
 </div>

@@ -100,172 +100,9 @@
 </tbody>
 </table>
 <div class="cell" id="cell-fig-03-sim-mascara-and">
-<style>
-.ep0305-cell{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;border-radius:6px;transition:transform 0.1s;}
-.ep0305-mask-cell{cursor:pointer;border:2px solid;}
-.ep0305-mask-cell:hover{transform:scale(1.08);}
-.ep0305-mask-cell:active{transform:scale(0.95);}
-.ep0305-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;text-align:center;}
-.ep0305-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;}
-.ep0305-formula{font-family:var(--font-mono);font-size:13px;color:var(--color-text-primary);margin:0;}
-.ep0305-grid{display:grid;grid-template-columns:repeat(4,42px);gap:4px;justify-content:center;margin-top:12px;}
-.ep0305-stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 14px;font-size:12px;color:var(--color-text-secondary);}
-.ep0305-stat b{font-weight:500;font-size:15px;display:block;color:var(--color-text-primary);}
-</style>
-<h2 class="sr-only anchored" data-anchor-id="exemplos-4">Simulador de máscara AND binária: aplica operação AND pixel a pixel entre imagem e máscara interativa.</h2>
-<div id="ep0305-sim-and-03" style="max-width:900px;margin:0 auto;padding:4px 0 16px;">
-<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px;">
-<div class="ep0305-card">
-<p class="ep0305-label">Imagem f</p>
-<p class="ep0305-formula">valores 0–255</p>
-<div class="ep0305-grid" id="ep0305-grid-f">
-<button id="ep0305-btn-new" style="margin-top:14px;font-size:11px;padding:5px 12px;">
-<i aria-hidden="true" class="ti ti-dice"></i> Nova imagem
-      </button>
-</div>
-<div class="ep0305-card" style="border:2px solid #185FA5;">
-<p class="ep0305-label" style="color:#185FA5;">Máscara m</p>
-<p class="ep0305-formula" style="color:#185FA5;">clique para alternar</p>
-<div class="ep0305-grid" id="ep0305-grid-mask"></div>
-<button id="ep0305-btn-reset" style="margin-top:14px;font-size:11px;padding:5px 12px;">
-<i aria-hidden="true" class="ti ti-refresh"></i> Resetar máscara
-      </button>
-</div>
-<div class="ep0305-card" style="border:2px solid #0F6E56;">
-<p class="ep0305-label" style="color:#0F6E56;">Resultado g</p>
-<p class="ep0305-formula" style="color:#0F6E56;">g = f AND m</p>
-<div class="ep0305-grid" id="ep0305-grid-result"></div>
-<div style="margin-top:14px;height:26px;display:flex;align-items:center;justify-content:center;">
-<span id="ep0305-pct" style="font-size:12px;color:var(--color-text-secondary);font-family:var(--font-mono);"></span>
-</div>
-</div>
-</div>
-<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;">
-<div class="ep0305-stat"><b id="ep0305-stat-preserved">—</b>preservados</div>
-<div class="ep0305-stat"><b id="ep0305-stat-zeroed">—</b>zerados</div>
-<div class="ep0305-stat"><b id="ep0305-stat-ratio">—</b>% da imagem visível</div>
-</div>
-<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:14px;">
-<span style="font-size:12px;font-weight:500;color:var(--color-text-secondary);">Legenda da máscara</span>
-<div style="display:flex;align-items:center;gap:8px;">
-<div style="width:32px;height:32px;background:#E6F1FB;border:2px solid #185FA5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#0C447C;">255</div>
-<span style="font-size:12px;color:var(--color-text-secondary);">Passante — pixel preservado</span>
-</div>
-<div style="display:flex;align-items:center;gap:8px;">
-<div style="width:32px;height:32px;background:#2C2C2A;border:2px solid #444441;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#B4B2A9;">0</div>
-<span style="font-size:12px;color:var(--color-text-secondary);">Bloqueante — pixel zerado</span>
-</div>
-</div>
-<div style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:var(--border-radius-md);padding:10px 14px;font-family:var(--font-mono);font-size:12px;color:#0C447C;text-align:center;">
-<span id="ep0305-debug">g(i,j) = f(i,j) &amp; m(i,j)</span>
-</div>
-</div>
-<script>
-
-(function ep0305Init() {
-  const ep0305Container = document.getElementById('ep0305-sim-and-03');
-  if (!ep0305Container) { setTimeout(ep0305Init, 100); return; }
-
-  const ep0305GridF      = document.getElementById('ep0305-grid-f');
-  const ep0305GridMask   = document.getElementById('ep0305-grid-mask');
-  const ep0305GridResult = document.getElementById('ep0305-grid-result');
-  const ep0305Debug      = document.getElementById('ep0305-debug');
-  const ep0305Pct        = document.getElementById('ep0305-pct');
-  const ep0305StatPres   = document.getElementById('ep0305-stat-preserved');
-  const ep0305StatZero   = document.getElementById('ep0305-stat-zeroed');
-  const ep0305StatRatio  = document.getElementById('ep0305-stat-ratio');
-
-  const EP0305_N = 16;
-  let ep0305Pixels = [];
-  let ep0305Mask   = [];
-
-  function ep0305GeneratePixels() {
-    ep0305Pixels = Array.from({ length: EP0305_N }, () => Math.floor(Math.random() * 256));
-  }
-
-  function ep0305ResetMask() {
-    ep0305Mask = Array.from({ length: EP0305_N }, (_, i) => {
-      const r = Math.floor(i / 4), c = i % 4;
-      return (r + c) % 2 === 0 ? 255 : 0;
-    });
-  }
-
-  function ep0305TextColor(gray) {
-    return gray > 140 ? '#111' : '#eee';
-  }
-
-  function ep0305Render() {
-    ep0305GridF.innerHTML = '';
-    ep0305GridMask.innerHTML = '';
-    ep0305GridResult.innerHTML = '';
-
-    let ep0305Preserved = 0, ep0305Zeroed = 0;
-
-    for (let i = 0; i < EP0305_N; i++) {
-      const p = ep0305Pixels[i];
-      const m = ep0305Mask[i];
-      const res = p & m;
-
-      const ep0305CellF = document.createElement('div');
-      ep0305CellF.className = 'ep0305-cell';
-      ep0305CellF.style.background = `rgb(${p},${p},${p})`;
-      ep0305CellF.style.color = ep0305TextColor(p);
-      ep0305CellF.style.border = '0.5px solid rgba(128,128,128,0.2)';
-      ep0305CellF.innerText = p;
-      ep0305GridF.appendChild(ep0305CellF);
-
-      const ep0305CellM = document.createElement('div');
-      ep0305CellM.className = 'ep0305-cell ep0305-mask-cell';
-      if (m === 255) {
-        ep0305CellM.style.background = '#E6F1FB';
-        ep0305CellM.style.borderColor = '#185FA5';
-        ep0305CellM.style.color = '#0C447C';
-      } else {
-        ep0305CellM.style.background = '#2C2C2A';
-        ep0305CellM.style.borderColor = '#5F5E5A';
-        ep0305CellM.style.color = '#B4B2A9';
-      }
-      ep0305CellM.innerText = m;
-      ep0305CellM.setAttribute('title', m === 255 ? 'Clique para bloquear' : 'Clique para passar');
-      const ep0305Idx = i;
-      ep0305CellM.onclick = () => {
-        ep0305Mask[ep0305Idx] = ep0305Mask[ep0305Idx] === 255 ? 0 : 255;
-        ep0305Render();
-      };
-      ep0305GridMask.appendChild(ep0305CellM);
-
-      const ep0305CellR = document.createElement('div');
-      ep0305CellR.className = 'ep0305-cell';
-      ep0305CellR.style.background = `rgb(${res},${res},${res})`;
-      ep0305CellR.style.color = ep0305TextColor(res);
-      ep0305CellR.style.border = m === 255
-        ? '1.5px solid #1D9E75'
-        : '0.5px solid rgba(128,128,128,0.15)';
-      ep0305CellR.innerText = res;
-      ep0305GridResult.appendChild(ep0305CellR);
-
-      if (m === 255) ep0305Preserved++; else ep0305Zeroed++;
-    }
-
-    const ep0305RatioPct = Math.round((ep0305Preserved / EP0305_N) * 100);
-    ep0305StatPres.innerText = ep0305Preserved;
-    ep0305StatZero.innerText = ep0305Zeroed;
-    ep0305StatRatio.innerText = ep0305RatioPct + '%';
-    ep0305Pct.innerText = ep0305RatioPct + '% visível';
-    ep0305Debug.innerHTML =
-      `g(i,j) = f(i,j) &amp; m(i,j) &nbsp;|&nbsp; ${ep0305Preserved} preservados · ${ep0305Zeroed} zerados`;
-  }
-
-  document.getElementById('ep0305-btn-new').onclick = () => { ep0305GeneratePixels(); ep0305Render(); };
-  document.getElementById('ep0305-btn-reset').onclick = () => { ep0305ResetMask(); ep0305Render(); };
-
-  ep0305GeneratePixels();
-  ep0305ResetMask();
-  ep0305Render();
-})();
-
-</script>
-</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-mascara-and-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 3.30: Simulador: Aplicação de Máscara AND Binária
+</figcaption>
 </div>
 <div class="cell" id="ep0305_write">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a aria-hidden="true" href="#cb65-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_05.py</span>
@@ -284,5 +121,184 @@
 <span style="color:#f39c12;font-weight:500">⚠️ EP03_05.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
+</div><div id="sim-ep0305-mascara" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">⬛ Simulador EP03_05: Máscara AND Binária</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">g = f AND m</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Clique nas células da <b>Máscara m</b> para alternar entre passante (255) e bloqueante (0), aplicando a operação lógica pixel a pixel.</p>
+<!-- Três Colunas Principais: Imagem f, Máscara m, Resultado g -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:16px;">
+<!-- Imagem f -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Imagem f (0–255)</span>
+<div id="sim_ep0305_grid_f" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0305_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nova Imagem</button>
+</div>
+<!-- Máscara m -->
+<div style="background:#fafaf7;border:2px solid #2980b9;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Máscara m (Clique para Alternar)</span>
+<div id="sim_ep0305_grid_mask" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0305_btnReset" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:9px;white-space:nowrap;transition:all 0.15s ease;">↺ Resetar Máscara</button>
+</div>
+<!-- Resultado g -->
+<div style="background:#fafaf7;border:2px solid #27ae60;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Resultado g = f AND m</span>
+<div id="sim_ep0305_grid_result" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<div style="margin-top:12px;height:26px;display:flex;align-items:center;justify-content:center;">
+<span id="sim_ep0305_pct" style="font-size:11px;font-weight:700;color:#26241d;font-family:monospace;">—</span>
+</div>
+</div>
+</div>
+<!-- Estatísticas de Preservação -->
+<div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;margin-bottom:14px;text-align:center;">
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:8px;padding:8px 10px;font-size:11px;color:#8a8371;">
+<b id="sim_ep0305_stat_preserved" style="font-size:14px;display:block;color:#26241d;font-family:monospace;">—</b>preservados
+      </div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:8px;padding:8px 10px;font-size:11px;color:#8a8371;">
+<b id="sim_ep0305_stat_zeroed" style="font-size:14px;display:block;color:#26241d;font-family:monospace;">—</b>zerados
+      </div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:8px;padding:8px 10px;font-size:11px;color:#8a8371;">
+<b id="sim_ep0305_stat_ratio" style="font-size:14px;display:block;color:#26241d;font-family:monospace;">—</b>visível
+      </div>
+</div>
+<!-- Legenda e Debug -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:10px;padding:10px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
+<span style="font-size:11px;font-weight:700;color:#5e5a4a;">Legenda:</span>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:24px;height:24px;background:#ebf4fd;border:1.5px solid #2980b9;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#2980b9;">255</div>
+<span style="font-size:10.5px;color:#5e5a4a;">Passante (preservado)</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:24px;height:24px;background:#26241d;border:1.5px solid #8a8371;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#7ee7c6;">0</div>
+<span style="font-size:10.5px;color:#5e5a4a;">Bloqueante (zerado)</span>
+</div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0305_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      g(i,j) = f(i,j) &amp; m(i,j)
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0305(root){
+    if (!root || root.dataset.simEp0305Init) return;
+    root.dataset.simEp0305Init = "1";
+
+    var gridF      = root.querySelector('#sim_ep0305_grid_f');
+    var gridMask   = root.querySelector('#sim_ep0305_grid_mask');
+    var gridResult = root.querySelector('#sim_ep0305_grid_result');
+    var debugDiv   = root.querySelector('#sim_ep0305_debug');
+    var pctSpan    = root.querySelector('#sim_ep0305_pct');
+    var statPres   = root.querySelector('#sim_ep0305_stat_preserved');
+    var statZero   = root.querySelector('#sim_ep0305_stat_zeroed');
+    var statRatio  = root.querySelector('#sim_ep0305_stat_ratio');
+
+    var btnNew     = root.querySelector('#sim_ep0305_btnNew');
+    var btnReset   = root.querySelector('#sim_ep0305_btnReset');
+
+    var N = 16;
+    var pixels = [];
+    var mask = [];
+
+    function generatePixels() {
+      pixels = Array.from({ length: N }, function(){ return Math.floor(Math.random() * 256); });
+    }
+
+    function resetMask() {
+      mask = Array.from({ length: N }, function(_, i) {
+        var r = Math.floor(i / 4), c = i % 4;
+        return (r + c) % 2 === 0 ? 255 : 0;
+      });
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridMask.innerHTML = '';
+      gridResult.innerHTML = '';
+
+      var preserved = 0, zeroed = 0;
+
+      for (var i = 0; i < N; i++) {
+        var p = pixels[i];
+        var m = mask[i];
+        var res = p & m;
+
+        // Célula F
+        var cellF = document.createElement('div');
+        var fgF = p > 128 ? '#000000' : '#ffffff';
+        cellF.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + fgF + ';box-sizing:border-box;';
+        cellF.textContent = p;
+        gridF.appendChild(cellF);
+
+        // Célula Máscara M (interativa)
+        var cellM = document.createElement('div');
+        cellM.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;user-select:none;box-sizing:border-box;transition:all 0.15s ease;';
+        if (m === 255) {
+          cellM.style.background = '#ebf4fd';
+          cellM.style.border = '2px solid #2980b9';
+          cellM.style.color = '#2980b9';
+        } else {
+          cellM.style.background = '#26241d';
+          cellM.style.border = '2px solid #8a8371';
+          cellM.style.color = '#7ee7c6';
+        }
+        cellM.textContent = m;
+        cellM.title = m === 255 ? 'Clique para bloquear (0)' : 'Clique para passar (255)';
+
+        (function(idx){
+          cellM.addEventListener('click', function(){
+            mask[idx] = mask[idx] === 255 ? 0 : 255;
+            render();
+          });
+        })(i);
+
+        gridMask.appendChild(cellM);
+
+        // Célula Resultado G
+        var cellR = document.createElement('div');
+        var fgR = res > 128 ? '#000000' : '#ffffff';
+        var borderStyle = m === 255 ? '2px solid #27ae60' : '1px solid #e4dcc8';
+        cellR.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;background:rgb(' + res + ',' + res + ',' + res + ');color:' + fgR + ';border:' + borderStyle + ';box-sizing:border-box;';
+        cellR.textContent = res;
+        gridResult.appendChild(cellR);
+
+        if (m === 255) preserved++; else zeroed++;
+      }
+
+      var ratioPct = Math.round((preserved / N) * 100);
+      statPres.textContent = preserved;
+      statZero.textContent = zeroed;
+      statRatio.textContent = ratioPct + '%';
+      pctSpan.textContent = ratioPct + '% visível';
+      debugDiv.innerHTML = 'g(i,j) = f(i,j) &amp; m(i,j) &nbsp;|&nbsp; <b>' + preserved + '</b> preservados · <b>' + zeroed + '</b> zerados';
+    }
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      resetMask();
+      render();
+    });
+
+    generatePixels();
+    resetMask();
+    render();
+  }
+
+  function tryInitSimEP0305(){
+    var root = document.getElementById('sim-ep0305-mascara');
+    if (root) initSimEP0305(root); else setTimeout(tryInitSimEP0305, 200);
+  }
+  tryInitSimEP0305();
+})();
+
+</script>
 </div>
 </div>

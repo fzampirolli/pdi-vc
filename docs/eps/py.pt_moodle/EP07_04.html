@@ -99,106 +99,152 @@
 </tbody>
 </table>
 <div class="cell" id="cell-fig-07-sim-ep04">
-</div>
-</div><div id="sim-ep0704" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
-<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulador: Código LBP de uma Vizinhança 3×3</span>
-<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 P=8, R=1</span>
-
-</div><div style="padding:20px;background:white;overflow:auto">
-<p style="font-size:11px;color:#777;margin-bottom:10px;text-align:center;">Clique em uma célula da vizinhança para alternar entre claro e escuro (o centro, em destaque, é fixo) e observe o código LBP resultante. O rótulo pequeno em cada célula é o índice p da equação.</p>
-<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;">
-<button class="ep0704_btn" id="ep0704_b1">Exemplo 1: mancha homogênea</button>
-<button class="ep0704_btn" id="ep0704_b2">Exemplo 2: padrão alternado</button>
-</div>
-<div id="ep0704_grid" style="display:grid;grid-template-columns:repeat(3,60px);gap:4px;justify-content:center;margin-bottom:16px;"></div>
-<div id="ep0704_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
-</div>
+<div id="sim07_ep04" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <style>
-  #sim-ep0704 .ep0704_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
-  #sim-ep0704 .ep0704_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+  #sim07_ep04 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim07_ep04 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim07_ep04 button:hover { background: #e8dfcf; }
+  #sim07_ep04 button.sim07_ep04_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim07_ep04_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim07_ep04_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
 </style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP07_04: Código LBP de uma Vizinhança 3×3</span>
+<span class="sim07_ep04_pill">P = 8, R = 1</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Seleção de Exemplo -->
+<div class="sim07_ep04_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:10px;">
+      Clique em uma célula da vizinhança para alternar entre claro e escuro (o centro é fixo) e observe o código LBP resultante. O rótulo p indica o índice da equação.
+    </div>
+<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+<button id="sim07_ep04_b1">Exemplo 1: Mancha Homogênea</button>
+<button class="sim07_ep04_active" id="sim07_ep04_b2">Exemplo 2: Padrão Alternado</button>
+</div>
+</div>
+<!-- Grid Vizinhança 3x3 -->
+<div class="sim07_ep04_panel" style="margin-bottom:14px; text-align:center;">
+<div id="sim07_ep04_grid" style="display:grid; grid-template-columns:repeat(3, 60px); gap:4px; justify-content:center;"></div>
+</div>
+<!-- Painel Informativo / Debug -->
+<div class="sim07_ep04_panel" id="sim07_ep04_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div>
+</div>
+</div>
 <script>
 
 (function(){
-  function init(root){
-    if(!root || root.dataset.init) return;
-    root.dataset.init = "1";
+  function initSim07Ep04(root){
+    if (!root || root.dataset.sim07Ep04Init) return;
+    root.dataset.sim07Ep04Init = "1";
+
     var exemplos = {
-      1: [[10,10,10],[10,50,10],[10,10,10]],
-      2: [[90,90,90],[10,50,10],[90,90,90]]
+      1: [[10, 10, 10], [10, 50, 10], [10, 10, 10]],
+      2: [[90, 90, 90], [10, 50, 10], [90, 90, 90]]
     };
+
     var valores = exemplos[2].map(function(row){ return row.slice(); });
-    var grid = root.querySelector('#ep0704_grid');
-    var dbg = root.querySelector('#ep0704_debug');
-    var btn1 = root.querySelector('#ep0704_b1');
-    var btn2 = root.querySelector('#ep0704_b2');
-    var ordem = [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]];
+    var grid = root.querySelector('#sim07_ep04_grid');
+    var dbg  = root.querySelector('#sim07_ep04_debug');
+    var btn1 = root.querySelector('#sim07_ep04_b1');
+    var btn2 = root.querySelector('#sim07_ep04_b2');
+
+    var ordem = [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0], [1, 0]];
     var pIndex = {};
-    ordem.forEach(function(pos,p){ pIndex[pos[0]+','+pos[1]] = p; });
+    ordem.forEach(function(pos, p){ pIndex[pos[0] + ',' + pos[1]] = p; });
     var cenarioAtivo = 2;
 
     function marcarBotaoAtivo(n){
       cenarioAtivo = n;
-      btn1.classList.toggle('ativo', n===1);
-      btn2.classList.toggle('ativo', n===2);
+      btn1.classList.toggle('sim07_ep04_active', n === 1);
+      btn2.classList.toggle('sim07_ep04_active', n === 2);
     }
 
     function render(){
       grid.innerHTML = '';
-      for(var r=0;r<3;r++){
-        for(var c=0;c<3;c++){
-          (function(r,c){
+      for (var r = 0; r < 3; r++){
+        for (var c = 0; c < 3; c++){
+          (function(r, c){
             var v = valores[r][c];
-            var central = (r===1 && c===1);
+            var central = (r === 1 && c === 1);
             var div = document.createElement('div');
-            div.style.cssText = 'position:relative;height:60px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;border-radius:6px;cursor:'+(central?'default':'pointer')+';border:2px solid '+(central?'#4f46e5':'#d1d5db')+';background:rgb('+v+','+v+','+v+');color:'+(v>128?'#111':'#fff')+';';
+
+            var bordaCor = central ? '#26241d' : '#e4dcc8';
+            var textoCor = v > 128 ? '#26241d' : '#ffffff';
+
+            div.style.cssText = 'position:relative; height:60px; display:flex; align-items:center; justify-content:center; font-family:monospace; font-weight:700; border-radius:6px; cursor:' + (central ? 'default' : 'pointer') + '; border:2px solid ' + bordaCor + '; background:rgb(' + v + ',' + v + ',' + v + '); color:' + textoCor + '; transition:all 0.15s ease;';
             div.textContent = v;
-            if(!central){
+
+            if (!central){
               var pLabel = document.createElement('span');
-              pLabel.textContent = 'p'+pIndex[r+','+c];
-              pLabel.style.cssText = 'position:absolute;top:2px;left:4px;font-size:9px;font-weight:400;opacity:0.75;';
+              pLabel.textContent = 'p' + pIndex[r + ',' + c];
+              pLabel.style.cssText = 'position:absolute; top:2px; left:4px; font-size:9px; font-weight:400; opacity:0.8;';
               div.appendChild(pLabel);
+
               div.addEventListener('click', function(){
                 valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
                 cenarioAtivo = null;
-                btn1.classList.remove('ativo');
-                btn2.classList.remove('ativo');
+                btn1.classList.remove('sim07_ep04_active');
+                btn2.classList.remove('sim07_ep04_active');
                 render();
               });
             }
             grid.appendChild(div);
-          })(r,c);
+          })(r, c);
         }
       }
+
       var gc = valores[1][1];
       var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
       var lbp = 0;
-      bits.forEach(function(b,p){ lbp += b * Math.pow(2,p); });
+      bits.forEach(function(b, p){ lbp += b * Math.pow(2, p); });
+
       var trans = 0;
-      for(var i=0;i<8;i++){ if(bits[i] !== bits[(i+1)%8]) trans++; }
-      var classe = trans <= 2 ? 'UNIFORME' : 'NAO_UNIFORME';
-      dbg.textContent = 'bits(p0..p7)='+bits.join('')+'  |  LBP='+lbp+'  |  transições='+trans+'  |  '+classe;
+      for (var i = 0; i < 8; i++){
+        if (bits[i] !== bits[(i + 1) % 8]) trans++;
+      }
+
+      var classe = trans <= 2 ? 'UNIFORME' : 'NÃO-UNIFORME';
+
+      if (trans <= 2) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'bits (p0..p7) = ' + bits.join('') + '  |  LBP = ' + lbp + '  |  transições = ' + trans + '  |  ' + classe;
     }
+
     btn1.addEventListener('click', function(){
       valores = exemplos[1].map(function(row){ return row.slice(); });
       marcarBotaoAtivo(1);
       render();
     });
+
     btn2.addEventListener('click', function(){
       valores = exemplos[2].map(function(row){ return row.slice(); });
       marcarBotaoAtivo(2);
       render();
     });
+
     marcarBotaoAtivo(2);
     render();
   }
-  function tryInit(){
-    var root = document.getElementById('sim-ep0704');
-    if(root) init(root); else setTimeout(tryInit, 200);
+
+  function tryInitSim07Ep04(){
+    var root = document.getElementById('sim07_ep04');
+    if (root) initSim07Ep04(root); else setTimeout(tryInitSim07Ep04, 200);
   }
-  tryInit();
+  tryInitSim07Ep04();
 })();
 
 </script>
+</div>
+</div>
 </div></div>

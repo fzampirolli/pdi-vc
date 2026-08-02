@@ -118,159 +118,9 @@
 </tbody>
 </table>
 <div class="cell" id="cell-fig-03-sim-equalizacao">
-<div id="ep0304-sim-eq-03" style="display:block;font-family:sans-serif;line-height:1.4;color:var(--color-text-primary);max-width:900px;margin:24px auto;border:0.5px solid var(--color-border-tertiary);padding:20px;border-radius:var(--border-radius-lg);background:var(--color-background-secondary);">
-<p style="font-size:18px;font-weight:500;margin:0 0 4px;">Simulador: Equalização de Histograma</p>
-<p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 20px;">Escolha o número de bits e gere uma imagem para ver a equalização em tempo real.</p>
-<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:20px;margin-bottom:20px;">
-<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:13px;font-weight:500;color:#16a085;">B (Bits)</label>
-<span id="ep0304-vl-bits" style="font-family:monospace;font-weight:500;color:#16a085;">3 bits → 8 níveis</span>
-<input id="ep0304-sl-bits" max="8" min="1" step="1" style="width:100%;" type="range" value="3"/>
-<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--color-text-secondary);">
-<span>1 bit (2 níveis)</span><span>4 bits (16 níveis)</span><span>8 bits (256 níveis)</span>
-</div>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:15px;text-align:center;">
-<p style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:12px;">Entrada Original</p>
-<div id="ep0304-grid-orig" style="display:grid;grid-template-columns:repeat(4,42px);gap:4px;justify-content:center;"></div>
-<button id="ep0304-btn-new" style="margin-top:15px;font-size:11px;padding:5px 10px;border-radius:4px;">Nova Imagem</button>
-</div>
-<div style="background:var(--color-background-primary);border:2px solid #16a085;border-radius:var(--border-radius-lg);padding:15px;text-align:center;">
-<p style="font-size:11px;font-weight:500;color:#16a085;text-transform:uppercase;margin-bottom:12px;">Resultado Equalizado</p>
-<div id="ep0304-grid-eq" style="display:grid;grid-template-columns:repeat(4,42px);gap:4px;justify-content:center;"></div>
-<button id="ep0304-btn-reset" style="margin-top:15px;font-size:11px;padding:5px 10px;border-radius:4px;">↩ Resetar</button>
-</div>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
-<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:15px;">
-<p style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:10px;text-align:center;">Histograma Original</p>
-<canvas height="80" id="ep0304-hist-orig" style="width:100%;height:80px;" width="340"></canvas>
-</div>
-<div style="background:var(--color-background-primary);border:1px solid #16a085;border-radius:var(--border-radius-lg);padding:15px;">
-<p style="font-size:11px;font-weight:500;color:#16a085;text-transform:uppercase;margin-bottom:10px;text-align:center;">Histograma Equalizado</p>
-<canvas height="80" id="ep0304-hist-eq" style="width:100%;height:80px;" width="340"></canvas>
-</div>
-</div>
-<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;margin-bottom:16px;overflow-x:auto;">
-<p style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;margin:0 0 8px;">LUT (Tabela de Remapeamento)</p>
-<div id="ep0304-lut-table" style="font-family:monospace;font-size:11px;color:var(--color-text-primary);white-space:nowrap;"></div>
-</div>
-<div id="ep0304-debug-info" style="margin-top:15px;background:#e8f8f5;border-radius:8px;padding:10px;border:1px solid #a3d9cc;font-family:monospace;font-size:11px;color:#0e6655;text-align:center;">
-    lut[k] = round( cdf[k] × 7 ) | B=3, níveis=8
-  </div>
-</div>
-<script>
-
-(function ep0304Init() {
-  const ep0304Container = document.getElementById('ep0304-sim-eq-03');
-  if (!ep0304Container) { setTimeout(ep0304Init, 100); return; }
-
-  const ep0304SlBits      = document.getElementById('ep0304-sl-bits');
-  const ep0304VlBits      = document.getElementById('ep0304-vl-bits');
-  const ep0304Debug       = document.getElementById('ep0304-debug-info');
-  const ep0304GridOrig    = document.getElementById('ep0304-grid-orig');
-  const ep0304GridEq      = document.getElementById('ep0304-grid-eq');
-  const ep0304LutTable    = document.getElementById('ep0304-lut-table');
-  const ep0304HistOrig    = document.getElementById('ep0304-hist-orig');
-  const ep0304HistEq      = document.getElementById('ep0304-hist-eq');
-
-  const EP0304_ROWS = 4, EP0304_COLS = 4;
-  let ep0304Pixels = [];
-
-  function ep0304GeneratePixels() {
-    const ep0304B = parseInt(ep0304SlBits.value);
-    const ep0304Levels = Math.pow(2, ep0304B);
-    const ep0304Lo = Math.floor(ep0304Levels * 0.2);
-    const ep0304Hi = Math.floor(ep0304Levels * 0.5);
-    ep0304Pixels = Array.from(
-      { length: EP0304_ROWS * EP0304_COLS },
-      () => ep0304Lo + Math.floor(Math.random() * (ep0304Hi - ep0304Lo + 1))
-    );
-  }
-
-  function ep0304ComputeEqualization(ep0304PixArr, ep0304B) {
-    const ep0304Levels = Math.pow(2, ep0304B);
-    const ep0304N = ep0304PixArr.length;
-    const ep0304H = new Array(ep0304Levels).fill(0);
-    ep0304PixArr.forEach(p => ep0304H[p]++);
-    const ep0304Cdf = new Array(ep0304Levels).fill(0);
-    ep0304Cdf[0] = ep0304H[0] / ep0304N;
-    for (let k = 1; k < ep0304Levels; k++) ep0304Cdf[k] = ep0304Cdf[k - 1] + ep0304H[k] / ep0304N;
-    const ep0304Lut = ep0304Cdf.map(c => Math.round(c * (ep0304Levels - 1)));
-    const ep0304Result = ep0304PixArr.map(p => ep0304Lut[p]);
-    return { h: ep0304H, cdf: ep0304Cdf, lut: ep0304Lut, result: ep0304Result };
-  }
-
-  function ep0304DrawHistogram(ep0304Canvas, ep0304Counts, ep0304Levels, ep0304Color) {
-    const ep0304Ctx = ep0304Canvas.getContext('2d');
-    const ep0304W = ep0304Canvas.width, ep0304H = ep0304Canvas.height;
-    ep0304Ctx.clearRect(0, 0, ep0304W, ep0304H);
-    const ep0304MaxVal = Math.max(...ep0304Counts, 1);
-    const ep0304BarW = ep0304W / ep0304Levels;
-    ep0304Counts.forEach((c, i) => {
-      const ep0304BarH = (c / ep0304MaxVal) * (ep0304H - 6);
-      ep0304Ctx.fillStyle = ep0304Color;
-      ep0304Ctx.fillRect(i * ep0304BarW + 1, ep0304H - ep0304BarH, ep0304BarW - 2, ep0304BarH);
-    });
-  }
-
-  function ep0304ToGray(ep0304Val, ep0304Levels) {
-    return Math.round((ep0304Val / (ep0304Levels - 1)) * 255);
-  }
-
-  function ep0304Render() {
-    const ep0304B = parseInt(ep0304SlBits.value);
-    const ep0304Levels = Math.pow(2, ep0304B);
-    ep0304VlBits.innerText = `${ep0304B} bit${ep0304B > 1 ? 's' : ''} → ${ep0304Levels} níveis`;
-
-    const { h: ep0304H, lut: ep0304Lut, result: ep0304Result } = ep0304ComputeEqualization(ep0304Pixels, ep0304B);
-
-    const ep0304HEq = new Array(ep0304Levels).fill(0);
-    ep0304Result.forEach(p => ep0304HEq[p]++);
-
-    ep0304LutTable.innerHTML = ep0304Lut.map((v, k) =>
-      `<span style="display:inline-block;margin-right:8px;color:var(--color-text-secondary)">${k}→<b style="color:#16a085">${v}</b></span>`
-    ).join('');
-
-    ep0304Debug.innerHTML = `<b>lut[k] = round( cdf[k] × ${ep0304Levels - 1} )</b> &nbsp;|&nbsp; B=${ep0304B}, níveis=${ep0304Levels}`;
-
-    ep0304GridOrig.innerHTML = '';
-    ep0304GridEq.innerHTML = '';
-
-    ep0304Pixels.forEach((p, i) => {
-      const ep0304Gray = ep0304ToGray(p, ep0304Levels);
-      const ep0304CellO = document.createElement('div');
-      ep0304CellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border-radius:4px;border:1px solid #eee;';
-      ep0304CellO.style.background = `rgb(${ep0304Gray},${ep0304Gray},${ep0304Gray})`;
-      ep0304CellO.style.color = ep0304Gray > 128 ? '#000' : '#fff';
-      ep0304CellO.innerText = p;
-      ep0304GridOrig.appendChild(ep0304CellO);
-
-      const ep0304R = ep0304Result[i];
-      const ep0304GrayR = ep0304ToGray(ep0304R, ep0304Levels);
-      const ep0304CellN = document.createElement('div');
-      ep0304CellN.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border-radius:4px;border:1px solid #ddd;';
-      ep0304CellN.style.background = `rgb(${ep0304GrayR},${ep0304GrayR},${ep0304GrayR})`;
-      ep0304CellN.style.color = ep0304GrayR > 128 ? '#000' : '#fff';
-      ep0304CellN.innerText = ep0304R;
-      ep0304GridEq.appendChild(ep0304CellN);
-    });
-
-    ep0304DrawHistogram(ep0304HistOrig, ep0304H, ep0304Levels, '#95a5a6');
-    ep0304DrawHistogram(ep0304HistEq, ep0304HEq, ep0304Levels, '#16a085');
-  }
-
-  ep0304SlBits.oninput = () => { ep0304GeneratePixels(); ep0304Render(); };
-  document.getElementById('ep0304-btn-new').onclick = () => { ep0304GeneratePixels(); ep0304Render(); };
-  document.getElementById('ep0304-btn-reset').onclick = () => { ep0304GeneratePixels(); ep0304Render(); };
-
-  ep0304GeneratePixels();
-  ep0304Render();
-})();
-
-</script>
-</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-equalizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 3.29: Simulador EP03_04: Equalização de Histograma (Níveis L = 2^B)
+</figcaption>
 </div>
 <div class="cell" id="ep0304_write">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a aria-hidden="true" href="#cb62-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_04.py</span>
@@ -289,5 +139,200 @@
 <span style="color:#f39c12;font-weight:500">⚠️ EP03_04.py: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.</span></pre>
 </div>
 </div>
+</div><div id="sim-ep0304-equalizacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">📊 Simulador EP03_04: Equalização de Histograma</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">lut[k] = round(cdf[k] · (L − 1))</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Escolha a profundidade de bits (B) e gere imagens para analisar o espalhamento dinâmico do histograma e a tabela de remapeamento (LUT) em tempo real.</p>
+<!-- Controle de Bits B -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<label style="font-size:11px;font-weight:700;color:#16a085;">Profundidade de Bits (B)</label>
+<span id="sim_ep0304_vl_bits" style="font-family:monospace;font-size:12px;font-weight:700;color:#16a085;">3 bits → 8 níveis</span>
+</div>
+<input id="sim_ep0304_sl_bits" max="8" min="1" step="1" style="width:100%;cursor:pointer;" type="range" value="3"/>
+<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#8a8371;font-family:monospace;">
+<span>1 bit (2 níveis)</span>
+<span>4 bits (16 níveis)</span>
+<span>8 bits (256 níveis)</span>
+</div>
+</div>
+<!-- Comparativo Lado a Lado: Entrada vs Equalizada -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:16px;">
+<!-- Entrada Original -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Entrada Original</span>
+<div id="sim_ep0304_grid_orig" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0304_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nova Imagem</button>
+</div>
+<!-- Resultado Equalizado -->
+<div style="background:#fafaf7;border:1px solid #16a085;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Resultado Equalizado</span>
+<div id="sim_ep0304_grid_eq" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0304_btnReset" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:9px;white-space:nowrap;transition:all 0.15s ease;">↩ Nova Amostragem</button>
+</div>
+</div>
+<!-- Histogramas Lado a Lado -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:16px;">
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;text-align:center;">Histograma Original</span>
+<canvas height="80" id="sim_ep0304_hist_orig" style="width:100%;height:80px;display:block;" width="340"></canvas>
+</div>
+<div style="background:#fafaf7;border:1px solid #16a085;border-radius:12px;padding:12px;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;text-align:center;">Histograma Equalizado</span>
+<canvas height="80" id="sim_ep0304_hist_eq" style="width:100%;height:80px;display:block;" width="340"></canvas>
+</div>
+</div>
+<!-- Tabela LUT -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px 14px;margin-bottom:14px;overflow-x:auto;">
+<span style="font-size:10px;font-weight:700;color:#5e5a4a;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px;">LUT (Tabela de Remapeamento k → v)</span>
+<div id="sim_ep0304_lut_table" style="font-family:monospace;font-size:11px;color:#26241d;white-space:nowrap;"></div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0304_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      lut[k] = round(cdf[k] · 7) | B=3, níveis=8
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0304(root){
+    if (!root || root.dataset.simEp0304Init) return;
+    root.dataset.simEp0304Init = "1";
+
+    var slBits     = root.querySelector('#sim_ep0304_sl_bits');
+    var vlBits     = root.querySelector('#sim_ep0304_vl_bits');
+    var debugDiv   = root.querySelector('#sim_ep0304_debug');
+    var gridOrig   = root.querySelector('#sim_ep0304_grid_orig');
+    var gridEq     = root.querySelector('#sim_ep0304_grid_eq');
+    var lutTable   = root.querySelector('#sim_ep0304_lut_table');
+    var histOrig   = root.querySelector('#sim_ep0304_hist_orig');
+    var histEq     = root.querySelector('#sim_ep0304_hist_eq');
+
+    var btnNew     = root.querySelector('#sim_ep0304_btnNew');
+    var btnReset   = root.querySelector('#sim_ep0304_btnReset');
+
+    var ROWS = 4, COLS = 4;
+    var pixels = [];
+
+    function generatePixels() {
+      var b = parseInt(slBits.value) || 3;
+      var levels = Math.pow(2, b);
+      var lo = Math.floor(levels * 0.2);
+      var hi = Math.floor(levels * 0.5);
+      pixels = Array.from({ length: ROWS * COLS }, function(){
+        return lo + Math.floor(Math.random() * (hi - lo + 1));
+      });
+    }
+
+    function computeEqualization(pixArr, b) {
+      var levels = Math.pow(2, b);
+      var N = pixArr.length;
+      var h = new Array(levels).fill(0);
+      pixArr.forEach(function(p){ h[p]++; });
+
+      var cdf = new Array(levels).fill(0);
+      cdf[0] = h[0] / N;
+      for (var k = 1; k < levels; k++) {
+        cdf[k] = cdf[k - 1] + h[k] / N;
+      }
+
+      var lut = cdf.map(function(c){ return Math.round(c * (levels - 1)); });
+      var result = pixArr.map(function(p){ return lut[p]; });
+      return { h: h, cdf: cdf, lut: lut, result: result };
+    }
+
+    function drawHistogram(canvas, counts, levels, color) {
+      var ctx = canvas.getContext('2d');
+      var W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      var maxVal = Math.max.apply(null, counts.concat([1]));
+      var barW = W / levels;
+
+      counts.forEach(function(c, i){
+        var barH = (c / maxVal) * (H - 6);
+        ctx.fillStyle = color;
+        ctx.fillRect(i * barW + 1, H - barH, barW - 2, barH);
+      });
+    }
+
+    function toGray(val, levels) {
+      return Math.round((val / (levels - 1)) * 255);
+    }
+
+    function render() {
+      var b = parseInt(slBits.value) || 3;
+      var levels = Math.pow(2, b);
+      vlBits.textContent = b + ' bit' + (b > 1 ? 's' : '') + ' → ' + levels + ' níveis';
+
+      var eqData = computeEqualization(pixels, b);
+      var hOrig = eqData.h;
+      var lut = eqData.lut;
+      var result = eqData.result;
+
+      var hEq = new Array(levels).fill(0);
+      result.forEach(function(p){ hEq[p]++; });
+
+      lutTable.innerHTML = lut.map(function(v, k){
+        return '<span style="display:inline-block;margin-right:10px;color:#8a8371;">' + k + ' → <b style="color:#16a085;">' + v + '</b></span>';
+      }).join('');
+
+      debugDiv.innerHTML = '<b>lut[k] = round(cdf[k] · ' + (levels - 1) + ')</b> &nbsp;|&nbsp; B = ' + b + ', níveis = ' + levels;
+
+      gridOrig.innerHTML = '';
+      gridEq.innerHTML = '';
+
+      pixels.forEach(function(p, i) {
+        var grayO = toGray(p, levels);
+        var fgO = grayO > 128 ? '#000000' : '#ffffff';
+        var cellO = document.createElement('div');
+        cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + grayO + ',' + grayO + ',' + grayO + ');color:' + fgO + ';box-sizing:border-box;';
+        cellO.textContent = p;
+        gridOrig.appendChild(cellO);
+
+        var r = result[i];
+        var grayR = toGray(r, levels);
+        var fgR = grayR > 128 ? '#000000' : '#ffffff';
+        var cellR = document.createElement('div');
+        cellR.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + grayR + ',' + grayR + ',' + grayR + ');color:' + fgR + ';box-sizing:border-box;';
+        cellR.textContent = r;
+        gridEq.appendChild(cellR);
+      });
+
+      drawHistogram(histOrig, hOrig, levels, '#95a5a6');
+      drawHistogram(histEq, hEq, levels, '#16a085');
+    }
+
+    slBits.addEventListener('input', function(){
+      generatePixels();
+      render();
+    });
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    generatePixels();
+    render();
+  }
+
+  function tryInitSimEP0304(){
+    var root = document.getElementById('sim-ep0304-equalizacao');
+    if (root) initSimEP0304(root); else setTimeout(tryInitSimEP0304, 200);
+  }
+  tryInitSimEP0304();
+})();
+
+</script>
 </div>
 </div>
