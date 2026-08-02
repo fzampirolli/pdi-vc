@@ -738,7 +738,8 @@ format:
 
           \\AtBeginDocument{{%
             \\renewenvironment{{Shaded}}{{\\begin{{tcolorbox}}[pdicode]}}{{\\end{{tcolorbox}}}}%
-            \\renewenvironment{{verbatim}}{{\\begin{{tcolorbox}}[pdioutput]\\begin{{alltt}}}}{{\\end{{alltt}}\\end{{tcolorbox}}}}%
+            %\\renewenvironment{{verbatim}}{{\\begin{{tcolorbox}}[pdioutput]\\begin{{alltt}}}}{{\\end{{alltt}}\\end{{tcolorbox}}}}%
+            \\renewenvironment{{verbatim}}{{\\VerbatimEnvironment\\begin{{tcolorbox}}[pdioutput]\\begin{{Verbatim}}[breaklines=true,breaksymbol={{}}]}}{{\\end{{Verbatim}}\\end{{tcolorbox}}}}%
           }}
           \\usepackage{{fancyhdr}}
           \\pagestyle{{fancy}}
@@ -1289,8 +1290,8 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                         width_attr = f' width=100% height={AVAILABLE_HEIGHT_IN:.3f}in'
 
                     # exceção manual: simulador cdil fica exagerado em 100%, forçar 50%
-                    if png_abs.stem == 'fig-04-sim-cdil':
-                        width_attr = ' width=50%'
+                    # if png_abs.stem == 'fig-04-sim-cdil':
+                    #     width_attr = ' width=50%'
 
                 except Exception:
                     pass

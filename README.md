@@ -426,3 +426,39 @@ Pacotes LaTeX adicionais (instalar no TinyTeX):
 
 © 2026 Francisco de Assis Zampirolli — UFABC.
 Creative Commons BY-NC-SA 4.0.
+
+
+```bash
+~/.TinyTeX/bin/x86_64-linux/tlmgr install hyphen-portuguese babel-portuguese
+~/.TinyTeX/bin/x86_64-linux/tlmgr install \
+  fvextra \
+  upquote \
+  xcolor \
+  framed \
+  csquotes \
+  booktabs \
+  longtable \
+  array \
+  multirow \
+  wrapfig \
+  float \
+  colortbl \
+  hyperref \
+  bookmark \
+  footnotehyper \
+  pdflscape \
+  tabu \
+  varwidth \
+  threeparttable \
+  threeparttablex \
+  makecell \
+  xltabular \
+  ltablex \
+  environ \
+  trimspaces \
+  titling \
+  etoolbox \
+  emoji \ 
+  hyphen-portuguese \
+  babel-portuguese
+```

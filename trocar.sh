@@ -5,8 +5,14 @@
 #
 
 # Texto a ser substituído
-ORIGINAL="ACESSAR NOTEBOOKLM:"
-DESTINO="ACESSAR Gemini Notebook:"
+ORIGINAL="""
+
+---
+
+"""
+DESTINO="""
+
+"""
 
 # Procura apenas nos notebooks dos capítulos usando Process Substitution
 while IFS= read -r -d '' ARQ; do

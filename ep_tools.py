@@ -443,23 +443,33 @@ def convert_math_spans(html: str) -> str:
 #   📦  especificação I/O      → caixa cinza
 #
 _EMOJI_BOX: dict[str, dict[str, str]] = {
-    '🧠': {
-        'div': 'background-color:#f0fff4;border-left:5px solid #2ecc71;padding:15px;margin-bottom:20px;',
-        'h':   'margin-top:0;color:#1e7e34;',
+    '🧠': {  # fundamentação teórica — verde pastel
+        'div': 'background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;'
+               'border-radius:8px;margin-bottom:20px;',
+        'h':   'margin-top:0;color:#1e8449;',
     },
-    '📋': {
-        'div': 'background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;',
-        'h':   'margin-top:0;color:#333;',
+    '📋': {  # diretrizes / cenário — azul-acinzentado pastel
+        'div': 'background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;'
+               'border-radius:8px;margin-bottom:20px;',
+        'h':   'margin-top:0;color:#4a5a78;',
     },
-    '📌': {
-        'div': 'background-color:#fffde7;border-left:5px solid #fbc02d;padding:15px;margin-bottom:25px;',
-        'h':   'margin-top:0;color:#856404;',
+    '📌': {  # requisitos / exemplos — amarelo pastel
+        'div': 'background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;'
+               'border-radius:8px;margin-bottom:25px;',
+        'h':   'margin-top:0;color:#9a7d0a;',
     },
-    '📦': {
-        'div': 'background-color:#f8f9fa;padding:15px;border:1px solid #ccc;border-radius:5px;margin-bottom:20px;',
-        'h':   'margin-top:0;color:#333;',
+    '📦': {  # especificação I/O — lilás pastel
+        'div': 'background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;'
+               'border-radius:8px;margin-bottom:20px;',
+        'h':   'margin-top:0;color:#7d3c98;',
     },
 }
+
+# Simuladores (div[id^="sim-"]) NÃO recebem caixa/cor própria: eles já trazem
+# seu próprio visual (fundo, bordas, etc. definidos inline no HTML original).
+# São apenas extraídos de dentro de outras seções e reposicionados como
+# blocos irmãos, soltos, para não ficarem presos dentro da caixa colorida
+# de origem (ex: 📌 Exemplos) nem herdarem uma caixa extra por cima.
 
 _TABLE_STYLE    = 'width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;'
 _TH_STYLE       = 'padding:10px;border:1px solid #ddd;'
@@ -550,6 +560,16 @@ def inject_moodle_styles(fragment_html: str) -> str:
         for attr in ['class', 'data-number', 'id']:
             child.attrs.pop(attr, None)
 
+        # ── Extrai simuladores (div[id^="sim-"]) para fora da seção ────────
+        # Evita que o simulador fique preso dentro da caixa colorida da
+        # seção onde foi originalmente escrito (ex: 📌 Exemplos). Não recebe
+        # wrapper/cor própria — mantém o visual original de cada div.
+        sim_divs = child.find_all('div', id=re.compile(r'^sim-'))
+        extracted_sims: list[Tag] = []
+        for sim_div in sim_divs:
+            sim_div.extract()
+            extracted_sims.append(sim_div)
+
         if emoji:
             box = _EMOJI_BOX[emoji]
             child['style'] = box['div']
@@ -574,6 +594,12 @@ def inject_moodle_styles(fragment_html: str) -> str:
             heading.name = 'h4'
             for attr in ['class', 'data-anchor-id', 'data-number']:
                 heading.attrs.pop(attr, None)
+
+        # Insere o(s) simulador(es) extraído(s) logo após a seção, soltos
+        anchor = child
+        for sim_div in extracted_sims:
+            anchor.insert_after(sim_div)
+            anchor = sim_div
 
     # ── 3. Links quarto-xref → texto puro ────────────────────────────────────
     for a in container.find_all('a', class_='quarto-xref'):
