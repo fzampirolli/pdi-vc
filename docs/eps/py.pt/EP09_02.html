@@ -3386,6 +3386,10 @@ window.Quarto = {
     var ultimoGradiente = null;
     var ultimoKAntigo = null;
 
+    // ---- Estado do sistema de hover (contas + destaque entre camadas) ----
+    var celulasDestacadas = [];
+    var elHoverTip = null;
+
     var elBtnDiagonal = root.querySelector('#cap09kgrad_btnDiagonal');
     var elBtnVertical = root.querySelector('#cap09kgrad_btnVertical');
     var elLr0005 = root.querySelector('#cap09kgrad_lr0005');
@@ -3463,6 +3467,8 @@ window.Quarto = {
           if (dentroJanela){ cel.style.border = '1px solid #B8AE94'; }
           if (ehPixelDoVoto){ cel.style.border = '2px solid #2F6F9F'; cel.style.background = '#DCEEFB'; }
           cel.textContent = v; cel.style.color = '#5E5A4A';
+          cel.dataset.r = rr; cel.dataset.c = cc;
+          cel.classList.add('cap09kgrad_cell_hoverable');
           elGradeX.appendChild(cel);
         }
       }
@@ -3484,6 +3490,8 @@ window.Quarto = {
           estiloCelula(cel, false, cap09kgrad_corValor(v, maxAbs), '26px');
           if (posicaoIdx < 16 && rr === r && cc === c){ cel.style.border = '2px solid #2F6F9F'; }
           cel.textContent = v.toFixed(2); cel.style.color = '#374151';
+          cel.dataset.r = rr; cel.dataset.c = cc;
+          cel.classList.add('cap09kgrad_cell_hoverable');
           elGradeZ.appendChild(cel);
         }
       }
@@ -3505,6 +3513,8 @@ window.Quarto = {
           estiloCelula(cel, false, cap09kgrad_corValor(v, maxAbs), '26px');
           if (posicaoIdx < 16 && rr === r && cc === c){ cel.style.border = '2px solid #2F6F9F'; }
           cel.textContent = v.toFixed(2); cel.style.color = '#374151';
+          cel.dataset.r = rr; cel.dataset.c = cc;
+          cel.classList.add('cap09kgrad_cell_hoverable');
           elGradeA.appendChild(cel);
         }
       }
@@ -3526,6 +3536,8 @@ window.Quarto = {
           estiloCelula(cel, false, cap09kgrad_corValor(v, maxAbs), '26px');
           if (posicaoIdx < 16 && rr === r && cc === c){ cel.style.border = '2px solid #C1443A'; }
           cel.textContent = v.toFixed(2); cel.style.color = '#374151';
+          cel.dataset.r = rr; cel.dataset.c = cc;
+          cel.classList.add('cap09kgrad_cell_hoverable');
           elGradeDZ.appendChild(cel);
         }
       }
@@ -3545,10 +3557,187 @@ window.Quarto = {
           var ativo = (kr === pesoSelKr && kc === pesoSelKc);
           estiloCelula(cel, ativo, cap09kgrad_corValor(K[kr][kc], maxAbs), '30px');
           cel.textContent = K[kr][kc].toFixed(2); cel.style.color = '#374151';
+          cel.dataset.kr = kr; cel.dataset.kc = kc;
+          cel.classList.add('cap09kgrad_cell_hoverable');
           elGradeK.appendChild(cel);
         }
       }
     }
+
+    // ================= SISTEMA DE HOVER: contas detalhadas + destaque entre camadas =================
+
+    function cap09kgrad_criarTooltipGlobal(){
+      if (elHoverTip) return elHoverTip;
+      elHoverTip = document.createElement('div');
+      elHoverTip.className = 'cap09kgrad_hovertip';
+      document.body.appendChild(elHoverTip);
+      return elHoverTip;
+    }
+
+    function cap09kgrad_posicionarTooltip(evt){
+      var tip = elHoverTip;
+      if (!tip) return;
+      var margem = 14;
+      var x = evt.clientX + margem;
+      var y = evt.clientY + margem;
+      var larguraTip = tip.offsetWidth, alturaTip = tip.offsetHeight;
+      if (x + larguraTip > window.innerWidth - 8) x = evt.clientX - larguraTip - margem;
+      if (y + alturaTip > window.innerHeight - 8) y = evt.clientY - alturaTip - margem;
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    }
+
+    function cap09kgrad_mostrarTooltip(htmlConteudo, evt){
+      var tip = cap09kgrad_criarTooltipGlobal();
+      tip.innerHTML = htmlConteudo;
+      tip.style.display = 'block';
+      cap09kgrad_posicionarTooltip(evt);
+    }
+
+    function cap09kgrad_esconderTooltip(){
+      if (elHoverTip) elHoverTip.style.display = 'none';
+    }
+
+    function cap09kgrad_limparDestaques(){
+      celulasDestacadas.forEach(function(item){ item.el.classList.remove(item.classe); });
+      celulasDestacadas = [];
+    }
+
+    function cap09kgrad_destacar(elementos, classe){
+      elementos.forEach(function(el){
+        if (!el) return;
+        el.classList.add(classe);
+        celulasDestacadas.push({ el: el, classe: classe });
+      });
+    }
+
+    function cap09kgrad_celX(rr,cc){ return elGradeX.querySelector('[data-r="'+rr+'"][data-c="'+cc+'"]'); }
+    function cap09kgrad_celZ(r,c){ return elGradeZ.querySelector('[data-r="'+r+'"][data-c="'+c+'"]'); }
+    function cap09kgrad_celA(r,c){ return elGradeA.querySelector('[data-r="'+r+'"][data-c="'+c+'"]'); }
+    function cap09kgrad_celDZ(r,c){ return elGradeDZ.querySelector('[data-r="'+r+'"][data-c="'+c+'"]'); }
+    function cap09kgrad_celK(kr,kc){ return elGradeK.querySelector('[data-kr="'+kr+'"][data-kc="'+kc+'"]'); }
+    function cap09kgrad_todasCelA(){ return Array.prototype.slice.call(elGradeA.querySelectorAll('[data-r]')); }
+
+    function cap09kgrad_hoverZ(r, c, celEl, evt){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_destacar([celEl], 'cap09kgrad_hlPrincipal');
+      var termos = [];
+      for (var kr=0; kr<3; kr++){
+        for (var kc=0; kc<3; kc++){
+          var xv = X[r+kr][c+kc];
+          var kv = K[kr][kc];
+          termos.push({ kr:kr, kc:kc, x:xv, k:kv, t:kv*xv });
+          cap09kgrad_destacar([cap09kgrad_celX(r+kr, c+kc)], 'cap09kgrad_hlSecundario');
+          cap09kgrad_destacar([cap09kgrad_celK(kr, kc)], 'cap09kgrad_hlSecundario');
+        }
+      }
+      var linhas = termos.map(function(t){
+        return 'K['+t.kr+']['+t.kc+']&middot;X['+(r+t.kr)+']['+(c+t.kc)+'] = '+t.k.toFixed(2)+'&times;'+t.x+' = <b>'+t.t.toFixed(3)+'</b>';
+      }).join('<br>');
+      var html =
+        '<b>Z['+r+']['+c+']</b> = &Sigma; K &middot; X (9 termos)<br>' +
+        '<div style="margin:4px 0;border-top:1px dashed #4A473A;padding-top:4px;">' + linhas + '</div>' +
+        '<div style="border-top:1px dashed #4A473A;margin-top:4px;padding-top:4px;">total = <b>'+cacheForward.Z[r][c].toFixed(3)+'</b></div>' +
+        '<div style="margin-top:4px;color:#B8AE94;">contorno tracejado = janela em X e pesos em K usados</div>';
+      cap09kgrad_mostrarTooltip(html, evt);
+    }
+
+    function cap09kgrad_hoverA(r, c, celEl, evt){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_destacar([celEl], 'cap09kgrad_hlPrincipal');
+      cap09kgrad_destacar([cap09kgrad_celZ(r,c)], 'cap09kgrad_hlPrincipal');
+      var zv = cacheForward.Z[r][c], av = cacheForward.A[r][c];
+      var html =
+        '<b>A['+r+']['+c+']</b> = max(0, Z['+r+']['+c+'])<br>' +
+        '= max(0, '+zv.toFixed(3)+') = <b>'+av.toFixed(3)+'</b>' +
+        (zv <= 0 ? '<br><span style="color:#FF9A93;">ReLU zerou este valor.</span>' : '');
+      cap09kgrad_mostrarTooltip(html, evt);
+    }
+
+    function cap09kgrad_hoverDZ(r, c, celEl, evt){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_destacar([celEl], 'cap09kgrad_hlPrincipal');
+      cap09kgrad_destacar([cap09kgrad_celZ(r,c)], 'cap09kgrad_hlPrincipal');
+      cap09kgrad_destacar(cap09kgrad_todasCelA(), 'cap09kgrad_hlSecundario');
+      var zv = cacheForward.Z[r][c];
+      var gate = cap09kgrad_reluDeriv(zv);
+      var dS = cacheErro.dS;
+      var dz = cacheErro.dZ[r][c];
+      var html =
+        '<b>dZ['+r+']['+c+']</b> = (S &minus; alvo) &middot; ReLU&prime;(Z['+r+']['+c+'])<br>' +
+        'S = &Sigma; A (16 células, tracejado) = <b>'+cacheForward.S.toFixed(3)+'</b><br>' +
+        'S &minus; alvo = '+cacheForward.S.toFixed(3)+' &minus; '+alvo+' = <b>'+dS.toFixed(3)+'</b><br>' +
+        'ReLU&prime;(Z) = ' + (gate ? '1 (Z&gt;0)' : '0 (Z&le;0)') + '<br>' +
+        '<div style="border-top:1px dashed #4A473A;margin-top:4px;padding-top:4px;">dZ = '+dS.toFixed(3)+' &times; '+gate+' = <b>'+dz.toFixed(3)+'</b></div>';
+      cap09kgrad_mostrarTooltip(html, evt);
+    }
+
+    function cap09kgrad_hoverX(rr, cc, celEl, evt){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_destacar([celEl], 'cap09kgrad_hlPrincipal');
+      var contribs = [];
+      for (var kr=0; kr<3; kr++){
+        for (var kc=0; kc<3; kc++){
+          var r = rr-kr, c = cc-kc;
+          if (r>=0 && r<4 && c>=0 && c<4){
+            contribs.push({ r:r, c:c, kr:kr, kc:kc, k:K[kr][kc] });
+            cap09kgrad_destacar([cap09kgrad_celZ(r,c)], 'cap09kgrad_hlSecundario');
+            cap09kgrad_destacar([cap09kgrad_celK(kr,kc)], 'cap09kgrad_hlSecundario');
+          }
+        }
+      }
+      var xv = X[rr][cc];
+      var linhas = contribs.map(function(t){
+        var termo = t.k*xv;
+        return 'Z['+t.r+']['+t.c+'] usa K['+t.kr+']['+t.kc+']&times;X = '+t.k.toFixed(2)+'&times;'+xv+' = <b>'+termo.toFixed(3)+'</b>';
+      }).join('<br>');
+      var html =
+        '<b>X['+rr+']['+cc+']</b> = '+xv+'<br>' +
+        (contribs.length ?
+          '<div style="margin:4px 0;border-top:1px dashed #4A473A;padding-top:4px;">Usado em '+contribs.length+' posição(ões) de Z:<br>'+linhas+'</div>'
+          : '<span style="color:#B8AE94;">Fora do alcance de qualquer janela 3&times;3 sobre a saída atual.</span>');
+      cap09kgrad_mostrarTooltip(html, evt);
+    }
+
+    function cap09kgrad_hoverK(kr, kc, celEl, evt){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_destacar([celEl], 'cap09kgrad_hlPrincipal');
+      for (var r=0; r<4; r++){
+        for (var c=0; c<4; c++){
+          cap09kgrad_destacar([cap09kgrad_celZ(r,c)], 'cap09kgrad_hlSecundario');
+          cap09kgrad_destacar([cap09kgrad_celX(r+kr,c+kc)], 'cap09kgrad_hlSecundario');
+        }
+      }
+      var gAtual = cap09kgrad_gradientePeso(cacheErro.dZ, X, kr, kc).gradiente;
+      var html =
+        '<b>K['+kr+']['+kc+']</b> = '+K[kr][kc].toFixed(3)+'<br>' +
+        'Participa das 16 posições de Z (destacadas), cada uma multiplicando um pixel X diferente (também destacado).<br>' +
+        '<div style="border-top:1px dashed #4A473A;margin-top:4px;padding-top:4px;">Gradiente atual &nabla;K = &Sigma; dZ&middot;X = <b>'+gAtual.toFixed(3)+'</b></div>';
+      cap09kgrad_mostrarTooltip(html, evt);
+    }
+
+    function cap09kgrad_configurarHover(container, seletor, manipulador){
+      container.addEventListener('mouseover', function(e){
+        var cel = e.target.closest(seletor);
+        if (!cel || cel.parentElement !== container) return;
+        manipulador(cel, e);
+      });
+      container.addEventListener('mousemove', function(e){
+        var cel = e.target.closest(seletor);
+        if (!cel || cel.parentElement !== container) return;
+        cap09kgrad_posicionarTooltip(e);
+      });
+      container.addEventListener('mouseout', function(e){
+        var cel = e.target.closest(seletor);
+        if (!cel) return;
+        var indoPara = e.relatedTarget;
+        if (indoPara && cel.contains(indoPara)) return;
+        cap09kgrad_limparDestaques();
+        cap09kgrad_esconderTooltip();
+      });
+    }
+
+    // ================= FIM DO SISTEMA DE HOVER =================
 
     function atualizarFormula(){
       elFormula.innerHTML =
@@ -3715,6 +3904,8 @@ window.Quarto = {
     }
 
     function renderizarTudo(){
+      cap09kgrad_limparDestaques();
+      cap09kgrad_esconderTooltip();
       desenharGradeX();
       desenharGradeZ();
       desenharGradeA();
@@ -3865,6 +4056,22 @@ window.Quarto = {
     elBtnAtualizarPesos.addEventListener('click', atualizarPesosDoKernel);
     elBtnDesfazerPasso.addEventListener('click', desfazerPasso);
     elBtnNovoKernel.addEventListener('click', novoKernelAleatorio);
+
+    cap09kgrad_configurarHover(elGradeZ, '[data-r]', function(cel, e){
+      cap09kgrad_hoverZ(parseInt(cel.dataset.r,10), parseInt(cel.dataset.c,10), cel, e);
+    });
+    cap09kgrad_configurarHover(elGradeA, '[data-r]', function(cel, e){
+      cap09kgrad_hoverA(parseInt(cel.dataset.r,10), parseInt(cel.dataset.c,10), cel, e);
+    });
+    cap09kgrad_configurarHover(elGradeDZ, '[data-r]', function(cel, e){
+      cap09kgrad_hoverDZ(parseInt(cel.dataset.r,10), parseInt(cel.dataset.c,10), cel, e);
+    });
+    cap09kgrad_configurarHover(elGradeX, '[data-r]', function(cel, e){
+      cap09kgrad_hoverX(parseInt(cel.dataset.r,10), parseInt(cel.dataset.c,10), cel, e);
+    });
+    cap09kgrad_configurarHover(elGradeK, '[data-kr]', function(cel, e){
+      cap09kgrad_hoverK(parseInt(cel.dataset.kr,10), parseInt(cel.dataset.kc,10), cel, e);
+    });
 
     montarSeletorPeso();
     selecionarPeso(0,0);
