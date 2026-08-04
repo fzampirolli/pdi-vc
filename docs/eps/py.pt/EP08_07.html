@@ -86,11 +86,11 @@ div.csl-indent {
 <body class="ep-standalone">
 <div class="ep-container" style="margin:0 auto; max-width:120ch">
 <h3 data-anchor-id="ep08_07-remoção-de-ruído-sal-e-pimenta-e-medição-de-objetos" data-number="8.14.7"><span class="header-section-number">8.14.7</span> EP08_07 🟡 Remoção de Ruído Sal e Pimenta e Medição de Objetos</h3>
-<p>Neste exercício, você aplicará filtragem morfológica para limpar uma imagem binária corrompida por ruído do tipo <strong>sal e pimenta</strong> (píxeis isolados de valor <code>1</code> no fundo e <code>0</code> no interior dos objetos). Após a limpeza, o programa deve extrair as medições geométricas dos componentes conectados remanescentes, ordená-los e exibir a tabela final de métricas.</p>
+<p>Neste exercício, você aplicará filtragem morfológica para limpar uma imagem binária corrompida por ruído do tipo <strong>sal e pimenta</strong> (pixels isolados de valor <code>1</code> no fundo e <code>0</code> no interior dos objetos). Após a limpeza, o programa deve extrair as medições geométricas dos componentes conectados remanescentes, ordená-los e exibir a tabela final de métricas.</p>
 <section class="level4" data-number="8.14.7.1" id="diretrizes-de-implementação-6">
 <h4 data-anchor-id="diretrizes-de-implementação-6" data-number="8.14.7.1"><span class="header-section-number">8.14.7.1</span> 📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><p><strong>Entrada:</strong> ler dois inteiros <span class="math inline">\(H\)</span> e <span class="math inline">\(W\)</span> (altura e largura da imagem) na primeira linha e, em seguida, as <span class="math inline">\(H\)</span> linhas com a matriz binária contendo píxeis <code>0</code> e <code>1</code> separados por espaço.</p></li>
+<li><p><strong>Entrada:</strong> ler dois inteiros <span class="math inline">\(H\)</span> e <span class="math inline">\(W\)</span> (altura e largura da imagem) na primeira linha e, em seguida, as <span class="math inline">\(H\)</span> linhas com a matriz binária contendo pixels <code>0</code> e <code>1</code> separados por espaço.</p></li>
 <li><p><strong>Filtragem Morfológica:</strong> aplicar encadeamento de <strong>Abertura</strong> (para eliminar o ruído sal no fundo) seguido de <strong>Fechamento</strong> (para preencher o ruído pimenta dentro dos objetos) com elemento estruturante <span class="math inline">\(3 \times 3\)</span>.</p></li>
 <li><p><strong>Impressão da Imagem Limpa:</strong> imprimir a matriz resultante em valores <code>0</code> e <code>1</code> separados por espaço.</p></li>
 <li><p><strong>Medição Geométricas:</strong> para cada objeto identificado na matriz limpa, extrair:</p></li>
@@ -116,7 +116,7 @@ div.csl-indent {
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a aria-hidden="true" href="#cb50-1" tabindex="-1"></a>medidas.sort(key<span class="op">=</span><span class="kw">lambda</span> m: (m[<span class="st">'bbox'</span>][<span class="dv">0</span>], m[<span class="st">'bbox'</span>][<span class="dv">1</span>]))</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
 <ul>
-<li><strong>Diferença de Área:</strong> A área calculada pelo OpenCV (<code>cv2.contourArea</code>) mede a área do polígono contínuo delimitado pelos centros dos píxeis de borda, resultando em valores numéricos menores do que a simples contagem discreta de píxeis <code>1</code> (<code>np.sum</code>).</li>
+<li><strong>Diferença de Área:</strong> A área calculada pelo OpenCV (<code>cv2.contourArea</code>) mede a área do polígono contínuo delimitado pelos centros dos pixels de borda, resultando em valores numéricos menores do que a simples contagem discreta de pixels <code>1</code> (<code>np.sum</code>).</li>
 </ul>
 </section>
 <section class="level4" data-number="8.14.7.3" id="fundamentação-teórica-6">
@@ -183,7 +183,7 @@ div.csl-indent {
 </tbody>
 </table>
 <div class="cell" id="cell-fig-08-sim-ep07">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="20" id="fig-08-sim-ep07">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="59" id="fig-08-sim-ep07">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-08-sim-ep07-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0807" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
@@ -3158,7 +3158,9 @@ window.Quarto = {
 
     var H = 10, W = 20, stage = 0;
     var showGT = true, showDET = true;
-    var matOrig = [], matBin = [], medidasObjetos = [], gabaritosAtuais = [];
+    // matOrig/matBin: cena. medidasObjetos: 1 registro por objeto real (GT), casado com sua melhor DET.
+    // detBoxesAtuais: caixas "detectadas" simuladas (com ruído/deslocamento em relação ao objeto real).
+    var matOrig = [], matBin = [], medidasObjetos = [], detBoxesAtuais = [];
 
     var elBtnRand = root.querySelector('#ep0811_btnRand');
     var elToggleGT = root.querySelector('#ep0811_toggleGT');
@@ -3287,33 +3289,37 @@ window.Quarto = {
       return union > 0 ? inter / union : 0.0;
     }
 
-    function measureOpenCV(mat, gabaritos) {
+    // FIX: bbox extraída dos pixels reais do objeto (mat) é o GABARITO (GT) — é a posição
+    // verdadeira e exata do objeto na cena. As caixas em `detBoxes` (com deslocamento
+    // aleatório) representam a saída ruidosa de um detector, e são casadas ao GT mais
+    // próximo por IoU.
+    function measureOpenCV(mat, detBoxes) {
       var blobs = cv2_findContours(mat);
       var medidas = [];
       blobs.forEach(function(item) {
         var contour = item.contour, pixels = item.pixels;
         var area = cv2_contourArea(contour);
         if (area === 0) area = pixels.length;
-        var bbox = cv2_boundingRect(pixels);
+        var gtBbox = cv2_boundingRect(pixels);
         var hull = cv2_convexHull(contour);
         var hull_area = cv2_contourArea(hull);
         if (hull_area === 0) hull_area = area;
         var poly = cv2_approxPolyDP(contour, 0.02);
         var solidity = hull_area > 0 ? area / hull_area : 0;
         var classe = solidity < 0.85 ? "Cruz (Côncavo)" : "Retângulo (Convexo)";
-        var bestIoU = 0.0, matchedGT = { x: 0, y: 0, w: 0, h: 0 };
+        var bestIoU = 0.0, matchedDET = { x: 0, y: 0, w: 0, h: 0 };
 
-        gabaritos.forEach(function(g) {
-          var iou = calculateIoU(bbox, g);
-          if (iou > bestIoU) { bestIoU = iou; matchedGT = g; }
+        detBoxes.forEach(function(d) {
+          var iou = calculateIoU(gtBbox, d);
+          if (iou > bestIoU) { bestIoU = iou; matchedDET = d; }
         });
 
         medidas.push({
-          classe: classe, area: area, bbox: bbox, gtBox: matchedGT,
+          classe: classe, area: area, gtBox: gtBbox, detBox: matchedDET,
           solidity: solidity, vertices: poly.length, iou: bestIoU, ok: bestIoU >= 0.50
         });
       });
-      medidas.sort(function(a, b) { return a.bbox.x !== b.bbox.x ? a.bbox.x - b.bbox.x : a.bbox.y - b.bbox.y; });
+      medidas.sort(function(a, b) { return a.gtBox.x !== b.gtBox.x ? a.gtBox.x - b.gtBox.x : a.gtBox.y - b.gtBox.y; });
       medidas.forEach(function(m, i) { m.id = i + 1; });
       return medidas;
     }
@@ -3339,16 +3345,18 @@ window.Quarto = {
         for (var c = x2; c < x2 + w2; c++) { matOrig[r][c] = 180; }
       }
 
+      // Estas caixas simulam a saída de um DETECTOR real: deslocadas/imprecisas em relação
+      // ao objeto verdadeiro (que será obtido depois via segmentação em matBin -> GT).
       var shiftX1 = Math.random() > 0.5 ? 1 : 0, shiftY1 = Math.random() > 0.5 ? 1 : 0;
-      var shiftX2 = Math.random() > 0.6 ? -2 : 0; 
+      var shiftX2 = Math.random() > 0.6 ? -2 : 0;
 
-      gabaritosAtuais = [
+      detBoxesAtuais = [
         { x: Math.max(0, x1 + shiftX1), y: Math.max(0, y1 + shiftY1), w: w1, h: h1 },
         { x: Math.max(0, x2 + shiftX2), y: y2, w: w2 + (shiftX2 !== 0 ? 2 : 0), h: h2 }
       ];
 
       matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
-      medidasObjetos = measureOpenCV(matBin, gabaritosAtuais);
+      medidasObjetos = measureOpenCV(matBin, detBoxesAtuais);
       renderGrid();
       renderTabela();
     }
@@ -3368,10 +3376,12 @@ window.Quarto = {
           var isGT = false, isDetOK = false, isDetFail = false;
 
           if (stage === 1) {
-            if (showGT) { gabaritosAtuais.forEach(function(gt) { if (isBoxEdge(r, c, gt)) isGT = true; }); }
+            // FIX: GT agora vem de m.gtBox (bbox real extraída dos pixels do objeto)
+            if (showGT) { medidasObjetos.forEach(function(m) { if (isBoxEdge(r, c, m.gtBox)) isGT = true; }); }
+            // FIX: DET agora vem de m.detBox (bbox ruidosa casada por IoU)
             if (showDET) {
               medidasObjetos.forEach(function(m) {
-                if (isBoxEdge(r, c, m.bbox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
+                if (isBoxEdge(r, c, m.detBox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
               });
             }
 
@@ -3409,7 +3419,8 @@ window.Quarto = {
       medidasObjetos.forEach(function(m, i){
         var tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#fafaf7';
-        var bboxDet = '(' + m.bbox.x + ',' + m.bbox.y + ',' + m.bbox.w + ',' + m.bbox.h + ')';
+        // FIX: bboxDet vem de m.detBox (caixa ruidosa) e bboxGT vem de m.gtBox (caixa real)
+        var bboxDet = '(' + m.detBox.x + ',' + m.detBox.y + ',' + m.detBox.w + ',' + m.detBox.h + ')';
         var bboxGT = '(' + m.gtBox.x + ',' + m.gtBox.y + ',' + m.gtBox.w + ',' + m.gtBox.h + ')';
         var statusHtml = m.ok ? '<span style="color:#27ae60;font-weight:bold;">✔ True</span>' : '<span style="color:#e74c3c;font-weight:bold;">✖ False</span>';
 

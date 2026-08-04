@@ -8,14 +8,14 @@
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
 <ol type="1">
-<li><strong>Leitura da Imagem:</strong> Ler as dimensões <em>H</em> × <em>W</em> e a matriz <em>H</em> × <em>W</em> de píxeis da imagem em tons de cinza.</li>
+<li><strong>Leitura da Imagem:</strong> Ler as dimensões <em>H</em> × <em>W</em> e a matriz <em>H</em> × <em>W</em> de pixels da imagem em tons de cinza.</li>
 <li><strong><em>Pipeline</em> Morfológico:</strong> Binarizar a imagem via método de Otsu (<code>mm.threshold</code>) e renderizar a máscara binarizada resultante utilizando <code>mm.drawImg</code>.</li>
-<li><strong>Leitura do Gabarito Real (Ground Truth):</strong></li>
+<li><strong>Leitura do Gabarito Real (<em>Ground Truth</em>):</strong></li>
 </ol>
 <ul>
 <li>Ler a quantidade <em>G</em> de caixas delimitadoras do gabarito.</li>
 <li>Se <em>G</em> &gt; 0, ler <em>G</em> linhas contendo 5 valores cada: <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code>.</li>
-<li><strong>Conversão de Coordenadas:</strong> As coordenadas do gabarito estão normalizadas na faixa [0.0, 1.0]. Para converter para píxeis na grade da imagem:</li>
+<li><strong>Conversão de Coordenadas:</strong> As coordenadas do gabarito estão normalizadas na faixa [0.0, 1.0]. Para converter para pixels na grade da imagem:</li>
 </ul>
 <p><em>x</em>_\min = \lfloor xmin_norm × <em>W</em> \rfloor, \quad <em>y</em>_\min = \lfloor ymin_norm × <em>H</em> \rfloor</p>
 <p><em>w</em> = \lfloor xmax_norm × <em>W</em> \rfloor - <em>x</em>_\min, \quad <em>h</em> = \lfloor ymax_norm × <em>H</em> \rfloor - <em>y</em>_\min</p>
@@ -24,7 +24,7 @@
 </ol>
 <ul>
 <li>Extrair as propriedades das instâncias com <code>mm.measure(img_bin, precision=0.02)</code>.</li>
-<li>Para cada <em>bounding box</em> detectada (<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>), calcular a sobreposição IoU em relação às caixas do gabarito e definir <code>hits = 1</code> se existir algum match com IoU \ge 0.50, ou <code>hits = 0</code> caso contrário.</li>
+<li>Para cada <em>bounding box</em> detectada (<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>), calcular a sobreposição IoU em relação às caixas do gabarito e definir <code>hits = 1</code> se existir algum <em>match</em> com IoU \ge 0.50, ou <code>hits = 0</code> caso contrário.</li>
 </ul>
 <ol start="5" type="1">
 <li><strong>Saída:</strong> Ordenar as instâncias por posição <code>(bbox[0], bbox[1])</code> e imprimir a tabela CSV com a coluna adicional <code>hits</code>.</li>
@@ -44,7 +44,7 @@
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>BBox Detectada</strong></td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">(<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>) via <code>mm.measure</code></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Caixa delimitadora calculada na grade discreta em píxeis inteiros.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Caixa delimitadora calculada na grade discreta em pixels inteiros.</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>BBox Gabarito (GT)</strong></td>
@@ -191,7 +191,9 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
 
     var H = 10, W = 20, stage = 0;
     var showGT = true, showDET = true;
-    var matOrig = [], matBin = [], medidasObjetos = [], gabaritosAtuais = [];
+    // matOrig/matBin: cena. medidasObjetos: 1 registro por objeto real (GT), casado com sua melhor DET.
+    // detBoxesAtuais: caixas "detectadas" simuladas (com ruído/deslocamento em relação ao objeto real).
+    var matOrig = [], matBin = [], medidasObjetos = [], detBoxesAtuais = [];
 
     var elBtnRand = root.querySelector('#ep0811_btnRand');
     var elToggleGT = root.querySelector('#ep0811_toggleGT');
@@ -320,33 +322,37 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
       return union > 0 ? inter / union : 0.0;
     }
 
-    function measureOpenCV(mat, gabaritos) {
+    // FIX: bbox extraída dos pixels reais do objeto (mat) é o GABARITO (GT) — é a posição
+    // verdadeira e exata do objeto na cena. As caixas em `detBoxes` (com deslocamento
+    // aleatório) representam a saída ruidosa de um detector, e são casadas ao GT mais
+    // próximo por IoU.
+    function measureOpenCV(mat, detBoxes) {
       var blobs = cv2_findContours(mat);
       var medidas = [];
       blobs.forEach(function(item) {
         var contour = item.contour, pixels = item.pixels;
         var area = cv2_contourArea(contour);
         if (area === 0) area = pixels.length;
-        var bbox = cv2_boundingRect(pixels);
+        var gtBbox = cv2_boundingRect(pixels);
         var hull = cv2_convexHull(contour);
         var hull_area = cv2_contourArea(hull);
         if (hull_area === 0) hull_area = area;
         var poly = cv2_approxPolyDP(contour, 0.02);
         var solidity = hull_area > 0 ? area / hull_area : 0;
         var classe = solidity < 0.85 ? "Cruz (Côncavo)" : "Retângulo (Convexo)";
-        var bestIoU = 0.0, matchedGT = { x: 0, y: 0, w: 0, h: 0 };
+        var bestIoU = 0.0, matchedDET = { x: 0, y: 0, w: 0, h: 0 };
 
-        gabaritos.forEach(function(g) {
-          var iou = calculateIoU(bbox, g);
-          if (iou > bestIoU) { bestIoU = iou; matchedGT = g; }
+        detBoxes.forEach(function(d) {
+          var iou = calculateIoU(gtBbox, d);
+          if (iou > bestIoU) { bestIoU = iou; matchedDET = d; }
         });
 
         medidas.push({
-          classe: classe, area: area, bbox: bbox, gtBox: matchedGT,
+          classe: classe, area: area, gtBox: gtBbox, detBox: matchedDET,
           solidity: solidity, vertices: poly.length, iou: bestIoU, ok: bestIoU >= 0.50
         });
       });
-      medidas.sort(function(a, b) { return a.bbox.x !== b.bbox.x ? a.bbox.x - b.bbox.x : a.bbox.y - b.bbox.y; });
+      medidas.sort(function(a, b) { return a.gtBox.x !== b.gtBox.x ? a.gtBox.x - b.gtBox.x : a.gtBox.y - b.gtBox.y; });
       medidas.forEach(function(m, i) { m.id = i + 1; });
       return medidas;
     }
@@ -372,16 +378,18 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
         for (var c = x2; c < x2 + w2; c++) { matOrig[r][c] = 180; }
       }
 
+      // Estas caixas simulam a saída de um DETECTOR real: deslocadas/imprecisas em relação
+      // ao objeto verdadeiro (que será obtido depois via segmentação em matBin -> GT).
       var shiftX1 = Math.random() > 0.5 ? 1 : 0, shiftY1 = Math.random() > 0.5 ? 1 : 0;
-      var shiftX2 = Math.random() > 0.6 ? -2 : 0; 
+      var shiftX2 = Math.random() > 0.6 ? -2 : 0;
 
-      gabaritosAtuais = [
+      detBoxesAtuais = [
         { x: Math.max(0, x1 + shiftX1), y: Math.max(0, y1 + shiftY1), w: w1, h: h1 },
         { x: Math.max(0, x2 + shiftX2), y: y2, w: w2 + (shiftX2 !== 0 ? 2 : 0), h: h2 }
       ];
 
       matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
-      medidasObjetos = measureOpenCV(matBin, gabaritosAtuais);
+      medidasObjetos = measureOpenCV(matBin, detBoxesAtuais);
       renderGrid();
       renderTabela();
     }
@@ -401,10 +409,12 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
           var isGT = false, isDetOK = false, isDetFail = false;
 
           if (stage === 1) {
-            if (showGT) { gabaritosAtuais.forEach(function(gt) { if (isBoxEdge(r, c, gt)) isGT = true; }); }
+            // FIX: GT agora vem de m.gtBox (bbox real extraída dos pixels do objeto)
+            if (showGT) { medidasObjetos.forEach(function(m) { if (isBoxEdge(r, c, m.gtBox)) isGT = true; }); }
+            // FIX: DET agora vem de m.detBox (bbox ruidosa casada por IoU)
             if (showDET) {
               medidasObjetos.forEach(function(m) {
-                if (isBoxEdge(r, c, m.bbox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
+                if (isBoxEdge(r, c, m.detBox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
               });
             }
 
@@ -442,7 +452,8 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
       medidasObjetos.forEach(function(m, i){
         var tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#fafaf7';
-        var bboxDet = '(' + m.bbox.x + ',' + m.bbox.y + ',' + m.bbox.w + ',' + m.bbox.h + ')';
+        // FIX: bboxDet vem de m.detBox (caixa ruidosa) e bboxGT vem de m.gtBox (caixa real)
+        var bboxDet = '(' + m.detBox.x + ',' + m.detBox.y + ',' + m.detBox.w + ',' + m.detBox.h + ')';
         var bboxGT = '(' + m.gtBox.x + ',' + m.gtBox.y + ',' + m.gtBox.w + ',' + m.gtBox.h + ')';
         var statusHtml = m.ok ? '<span style="color:#27ae60;font-weight:bold;">✔ True</span>' : '<span style="color:#e74c3c;font-weight:bold;">✖ False</span>';
 

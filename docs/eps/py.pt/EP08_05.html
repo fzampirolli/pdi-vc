@@ -204,7 +204,7 @@ Total de instâncias: 1</td>
 </tbody>
 </table>
 <div class="cell" id="cell-fig-08-sim-ep05">
-<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="14" id="fig-08-sim-ep05">
+<div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="53" id="fig-08-sim-ep05">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-08-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim08_ep05" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
@@ -2928,7 +2928,9 @@ window.Quarto = {
 
     var H = 10, W = 20, stage = 0;
     var showGT = true, showDET = true;
-    var matOrig = [], matBin = [], medidasObjetos = [], gabaritosAtuais = [];
+    // matOrig/matBin: cena. medidasObjetos: 1 registro por objeto real (GT), casado com sua melhor DET.
+    // detBoxesAtuais: caixas "detectadas" simuladas (com ruído/deslocamento em relação ao objeto real).
+    var matOrig = [], matBin = [], medidasObjetos = [], detBoxesAtuais = [];
 
     var elBtnRand = root.querySelector('#ep0811_btnRand');
     var elToggleGT = root.querySelector('#ep0811_toggleGT');
@@ -3057,33 +3059,37 @@ window.Quarto = {
       return union > 0 ? inter / union : 0.0;
     }
 
-    function measureOpenCV(mat, gabaritos) {
+    // FIX: bbox extraída dos pixels reais do objeto (mat) é o GABARITO (GT) — é a posição
+    // verdadeira e exata do objeto na cena. As caixas em `detBoxes` (com deslocamento
+    // aleatório) representam a saída ruidosa de um detector, e são casadas ao GT mais
+    // próximo por IoU.
+    function measureOpenCV(mat, detBoxes) {
       var blobs = cv2_findContours(mat);
       var medidas = [];
       blobs.forEach(function(item) {
         var contour = item.contour, pixels = item.pixels;
         var area = cv2_contourArea(contour);
         if (area === 0) area = pixels.length;
-        var bbox = cv2_boundingRect(pixels);
+        var gtBbox = cv2_boundingRect(pixels);
         var hull = cv2_convexHull(contour);
         var hull_area = cv2_contourArea(hull);
         if (hull_area === 0) hull_area = area;
         var poly = cv2_approxPolyDP(contour, 0.02);
         var solidity = hull_area > 0 ? area / hull_area : 0;
         var classe = solidity < 0.85 ? "Cruz (Côncavo)" : "Retângulo (Convexo)";
-        var bestIoU = 0.0, matchedGT = { x: 0, y: 0, w: 0, h: 0 };
+        var bestIoU = 0.0, matchedDET = { x: 0, y: 0, w: 0, h: 0 };
 
-        gabaritos.forEach(function(g) {
-          var iou = calculateIoU(bbox, g);
-          if (iou > bestIoU) { bestIoU = iou; matchedGT = g; }
+        detBoxes.forEach(function(d) {
+          var iou = calculateIoU(gtBbox, d);
+          if (iou > bestIoU) { bestIoU = iou; matchedDET = d; }
         });
 
         medidas.push({
-          classe: classe, area: area, bbox: bbox, gtBox: matchedGT,
+          classe: classe, area: area, gtBox: gtBbox, detBox: matchedDET,
           solidity: solidity, vertices: poly.length, iou: bestIoU, ok: bestIoU >= 0.50
         });
       });
-      medidas.sort(function(a, b) { return a.bbox.x !== b.bbox.x ? a.bbox.x - b.bbox.x : a.bbox.y - b.bbox.y; });
+      medidas.sort(function(a, b) { return a.gtBox.x !== b.gtBox.x ? a.gtBox.x - b.gtBox.x : a.gtBox.y - b.gtBox.y; });
       medidas.forEach(function(m, i) { m.id = i + 1; });
       return medidas;
     }
@@ -3109,16 +3115,18 @@ window.Quarto = {
         for (var c = x2; c < x2 + w2; c++) { matOrig[r][c] = 180; }
       }
 
+      // Estas caixas simulam a saída de um DETECTOR real: deslocadas/imprecisas em relação
+      // ao objeto verdadeiro (que será obtido depois via segmentação em matBin -> GT).
       var shiftX1 = Math.random() > 0.5 ? 1 : 0, shiftY1 = Math.random() > 0.5 ? 1 : 0;
-      var shiftX2 = Math.random() > 0.6 ? -2 : 0; 
+      var shiftX2 = Math.random() > 0.6 ? -2 : 0;
 
-      gabaritosAtuais = [
+      detBoxesAtuais = [
         { x: Math.max(0, x1 + shiftX1), y: Math.max(0, y1 + shiftY1), w: w1, h: h1 },
         { x: Math.max(0, x2 + shiftX2), y: y2, w: w2 + (shiftX2 !== 0 ? 2 : 0), h: h2 }
       ];
 
       matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
-      medidasObjetos = measureOpenCV(matBin, gabaritosAtuais);
+      medidasObjetos = measureOpenCV(matBin, detBoxesAtuais);
       renderGrid();
       renderTabela();
     }
@@ -3138,10 +3146,12 @@ window.Quarto = {
           var isGT = false, isDetOK = false, isDetFail = false;
 
           if (stage === 1) {
-            if (showGT) { gabaritosAtuais.forEach(function(gt) { if (isBoxEdge(r, c, gt)) isGT = true; }); }
+            // FIX: GT agora vem de m.gtBox (bbox real extraída dos pixels do objeto)
+            if (showGT) { medidasObjetos.forEach(function(m) { if (isBoxEdge(r, c, m.gtBox)) isGT = true; }); }
+            // FIX: DET agora vem de m.detBox (bbox ruidosa casada por IoU)
             if (showDET) {
               medidasObjetos.forEach(function(m) {
-                if (isBoxEdge(r, c, m.bbox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
+                if (isBoxEdge(r, c, m.detBox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
               });
             }
 
@@ -3179,7 +3189,8 @@ window.Quarto = {
       medidasObjetos.forEach(function(m, i){
         var tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#fafaf7';
-        var bboxDet = '(' + m.bbox.x + ',' + m.bbox.y + ',' + m.bbox.w + ',' + m.bbox.h + ')';
+        // FIX: bboxDet vem de m.detBox (caixa ruidosa) e bboxGT vem de m.gtBox (caixa real)
+        var bboxDet = '(' + m.detBox.x + ',' + m.detBox.y + ',' + m.detBox.w + ',' + m.detBox.h + ')';
         var bboxGT = '(' + m.gtBox.x + ',' + m.gtBox.y + ',' + m.gtBox.w + ',' + m.gtBox.h + ')';
         var statusHtml = m.ok ? '<span style="color:#27ae60;font-weight:bold;">✔ True</span>' : '<span style="color:#e74c3c;font-weight:bold;">✖ False</span>';
 
