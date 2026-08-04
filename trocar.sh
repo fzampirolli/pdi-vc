@@ -5,14 +5,8 @@
 #
 
 # Texto a ser substituído
-ORIGINAL="""
-
----
-
-"""
-DESTINO="""
-
-"""
+ORIGINAL="""píxeis"""
+DESTINO="""pixels"""
 
 # Procura apenas nos notebooks dos capítulos usando Process Substitution
 while IFS= read -r -d '' ARQ; do
