@@ -1436,6 +1436,65 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
     _rename_pdf(qdir, combo_name, file_key)
 
 def _fix_tex_cover(qdir: Path):
+
+    # ═════════════════════════════════════════════════════════════
+    # INSERÇÃO DE HIPERLINKS CLICÁVEIS NOS SIMULADORES DO PDF
+    # ═════════════════════════════════════════════════════════════
+    combo_name = qdir.name
+    
+
+    def _replace_sim_with_link(match):
+        full_fig_env = match.group(0)
+        
+        # FILTRO RÍGIDO: Procura especificamente por rótulos de simuladores válidos (-sim-ep ou -sim-[nome])
+        # Ignora qualquer outra imagem (como botões, logos ou figuras comuns)
+        label_match = re.search(r'\\label\{(fig-\d+-sim-(?:ep\d{4}[a-z]?|[a-z0-9-]+))\}', full_fig_env)
+        
+        if not label_match:
+            return full_fig_env # Retorna a figura intacta se não for um simulador válido!
+            
+        label_full = label_match.group(1) # ex: fig-01-sim-ep0101-distancia
+        
+        # Remove o prefixo fig-XX- para isolar o nome interno do simulador
+        sim_name = re.sub(r'^fig-\d+-', '', label_full) # ex: sim-ep0101-distancia
+        
+        # Se porventura ainda restar algum nome antigo não unificado, força a conversão canônica
+        if sim_name == 'sim-metricas-distancia':
+            sim_name = 'sim-ep0101-distancia'
+        elif sim_name == 'sim-estatisticas-pixels':
+            sim_name = 'sim-ep0104-estatisticas'
+        elif sim_name == 'sim-filtro-maximo-1d':
+            sim_name = 'sim-ep0111-filtro-maximo'
+            
+        # Descobre o número correto do capítulo a partir do label
+        cap_match = re.search(r'fig-(\d+)-', label_full)
+        if cap_match:
+            cap_num = cap_match.group(1)
+            cap_folder = f"cap{cap_num}"
+        else:
+            cap_folder = "cap01"
+        
+        # Correção de consistência para o Ransac
+        if sim_name == 'sim-ransac_registro':
+            sim_name = 'sim-ransac-registro'
+        
+        # Monta a URL oficial correta no GitHub Pages
+        target_url = f"https://fzampirolli.github.io/pdi-vc/simuladores/{combo_name}/{cap_folder}/{sim_name}.html"
+        
+        # 1. Envolve a imagem com o link do hyperref (\href)
+        linked_fig = re.sub(
+            r'(\\includegraphics[^}]+\}{[^}]+\})',
+            r'\\href{' + target_url + r'}{\1}',
+            full_fig_env
+        )
+        
+        # 2. Insere o texto com o link clicável logo antes do comando \caption (com espaçamento reduzido)
+        link_text = rf'\vspace{{0mm}}\noindent\small\textbf{{Versão interativa:}} \url{{{target_url}}}\par\vspace{{-2mm}}'
+        linked_fig = linked_fig.replace(r'\caption', f'{link_text}\n\\caption')
+
+        return linked_fig
+
+
     cover_abs_file = qdir / '.cover_abs'
     if not cover_abs_file.exists():
         print('  ⚠ .cover_abs não encontrado, pulando patch do .tex')
@@ -1634,6 +1693,16 @@ def _fix_tex_cover(qdir: Path):
 \clearpage
 \mainmatter
 """
+
+    # Varre as figuras do .tex garantindo que o pattern exija a estrutura de um simulador real
+    content = re.sub(
+        r'\\begin\{figure\}(?:(?!\\end\{figure\}).)*?\\label\{fig-\d+-sim-(?:ep\d{4}[a-z]?|[a-z0-9-]+)\}(?:(?!\\end\{figure\}).)*?\\end\{figure\}',
+        _replace_sim_with_link,
+        content,
+        flags=re.DOTALL
+    )
+    print('  ✓ Links interativos injetados estritamente nos simuladores válidos')
+    # ═════════════════════════════════════════════════════════════
 
     # Injeta o preâmbulo e a capa em uma única substituição estruturada
     content = content.replace(

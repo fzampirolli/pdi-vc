@@ -3,7 +3,7 @@
 ep_tools.py — Ferramentas unificadas para extração de EPs de HTML Quarto.
 
 Subcomandos:
-  extrair   Extrai cada EP de cap*.html e salva em arquivo individual.
+  extrair   Extrai cada EP de cap*.html e salva em arquivo individual com emolduração, navegação e índice raiz.
   limpar    Extrai o fragmento utilizável (compatível com Moodle/VPL) de cada EPxx_xx.html.
 
 ────────────────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ EXTRAIR — gera um HTML por EP a partir das páginas de capítulo do Quarto
   python ep_tools.py extrair --out-dir output/eps             # pasta de saída customizada
   python ep_tools.py extrair --dry-run                        # só lista EPs encontrados
 
-  Saída padrão: gen/book/eps/<versao>/EP01_02.html
+  Saída padrão: gen/book/eps/<versao>/EP01_02.html e index.html raiz
 
 ────────────────────────────────────────────────────────────────────────────
 LIMPAR — extrai o fragmento Moodle/VPL de cada EPxx_xx.html já extraído
@@ -44,6 +44,9 @@ RE_EP_HEADING = re.compile(r'\bEP(\d{2})_(\d{2})\b')
 # Identifica a célula %%writefile EPXX_YY.py que fecha o bloco do EP
 RE_WRITEFILE = re.compile(r'%%writefile\s+(EP\d{2}_\d{2}\.py)')
 
+# Expressão para detectar o capítulo
+RE_CAP_FILE = re.compile(r'cap(\d{2})', re.IGNORECASE)
+
 
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -51,26 +54,364 @@ HTML_TEMPLATE = """\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{ep_id} — {title}</title>
+  <title>{ep_id} — {title} | PDI+VC</title>
   {favicon} 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   {styles}
+  <style>
+    :root {{
+      --ink:      #1a1612;
+      --paper:    #faf7f2;
+      --cream:    #f0ebe0;
+      --gold:     #c8963c;
+      --gold-lt:  #e8c070;
+      --navy:     #1a2e4a;
+      --navy-lt:  #2a4a6a;
+      --muted:    #6b6058;
+      --border:   #d8d0c0;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(26,22,18,0.13);
+    }}
+
+    body.ep-standalone {{
+      font-family: 'Source Serif 4', Georgia, serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }}
+
+    /* ── Header do Frame ───────────────────────────────────────────── */
+    .ep-frame-header {{
+      background: var(--navy);
+      color: #fff;
+      padding: 1.2rem 2rem;
+      border-bottom: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }}
+
+    .ep-frame-brand {{
+      display: flex;
+      flex-direction: column;
+    }}
+
+    .ep-frame-eyebrow {{
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-lt);
+    }}
+
+    .ep-frame-title {{
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+    }}
+
+    .ep-frame-nav {{
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }}
+
+    .ep-btn {{
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }}
+
+    .ep-btn-primary {{
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 600;
+    }}
+
+    .ep-btn-primary:hover {{
+      background: var(--gold-lt);
+    }}
+
+    .ep-btn-outline {{
+      border: 1px solid #4a6a8a;
+      color: #c8d8e8;
+    }}
+
+    .ep-btn-outline:hover {{
+      border-color: var(--gold-lt);
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }}
+
+    .ep-btn-nav {{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #3a5a7a;
+      color: #fff;
+    }}
+
+    .ep-btn-nav:hover {{
+      background: var(--navy-lt);
+      border-color: var(--gold-lt);
+    }}
+
+    /* ── Container Principal do EP ───────────────────────────────────── */
+    .ep-main-wrapper {{
+      flex: 1;
+      padding: 2.5rem 1.5rem;
+      max-width: 120ch;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }}
+
+    .ep-card-frame {{
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }}
+
+    /* ── Footer do Frame (Consolidado) ───────────────────────────────── */
+    .ep-frame-footer {{
+      background: var(--navy);
+      color: #7898b0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: auto;
+      border-top: 1px solid var(--navy-lt);
+      line-height: 1.6;
+    }}
+
+    .ep-frame-footer strong {{
+      color: #fff;
+    }}
+
+    .ep-frame-footer a {{
+      color: var(--gold-lt);
+      text-decoration: none;
+    }}
+
+    .ep-frame-footer a:hover {{
+      text-decoration: underline;
+    }}
+
+    @media (max-width: 600px) {{
+      .ep-frame-header {{
+        padding: 1rem;
+      }}
+      .ep-main-wrapper {{
+        padding: 1rem 0.5rem;
+      }}
+      .ep-card-frame {{
+        padding: 1rem;
+      }}
+    }}
+  </style>
 </head>
 <body class="ep-standalone">
-<div class="ep-container" style="margin:0 auto; max-width:120ch">
-{content}
-</div>
+
+<!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
+<header class="ep-frame-header">
+  <div class="ep-frame-brand">
+    <span class="ep-frame-eyebrow">PDI+VC · Exercício de Programação</span>
+    <h1 class="ep-frame-title">{ep_id} — {title}</h1>
+  </div>
+  <nav class="ep-frame-nav">
+    {prev_btn}
+    {next_btn}
+    <a href="./index.html" class="ep-btn ep-btn-outline">📂 Índice geral</a>
+    <a href="https://fzampirolli.github.io/pdi-vc/" target="_blank" class="ep-btn ep-btn-outline">📖 Ver livro</a>
+    <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="ep-btn ep-btn-primary">💻 GitHub</a>
+  </nav>
+</header>
+
+<!-- CONTEÚDO DO EP ENQUADRADO -->
+<main class="ep-main-wrapper">
+  <div class="ep-card-frame">
+    <div class="ep-container">
+      {content}
+    </div>
+  </div>
+</main>
+
+<!-- RODAPÉ COMPLETO E ÚNICO -->
+<footer class="ep-frame-footer">
+  <p>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
+    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
+  </p>
+</footer>
+
 {scripts}
+</body>
+</html>
+"""
+
+INDEX_TEMPLATE = """\
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exercícios de Programação (EPs) | PDI+VC</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {{
+      --ink:      #1a1612;
+      --paper:    #faf7f2;
+      --cream:    #f0ebe0;
+      --gold:     #c8963c;
+      --gold-lt:  #e8c070;
+      --navy:     #1a2e4a;
+      --navy-lt:  #2a4a6a;
+      --muted:    #6b6058;
+      --border:   #d8d0c0;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(26,22,18,0.13);
+    }}
+    body {{
+      font-family: 'Source Serif 4', Georgia, serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }}
+    header {{
+      background: var(--navy);
+      color: #fff;
+      padding: 2rem;
+      border-bottom: 3px solid var(--gold);
+      text-align: center;
+    }}
+    header h1 {{
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2rem;
+      margin: 0 0 0.5rem 0;
+    }}
+    header p {{
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--gold-lt);
+      margin: 0;
+    }}
+    main {{
+      max-width: 90ch;
+      width: 100%;
+      margin: 2.5rem auto;
+      padding: 0 1rem;
+      box-sizing: border-box;
+      flex: 1;
+    }}
+    .chapter-card {{
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }}
+    .chapter-card h2 {{
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.3rem;
+      color: var(--navy);
+      margin-top: 0;
+      border-bottom: 2px solid var(--cream);
+      padding-bottom: 0.5rem;
+    }}
+    .ep-list {{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }}
+    .ep-list li a {{
+      display: block;
+      background: var(--cream);
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      color: var(--navy);
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.84rem;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .ep-list li a:hover {{
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+    }}
+    footer {{
+      background: var(--navy);
+      color: #7898b0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      border-top: 1px solid var(--navy-lt);
+    }}
+    footer a {{
+      color: var(--gold-lt);
+      text-decoration: none;
+    }}
+    footer a:hover {{
+      text-decoration: underline;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PDI+VC · Exercícios de Programação (EPs)</h1>
+    <p>Processamento Digital de Imagens e Visão Computacional</p>
+  </header>
+  <main>
+    {chapters_html}
+  </main>
+  <footer>
+    <p>
+      <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+      © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
+      <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank">📖 Voltar para o Livro</a>
+    </p>
+  </footer>
 </body>
 </html>
 """
 
 
 def extract_head_assets(soup: BeautifulSoup) -> tuple[str, str]:
-    """
-    Extrai <link rel="stylesheet"> e <script> do <head> do documento original
-    para que o HTML gerado tenha o mesmo visual do livro.
-    Retorna (styles_html, scripts_html).
-    """
     styles_parts: list[str] = []
     scripts_parts: list[str] = []
 
@@ -84,7 +425,6 @@ def extract_head_assets(soup: BeautifulSoup) -> tuple[str, str]:
         elif tag.name == "style":
             styles_parts.append(str(tag))
 
-    # Scripts do head (ex: MathJax)
     for tag in head.find_all("script"):
         src = tag.get("src", "")
         if src and any(k in src for k in ("mathjax", "highlight", "quarto")):
@@ -92,7 +432,6 @@ def extract_head_assets(soup: BeautifulSoup) -> tuple[str, str]:
         elif not src and tag.string and "MathJax" in tag.string:
             scripts_parts.append(str(tag))
 
-    # Scripts do body (copy-to-clipboard, etc.)
     body = soup.find("body")
     if body:
         for tag in body.find_all("script"):
@@ -108,17 +447,21 @@ def detect_lang(soup: BeautifulSoup) -> str:
     return html_tag.get("lang", "pt") if html_tag else "pt"
 
 
-def find_ep_blocks(soup: BeautifulSoup) -> list[dict]:
-    """
-    Percorre o DOM e localiza cada bloco EP.
+def detect_chapter_folder(html_path: Path, ep_id: str) -> str:
+    for part in reversed(html_path.parts):
+        m = RE_CAP_FILE.search(part)
+        if m:
+            return f"cap{m.group(1)}"
 
-    Estratégia:
-    1. Encontra todos os headings (h2/h3/h4) cujo texto casa com RE_EP_HEADING.
-    2. Para cada heading, coleta todos os elementos irmãos seguintes até:
-       a) encontrar a célula %%writefile EPXX_YY.py  → inclui e para
-       b) encontrar outro heading EP                 → para (não inclui)
-       c) encontrar heading de nível igual/superior  → para
-    """
+    # Fallback extraindo do próprio EP01_02 -> cap01
+    m_ep = re.match(r'^EP(\d{2})_', ep_id)
+    if m_ep:
+        return f"cap{m_ep.group(1)}"
+
+    return "cap_geral"
+
+
+def find_ep_blocks(soup: BeautifulSoup) -> list[dict]:
     heading_tags = {"h2", "h3", "h4"}
     eps: list[dict] = []
 
@@ -136,13 +479,14 @@ def find_ep_blocks(soup: BeautifulSoup) -> list[dict]:
         text = tag.get_text(" ", strip=True)
         m = RE_EP_HEADING.search(text)
         if m:
-            ep_headings.append((tag, m.group(0)))  # (tag, "EP01_02")
+            ep_headings.append((tag, m.group(0)))
 
     for heading_tag, ep_id in ep_headings:
         title_text = heading_tag.get_text(" ", strip=True)
         title_text = re.sub(r'^\s*[\d.]+\s+', '', title_text)
+        title_text = re.sub(rf'^\s*{re.escape(ep_id)}\s*[:—\-–]?\s*', '', title_text, flags=re.IGNORECASE)
 
-        heading_level = int(heading_tag.name[1])  # h3 → 3
+        heading_level = int(heading_tag.name[1])
 
         block_elements: list[Tag] = [heading_tag]
         found_writefile = False
@@ -173,7 +517,7 @@ def find_ep_blocks(soup: BeautifulSoup) -> list[dict]:
 
         eps.append({
             "ep_id": ep_id,
-            "title": title_text,
+            "title": title_text.strip(),
             "elements": block_elements,
             "has_writefile": found_writefile,
         })
@@ -185,9 +529,13 @@ def elements_to_html(elements: list[Tag]) -> str:
     return "\n".join(str(el) for el in elements)
 
 
-def build_ep_html(ep: dict, styles: str, scripts: str, lang: str) -> str:
+def build_ep_html(ep: dict, styles: str, scripts: str, lang: str, prev_id: str | None = None, next_id: str | None = None) -> str:
     content = elements_to_html(ep["elements"])
     favicon_tag = '<link rel="icon" type="image/x-icon" href="../../favicon.ico">'
+    
+    prev_btn = f'<a href="{prev_id}.html" class="ep-btn ep-btn-nav">← {prev_id}</a>' if prev_id else ''
+    next_btn = f'<a href="{next_id}.html" class="ep-btn ep-btn-nav">{next_id} →</a>' if next_id else ''
+
     return HTML_TEMPLATE.format(
         lang=lang,
         ep_id=ep["ep_id"],
@@ -196,47 +544,9 @@ def build_ep_html(ep: dict, styles: str, scripts: str, lang: str) -> str:
         styles=styles,
         scripts=scripts,
         content=content,
+        prev_btn=prev_btn,
+        next_btn=next_btn,
     )
-
-
-def process_html_file(
-    html_path: Path,
-    out_dir: Path,
-    dry_run: bool = False,
-    verbose: bool = True,
-) -> list[str]:
-    raw = html_path.read_text(encoding="utf-8")
-    soup = BeautifulSoup(raw, "html.parser")
-
-    lang = detect_lang(soup)
-    styles, scripts = extract_head_assets(soup)
-    eps = find_ep_blocks(soup)
-
-    if not eps:
-        if verbose:
-            print(f"  ⚠️  Nenhum EP encontrado em {html_path.name}")
-        return []
-
-    extracted: list[str] = []
-    for ep in eps:
-        ep_id = ep["ep_id"]
-        out_file = out_dir / f"{ep_id}.html"
-
-        if dry_run:
-            wf = "✓ writefile" if ep["has_writefile"] else "✗ sem writefile"
-            print(f"  [{wf}] {ep_id}  →  {out_file}")
-        else:
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-            html_content = build_ep_html(ep, styles, scripts, lang)
-            out_file.write_text(html_content, encoding="utf-8")
-            size_kb = out_file.stat().st_size / 1024
-            if verbose:
-                wf = "✓" if ep["has_writefile"] else "⚠"
-                print(f"  {wf} {ep_id}  →  {out_file}  ({size_kb:.0f} KB)")
-
-        extracted.append(ep_id)
-
-    return extracted
 
 
 def collect_html_files(input_path: Path) -> list[tuple[Path, Path]]:
@@ -276,9 +586,15 @@ def cmd_extrair(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     verbose = not args.quiet
-    total_eps: list[str] = []
-
+    
+    all_ep_entries = []
     for html_file, versao_dir in pairs:
+        raw = html_file.read_text(encoding="utf-8", errors="replace")
+        soup = BeautifulSoup(raw, "html.parser")
+        lang = detect_lang(soup)
+        styles, scripts = extract_head_assets(soup)
+        eps = find_ep_blocks(soup)
+
         if args.out_dir:
             out_dir = Path(args.out_dir)
         else:
@@ -286,16 +602,85 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             book_root = versao_dir.parent
             out_dir = book_root / "eps" / versao_name
 
-        if verbose or args.dry_run:
-            print(f"\n📄 {html_file}")
+        for ep in eps:
+            cap_folder = detect_chapter_folder(html_file, ep["ep_id"])
+            all_ep_entries.append({
+                "ep": ep,
+                "cap_folder": cap_folder,
+                "out_dir": out_dir,
+                "styles": styles,
+                "scripts": scripts,
+                "lang": lang,
+                "html_file": html_file
+            })
 
-        extracted = process_html_file(
-            html_path=html_file,
-            out_dir=out_dir,
-            dry_run=args.dry_run,
-            verbose=verbose,
-        )
-        total_eps.extend(extracted)
+    # Ordena globalmente por ep_id para garantir a travessia contínua de todo o livro
+    all_ep_entries = sorted(all_ep_entries, key=lambda x: x["ep"]["ep_id"])
+
+    # Agrupa por capítulo para montar o index.html formatado
+    cap_groups: dict[str, list[dict]] = {}
+    for entry in all_ep_entries:
+        c = entry["cap_folder"]
+        cap_groups.setdefault(c, []).append(entry)
+
+    total_eps: list[str] = []
+    chapters_index_html = []
+
+    for cap_folder in sorted(cap_groups.keys()):
+        group_entries = sorted(cap_groups[cap_folder], key=lambda x: x["ep"]["ep_id"])
+        
+        chapter_items_html = ""
+        for i, entry in enumerate(group_entries):
+            ep = entry["ep"]
+            ep_id = ep["ep_id"]
+            out_dir = entry["out_dir"]
+            out_file = out_dir / f"{ep_id}.html"
+
+            # Global prev/next para a navegação interna dos EPs
+            global_idx = all_ep_entries.index(entry)
+            prev_id = all_ep_entries[global_idx - 1]["ep"]["ep_id"] if global_idx > 0 else None
+            next_id = all_ep_entries[global_idx + 1]["ep"]["ep_id"] if global_idx < len(all_ep_entries) - 1 else None
+
+            if args.dry_run:
+                if verbose:
+                    print(f"  [Found] {ep_id}  →  {out_file}")
+            else:
+                out_dir.mkdir(parents=True, exist_ok=True)
+                html_content = build_ep_html(
+                    ep, entry["styles"], entry["scripts"], entry["lang"], 
+                    prev_id=prev_id, next_id=next_id
+                )
+                out_file.write_text(html_content, encoding="utf-8")
+                size_kb = out_file.stat().st_size / 1024
+                if verbose:
+                    wf = "✓" if ep["has_writefile"] else "⚠"
+                    print(f"  {wf} {ep_id}  →  {out_file}  ({size_kb:.0f} KB)")
+
+            total_eps.append(ep_id)
+            chapter_items_html += f'<li><a href="{ep_id}.html" title="{ep["title"]}"><code>{ep_id}</code> — {ep["title"]}</a></li>\n'
+
+        cap_display_name = cap_folder.replace("cap", "Capítulo ").upper()
+        chapters_index_html.append(f"""\
+        <div class="chapter-card">
+          <h2>{cap_display_name}</h2>
+          <ul class="ep-list">
+            {chapter_items_html}
+          </ul>
+        </div>
+        """)
+
+    # GERA O index.html NA RAIZ DA PASTA DE EPs PARA EVITAR O ERRO 404 DO GITHUB PAGES
+    if not args.dry_run and total_eps:
+        sample_versao = pairs[0][1].name if pairs[0][1].name != "book" else "default"
+        book_root = pairs[0][1].parent if pairs[0][1].name != "book" else pairs[0][1]
+        default_out_dir = book_root / "eps" / sample_versao if not args.out_dir else Path(args.out_dir)
+        
+        index_file = default_out_dir / "index.html"
+        default_out_dir.mkdir(parents=True, exist_ok=True)
+        index_content = INDEX_TEMPLATE.format(chapters_html="\n".join(chapters_index_html))
+        index_file.write_text(index_content, encoding="utf-8")
+        if verbose:
+            print(f"📁 Índice geral gerado: {index_file}")
 
     action = "encontrados" if args.dry_run else "gerados"
     print(f"\n{'─'*50}")
@@ -304,77 +689,48 @@ def cmd_extrair(args: argparse.Namespace) -> None:
     if not args.dry_run and total_eps and not args.out_dir:
         sample_versao = pairs[0][1].name
         book_root = pairs[0][1].parent
-        print(f"📁 Saída: {book_root / 'eps' / sample_versao}/")
+        print(f"📁 Saída raiz: {book_root / 'eps' / sample_versao}/index.html")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PARTE 2 — LIMPAR: extrai e sanitiza fragmento Moodle de EPxx_xx.html
+# PARTE 2 — LIMPAR: extrai e sanitiza fragmento Moodle de EPxx_xx.html (MANTIDO INTACTO)
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# Pipeline aplicada a cada arquivo:
-#   1. Extrai <div class="ep-container"> ... </div>
-#   2. Remove células Quarto/Jupyter (%%writefile, TestSuite, outputs)
-#   3. Converte LaTeX inline/display para HTML semântico (sem MathJax)
-#   4. Reescreve estrutura Quarto (h.anchored, section.level*, span.header-section-number,
-#      quarto-float, figcaption, quarto-xref, data-* attrs) para HTML inline puro
-#   5. Reescreve scripts de simulador: padrão init(root)+querySelector+dataset
-#      → padrão getElementById direto (gabarito EP03_01, compatível com Moodle/TinyMCE)
-#   6. Remove accent-color de inputs (causa erro #rrggbb no TinyMCE)
-#
-# ─────────────────────────────────────────────────────────────────────────────
 
-# Remove células Quarto com id hexadecimal (%%writefile, TestSuite, outputs)
 CELL_RE = re.compile(
     r'<div[^>]+class="cell"[^>]*id="[0-9a-f]{6,}"[\s\S]*?'
     r'(?=<div[^>]+class="cell"|</section>|</div>\s*</section>)',
     re.IGNORECASE,
 )
 
-# Remove quarto-float wrapper + figcaption, preservando o conteúdo interno
 QUARTO_FLOAT_OUTER_RE = re.compile(
     r'<div[^>]+class="[^"]*cell-output[^"]*"[^>]*>\s*'
     r'<figure[^>]*>([\s\S]*?)</figure>\s*</div>',
     re.IGNORECASE,
 )
 
-# Converte <figcaption ...>...</figcaption> → remove
 FIGCAPTION_RE = re.compile(r'<figcaption[^>]*>[\s\S]*?</figcaption>', re.IGNORECASE)
 
-# Remove o div aria-describedby que envolve o simulador dentro do figure
 ARIA_DIV_RE = re.compile(
     r'<div\s+aria-describedby="[^"]*">([\s\S]*?)</div>',
     re.IGNORECASE,
 )
 
-
-# ── Conversão LaTeX → HTML ────────────────────────────────────────────────────
-
 def _cases_to_inline(m: re.Match) -> str:
-    r"""\\begin{cases}...\\end{cases} → versão inline com ponto-e-vírgula."""
     body = m.group(1)
-    # No HTML do Quarto, \\\\ (quebra de linha LaTeX) aparece como \\ (2 chars reais)
     cases = re.split(r'\\\\', body)
     parts = []
     for case in cases:
-        case = re.sub(r'&amp;\s*', '', case)   # remove & de alinhamento (entidade HTML)
-        case = re.sub(r'&\s*', '', case)        # remove & literal
+        case = re.sub(r'&amp;\s*', '', case)
+        case = re.sub(r'&\s*', '', case)
         case = case.strip()
         if case:
             parts.append(case)
     return '; '.join(parts)
 
-
 def latex_body_to_html(body: str) -> str:
-    """Converte o corpo de uma expressão LaTeX (sem delimitadores) em HTML."""
     s = body.strip()
-
-    # Decodificar entidades HTML que o Quarto injeta no LaTeX (&amp; → &, &lt; → <)
     s = s.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
-
-    # \begin{cases}...\end{cases} → inline
     s = re.sub(r'\\begin\{cases\}([\s\S]*?)\\end\{cases\}', _cases_to_inline, s)
-
-    # Comandos LaTeX → entidades HTML / texto
     cmd_map = [
         (r'\\times',  '&times;'),
         (r'\\geq',    '&ge;'),
@@ -402,29 +758,18 @@ def latex_body_to_html(body: str) -> str:
     ]
     for pat, repl in cmd_map:
         s = re.sub(pat, repl, s)
-
-    # Variáveis de uma letra (p, T, L, C, k, n, f, g, …) → <em>
     s = re.sub(r'(?<![a-zA-Z&;{])([a-zA-Z])(?![a-zA-Z;={])', r'<em>\1</em>', s)
-
-    # Remover chaves remanescentes e espaços redundantes
     s = s.replace('{', '').replace('}', '')
     s = re.sub(r'  +', ' ', s).strip()
     return s
 
-
 def convert_math_spans(html: str) -> str:
-    """Substitui <span class="math inline/display">\\(...\\)</span> por HTML limpo."""
     def repl_inline(m: re.Match) -> str:
         inner = re.sub(r'^\\\(|\\\)$', '', m.group(1)).strip()
         return latex_body_to_html(inner)
 
     def repl_display(m: re.Match) -> str:
-        # IMPORTANTE: NÃO preservar LaTeX com \\ na versão Moodle.
-        # O TinyMCE descarta barras invertidas ao salvar, corrompendo o JavaScript.
-        # Converter para HTML puro (feio mas seguro). Link para versão completa
-        # com MathJax é injetado como banner por inject_moodle_styles.
         inner = m.group(1)
-        # Strip dos delimitadores \[ \] que o Quarto inclui no conteúdo
         inner = re.sub(r'^\s*\\\[\s*', '', inner)
         inner = re.sub(r'\s*\\\]\s*$', '', inner).strip()
         return latex_body_to_html(inner)
@@ -433,43 +778,24 @@ def convert_math_spans(html: str) -> str:
     html = re.sub(r'<span class="math display">([\s\S]*?)</span>', repl_display, html)
     return html
 
-
-# ── Injeção de estilos inline (gabarito EP03_01) ─────────────────────────────
-#
-# Mapeamento emoji → caixa colorida (padrão EP03_01):
-#   🧠  fundamentação teórica  → caixa verde
-#   📋  diretrizes / cenário   → caixa cinza
-#   📌  requisitos / exemplos  → caixa amarela
-#   📦  especificação I/O      → caixa cinza
-#
 _EMOJI_BOX: dict[str, dict[str, str]] = {
-    '🧠': {  # fundamentação teórica — verde pastel
-        'div': 'background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;'
-               'border-radius:8px;margin-bottom:20px;',
+    '🧠': {
+        'div': 'background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;',
         'h':   'margin-top:0;color:#1e8449;',
     },
-    '📋': {  # diretrizes / cenário — azul-acinzentado pastel
-        'div': 'background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;'
-               'border-radius:8px;margin-bottom:20px;',
+    '📋': {
+        'div': 'background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;',
         'h':   'margin-top:0;color:#4a5a78;',
     },
-    '📌': {  # requisitos / exemplos — amarelo pastel
-        'div': 'background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;'
-               'border-radius:8px;margin-bottom:25px;',
+    '📌': {
+        'div': 'background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;',
         'h':   'margin-top:0;color:#9a7d0a;',
     },
-    '📦': {  # especificação I/O — lilás pastel
-        'div': 'background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;'
-               'border-radius:8px;margin-bottom:20px;',
+    '📦': {
+        'div': 'background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;',
         'h':   'margin-top:0;color:#7d3c98;',
     },
 }
-
-# Simuladores (div[id^="sim-"]) NÃO recebem caixa/cor própria: eles já trazem
-# seu próprio visual (fundo, bordas, etc. definidos inline no HTML original).
-# São apenas extraídos de dentro de outras seções e reposicionados como
-# blocos irmãos, soltos, para não ficarem presos dentro da caixa colorida
-# de origem (ex: 📌 Exemplos) nem herdarem uma caixa extra por cima.
 
 _TABLE_STYLE    = 'width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;'
 _TH_STYLE       = 'padding:10px;border:1px solid #ddd;'
@@ -479,12 +805,9 @@ _OUTER_STYLE    = ('font-family:sans-serif;line-height:1.6;color:#333;max-width:
                    'margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;')
 _H2_STYLE       = 'color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;'
 
-
 def _style_table(table: Tag, is_examples: bool = False) -> None:
-    """Aplica estilos inline à tabela e suas células (padrão EP03_01)."""
     table['style'] = _TABLE_STYLE
     for tr in table.find_all('tr'):
-        # Remove classes Quarto (header, odd, even)
         tr.attrs.pop('class', None)
         if tr.parent and tr.parent.name == 'thead':
             tr['style'] = 'background-color:#f1f1f1;'
@@ -493,34 +816,20 @@ def _style_table(table: Tag, is_examples: bool = False) -> None:
         else:
             tds = tr.find_all('td')
             for i, td in enumerate(tds):
-                # Última coluna de exemplos = observação (sem monospace)
                 if is_examples and i == len(tds) - 1:
                     td['style'] = _TD_TEXT_STYLE
                 else:
                     td['style'] = _TD_CODE_STYLE
 
-
 def _strip_section_number(text: str) -> str:
-    """Remove '4.9.1.1 ' do início de um texto de heading."""
     return re.sub(r'^\s*[\d.]+\s+', '', text)
 
-
 def inject_moodle_styles(fragment_html: str) -> str:
-    """
-    Recebe o fragmento ep-container (já com LaTeX convertido e quarto-float
-    desenrolado) e:
-      1. Converte o h3/h4 de título em <h2> com estilo azul
-      2. Detecta o emoji de cada seção filha e injeta o style= da caixa colorida
-      3. Converte headings das seções para <h4> com estilo inline
-      4. Estiliza tabelas (thead cinza, th/td com bordas)
-      5. Envolve tudo no wrapper externo do EP03_01
-    """
     soup = BeautifulSoup(fragment_html, 'html.parser')
     container = soup.find('div', class_='ep-container')
     if not container:
-        return fragment_html  # fallback: retorna intacto
+        return fragment_html
 
-    # ── 1. Título principal ───────────────────────────────────────────────────
     title_tag = container.find(['h2', 'h3', 'h4'])
     if title_tag:
         for span in title_tag.find_all('span', class_='header-section-number'):
@@ -531,39 +840,29 @@ def inject_moodle_styles(fragment_html: str) -> str:
         new_h2.string = ep_title
         title_tag.replace_with(new_h2)
 
-    # ── 2. Seções filhas (section.level* ou div sem estilo) ───────────────────
     for child in list(container.children):
         if not isinstance(child, Tag):
             continue
         if child.name in ('h2', 'p'):
-            continue  # título e parágrafo de introdução — não tocar
+            continue
 
-        # Encontrar o heading da seção
         heading = child.find(['h2', 'h3', 'h4'])
         if not heading:
-            # Sem heading — só limpar attrs Quarto e converter section→div
             child.name = 'div'
             for attr in ['class', 'data-number', 'id']:
                 child.attrs.pop(attr, None)
             continue
 
-        # Limpar header-section-number
         for span in heading.find_all('span', class_='header-section-number'):
             span.decompose()
         h_text = _strip_section_number(heading.get_text(' ', strip=True))
 
-        # Detectar emoji
         emoji = next((e for e in _EMOJI_BOX if e in h_text), None)
 
-        # Converter section → div, limpar attrs Quarto
         child.name = 'div'
         for attr in ['class', 'data-number', 'id']:
             child.attrs.pop(attr, None)
 
-        # ── Extrai simuladores (div[id^="sim-"]) para fora da seção ────────
-        # Evita que o simulador fique preso dentro da caixa colorida da
-        # seção onde foi originalmente escrito (ex: 📌 Exemplos). Não recebe
-        # wrapper/cor própria — mantém o visual original de cada div.
         sim_divs = child.find_all('div', id=re.compile(r'^sim-'))
         extracted_sims: list[Tag] = []
         for sim_div in sim_divs:
@@ -574,78 +873,53 @@ def inject_moodle_styles(fragment_html: str) -> str:
             box = _EMOJI_BOX[emoji]
             child['style'] = box['div']
 
-            # Heading da seção → h4 com estilo inline
             heading.name = 'h4'
             heading['style'] = box['h']
             for attr in ['class', 'data-anchor-id', 'data-number']:
                 heading.attrs.pop(attr, None)
             heading.string = h_text
 
-            # Estilizar tabelas dentro da seção
             is_ex = bool(re.search(r'exemplo|example', h_text, re.IGNORECASE))
             for table in child.find_all('table'):
-                # Remover classes Quarto da tabela
                 table.attrs.pop('class', None)
                 for colgroup in table.find_all('colgroup'):
                     colgroup.decompose()
                 _style_table(table, is_examples=is_ex)
         else:
-            # Emoji não reconhecido — só limpar heading
             heading.name = 'h4'
             for attr in ['class', 'data-anchor-id', 'data-number']:
                 heading.attrs.pop(attr, None)
 
-        # Insere o(s) simulador(es) extraído(s) logo após a seção, soltos
         anchor = child
         for sim_div in extracted_sims:
             anchor.insert_after(sim_div)
             anchor = sim_div
 
-    # ── 3. Links quarto-xref → texto puro ────────────────────────────────────
     for a in container.find_all('a', class_='quarto-xref'):
         a.replace_with(a.get_text())
 
-    # ── 4. Wrapper externo ────────────────────────────────────────────────────
     container['style'] = _OUTER_STYLE
     del container['class']
 
     return str(soup)
 
-
-# ── Reescrita de scripts de simulador ────────────────────────────────────────
-
 def rewrite_sim_script(script: str) -> str:
-    """
-    Reescreve o padrão Quarto:
-        (function(){ function init(root){...} function tryInit(){querySelectorAll([id=...])...} setInterval... })()
-    para o padrão EP03_01 (compatível com Moodle/TinyMCE):
-        (function initXxx(){ var container = getElementById(...); if(!container){setTimeout...} ... })()
-
-    Transforma:
-      - root.querySelector('#id') → document.getElementById('id')
-      - root.dataset.xyzReady     → removido (guarda de dupla execução)
-      - tryInit() + setInterval   → removido (substituído por setTimeout fallback)
-    """
-    # Detectar id do container do simulador
     sim_id_m = re.search(r'\[id=["\']([^"\']+)["\']\]', script)
     if not sim_id_m:
-        return script  # padrão não reconhecido — retorna intacto
+        return script
     sim_id = sim_id_m.group(1)
 
-    # Detectar nome da variável "root"
     root_m = re.search(r'function init\((\w+)\)', script)
     if not root_m:
         return script
     root_var = root_m.group(1)
 
-    # Extrair o corpo de init(root) — tudo entre o primeiro { e seu } balanceado
     init_start = script.find(f'function init({root_var}){{')
     if init_start == -1:
         init_start = script.find(f'function init({root_var}) {{')
     if init_start == -1:
         return script
 
-    # Avançar até o { de abertura
     brace_open = script.find('{', init_start)
     depth, pos = 0, brace_open
     while pos < len(script):
@@ -660,24 +934,20 @@ def rewrite_sim_script(script: str) -> str:
     else:
         return script
 
-    # Limpar linhas de guarda (dataset e !root)
     init_body = re.sub(rf'\s*if\s*\(!{root_var}\)\s*return;\s*\n?', '\n', init_body)
     init_body = re.sub(
         rf'\s*if\s*\({root_var}\.dataset\.\w+\s*===\s*[\'"][^\'"]*[\'"]\)\s*return;\s*\n?',
         '\n', init_body,
     )
     init_body = re.sub(rf'\s*{root_var}\.dataset\.\w+\s*=\s*[\'"][^\'"]*[\'"];\s*\n?', '\n', init_body)
-    # Remover guarda if(!slT || ...) return
     init_body = re.sub(r'\s*if\s*\(![^)]{5,}\)\s*return;\s*\n?', '\n', init_body)
 
-    # Substituir root.querySelector('#id') → document.getElementById('id')
     init_body = re.sub(
         rf"{root_var}\.querySelector\(['\"]#([^'\"]+)['\"]\)",
         r"document.getElementById('\1')",
         init_body,
     )
 
-    # Nome da IIFE a partir do sim_id (ex: sim-ep0401b → initSimEp0401b)
     iife_name = 'init' + re.sub(r'[^a-zA-Z0-9]', '_', sim_id).title().replace('_', '')
 
     new_script = (
@@ -689,35 +959,18 @@ def rewrite_sim_script(script: str) -> str:
     )
     return new_script
 
-
 def sanitize_scripts(html: str) -> str:
-    """Aplica rewrite_sim_script a cada bloco <script>...</script> do fragmento."""
     def repl(m: re.Match) -> str:
         content = m.group(1)
-        # Só reescrever scripts que têm o padrão Quarto (tryInit + querySelectorAll)
         if 'querySelectorAll' in content and 'tryInit' in content:
             content = rewrite_sim_script(content)
         return f'<script>\n{content}\n</script>'
 
     return re.sub(r'<script>([\s\S]*?)</script>', repl, html, flags=re.IGNORECASE)
 
-
-# ── Localização do ep-container ───────────────────────────────────────────────
-
 def find_container_span(html: str) -> tuple[int, int] | None:
-    """
-    Localiza o span [start, end) do <div class="ep-container"> mais externo.
-
-    O regex tolera atributos adicionais na tag de abertura (ex.: style="...",
-    id="...", etc.), então mudanças como
-
-        <div class="ep-container">
-        →
-        <div class="ep-container" style="margin:0 auto; max-width:110ch">
-
-    continuam sendo reconhecidas sem exigir alterações aqui.
-    """
-    start_match = re.search(r'<div class="ep-container"[^>]*>', html)
+    # Aceita class="ep-container", class="ep-card-frame ep-container", etc.
+    start_match = re.search(r'<div[^>]*class="[^"]*\bep-container\b[^"]*"[^>]*>', html)
     if not start_match:
         return None
 
@@ -737,44 +990,17 @@ def find_container_span(html: str) -> tuple[int, int] | None:
 
     return None
 
-
-# ── Pipeline completa ─────────────────────────────────────────────────────────
-
 def _unwrap_quarto_float(html: str) -> str:
-    """Desenrola <div class="cell-output..."><figure>CONTEÚDO</figure></div> → CONTEÚDO."""
     def unwrap(m: re.Match) -> str:
         inner = FIGCAPTION_RE.sub('', m.group(1))
         inner = re.sub(r'<div\s+aria-describedby="[^"]*">([\s\S]*?)</div>', r'\1', inner)
         return inner.strip()
     return QUARTO_FLOAT_OUTER_RE.sub(unwrap, html)
 
-
 def _fix_sim_header(html: str) -> str:
-    """
-    Corrige a estrutura do cabeçalho do simulador gerado pelo Quarto.
-
-    Padrão errado (div de conteúdo aninhado dentro do div do título):
-      <div style="...flex...">          ← barra de título
-        🎮 Simulador: ...
-        <span>...</span>
-        <div style="padding:20px;...">  ← conteúdo fica DENTRO do título
-          ...
-        </div>
-      </div>
-
-    Padrão correto (EP03_01 — conteúdo é irmão do título):
-      <div style="...flex...">          ← barra de título
-        🎮 Simulador: ...
-        <span>...</span>
-      </div>
-      <div style="padding:20px;...">    ← conteúdo como irmão
-        ...
-      </div>
-    """
     soup = BeautifulSoup(html, 'html.parser')
 
     for sim in soup.find_all('div', id=re.compile(r'^sim-')):
-        # Localizar o div de título (flex + fundo bege/cinza do simulador)
         title_div = sim.find(
             'div',
             style=re.compile(r'display\s*:\s*flex.*justify-content\s*:\s*space-between', re.S),
@@ -782,7 +1008,6 @@ def _fix_sim_header(html: str) -> str:
         if not title_div:
             continue
 
-        # Verificar se tem um div de conteúdo aninhado dentro do title_div
         content_div = title_div.find(
             'div',
             style=re.compile(r'padding\s*:\s*20px'),
@@ -791,36 +1016,22 @@ def _fix_sim_header(html: str) -> str:
         if not content_div:
             continue
 
-        # Extrair o content_div do interior do title_div e inserir após ele
         content_div.extract()
         title_div.insert_after(content_div)
 
     return str(soup)
 
-
 def moodle_sanitize(fragment: str) -> str:
-    """
-    Pipeline completa de conversão Quarto → HTML Moodle (padrão EP03_01):
-      1. Remove células Quarto com id hexadecimal (%%writefile, TestSuite, outputs)
-      2. Desenrola quarto-float / figcaption wrappers
-      3. Converte LaTeX inline/display → HTML semântico
-      4. Remove accent-color de inputs (causa erro #rrggbb no TinyMCE)
-      5. Injeta estilos inline: wrapper azul, caixas coloridas, tabelas estilizadas
-      6. Reescreve scripts: init(root)+querySelector+dataset → getElementById (padrão EP03_01)
-    """
-    fragment = CELL_RE.sub('', fragment)            # 1. remove células hex
-    fragment = _unwrap_quarto_float(fragment)        # 2. desenrola figure wrappers
-    fragment = convert_math_spans(fragment)          # 3. LaTeX → HTML
-    fragment = re.sub(                              # 4. accent-color
-        r'\s*accent-color\s*:\s*[^;"\s]+\s*;?', '', fragment)
-    fragment = inject_moodle_styles(fragment)        # 5. estilos inline EP03_01
-    fragment = _fix_sim_header(fragment)             # 6. título do simulador no topo
-    fragment = sanitize_scripts(fragment)            # 7. reescreve scripts
+    fragment = CELL_RE.sub('', fragment)
+    fragment = _unwrap_quarto_float(fragment)
+    fragment = convert_math_spans(fragment)
+    fragment = re.sub(r'\s*accent-color\s*:\s*[^;"\s]+\s*;?', '', fragment)
+    fragment = inject_moodle_styles(fragment)
+    fragment = _fix_sim_header(fragment)
+    fragment = sanitize_scripts(fragment)
     return fragment
 
-
 def _make_link_banner(ep_name: str, base_url: str) -> str:
-    """Banner HTML com link para a versão completa do EP (fórmulas MathJax perfeitas)."""
     url = base_url.rstrip('/') + '/' + ep_name + '.html'
     lines = [
         '<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;'
@@ -833,7 +1044,6 @@ def _make_link_banner(ep_name: str, base_url: str) -> str:
     ]
     return '\n'.join(lines)
 
-
 def process_ep_file(path: Path, outdir: Path, base_url: str = '') -> bool:
     html = path.read_text(encoding='utf-8', errors='replace')
     span = find_container_span(html)
@@ -844,14 +1054,12 @@ def process_ep_file(path: Path, outdir: Path, base_url: str = '') -> bool:
     start, end = span
     fragment = moodle_sanitize(html[start:end])
 
-    # Injetar banner com link para versão completa (MathJax) logo após o div raiz
     if base_url:
-        ep_name = path.stem  # ex: EP04_01
+        ep_name = path.stem
         banner = _make_link_banner(ep_name, base_url)
         insert_at = fragment.find('>') + 1
         fragment = fragment[:insert_at] + '\n' + banner + fragment[insert_at:]
 
-    # Relatório rápido de problemas remanescentes
     warnings = []
     if 'accent-color' in fragment:
         warnings.append('accent-color')
@@ -870,7 +1078,6 @@ def process_ep_file(path: Path, outdir: Path, base_url: str = '') -> bool:
     warn_str = '  ⚠ ' + ', '.join(warnings) if warnings else ''
     print(f"[OK] {path.name}: {len(html)} → {len(fragment)} bytes{warn_str}")
     return True
-
 
 def cmd_limpar(args: argparse.Namespace) -> None:
     indir = Path(args.entrada)
@@ -915,10 +1122,9 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", metavar="SUBCOMANDO")
     sub.required = True
 
-    # ── subcomando: extrair ──────────────────────────────────────────────────
     p_ext = sub.add_parser(
         "extrair",
-        help="Extrai cada EP de cap*.html e salva em arquivo individual.",
+        help="Extrai cada EP de cap*.html e salva em arquivo individual com botões de navegação contínua.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_ext.add_argument(
@@ -945,7 +1151,6 @@ def main() -> None:
     )
     p_ext.set_defaults(func=cmd_extrair)
 
-    # ── subcomando: limpar ───────────────────────────────────────────────────
     p_lim = sub.add_parser(
         "limpar",
         help="Extrai fragmento Moodle/VPL de cada EPxx_xx.html já extraído.",
@@ -978,7 +1183,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Valor padrão de saída para 'limpar'
     if args.cmd == "limpar" and args.saida is None:
         args.saida = str(Path(args.entrada).with_name(Path(args.entrada).name + "_moodle"))
 

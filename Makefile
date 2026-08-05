@@ -1,6 +1,6 @@
 # Makefile — PDI+VC  (atalhos de desenvolvimento)
 # ─────────────────────────────────────────────────
-# make build    → build único py+pt + HTML + índice + eps + moodle
+# make build    → build único py+pt + HTML + índice + eps + moodle + sims
 # make build-pdf→ build único py+pt + PDF + índice
 # make build-all→ build único py+pt + HTML+PDF + índice
 # make html     → watch py+pt, renderiza HTML ao salvar
@@ -37,7 +37,8 @@ build:
 	$(MAKE) index
 	$(MAKE) eps
 	$(MAKE) moodle
-
+	$(MAKE) sims
+	
 .PHONY: build-pdf
 build-pdf:
 	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render pdf
@@ -146,13 +147,27 @@ moodle-all:
 			--base-url "https://fzampirolli.github.io/pdi-vc/eps/py.$$locale"; \
 	done
 
-	
+# ── Extração de Simuladores ──────────────────────────────────────────────────
+
+.PHONY: sims
+sims:
+	python sim_tools.py extrair --input gen/book/py.$(LOCALES)
+
+.PHONY: sims-all
+sims-all:
+	python sim_tools.py extrair --input gen/book
+
+.PHONY: sims-dry
+sims-dry:
+	python sim_tools.py extrair --input gen/book --dry-run
+
+    
 # ── Ajuda ─────────────────────────────────────────────────────────────────────
 .PHONY: help
 help:
 	@echo ""
 	@echo "  📚 Build:"
-	@echo "  make build         → py×pt + HTML + índice + eps + moodle"
+	@echo "  make build         → py×pt + HTML + índice + eps + moodle + sims"
 	@echo "  make build-pdf     → py×pt + PDF + índice"
 	@echo "  make build-all     → py×pt + HTML+PDF + índice"
 	@echo "  make full          → todas linguagens×idiomas + HTML+PDF"
@@ -181,6 +196,11 @@ help:
 	@echo "  make eps-dry       → lista EPs sem gravar"
 	@echo "  make moodle        → converte EPs para Moodle + banner de link"
 	@echo "  make moodle-all    → converte todos os locales para Moodle"
+	@echo ""
+	@echo "  🎮 Simuladores:"
+	@echo "  make sims          → extrai simuladores do locale atual (gen/book/simuladores/py.pt/)"
+	@echo "  make sims-all      → extrai simuladores de todos os locales"
+	@echo "  make sims-dry      → lista simuladores encontrados sem gravar"
 	@echo ""
 	@echo "  💡 Overrides: make build LANGS=cpp LOCALES=en"
 	@echo "                make moodle BASE_URL=https://meusite.com/eps/py.en"

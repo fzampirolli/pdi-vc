@@ -115,6 +115,22 @@ for lang in "${LANG_LIST[@]}"; do
 done
 
 # ===================================================================
+# Passo 2d: Extrair Simuladores Interativos
+# ===================================================================
+echo ""
+echo "[2d/6] Extraindo Simuladores Interativos..."
+for lang in "${LANG_LIST[@]}"; do
+  for locale in "${LOCALE_LIST[@]}"; do
+    versao="${lang}.${locale}"
+    src="gen/book/${versao}"
+    if [ -d "$src" ]; then
+      echo "      → extraindo simuladores de ${versao}..."
+      python sim_tools.py extrair --input "$src" --quiet
+    fi
+  done
+done
+
+# ===================================================================
 # Passo 3: Gerar página principal (índice) dentro de gen/book/
 # ===================================================================
 echo ""
@@ -162,7 +178,21 @@ for lang in "${LANG_LIST[@]}"; do
       mkdir -p "docs/eps/${versao}_moodle"
       cp "$moodle_dir"/EP*.html "docs/eps/${versao}_moodle/" 2>/dev/null || true
       ep_count=$(find "docs/eps/${versao}_moodle" -name "EP*.html" 2>/dev/null | wc -l)
-      echo "      ✓ ${ep_count} EPs (versão Moodle)    → docs/eps/${versao}_moodle/"
+      echo "      ✓ ${ep_count} EPs Moodle    → docs/eps/${versao}_moodle/"
+    fi
+  done
+done
+
+# Copiar Simuladores para docs/simuladores/
+for lang in "${LANG_LIST[@]}"; do
+  for locale in "${LOCALE_LIST[@]}"; do
+    versao="${lang}.${locale}"
+    sims_dir="gen/book/simuladores/${versao}"
+    if [ -d "$sims_dir" ]; then
+      mkdir -p "docs/simuladores/${versao}"
+      cp -r "$sims_dir"/* "docs/simuladores/${versao}/" 2>/dev/null || true
+      sim_count=$(find "docs/simuladores/${versao}" -name "*.html" ! -name "index.html" 2>/dev/null | wc -l)
+      echo "      ✓ ${sim_count} Simuladores → docs/simuladores/${versao}/"
     fi
   done
 done
