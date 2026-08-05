@@ -1,0 +1,519 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP02_11.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP02_11.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP02_11 🏆 Correção de Perspectiva (Homografia) em Imagem Real</h2>
+<p>Nesta atividade, o objetivo é aplicar a transformação de perspectiva (homografia) para “retificar” um objeto inclinado em uma fotografia real. Você lidará com a imagem de um jornal, onde a grade de um jogo de Sudoku está distorcida devido ao ângulo em que a foto foi capturada.</p>
+<p>Seu programa deve ler os parâmetros de entrada do terminal, carregar a imagem, calcular a matriz de homografia 3 × 3, aplicar a transformação geométrica e exibir um indicador global de validação.</p>
+<div>
+<li>Leia dois inteiros <strong>L</strong> e <strong>C</strong>, representando as dimensões de linhas e colunas (altura e largura) que a imagem retificada de saída deve ter.</li>
+<li>Leia <strong>quatro pares de coordenadas</strong> (<em>x</em>, <em>y</em>) via terminal, representando os quatro cantos do quadrilátero de origem (o Sudoku distorcido na imagem original).</li>
+<li>Calcule automaticamente os <strong>quatro pares de coordenadas de destino</strong> utilizando as dimensões <em>L</em> e <em>C</em> fornecidas, mapeando os cantos para as extremidades da nova imagem: (0,0), (<em>C</em>-1, 0), (0, <em>L</em>-1) e (<em>C</em>-1, <em>L</em>-1).</li>
+<li>Carregue a imagem local <code>sudoku.png</code> e converta-a para tons de cinza (grayscale).</li>
+<li>Calcule a matriz de homografia e aplique a transformação espacial na imagem.</li>
+<li><strong>Saída:</strong> Calcule e imprima a <strong>soma de todos os pixels</strong> da imagem resultante.</li>
+</div>
+<p>📌 <strong>Importante</strong>:</p>
+<div>
+<li><strong>Arquivo de entrada:</strong> A imagem <code>sudoku.png</code> deve estar na mesma pasta do script. O programa deve lê-la diretamente do disco (ex: usando <code>mm.read("sudoku.png")</code> ou <code>cv2.imread</code>).</li>
+<li><strong>Ordem dos Pontos:</strong> Garanta que a leitura dos 4 pontos de origem e a geração dos 4 pontos de destino sigam rigorosamente a mesma ordem dos cantos: Superior-Esquerdo (TL), Superior-Direito (TR), Inferior-Esquerdo (BL) e Inferior-Direito (BR).</li>
+<li><strong>Dimensões no OpenCV:</strong> Lembre-se que funções como <code>cv2.warpPerspective</code> esperam o tamanho da imagem de saída no formato <code>(largura, altura)</code>, o que equivale a <code>(C, L)</code>.</li>
+<li><strong>Interpolação:</strong> Para garantir a consistência matemática da soma dos pixels com o corretor automático, utilize a interpolação bilinear padrão (<code>flags=cv2.INTER_LINEAR</code>).</li>
+<li><strong>Créditos:</strong> A imagem utilizada é <strong>“Sudoku en periódico”</strong> de Héctor Rodríguez, sob licença <strong>CC BY 2.0</strong>.</li>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Contexto do Problema</h4>
+<p>A homografia possui 8 graus de liberdade, exigindo no mínimo 4 correspondências de pontos para ser calculada. Ao contrário de transformações afins, ela mapeia qualquer quadrilátero em outro quadrilátero, permitindo que linhas que convergem para pontos de fuga voltem a ser paralelas:</p>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Operação</th>
+<th style="padding:10px;border:1px solid #ddd;">Característica</th>
+<th style="padding:10px;border:1px solid #ddd;">Aplicação Típica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Homografia</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Projeção entre planos</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Retificação de documentos, escaneamento de placas e QR Codes.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Mapeamento Inverso</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Varredura do destino para a origem</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Evita “buracos” ou pixels vazios na imagem final retificada.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Warping</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reamostragem espacial</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Correção de distorção de lentes e montagem de panoramas (<em>stitching</em>).</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">500<br/>
+500<br/>
+100 120<br/>
+420 95<br/>
+80 440<br/>
+450 460</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">32982820</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">As duas primeiras entradas são as dimensões de saída (<em>L</em> e <em>C</em>). As 4 linhas seguintes são as coordenadas (<em>x</em>, <em>y</em>) dos cantos do Sudoku na imagem original + PAD. A saída é a soma total dos pixels da imagem retificada.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">200 200<br/>
+100 120<br/>
+420 95<br/>
+80 440<br/>
+450 460</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5277150</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Mesmos pontos de origem do exemplo anterior, mas gerando uma imagem de saída menor (200 × 200). A soma dos pixels reduz proporcionalmente devido à escala.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> Aquisição da imagem do sudoku e conversão para níveis de cinza</h4>
+<p>A Figura 2.22 mostra a leitura da imagem original seguida da conversão para tons de cinza e redimensionamento para uma matriz de 500 × 500 pixels, preparando os dados para a etapa seguinte. A correção de perspectiva, aplicada na Figura 2.23 via matriz de homografia, elimina as deformações causadas pelo ângulo da câmera e produz uma visão frontal e regular da grade do Sudoku.</p>
+<div class="cell" id="cell-fig-02-sudoku-original">
+<div class="cell-output cell-output-display">
+<div class="quarto-float quarto-figure quarto-figure-center" id="fig-02-sudoku-original">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sudoku-original-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img class="img-fluid figure-img" src="cap02.py.pt_files/figure-html/fig-02-sudoku-original-output-1.png"/>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sudoku-original-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 2.22: Aquisição da imagem de um Sudoku à esquerda. À direita, conversão para tons de cinza e redimensionamento. Crédito: Héctor Rodríguez de Guardamar, Espanha (CC BY 2.0).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" id="cell-fig-02-sudoku2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a aria-hidden="true" href="#cb56-1" tabindex="-1"></a><span class="im">import</span> cv2</span>
+<span id="cb56-2"><a aria-hidden="true" href="#cb56-2" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb56-3"><a aria-hidden="true" href="#cb56-3" tabindex="-1"></a></span>
+<span id="cb56-4"><a aria-hidden="true" href="#cb56-4" tabindex="-1"></a><span class="co"># --- 1. Carrega a imagem salva (sudoku.png) ---</span></span>
+<span id="cb56-5"><a aria-hidden="true" href="#cb56-5" tabindex="-1"></a>img <span class="op">=</span> mm.read(<span class="st">"sudoku.png"</span>)                <span class="co"># BGR, 500×500</span></span>
+<span id="cb56-6"><a aria-hidden="true" href="#cb56-6" tabindex="-1"></a></span>
+<span id="cb56-7"><a aria-hidden="true" href="#cb56-7" tabindex="-1"></a><span class="co"># --- 2. Padding para não cortar vértices ---</span></span>
+<span id="cb56-8"><a aria-hidden="true" href="#cb56-8" tabindex="-1"></a>PAD <span class="op">=</span> <span class="dv">60</span></span>
+<span id="cb56-9"><a aria-hidden="true" href="#cb56-9" tabindex="-1"></a>img_pad <span class="op">=</span> cv2.copyMakeBorder(</span>
+<span id="cb56-10"><a aria-hidden="true" href="#cb56-10" tabindex="-1"></a>    img, PAD, PAD, PAD, PAD,</span>
+<span id="cb56-11"><a aria-hidden="true" href="#cb56-11" tabindex="-1"></a>    cv2.BORDER_CONSTANT, value<span class="op">=</span>[<span class="dv">255</span>, <span class="dv">255</span>, <span class="dv">255</span>]</span>
+<span id="cb56-12"><a aria-hidden="true" href="#cb56-12" tabindex="-1"></a>)</span>
+<span id="cb56-13"><a aria-hidden="true" href="#cb56-13" tabindex="-1"></a></span>
+<span id="cb56-14"><a aria-hidden="true" href="#cb56-14" tabindex="-1"></a><span class="co"># --- 3. Pontos de origem (cantos da grade na imagem expandida) ---</span></span>
+<span id="cb56-15"><a aria-hidden="true" href="#cb56-15" tabindex="-1"></a>pts1 <span class="op">=</span> np.float32([</span>
+<span id="cb56-16"><a aria-hidden="true" href="#cb56-16" tabindex="-1"></a>    [<span class="dv">100</span>, <span class="dv">160</span>],    <span class="co"># TL</span></span>
+<span id="cb56-17"><a aria-hidden="true" href="#cb56-17" tabindex="-1"></a>    [<span class="dv">390</span>, <span class="dv">45</span>],    <span class="co"># TR</span></span>
+<span id="cb56-18"><a aria-hidden="true" href="#cb56-18" tabindex="-1"></a>    [<span class="dv">200</span>, <span class="dv">580</span>],   <span class="co"># BL</span></span>
+<span id="cb56-19"><a aria-hidden="true" href="#cb56-19" tabindex="-1"></a>    [<span class="dv">570</span>, <span class="dv">420</span>],   <span class="co"># BR</span></span>
+<span id="cb56-20"><a aria-hidden="true" href="#cb56-20" tabindex="-1"></a>])</span>
+<span id="cb56-21"><a aria-hidden="true" href="#cb56-21" tabindex="-1"></a><span class="co">#     W    H</span></span>
+<span id="cb56-22"><a aria-hidden="true" href="#cb56-22" tabindex="-1"></a></span>
+<span id="cb56-23"><a aria-hidden="true" href="#cb56-23" tabindex="-1"></a><span class="co"># --- 4. Pontos de destino (vista frontal 500×500) ---</span></span>
+<span id="cb56-24"><a aria-hidden="true" href="#cb56-24" tabindex="-1"></a>SIZE <span class="op">=</span> <span class="dv">500</span></span>
+<span id="cb56-25"><a aria-hidden="true" href="#cb56-25" tabindex="-1"></a>pts2 <span class="op">=</span> np.float32([</span>
+<span id="cb56-26"><a aria-hidden="true" href="#cb56-26" tabindex="-1"></a>    [<span class="dv">0</span>,    <span class="dv">0</span>],</span>
+<span id="cb56-27"><a aria-hidden="true" href="#cb56-27" tabindex="-1"></a>    [SIZE, <span class="dv">0</span>],</span>
+<span id="cb56-28"><a aria-hidden="true" href="#cb56-28" tabindex="-1"></a>    [<span class="dv">0</span>,    SIZE],</span>
+<span id="cb56-29"><a aria-hidden="true" href="#cb56-29" tabindex="-1"></a>    [SIZE, SIZE],</span>
+<span id="cb56-30"><a aria-hidden="true" href="#cb56-30" tabindex="-1"></a>])</span>
+<span id="cb56-31"><a aria-hidden="true" href="#cb56-31" tabindex="-1"></a></span>
+<span id="cb56-32"><a aria-hidden="true" href="#cb56-32" tabindex="-1"></a><span class="co"># --- 5. Homografia e retificação ---</span></span>
+<span id="cb56-33"><a aria-hidden="true" href="#cb56-33" tabindex="-1"></a>img_rect <span class="op">=</span> mm.perspective_transform(img_pad, pts1, pts2, size<span class="op">=</span>(SIZE, SIZE))</span>
+<span id="cb56-34"><a aria-hidden="true" href="#cb56-34" tabindex="-1"></a></span>
+<span id="cb56-35"><a aria-hidden="true" href="#cb56-35" tabindex="-1"></a><span class="co"># --- 6. Exibição ---</span></span>
+<span id="cb56-36"><a aria-hidden="true" href="#cb56-36" tabindex="-1"></a>mm.show(</span>
+<span id="cb56-37"><a aria-hidden="true" href="#cb56-37" tabindex="-1"></a>    [img_pad, img_rect],</span>
+<span id="cb56-38"><a aria-hidden="true" href="#cb56-38" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Original (com padding)"</span>, <span class="st">"Vista frontal retificada"</span>],</span>
+<span id="cb56-39"><a aria-hidden="true" href="#cb56-39" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>), axis<span class="op">=</span><span class="va">True</span></span>
+<span id="cb56-40"><a aria-hidden="true" href="#cb56-40" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div class="quarto-float quarto-figure quarto-figure-center" id="fig-02-sudoku2">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sudoku2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img class="img-fluid figure-img" src="cap02.py.pt_files/figure-html/fig-02-sudoku2-output-1.png"/>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sudoku2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 2.23: Correção de perspectiva: original e vista frontal retificada.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" id="cell-fig-02-sim-sudoku">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sim-sudoku-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 2.24: Simulador EP02_11: Correção de Perspectiva do Sudoku (Homografia 3×3 com Reamostragem Bilinear)
+</figcaption>
+</div>
+</div><div id="sim-ep0211-sudoku" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP02_11: Perspectiva do Sudoku</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Homografia 3×3 · CC BY 2.0</span>
+<div style="padding:16px;background:#ffffff;">
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;">
+<!-- Canvas Origem -->
+<div style="text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px;">📷 Original (Expandida) — Arraste os Cantos</span>
+<canvas height="400" id="sim_ep0211_canvas_src" style="border-radius:8px;border:2px solid #b9770e;background:#f1ead7;cursor:crosshair;display:block;margin:0 auto;" width="400"></canvas>
+<span style="font-size:9px;color:#8a8371;display:block;margin-top:4px;">Foto: Héctor Rodríguez · CC BY 2.0</span>
+</div>
+<!-- Canvas Destino -->
+<div style="text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px;">✅ Corrigida (400×400) — Visão Frontal</span>
+<canvas height="400" id="sim_ep0211_canvas_dst" style="border-radius:8px;border:2px solid #27ae60;background:#fafaf7;display:block;margin:0 auto;" width="400"></canvas>
+</div>
+</div>
+<!-- Botões de Ação -->
+<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;">
+<button id="sim_ep0211_btnReset" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:16px;transition:all 0.15s ease;">↺ Redefinir Pontos</button>
+<button id="sim_ep0211_btnCorrect" style="padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:16px;font-family:monospace;transition:all 0.15s ease;">✨ Corrigir Perspectiva</button>
+<button id="sim_ep0211_btnPad" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:16px;transition:all 0.15s ease;">🔲 Alternar Padding</button>
+</div>
+<!-- Painel Explicativo -->
+<div id="sim_ep0211_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      Carregando imagem do Sudoku...
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0211(root){
+    if (!root || root.dataset.simEp0211Init) return;
+    root.dataset.simEp0211Init = "1";
+
+    var srcCanvas = root.querySelector('#sim_ep0211_canvas_src');
+    var dstCanvas = root.querySelector('#sim_ep0211_canvas_dst');
+    var ctxSrc    = srcCanvas.getContext('2d');
+    var ctxDst    = dstCanvas.getContext('2d');
+
+    var btnReset  = root.querySelector('#sim_ep0211_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0211_btnCorrect');
+    var btnPad    = root.querySelector('#sim_ep0211_btnPad');
+    var debugDiv  = root.querySelector('#sim_ep0211_debug');
+
+    var SIZE = 400;
+    var PAD = 32;
+    var img = null;
+    var imgLoaded = false;
+    var points = [];
+    var dragIndex = -1;
+    var showPad = false;
+
+    function defaultPoints() {
+      return [
+        [PAD + 48, PAD + 38],        // TL
+        [SIZE - PAD - 32, PAD + 28], // TR
+        [PAD + 35, SIZE - PAD - 32], // BL
+        [SIZE - PAD - 28, SIZE - PAD - 24] // BR
+      ];
+    }
+
+    function loadImage() {
+      var imageObj = new Image();
+      imageObj.src = "sudoku.png";
+      imageObj.crossOrigin = "Anonymous";
+
+      imageObj.onload = function() {
+        img = imageObj;
+        imgLoaded = true;
+        points = defaultPoints();
+        drawSource();
+        drawPlaceholder();
+        debugDiv.innerHTML = "✅ Imagem local carregada! Arraste os marcadores nos cantos da grade.";
+      };
+
+      imageObj.onerror = function() {
+        imageObj.src = "https://upload.wikimedia.org/wikipedia/commons/e/e7/Sudoku_en_peri%C3%B3dico.jpg";
+        imageObj.onload = function() {
+          img = imageObj;
+          imgLoaded = true;
+          points = defaultPoints();
+          drawSource();
+          drawPlaceholder();
+          debugDiv.innerHTML = "⚠️ Imagem local não encontrada. Carregada imagem remota fallback.";
+        };
+        imageObj.onerror = function() {
+          debugDiv.innerHTML = "❌ Erro ao carregar imagem. Verifique a existência de sudoku.png.";
+          imgLoaded = false;
+        };
+      };
+    }
+
+    function drawSource() {
+      if (!imgLoaded || !img) return;
+      ctxSrc.clearRect(0, 0, SIZE, SIZE);
+      ctxSrc.fillStyle = "#f1ead7";
+      ctxSrc.fillRect(0, 0, SIZE, SIZE);
+
+      var maxW = SIZE - 2 * PAD;
+      var maxH = SIZE - 2 * PAD;
+      var scale = Math.min(maxW / img.width, maxH / img.height);
+      var drawW = img.width * scale;
+      var drawH = img.height * scale;
+      var offX = PAD + (maxW - drawW) / 2;
+      var offY = PAD + (maxH - drawH) / 2;
+      ctxSrc.drawImage(img, offX, offY, drawW, drawH);
+
+      if (showPad) {
+        ctxSrc.fillStyle = "rgba(41, 128, 185, 0.2)";
+        ctxSrc.fillRect(0, 0, SIZE, PAD);
+        ctxSrc.fillRect(0, SIZE - PAD, SIZE, PAD);
+        ctxSrc.fillRect(0, 0, PAD, SIZE);
+        ctxSrc.fillRect(SIZE - PAD, 0, PAD, SIZE);
+        ctxSrc.strokeStyle = "#2980b9";
+        ctxSrc.setLineDash([4, 6]);
+        ctxSrc.strokeRect(PAD, PAD, SIZE - 2 * PAD, SIZE - 2 * PAD);
+        ctxSrc.setLineDash([]);
+      }
+
+      if (points.length === 4) {
+        ctxSrc.beginPath();
+        ctxSrc.moveTo(points[0][0], points[0][1]);
+        ctxSrc.lineTo(points[1][0], points[1][1]);
+        ctxSrc.lineTo(points[3][0], points[3][1]);
+        ctxSrc.lineTo(points[2][0], points[2][1]);
+        ctxSrc.closePath();
+        ctxSrc.strokeStyle = "#b9770e";
+        ctxSrc.lineWidth = 2.5;
+        ctxSrc.stroke();
+
+        var labels = ["TL", "TR", "BL", "BR"];
+        for (var i = 0; i < 4; i++) {
+          ctxSrc.beginPath();
+          ctxSrc.arc(points[i][0], points[i][1], 7, 0, 2 * Math.PI);
+          ctxSrc.fillStyle = "#b9770e";
+          ctxSrc.fill();
+          ctxSrc.strokeStyle = "#ffffff";
+          ctxSrc.lineWidth = 2;
+          ctxSrc.stroke();
+
+          ctxSrc.fillStyle = "#26241d";
+          ctxSrc.font = "bold 11px monospace";
+          var dx = (i === 0 || i === 2) ? -20 : 8;
+          var dy = (i < 2) ? -8 : 14;
+          ctxSrc.fillText(labels[i], points[i][0] + dx, points[i][1] + dy);
+        }
+      }
+    }
+
+    function drawPlaceholder() {
+      ctxDst.clearRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#fafaf7";
+      ctxDst.fillRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#8a8371";
+      ctxDst.font = "11px monospace";
+      ctxDst.textAlign = "center";
+      ctxDst.fillText("Clique em 'Corrigir Perspectiva'", SIZE / 2, SIZE / 2 - 10);
+      ctxDst.fillText("para retificar a grade do Sudoku", SIZE / 2, SIZE / 2 + 10);
+      ctxDst.textAlign = "left";
+    }
+
+    function gaussSolve(A, b) {
+      var n = A.length;
+      var M = A.map(function(row, i) { return row.concat([b[i]]); });
+
+      for (var i = 0; i < n; i++) {
+        var maxRow = i;
+        for (var k = i + 1; k < n; k++) {
+          if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+        }
+        var temp = M[i]; M[i] = M[maxRow]; M[maxRow] = temp;
+
+        if (Math.abs(M[i][i]) < 1e-8) return null;
+
+        for (var k = i + 1; k <= n; k++) M[i][k] /= M[i][i];
+        for (var k = 0; k < n; k++) {
+          if (k !== i) {
+            var factor = M[k][i];
+            for (var j = i + 1; j <= n; j++) M[k][j] -= factor * M[i][j];
+          }
+        }
+      }
+      return M.map(function(row) { return row[n]; });
+    }
+
+    function getPerspectiveTransform(src, dst) {
+      var A = [];
+      for (var i = 0; i < 4; i++) {
+        var x = src[i][0], y = src[i][1];
+        var xp = dst[i][0], yp = dst[i][1];
+        A.push([-x, -y, -1, 0, 0, 0, x * xp, y * xp, xp]);
+        A.push([0, 0, 0, -x, -y, -1, x * yp, y * yp, yp]);
+      }
+      var B = [], C = [];
+      for (var i = 0; i < 8; i++) {
+        B.push(A[i].slice(0, 8));
+        C.push(-A[i][8]);
+      }
+      var sol = gaussSolve(B, C);
+      if (!sol) return null;
+      var h = sol.concat([1]);
+      return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], h[8]]];
+    }
+
+    function invertMatrix3x3(m) {
+      var a = m[0][0], b = m[0][1], c = m[0][2];
+      var d = m[1][0], e = m[1][1], f = m[1][2];
+      var g = m[2][0], h = m[2][1], i = m[2][2];
+
+      var det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+      if (Math.abs(det) < 1e-8) return null;
+      var invDet = 1 / det;
+
+      return [
+        [(e * i - f * h) * invDet, (c * h - b * i) * invDet, (b * f - c * e) * invDet],
+        [(f * g - d * i) * invDet, (a * i - c * g) * invDet, (c * d - a * f) * invDet],
+        [(d * h - e * g) * invDet, (b * g - a * h) * invDet, (a * e - b * d) * invDet]
+      ];
+    }
+
+    function warpPerspective(sCanvas, dCanvas, H, outW, outH) {
+      var sCtx = sCanvas.getContext('2d');
+      var dCtx = dCanvas.getContext('2d');
+      var srcImg = sCtx.getImageData(0, 0, sCanvas.width, sCanvas.height);
+      var dstData = dCtx.createImageData(outW, outH);
+      var srcData = srcImg.data;
+      var srcW = sCanvas.width, srcH = sCanvas.height;
+      var Hinv = invertMatrix3x3(H);
+      if (!Hinv) return false;
+
+      for (var y = 0; y < outH; y++) {
+        for (var x = 0; x < outW; x++) {
+          var denom = Hinv[2][0] * x + Hinv[2][1] * y + Hinv[2][2];
+          if (Math.abs(denom) < 1e-6) continue;
+          var u = (Hinv[0][0] * x + Hinv[0][1] * y + Hinv[0][2]) / denom;
+          var v = (Hinv[1][0] * x + Hinv[1][1] * y + Hinv[1][2]) / denom;
+
+          var idxDst = (y * outW + x) * 4;
+          if (u >= 0 && u < srcW - 1 && v >= 0 && v < srcH - 1) {
+            var x0 = Math.floor(u), y0 = Math.floor(v);
+            var dx = u - x0, dy = v - y0;
+            var idx = (y0 * srcW + x0) * 4;
+
+            var c00 = [srcData[idx], srcData[idx + 1], srcData[idx + 2]];
+            var c10 = [srcData[idx + 4], srcData[idx + 5], srcData[idx + 6]];
+            var c01 = [srcData[idx + srcW * 4], srcData[idx + srcW * 4 + 1], srcData[idx + srcW * 4 + 2]];
+            var c11 = [srcData[idx + srcW * 4 + 4], srcData[idx + srcW * 4 + 5], srcData[idx + srcW * 4 + 6]];
+
+            var r = (1 - dx) * (1 - dy) * c00[0] + dx * (1 - dy) * c10[0] + (1 - dx) * dy * c01[0] + dx * dy * c11[0];
+            var g = (1 - dx) * (1 - dy) * c00[1] + dx * (1 - dy) * c10[1] + (1 - dx) * dy * c01[1] + dx * dy * c11[1];
+            var b = (1 - dx) * (1 - dy) * c00[2] + dx * (1 - dy) * c10[2] + (1 - dx) * dy * c01[2] + dx * dy * c11[2];
+
+            dstData.data[idxDst]     = r;
+            dstData.data[idxDst + 1] = g;
+            dstData.data[idxDst + 2] = b;
+            dstData.data[idxDst + 3] = 255;
+          } else {
+            dstData.data[idxDst]     = 241;
+            dstData.data[idxDst + 1] = 234;
+            dstData.data[idxDst + 2] = 215;
+            dstData.data[idxDst + 3] = 255;
+          }
+        }
+      }
+      dCtx.putImageData(dstData, 0, 0);
+      return true;
+    }
+
+    function correctPerspective() {
+      if (!imgLoaded) { debugDiv.textContent = "Aguardando carregamento da imagem."; return; }
+      var pts1 = points.map(function(p){ return [p[0], p[1]]; });
+      var pts2 = [[0, 0], [SIZE, 0], [0, SIZE], [SIZE, SIZE]];
+      var H = getPerspectiveTransform(pts1, pts2);
+
+      if (!H) { debugDiv.textContent = "Erro: pontos colineares ou matriz singular."; return; }
+
+      var tempCanvas = document.createElement('canvas');
+      tempCanvas.width = SIZE;
+      tempCanvas.height = SIZE;
+      tempCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+
+      var success = warpPerspective(tempCanvas, dstCanvas, H, SIZE, SIZE);
+      if (success) {
+        debugDiv.innerHTML = '✅ <b>Homografia 3×3 aplicada:</b> Vértices retificados para grade frontal de ' + SIZE + '×' + SIZE + ' pixels.';
+      } else {
+        debugDiv.textContent = "❌ Falha na reamostragem de perspectiva.";
+      }
+    }
+
+    function getMousePos(e, cEl) {
+      var rect = cEl.getBoundingClientRect();
+      var scaleX = cEl.width / rect.width;
+      var scaleY = cEl.height / rect.height;
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+    }
+
+    srcCanvas.addEventListener('mousedown', function(e) {
+      var pos = getMousePos(e, srcCanvas);
+      for (var i = 0; i < points.length; i++) {
+        if (Math.sqrt(Math.pow(pos[0] - points[i][0], 2) + Math.pow(pos[1] - points[i][1], 2)) < 14) {
+          dragIndex = i;
+          srcCanvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (dragIndex === -1) return;
+      var pos = getMousePos(e, srcCanvas);
+      points[dragIndex] = [
+        Math.min(SIZE - 5, Math.max(5, pos[0])),
+        Math.min(SIZE - 5, Math.max(5, pos[1]))
+      ];
+      drawSource();
+      debugDiv.textContent = 'Posicionando ponto ' + dragIndex + ' → (' + Math.round(points[dragIndex][0]) + ', ' + Math.round(points[dragIndex][1]) + ')';
+    });
+
+    window.addEventListener('mouseup', function() {
+      dragIndex = -1;
+      srcCanvas.style.cursor = 'crosshair';
+    });
+
+    btnReset.addEventListener('click', function() {
+      points = defaultPoints();
+      showPad = false;
+      drawSource();
+      drawPlaceholder();
+      debugDiv.textContent = "Pontos redefinidos para as posições padrão.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    btnPad.addEventListener('click', function() {
+      showPad = !showPad;
+      drawSource();
+    });
+
+    loadImage();
+  }
+
+  function tryInitSimEP0211(){
+    var root = document.getElementById('sim-ep0211-sudoku');
+    if (root) initSimEP0211(root); else setTimeout(tryInitSimEP0211, 200);
+  }
+  tryInitSimEP0211();
+})();
+
+</script>
+</div></div>

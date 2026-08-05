@@ -1,0 +1,209 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_01 🟢 Convolução 2D Manual (Forward de uma Camada Aprendida)</h2>
+<p>O PyTorch, apresentado neste capítulo, executa <code>nn.Conv2d(x)</code> em uma única chamada — mas por trás dessa chamada está apenas a operação de correlação cruzada entre um <em>kernel</em> (já treinado) e uma vizinhança da entrada, seguida da soma de um viés e de uma ativação, exatamente como formalizado na Seção “Convolução como Camada Aprendida”. A diferença essencial em relação à convolução fixa do Capítulo 3 é que, aqui, os valores do <em>kernel</em> e do viés <strong>já vêm prontos</strong> (como se tivessem sido aprendidos por gradiente), e cabe a você reproduzir manualmente a passagem direta (<em>forward pass</em>) que o <em>framework</em> executa internamente.</p>
+<p>Antes de treinar uma CNN de verdade, você foi encarregado de implementar essa passagem direta do zero, para uma única camada convolucional com um único canal de entrada e um único filtro de saída, incluindo suporte a <em>padding</em> e <em>stride</em> arbitrários.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler as dimensões <em>H</em> × <em>W</em> do mapa de características de entrada e, em seguida, seus <em>H</em> × <em>W</em> valores reais.</li>
+<li><strong>Kernel e viés:</strong> Ler as dimensões <em>k</em>_<em>h</em> × <em>k</em>_<em>w</em> do <em>kernel</em> (já treinado), seus valores reais, e o viés <em>b</em> (real, escalar).</li>
+<li><strong>Hiperparâmetros:</strong> Ler o <em>padding</em> <em>p</em> (inteiro, número de zeros adicionados em cada borda) e o <em>stride</em> <em>s</em> (inteiro, passo do deslizamento).</li>
+<li><strong>Preenchimento:</strong> Adicionar <em>p</em> zeros em cada uma das quatro bordas do mapa de entrada antes da correlação.</li>
+<li><strong>Correlação cruzada:</strong> Para cada posição de saída (<em>i</em>, <em>j</em>), calcular <em>z</em>(<em>i</em>,<em>j</em>) = <em>b</em> + ∑_u=0^k_<em>h</em>-1 ∑_v=0^k_<em>w</em>-1 <em>K</em>(<em>u</em>,<em>v</em>) · <em>X</em>_pad(<em>i</em> · <em>s</em> + <em>u</em>,\; <em>j</em> · <em>s</em> + <em>v</em>), percorrendo a entrada <strong>sem</strong> inverter o <em>kernel</em> (convenção dos <em>frameworks</em> de aprendizado profundo, diferente da convolução matemática clássica).</li>
+<li><strong>Ativação:</strong> Aplicar ReLU a cada valor: <em>a</em>(<em>i</em>,<em>j</em>) = \max(0, <em>z</em>(<em>i</em>,<em>j</em>)).</li>
+<li><strong>Dimensões de saída:</strong> <em>O</em>_<em>h</em> = \lfloor (<em>H</em> + 2<em>p</em> - <em>k</em>_<em>h</em>)/<em>s</em> \rfloor + 1 e <em>O</em>_<em>w</em> = \lfloor (<em>W</em> + 2<em>p</em> - <em>k</em>_<em>w</em>)/<em>s</em> \rfloor + 1.</li>
+<li><strong>Saída:</strong> Imprimir <em>O</em>_<em>h</em> e <em>O</em>_<em>w</em> na primeira linha, seguidos de <em>O</em>_<em>h</em> linhas com <em>O</em>_<em>w</em> valores reais cada (o mapa de características de saída, já com ReLU aplicada), formatados com 4 casas decimais.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Um canal de entrada, um filtro de saída:</strong> não é necessário lidar com múltiplos canais ou múltiplos filtros nesta versão simplificada.</li>
+<li><strong>Sem inversão do <em>kernel</em>:</strong> implemente correlação cruzada, não a convolução matemática clássica com <em>kernel</em> invertido — é essa a operação que o PyTorch (e a maioria dos <em>frameworks</em>) chama de “convolução”.</li>
+<li><strong>Preenchimento por zeros:</strong> os <em>p</em> pixels adicionados em cada borda valem sempre 0.</li>
+<li><strong>Formatação:</strong> todos os valores de saída devem ter exatamente 4 casas decimais, mesmo quando o valor é inteiro (ex.: <code>2.0000</code>).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel na camada convolucional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Kernel</em> <em>K</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parâmetros aprendidos por gradiente, análogos aos filtros de Sobel do Capítulo 3, mas ajustados a partir de dados</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Viés <em>b</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parâmetro aprendido, somado à saída de cada janela</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Padding</em> <em>p</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Controla a dimensão espacial da saída; p=0 (“<em>valid</em>”) reduz a resolução, <em>p</em> maior preserva-a</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Stride</em> <em>s</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Passo do deslizamento; <em>s</em>&gt;1 sub-amostra a saída, reduzindo custo computacional</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">ReLU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ativação não-linear aplicada após cada convolução, sem a qual camadas empilhadas colapsariam em uma única transformação linear</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>H</em> e <em>W</em>.</li>
+<li>Próximas <em>H</em> linhas: <em>W</em> valores reais cada (mapa de entrada).</li>
+<li>Próxima linha: Inteiros <em>k</em>_<em>h</em> e <em>k</em>_<em>w</em>.</li>
+<li>Próximas <em>k</em>_<em>h</em> linhas: <em>k</em>_<em>w</em> valores reais cada (<em>kernel</em>).</li>
+<li>Próxima linha: Um valor real <em>b</em> (viés).</li>
+<li>Próxima linha: Inteiros <em>p</em> e <em>s</em> (<em>padding</em> e <em>stride</em>).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>O</em>_<em>h</em> e <em>O</em>_<em>w</em>.</li>
+<li>Próximas <em>O</em>_<em>h</em> linhas: <em>O</em>_<em>w</em> valores reais cada, formatados com 4 casas decimais.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 0<br/>
+0 1 2<br/>
+1 0 1<br/>
+2 2<br/>
+1 1<br/>
+1 1<br/>
+-2<br/>
+0 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+2.0000 3.0000<br/>
+0.0000 2.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>Padding</em> 0, <em>stride</em> 1: saída 2×2 sem preenchimento.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 0<br/>
+0 1 2<br/>
+1 0 1<br/>
+2 2<br/>
+1 0<br/>
+0 1<br/>
+0<br/>
+1 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+1.0000 0.0000<br/>
+1.0000 2.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>Padding</em> 1, <em>stride</em> 2: entrada preenchida com zeros antes da correlação.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-09-sim-ep01">
+</div>
+</div><div id="sim-ep0901" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Convolução 2D Manual</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 correlação cruzada + viés + ReLU</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Entrada 4×4 fixa, kernel 2×2 fixo (destacado em azul), padding=0, stride=1 — deslize para escolher a posição de saída.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Posição de saída (i,j)</label>
+<span id="ep0901_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(0,0)</span>
+</div>
+<input id="ep0901_sl" max="8" min="0" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;">
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Entrada X (4×4)</div>
+<div id="ep0901_grid" style="display:grid;grid-template-columns:repeat(4,44px);gap:3px;"></div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Kernel K (2×2)</div>
+<div id="ep0901_kernel" style="display:grid;grid-template-columns:repeat(2,44px);gap:3px;"></div>
+</div>
+</div>
+<div id="ep0901_debug" style="margin-top:20px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var X = [[1,3,2,0],[0,1,4,1],[2,0,1,3],[1,2,0,1]];
+    var K = [[1,0],[0,-1]];
+    var bias = 0.5;
+    var outSize = 3; // (4-2)/1+1
+
+    var slEl = root.querySelector('#ep0901_sl');
+    var vlEl = root.querySelector('#ep0901_vl');
+    var gridEl = root.querySelector('#ep0901_grid');
+    var kernelEl = root.querySelector('#ep0901_kernel');
+    var dbg = root.querySelector('#ep0901_debug');
+
+    kernelEl.innerHTML = '';
+    for(var u=0;u<2;u++) for(var v=0;v<2;v++){
+      var kd = document.createElement('div');
+      kd.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#bbdefb;border:1px solid #64b5f6;border-radius:6px;font-family:monospace;font-weight:bold;color:#0d47a1;';
+      kd.textContent = K[u][v];
+      kernelEl.appendChild(kd);
+    }
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i = Math.floor(pos/outSize), j = pos%outSize;
+      vlEl.textContent = '('+i+','+j+')';
+      gridEl.innerHTML = '';
+      var soma = 0;
+      for(var r=0;r<4;r++){
+        for(var c=0;c<4;c++){
+          var dentroJanela = (r>=i && r<i+2 && c>=j && c<j+2);
+          var d = document.createElement('div');
+          d.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;' +
+            (dentroJanela ? 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;' : 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;');
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+          if(dentroJanela) soma += X[r][c]*K[r-i][c-j];
+        }
+      }
+      var z = soma + bias;
+      var a = Math.max(0, z);
+      dbg.textContent = 'janela em ('+i+','+j+')  |  soma(X⊙K)='+soma.toFixed(2)+'  +  viés='+bias.toFixed(2)+'  =  z='+z.toFixed(2)+'  →  ReLU(z)='+a.toFixed(4);
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0901');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

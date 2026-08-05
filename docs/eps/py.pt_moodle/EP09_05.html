@@ -1,0 +1,151 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_05 🔴 Pipeline Integrado: Da Detecção à Medição do Mundo Real</h2>
+<p>Este exercício final integra os dois exercícios anteriores ao princípio de <strong>fotogrametria</strong> apresentado na seção “Integrando Geometria e Aprendizado Profundo” — exatamente o mesmo cálculo implementado na figura de medição por referência de escala deste capítulo. O cenário reproduz uma situação realista: um detector (Faster R-CNN ou YOLO) gera <strong>várias caixas candidatas sobrepostas</strong> para o mesmo objeto de interesse; após filtrá-las por NMS, a caixa sobrevivente de maior confiança é usada, junto de uma caixa de referência de largura real conhecida (como o cartão de 8,56 cm), para estimar as dimensões reais do objeto detectado.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Referência conhecida:</strong> Ler o valor real <em>L</em>_ref (largura real do objeto de referência, em cm) e, em seguida, os quatro reais <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 de sua caixa delimitadora em pixels (já conhecida, sem necessidade de detecção).</li>
+<li><strong>Candidatas do objeto a medir:</strong> Ler o inteiro <em>N</em> (número de caixas candidatas produzidas pelo detector para o objeto de interesse) e o limiar real \tau; em seguida, ler as <em>N</em> linhas de caixas candidatas, cada uma com <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2\ score.</li>
+<li><strong>Etapa 1 — NMS:</strong> Aplique exatamente o algoritmo de Supressão de Não-Máximos do EP09_04 às <em>N</em> caixas candidatas, usando o limiar \tau, para eliminar detecções redundantes do mesmo objeto.</li>
+<li><strong>Etapa 2 — Seleção da caixa final:</strong> Após o NMS, a caixa de maior <code>score</code> entre as mantidas é a detecção final do objeto (a entrada garante que todas as caixas candidatas correspondem a um único objeto físico, portanto a primeira caixa selecionada pelo NMS já é o resultado final).</li>
+<li><strong>Etapa 3 — Medição por referência de escala:</strong> Calcule a razão cm/pixel = <em>L</em>_ref / largura da referência em pixels e aplique-a tanto à largura quanto à altura (em pixels) da caixa final do objeto, obtendo suas dimensões reais estimadas em centímetros.</li>
+<li><strong>Saída:</strong> Primeiro, uma linha por caixa mantida após o NMS (mesmo formato do EP09_04): <code>índice score</code>. Em seguida, a linha <code>Total mantidas: X</code>. Por fim, a linha <code>Objeto: L x A cm</code>, onde <em>L</em> e <em>A</em> são a largura e a altura estimadas do objeto, cada uma com 2 casas decimais.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Reaproveite o NMS do EP09_04</strong> integralmente — mesma regra de desempate, mesmo critério de supressão (IoU &gt; \tau).</li>
+<li><strong>A referência não passa por NMS:</strong> sua caixa é dada diretamente, sem candidatas concorrentes.</li>
+<li><strong>Razão única para largura e altura:</strong> assim como na figura de fotogrametria do capítulo, a mesma razão cm/pixel (derivada da largura da referência) é aplicada tanto à largura quanto à altura do objeto — não há calibração vertical separada.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Etapa</th>
+<th style="padding:10px;border:1px solid #ddd;">Conceito do capítulo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Múltiplas caixas candidatas</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Saída bruta de um detector como o Faster R-CNN ou o YOLO, antes do pós-processamento</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">NMS (EP09_04)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Filtra a redundância, mantendo apenas a detecção mais confiável do objeto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Referência de escala conhecida</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Mesmo princípio da fotogrametria: um objeto de dimensão real conhecida converte pixels em centímetros</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Razão cm/pixel</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fator de conversão único, assumindo que a câmera está aproximadamente perpendicular à cena (sem correção de perspectiva)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Real <em>L</em>_ref.</li>
+<li>Linha 2: Quatro reais <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 (caixa de referência).</li>
+<li>Linha 3: Inteiro <em>N</em> e real \tau.</li>
+<li>Próximas <em>N</em> linhas: cinco reais <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2\ score (caixas candidatas do objeto).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Uma linha por caixa mantida após NMS: <code>índice score</code> (score com 4 casas decimais).</li>
+<li>Linha <code>Total mantidas: X</code>.</li>
+<li>Linha final: <code>Objeto: L x A cm</code> (2 casas decimais cada).</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8.56<br/>
+30 200 170 288<br/>
+3 0.5<br/>
+250 100 470 250 0.92<br/>
+255 105 468 245 0.88<br/>
+600 600 650 650 0.40</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0.9200<br/>
+2 0.4000<br/>
+Total mantidas: 2<br/>
+Objeto: 13.45 x 9.17 cm</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">A caixa 1 é suprimida por sobrepor fortemente a caixa 0; a detecção final do objeto é a caixa 0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-09-sim-ep05">
+</div>
+</div><div id="sim-ep0905" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Pipeline Integrado</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 detecção + fotogrametria</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">A caixa cinza é a referência de largura real conhecida; ajuste-a e veja a medição do objeto (vermelho) recalculada — a mesma razão cm/pixel se aplica à largura e à altura.</p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Largura real da referência (cm)</label>
+<span id="ep0905_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">8.56</span>
+</div>
+<input id="ep0905_sl" max="15" min="3" step="0.1" style="width:100%;" type="range" value="8.56"/>
+</div>
+<div style="position:relative;width:100%;height:180px;background:#fafafa;border:1px solid #ddd;border-radius:12px;margin-bottom:16px;">
+<div id="ep0905_ref" style="position:absolute;left:20px;top:110px;width:140px;height:88px;border:2px solid #7f8c8d;background:rgba(200,200,200,0.6);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#444;font-family:monospace;">referência</div>
+<div id="ep0905_obj" style="position:absolute;left:220px;top:30px;width:180px;height:120px;border:2px solid #e74c3c;background:rgba(231,76,60,0.25);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#a12;font-family:monospace;">objeto detectado</div>
+</div>
+<div id="ep0905_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    var slEl = root.querySelector('#ep0905_sl');
+    var vlEl = root.querySelector('#ep0905_vl');
+    var dbg = root.querySelector('#ep0905_debug');
+    var W_REF_PX = 140, H_REF_PX = 88;
+    var W_OBJ_PX = 180, H_OBJ_PX = 120;
+
+    function render(){
+      var lref = parseFloat(slEl.value);
+      vlEl.textContent = lref.toFixed(2);
+      var razao = lref / W_REF_PX;
+      var largObj = W_OBJ_PX * razao;
+      var altObj = H_OBJ_PX * razao;
+      dbg.textContent = 'razão = '+lref.toFixed(2)+' / '+W_REF_PX+'px = '+razao.toFixed(4)+' cm/px  →  objeto ≈ '+largObj.toFixed(2)+' x '+altObj.toFixed(2)+' cm';
+    }
+    slEl.addEventListener('input', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0905');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

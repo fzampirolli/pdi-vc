@@ -1,0 +1,225 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_03 🟡 Classificação de Marcações em Folhas de Resposta (OMR)</h2>
+<p>Após a retificação da folha e a segmentação dos quadros de respostas, o MCTest estima, para cada bolha, um <strong>grau de preenchimento</strong>, representado por um valor entre 0 e 100. A partir desses valores, o sistema deve determinar automaticamente a alternativa marcada, identificando também questões em branco e casos de múltiplas marcações.</p>
+<p>Neste exercício, você implementará essa etapa de decisão do <em>pipeline</em> de OMR. A classificação depende de um limiar de preenchimento: pequenas variações nesse valor podem alterar o resultado da leitura automática.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Parâmetros:</strong> Ler os inteiros <em>Q</em> (número de questões) e <em>K</em> (número de alternativas por questão, com 2 \le <em>K</em> \le 26) e o limiar de preenchimento Th (número real entre 0 e 100).</li>
+<li><strong>Graus de preenchimento:</strong> Para cada uma das <em>Q</em> questões, ler os <em>K</em> valores reais correspondentes às alternativas <code>A</code>, <code>B</code>, <code>C</code>, …, na ordem de entrada.</li>
+<li><strong>Contagem de marcações:</strong> Para cada questão, contar quantas alternativas possuem grau de preenchimento <strong>estritamente maior</strong> que Th.</li>
+<li><strong>Classificação:</strong>
+<ul>
+<li>Se nenhuma alternativa exceder Th, classificar a questão como <code>BRANCO</code>.</li>
+<li>Se exatamente uma alternativa exceder Th, imprimir a letra correspondente (<code>A</code>, <code>B</code>, <code>C</code>, …).</li>
+<li>Se duas ou mais alternativas excederem Th, classificar a questão como <code>DUPLA_MARCACAO</code>.</li>
+</ul></li>
+<li><strong>Saída por questão:</strong> Imprimir, na ordem de leitura, a classificação de cada questão.</li>
+<li><strong>Totais:</strong> Ao final, imprimir o número de questões <code>OK</code> (uma única marcação), <code>BRANCO</code> e <code>DUPLA_MARCACAO</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Comparação estrita:</strong> apenas valores maiores que Th são considerados marcações válidas; valores exatamente iguais ao limiar não devem ser contabilizados.</li>
+<li><strong>Letras das alternativas:</strong> o índice 0 corresponde à alternativa <code>A</code>, o índice 1 à alternativa <code>B</code> e assim sucessivamente.</li>
+<li><strong>Múltiplas marcações:</strong> sempre que duas ou mais alternativas excederem o limiar, a classificação deve ser <code>DUPLA_MARCACAO</code>, independentemente dos respectivos graus de preenchimento.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Situação</th>
+<th style="padding:10px;border:1px solid #ddd;">Classificação</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Exatamente uma alternativa acima do limiar</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Letra da alternativa</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resposta válida</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nenhuma alternativa acima do limiar</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>BRANCO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Questão não respondida</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Duas ou mais alternativas acima do limiar</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>DUPLA_MARCACAO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resposta ambígua</td>
+</tr>
+</tbody>
+</table>
+<p>O limiar de preenchimento controla a sensibilidade do algoritmo. Valores muito baixos tendem a aumentar o número de <code>DUPLA_MARCACAO</code>, enquanto valores muito altos podem aumentar a quantidade de questões classificadas como <code>BRANCO</code>.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>Q</em>.</li>
+<li>Linha 2: Inteiro <em>K</em>.</li>
+<li>Linha 3: Número real Th.</li>
+<li>Próximas <em>Q</em> linhas: <em>K</em> números reais, correspondentes aos graus de preenchimento das alternativas.</li>
+<li>Linha 1: Inteiro <em>Q</em> e <em>K</em>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>Q</em> linhas, cada uma contendo a classificação da respectiva questão.</li>
+<li>Linha final: <code>OK: x  BRANCO: y  DUPLA_MARCACAO: z</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+4<br/>
+50<br/>
+10 85 5 12<br/>
+20 15 18 22<br/>
+90 88 10 5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">B<br/>
+BRANCO<br/>
+DUPLA_MARCACAO<br/>
+OK: 1 BRANCO: 1 DUPLA_MARCACAO: 1</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Na primeira questão apenas <code>B</code> supera o limiar; na segunda nenhuma alternativa o supera; na terceira, <code>A</code> e <code>B</code> excedem o limiar.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+2<br/>
+50.0<br/>
+50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">BRANCO<br/>
+OK: 0 BRANCO: 1 DUPLA_MARCACAO: 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Valores iguais ao limiar não são considerados marcações válidas.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-06-sim-ep03">
+<div id="sim06_ep03" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim06_ep03 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim06_ep03 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim06_ep03 button:hover { background: #e8dfcf; }
+  #sim06_ep03 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim06_ep03_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim06_ep03_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP06_03: Classificação de Marcações OMR</span>
+<span class="sim06_ep03_pill">4 Alternativas</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim06_ep03_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Limiar de Preenchimento (Th): <span id="sim06_ep03_vth" style="font-family:monospace; color:#26241d;">50</span>%
+      </label>
+</div>
+<input id="sim06_ep03_th" max="100" min="0" step="1" type="range" value="50"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajuste o grau de preenchimento de cada bolha (A–D) e o limiar para observar a classificação resultante.
+    </div>
+</div>
+<!-- Sliders das Bolhas (A-D) -->
+<div class="sim06_ep03_panel" style="margin-bottom:14px;">
+<div id="sim06_ep03_bubbles" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;"></div>
+</div>
+<!-- Painel Informativo / Debug -->
+<div class="sim06_ep03_panel" id="sim06_ep03_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep03(root){
+    if (!root || root.dataset.sim06Ep03Init) return;
+    root.dataset.sim06Ep03Init = "1";
+
+    var letras = ['A', 'B', 'C', 'D'];
+    var valores = [10, 85, 5, 12];
+    var thEl  = root.querySelector('#sim06_ep03_th');
+    var vthEl = root.querySelector('#sim06_ep03_vth');
+    var box   = root.querySelector('#sim06_ep03_bubbles');
+    var dbg   = root.querySelector('#sim06_ep03_debug');
+
+    box.innerHTML = '';
+    var sliders = [];
+
+    letras.forEach(function(L, i){
+      var col = document.createElement('div');
+      col.style.cssText = 'text-align:center; background:#fafaf7; border:1px solid #e9e3d3; padding:10px; border-radius:8px;';
+      col.innerHTML = '<div style="font-weight:700; font-size:12px; color:#5e5a4a; margin-bottom:6px;">' + L + '</div>' +
+        '<input type="range" min="0" max="100" step="1" value="' + valores[i] + '" id="sim06_ep03_b' + i + '">' +
+        '<div id="sim06_ep03_v' + i + '" style="font-family:monospace; font-weight:700; font-size:11px; color:#26241d; margin-top:6px;">' + valores[i] + '%</div>';
+      box.appendChild(col);
+      sliders.push(col.querySelector('#sim06_ep03_b' + i));
+    });
+
+    function render(){
+      var th = parseFloat(thEl.value);
+      vthEl.textContent = th.toFixed(0);
+      var marcadas = [];
+
+      sliders.forEach(function(s, i){
+        var v = parseFloat(s.value);
+        root.querySelector('#sim06_ep03_v' + i).textContent = v.toFixed(0) + '%';
+        if (v > th) marcadas.push(letras[i]);
+      });
+
+      var resultado;
+      if (marcadas.length === 0) {
+        resultado = 'BRANCO';
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#8a8371';
+      } else if (marcadas.length === 1) {
+        resultado = 'RESPOSTA: ' + marcadas[0];
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        resultado = 'DUPLA_MARCACAO (' + marcadas.join(', ') + ')';
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'Classificação da questão: ' + resultado;
+    }
+
+    sliders.forEach(function(s){ s.addEventListener('input', render); });
+    thEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep03(){
+    var root = document.getElementById('sim06_ep03');
+    if (root) initSim06Ep03(root); else setTimeout(tryInitSim06Ep03, 200);
+  }
+  tryInitSim06Ep03();
+})();
+
+</script>
+</div>
+</div>
+</div></div>

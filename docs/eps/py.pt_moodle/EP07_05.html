@@ -1,0 +1,397 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP07_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_05 🔴 Histograma de Orientações de uma Célula HOG</h2>
+<p>A função <code>hog</code> do <code>scikit-image</code>, empregada no projeto de classificação de dígitos, divide a imagem em pequenas <strong>células</strong> e, para cada uma, constrói um histograma das orientações do gradiente ponderado pela magnitude — exatamente a etapa central descrita na seção sobre o descritor HOG do capítulo.</p>
+<p>Você foi encarregado de implementar esse cálculo para uma única célula, a partir dos valores de magnitude e orientação do gradiente <strong>já calculados</strong> para cada pixel da célula (dispensando o cálculo das derivadas parciais).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões:</strong> Ler os inteiros <em>n</em> (a célula tem <em>n</em> × <em>n</em> pixels) e <em>B</em> (número de compartimentos do histograma).</li>
+<li><strong>Magnitudes:</strong> Ler <em>n</em> linhas com <em>n</em> valores reais cada, representando |\nabla <em>f</em>(<em>x</em>,<em>y</em>)| para cada pixel da célula.</li>
+<li><strong>Orientações:</strong> Ler mais <em>n</em> linhas com <em>n</em> valores reais cada, representando \theta(<em>x</em>,<em>y</em>) em <strong>graus</strong>, já convertido para o intervalo <strong>não sinalizado</strong> [0^\circ, 180^\circ), como convencionalmente utilizado pelo HOG.</li>
+<li><strong>Compartimentos:</strong> Os <em>B</em> compartimentos cobrem [0^\circ, 180^\circ) em faixas iguais de largura 180/<em>B</em> graus. Um pixel com orientação \theta pertence ao compartimento \lfloor \theta / (180/<em>B</em>) \rfloor; se esse índice for igual a <em>B</em> (possível apenas quando \theta é exatamente 180^\circ, o que não deve ocorrer pela diretriz do item 3), utilize o compartimento <em>B</em>-1.</li>
+<li><strong>Histograma bruto:</strong> Para cada pixel, acumule sua <strong>magnitude</strong> (não sua contagem) no compartimento correspondente: <em>H</em>[<em>b</em>] = ∑_(<em>x</em>,<em>y</em>)\, :\, bin(\theta(<em>x</em>,<em>y</em>)) = <em>b</em> |\nabla <em>f</em>(<em>x</em>,<em>y</em>)|.</li>
+<li><strong>Normalização L2:</strong> Após construir <em>H</em>, normalize-o para obter \hat <em>H</em>: \hat <em>H</em>[<em>b</em>] = (<em>H</em>[<em>b</em>])/(√(∑_j=0)^B-1) <em>H</em>[<em>j</em>]^2 + \epsilon, \qquad \epsilon = 10^-6.</li>
+<li><strong>Saída:</strong> Imprimir o histograma bruto <em>H</em> (arredondado a 2 casas decimais) em uma linha, seguido do histograma normalizado \hat <em>H</em> (arredondado a 4 casas decimais) em outra linha, ambos com os <em>B</em> valores separados por espaço, na ordem dos compartimentos.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong><em>Binning</em> não sinalizado:</strong> o intervalo de orientações é [0,180), não [0,360) — gradientes em direções opostas (diferença de 180^\circ) contribuem para o <strong>mesmo</strong> compartimento, convenção padrão do HOG para detecção de objetos.</li>
+<li><strong>Acumulação por magnitude, não por contagem:</strong> o histograma pondera cada pixel por sua magnitude de gradiente, não simplesmente conta quantos pixels caem em cada compartimento.</li>
+<li><strong>Constante de estabilização:</strong> o \epsilon = 10^-6 no denominador da normalização evita divisão por zero quando a célula é completamente homogênea (todas as magnitudes nulas).</li>
+</ul>
+</div>
+<div>
+<h4> 📐 De onde vêm as matrizes de entrada</h4>
+<p>Antes deste EP, cada pixel (<em>x</em>,<em>y</em>) da imagem passa por:</p>
+<p><em>G</em>_<em>x</em> = <em>f</em>(<em>x</em>+1,<em>y</em>)-<em>f</em>(<em>x</em>-1,<em>y</em>), \qquad <em>G</em>_<em>y</em> = <em>f</em>(<em>x</em>,<em>y</em>+1)-<em>f</em>(<em>x</em>,<em>y</em>-1)</p>
+<p>|\nabla <em>f</em>| = √(<em>G</em>_<em>x</em>^2+<em>G</em>_<em>y</em>^2), \qquad \theta_sinal = \operatornameatan2(<em>G</em>_<em>y</em>,<em>G</em>_<em>x</em>)</p>
+<p>Como o HOG ignora a polaridade do contraste, o ângulo é dobrado para o intervalo não sinalizado:</p>
+<p>\theta = \theta_sinal \bmod 180°</p>
+<p>Repetindo isso para todos os pixels de uma célula <em>n</em>× <em>n</em>, obtêm-se as duas matrizes de entrada deste exercício: <strong>magnitudes</strong> |\nabla <em>f</em>| e <strong>orientações</strong> \theta ∈ [0°,180°).</p>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Etapa</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Magnitude do gradiente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pondera a contribuição de cada pixel — bordas fortes pesam mais que ruído fraco</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Orientação não sinalizada</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Torna o descritor invariante à polaridade do contraste (claro→escuro vs. escuro→claro)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Histograma por célula</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Resume a distribuição local de bordas em um vetor compacto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Normalização L2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reduz a sensibilidade do descritor a variações globais de iluminação e contraste</td>
+</tr>
+</tbody>
+</table>
+<p>A concatenação dos histogramas normalizados de todas as células da imagem — não implementada neste exercício — forma o vetor de características HOG completo, utilizado como entrada do classificador k-NN no projeto do capítulo.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>n</em> e <em>B</em>.</li>
+<li>Próximas <em>n</em> linhas: <em>n</em> magnitudes reais cada.</li>
+<li>Próximas <em>n</em> linhas: <em>n</em> orientações reais (graus, [0,180)) cada.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: os <em>B</em> valores do histograma bruto, arredondados a 2 casas decimais.</li>
+<li>Linha 2: os <em>B</em> valores do histograma normalizado, arredondados a 4 casas decimais.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+1.0 2.0<br/>
+3.0 4.0<br/>
+10 100<br/>
+170 20</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5.00 5.00<br/>
+0.7071 0.7071</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Bin de largura 90°: [0,90) e [90,180); magnitudes 1 e 4 caem no bin 0, 2 e 3 no bin 1.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 4<br/>
+0.0 0.0<br/>
+0.0 0.0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.00 0.00 0.00 0.00<br/>
+0.0000 0.0000 0.0000 0.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Célula homogênea: \epsilon evita divisão por zero.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-07-sim-ep05">
+<div id="sim07_ep05" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim07_ep05 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim07_ep05 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim07_ep05 button:hover { background: #e8dfcf; }
+  #sim07_ep05 button.sim07_ep05_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim07_ep05_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim07_ep05_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP07_05: Histograma de Orientações de uma Célula</span>
+<span class="sim07_ep05_pill">🔴 célula 3×3 fixa</span>
+<div style="padding:20px;background:white;overflow:auto">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
+      Ajuste B e acompanhe como a <b>matriz de orientações</b> (independente da de magnitudes) é mapeada
+      para os compartimentos via <code>bin = floor(θ / (180/B))</code>, e como as magnitudes são somadas em cada bin.
+    </p>
+<!-- Controle B -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Número de compartimentos (B)</label>
+<span id="ep0705_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">2</span>
+</div>
+<input id="ep0705_sl" max="6" min="2" step="1" style="width:100%;" type="range" value="2"/>
+</div>
+<!-- Entrada bruta (formato VPL) -->
+<div style="margin-bottom:18px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📄 Entrada (exatamente como o programa lê via stdin)</div>
+<pre id="ep0705_stdin" style="background:#1e1e1e;color:#d4d4d4;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.5;overflow-x:auto;margin:0;"></pre>
+</div>
+<!-- Duas matrizes separadas -->
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+<div style="flex:1;min-width:220px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">🔢 Matriz de magnitudes |∇f|</div>
+<div id="ep0705_mag_grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
+</div>
+<div style="flex:1;min-width:220px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📐 Matriz de orientações θ (graus) — colorida pelo bin</div>
+<div id="ep0705_ang_grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
+</div>
+</div>
+<!-- Regua 0-180 -->
+<div style="margin-bottom:22px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:10px;">📏 Onde cada θ cai na régua [0°, 180°) — <code>bin = floor(θ / largura)</code></div>
+<div style="position:relative;height:70px;margin:0 6px;">
+<div id="ep0705_regua" style="position:absolute;top:28px;left:0;right:0;height:14px;border-radius:7px;overflow:hidden;display:flex;border:1px solid #d1d5db;"></div>
+<div id="ep0705_regua_ticks" style="position:absolute;top:44px;left:0;right:0;height:14px;"></div>
+<div id="ep0705_regua_marcas" style="position:absolute;top:0;left:0;right:0;height:26px;"></div>
+</div>
+</div>
+<!-- Faixas dos compartimentos -->
+<div style="margin-bottom:18px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📊 Faixas de cada compartimento (largura = 180° / B)</div>
+<div id="ep0705_faixas" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+</div>
+<!-- Grade de pixels colorida por bin (mag + ang juntos) -->
+<div style="margin-bottom:18px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">🧩 Cada pixel: magnitude + orientação → bin</div>
+<div id="ep0705_pixels" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+</div>
+<!-- Botões -->
+<div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+<button class="ep0705_btn" id="ep0705_btn_raw">Histograma bruto (H)</button>
+<button class="ep0705_btn" id="ep0705_btn_norm">Histograma normalizado (Ĥ)</button>
+</div>
+<!-- Barras -->
+<div id="ep0705_bars" style="display:flex;gap:6px;align-items:flex-end;height:120px;justify-content:center;margin-bottom:14px;"></div>
+<!-- Passo a passo -->
+<div style="margin-bottom:6px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">🧮 Cálculo passo a passo (floor da divisão + soma das magnitudes por bin)</div>
+<div id="ep0705_passos" style="background:#f3f4f6;border-radius:8px;padding:10px 12px;font-family:monospace;font-size:11px;color:#374151;line-height:1.8;"></div>
+</div>
+<div id="ep0705_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;margin-top:12px;"></div>
+</div>
+</div>
+<style>
+  #sim07_ep05 .ep0705_btn { font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim07_ep05 .ep0705_btn.ativo { background:#2980b9;color:#fff;border-color:#2980b9; }
+</style>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var n = 3;
+    var mags = [[1.0,2.0,0.5],[3.0,4.0,1.5],[0.8,2.5,3.2]];
+    var angs = [[10,100,45],[170,20,95],[60,150,5]];
+    var CORES = ["#6366f1","#0ea5e9","#10b981","#f59e0b","#ef4444","#a855f7"];
+
+    var slEl = root.querySelector("#ep0705_sl");
+    var vlEl = root.querySelector("#ep0705_vl");
+    var stdinEl = root.querySelector("#ep0705_stdin");
+    var magGridEl = root.querySelector("#ep0705_mag_grid");
+    var angGridEl = root.querySelector("#ep0705_ang_grid");
+    var reguaEl = root.querySelector("#ep0705_regua");
+    var reguaTicksEl = root.querySelector("#ep0705_regua_ticks");
+    var reguaMarcasEl = root.querySelector("#ep0705_regua_marcas");
+    var faixasEl = root.querySelector("#ep0705_faixas");
+    var pxEl = root.querySelector("#ep0705_pixels");
+    var bars = root.querySelector("#ep0705_bars");
+    var passosEl = root.querySelector("#ep0705_passos");
+    var dbg = root.querySelector("#ep0705_debug");
+    var btnRaw = root.querySelector("#ep0705_btn_raw");
+    var btnNorm = root.querySelector("#ep0705_btn_norm");
+    var modoNorm = false;
+
+    function render(){
+      btnRaw.classList.toggle("ativo", !modoNorm);
+      btnNorm.classList.toggle("ativo", modoNorm);
+
+      var B = parseInt(slEl.value);
+      vlEl.textContent = B;
+      var largura = 180/B;
+
+      // ---- Entrada bruta (stdin) ----
+      var linhas = [];
+      linhas.push(n + " " + B);
+      mags.forEach(function(row){ linhas.push(row.map(function(v){return v.toFixed(1);}).join(" ")); });
+      angs.forEach(function(row){ linhas.push(row.join(" ")); });
+      stdinEl.textContent = linhas.join("\n");
+
+      // ---- bin de cada pixel (floor(theta/largura), clip) ----
+      var binsMat = [];
+      for(var i=0;i<n;i++){
+        binsMat.push([]);
+        for(var j=0;j<n;j++){
+          var raw = angs[i][j]/largura;
+          var b = Math.floor(raw);
+          if(b > B-1) b = B-1;
+          if(b < 0) b = 0;
+          binsMat[i].push(b);
+        }
+      }
+
+      // ---- Matriz de magnitudes (grid simples) ----
+      magGridEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var d = document.createElement("div");
+          d.style.cssText = "text-align:center;border-radius:8px;padding:8px 4px;font-size:12px;font-family:monospace;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;";
+          d.textContent = mags[i][j].toFixed(1);
+          magGridEl.appendChild(d);
+        }
+      }
+
+      // ---- Matriz de orientações (colorida por bin, com floor explícito) ----
+      angGridEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var b2 = binsMat[i][j];
+          var cor2 = CORES[b2];
+          var raw2 = angs[i][j]/largura;
+          var d2 = document.createElement("div");
+          d2.style.cssText = "text-align:center;border-radius:8px;padding:6px 4px;font-size:11px;font-family:monospace;background:"+cor2+"22;border:2px solid "+cor2+";color:#374151;";
+          d2.innerHTML = "<div style=\"font-weight:700;\">"+angs[i][j]+"°</div>"+
+            "<div style=\"font-size:9px;color:#6b7280;\">÷"+largura.toFixed(1)+"="+raw2.toFixed(2)+"</div>"+
+            "<div style=\"font-size:9px;font-weight:700;color:"+cor2+";\">⌊·⌋=bin "+b2+"</div>";
+          angGridEl.appendChild(d2);
+        }
+      }
+
+      // ---- Régua 0-180 com faixas coloridas ----
+      reguaEl.innerHTML = "";
+      for(var b3=0;b3<B;b3++){
+        var seg = document.createElement("div");
+        seg.style.cssText = "flex:1;background:"+CORES[b3]+";opacity:0.35;border-right:1px solid rgba(255,255,255,0.6);";
+        reguaEl.appendChild(seg);
+      }
+      // ticks (limites dos bins)
+      reguaTicksEl.innerHTML = "";
+      for(var b4=0;b4<=B;b4++){
+        var pct = (b4*largura/180*100);
+        var tick = document.createElement("div");
+        tick.style.cssText = "position:absolute;left:"+pct+"%;top:0;font-size:9px;color:#6b7280;transform:translateX(-50%);white-space:nowrap;";
+        tick.textContent = (b4*largura).toFixed(0)+"°";
+        reguaTicksEl.appendChild(tick);
+      }
+      // marcadores dos angulos de cada pixel
+      reguaMarcasEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var ang = angs[i][j];
+          var b5 = binsMat[i][j];
+          var pctm = (ang/180*100);
+          var marker = document.createElement("div");
+          marker.style.cssText = "position:absolute;left:"+pctm+"%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;";
+          marker.innerHTML = "<div style=\"font-size:9px;color:"+CORES[b5]+";font-weight:700;\">("+i+","+j+")</div>"+
+            "<div style=\"width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid "+CORES[b5]+";\"></div>";
+          reguaMarcasEl.appendChild(marker);
+        }
+      }
+
+      // ---- Faixas dos bins (legenda) ----
+      faixasEl.innerHTML = "";
+      for(var b=0;b<B;b++){
+        var lo = (b*largura).toFixed(1);
+        var hi = ((b+1)*largura).toFixed(1);
+        var chip = document.createElement("div");
+        chip.style.cssText = "display:flex;align-items:center;gap:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:20px;padding:4px 10px;font-size:11px;color:#374151;";
+        chip.innerHTML = "<span style=\"width:10px;height:10px;border-radius:50%;background:"+CORES[b]+";display:inline-block;\"></span>bin "+b+": ["+lo+"°, "+hi+"°)";
+        faixasEl.appendChild(chip);
+      }
+
+      // ---- Atribuição por pixel + histograma bruto ----
+      var H = new Array(B).fill(0);
+      var binsPorPixel = [];
+      pxEl.innerHTML = "";
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var mag = mags[i][j], ang = angs[i][j];
+          var bin = binsMat[i][j];
+          binsPorPixel.push({i:i, j:j, mag:mag, ang:ang, bin:bin});
+          H[bin] += mag;
+
+          var div = document.createElement("div");
+          var cor = CORES[bin];
+          div.style.cssText = "text-align:center;border-radius:10px;padding:8px 6px;font-size:11px;background:"+cor+"22;border:2px solid "+cor+";color:#374151;";
+          div.innerHTML = "<div style=\"font-weight:700;\">mag="+mag.toFixed(1)+"</div>"+
+            "<div style=\"font-family:monospace;\">θ="+ang+"°</div>"+
+            "<div style=\"font-weight:700;color:"+cor+";\">→ bin "+bin+"</div>";
+          pxEl.appendChild(div);
+        }
+      }
+
+      var denom = Math.sqrt(H.reduce(function(s,v){return s+v*v;},0) + 1e-6);
+      var Hn = H.map(function(v){ return v/denom; });
+
+      // ---- Barras (coloridas por bin) ----
+      var dados = modoNorm ? Hn : H;
+      var maxD = Math.max.apply(null, dados.concat([0.001]));
+      bars.innerHTML = "";
+      dados.forEach(function(v, b){
+        var col = document.createElement("div");
+        col.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px;";
+        var barra = document.createElement("div");
+        var altura = Math.round((v/maxD)*90) + 4;
+        barra.style.cssText = "width:34px;height:"+altura+"px;background:"+CORES[b]+";border-radius:4px 4px 0 0;";
+        var label = document.createElement("div");
+        label.style.cssText = "font-family:monospace;font-size:10px;color:#4b5563;";
+        label.textContent = modoNorm ? v.toFixed(4) : v.toFixed(2);
+        var binLabel = document.createElement("div");
+        binLabel.style.cssText = "font-size:9px;color:#9ca3af;";
+        binLabel.textContent = "bin "+b;
+        col.appendChild(barra);
+        col.appendChild(label);
+        col.appendChild(binLabel);
+        bars.appendChild(col);
+      });
+
+      // ---- Passo a passo (floor + soma) ----
+      var passos = [];
+      for(var b=0;b<B;b++){
+        var contribs = binsPorPixel.filter(function(p){ return p.bin===b; });
+        var termos = contribs.map(function(p){ return p.mag.toFixed(2)+" (θ="+p.ang+"°→⌊"+(p.ang/largura).toFixed(2)+"⌋="+p.bin+")"; }).join(" + ");
+        if(termos === "") termos = "(nenhum pixel)";
+        passos.push("<span style=\"color:"+CORES[b]+";font-weight:700;\">H["+b+"]</span> = "+termos+" = <b>"+H[b].toFixed(2)+"</b>");
+      }
+      passosEl.innerHTML = passos.join("<br>");
+
+      dbg.textContent = "H=[" + H.map(function(v){return v.toFixed(2);}).join(", ") + "]  |  Ĥ=[" +
+        Hn.map(function(v){return v.toFixed(4);}).join(", ") + "]";
+    }
+
+    slEl.addEventListener("input", render);
+    btnRaw.addEventListener("click", function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener("click", function(){ modoNorm = true; render(); });
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById("sim07_ep05");
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div>
+</div>
+</div></div>
