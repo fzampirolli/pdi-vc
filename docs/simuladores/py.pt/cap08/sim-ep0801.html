@@ -1,0 +1,3493 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador EP08_01: Distância de Hamming entre Dois Descritores Binários | PDI+VC</title>
+  <link rel="icon" type="image/x-icon" href="../../../favicon.ico"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 1em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink:      #1a1612;
+      --paper:    #faf7f2;
+      --cream:    #f0ebe0;
+      --gold:     #c8963c;
+      --gold-lt:  #e8c070;
+      --navy:     #1a2e4a;
+      --navy-lt:  #2a4a6a;
+      --muted:    #6b6058;
+      --border:   #d8d0c0;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(26,22,18,0.13);
+    }
+
+    body.sim-standalone {
+      font-family: 'Source Serif 4', Georgia, serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header do Frame ───────────────────────────────────────────── */
+    .sim-frame-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 1.2rem 2rem;
+      border-bottom: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+
+    .sim-frame-brand {
+      display: flex;
+      flex-direction: column;
+      max-width: 60%;
+    }
+
+    .sim-frame-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-lt);
+    }
+
+    .sim-frame-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-frame-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .sim-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .sim-btn-primary {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .sim-btn-primary:hover {
+      background: var(--gold-lt);
+    }
+
+    .sim-btn-outline {
+      border: 1px solid #4a6a8a;
+      color: #c8d8e8;
+    }
+
+    .sim-btn-outline:hover {
+      border-color: var(--gold-lt);
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .sim-btn-nav {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #3a5a7a;
+      color: #fff;
+    }
+
+    .sim-btn-nav:hover {
+      background: var(--navy-lt);
+      border-color: var(--gold-lt);
+    }
+
+    /* ── Container Principal do Simulador ────────────────────────────── */
+    .sim-main-wrapper {
+      flex: 1;
+      padding: 2.5rem 1.5rem;
+      max-width: 120ch;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .sim-card-frame {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Legenda Posicionada Abaixo do Simulador ─────────────────────── */
+    .sim-caption-below {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      background-color: var(--cream);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    .sim-caption-below strong {
+      color: var(--navy);
+    }
+
+    /* ── Footer do Frame (Consolidado) ───────────────────────────────── */
+    .sim-frame-footer {
+      background: var(--navy);
+      color: #7898b0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: auto;
+      border-top: 1px solid var(--navy-lt);
+      line-height: 1.6;
+    }
+
+    .sim-frame-footer strong {
+      color: #fff;
+    }
+
+    .sim-frame-footer a {
+      color: var(--gold-lt);
+      text-decoration: none;
+    }
+
+    .sim-frame-footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 820px) {
+      .sim-frame-brand {
+        max-width: 100%;
+      }
+      .sim-frame-header {
+        padding: 1rem;
+      }
+      .sim-main-wrapper {
+        padding: 1rem 0.5rem;
+      }
+      .sim-card-frame {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="sim-standalone">
+
+<!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
+<header class="sim-frame-header">
+  <div class="sim-frame-brand">
+    <span class="sim-frame-eyebrow">PDI+VC · Simulador Interativo</span>
+    <h1 class="sim-frame-title" title="Simulador EP08_01: Distância de Hamming entre Dois Descritores Binários">Simulador EP08_01: Distância de Hamming entre Dois Descritores Binários</h1>
+  </div>
+  <nav class="sim-frame-nav">
+    
+    <a href="sim-ep0802.html" class="sim-btn sim-btn-nav">sim-ep0802 →</a>
+    <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
+    <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
+    <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
+  </nav>
+</header>
+
+<!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
+<main class="sim-main-wrapper">
+  <div class="sim-card-frame">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="41" id="fig-08-sim-ep01">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim08_ep01" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim08_ep01 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim08_ep01 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim08_ep01 button:hover { background: #e8dfcf; }
+  .sim08_ep01_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim08_ep01_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim08_ep01_bit { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 14px; user-select: none; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP08_01: Distância de Hamming entre Descritores Binários</span>
+<span class="sim08_ep01_pill">Descritores de 8 Bits</span>
+</div>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel Informativo de Instruções -->
+<div class="sim08_ep01_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center;">
+      Clique em qualquer bit do <b>Descritor B</b> para invertê-lo e observe a distância de Hamming mudar em tempo real.
+    </div>
+</div>
+<!-- Grades dos Descritores -->
+<div class="sim08_ep01_panel" style="margin-bottom:14px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+<div>
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:6px; text-align:center; letter-spacing:0.04em;">
+        Descritor A (Fixo)
+      </div>
+<div id="sim08_ep01_a" style="display:grid; grid-template-columns:repeat(8, 36px); gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:6px; text-align:center; letter-spacing:0.04em;">
+        Descritor B (Clique para Inverter)
+      </div>
+<div id="sim08_ep01_b" style="display:grid; grid-template-columns:repeat(8, 36px); gap:4px;"></div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+<div class="sim08_ep01_panel" id="sim08_ep01_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div>
+</div>
+</div>
+<script>
+(function(){
+  function initSim08Ep01(root){
+    if (!root || root.dataset.sim08Ep01Init) return;
+    root.dataset.sim08Ep01Init = "1";
+
+    var A = [1, 0, 1, 0, 1, 0, 1, 0];
+    var B = [1, 0, 1, 0, 1, 0, 1, 1];
+
+    var aEl = root.querySelector('#sim08_ep01_a');
+    var bEl = root.querySelector('#sim08_ep01_b');
+    var dbg = root.querySelector('#sim08_ep01_debug');
+
+    function estiloBit(destacado, interativo){
+      var base = destacado 
+        ? 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;' 
+        : 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;';
+      var cursor = interativo ? ' cursor:pointer;' : ' cursor:default;';
+      return base + cursor;
+    }
+
+    function render(){
+      aEl.innerHTML = ''; 
+      bEl.innerHTML = '';
+      var dist = 0;
+
+      for (var k = 0; k < 8; k++){
+        var diff = A[k] !== B[k];
+        if (diff) dist++;
+
+        var da = document.createElement('div');
+        da.className = 'sim08_ep01_bit';
+        da.style.cssText = estiloBit(diff, false);
+        da.textContent = A[k];
+        aEl.appendChild(da);
+
+        var db = document.createElement('div');
+        db.className = 'sim08_ep01_bit';
+        db.style.cssText = estiloBit(diff, true);
+        db.textContent = B[k];
+
+        (function(idx){
+          db.addEventListener('click', function(){
+            B[idx] = 1 - B[idx];
+            render();
+          });
+        })(k);
+
+        bEl.appendChild(db);
+      }
+
+      if (dist === 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#26241d';
+      }
+
+      dbg.textContent = 'A = ' + A.join('') + '   B = ' + B.join('') + '   →   Distância de Hamming = ' + dist;
+    }
+
+    render();
+  }
+
+  function tryInitSim08Ep01(){
+    var root = document.getElementById('sim08_ep01');
+    if (root) initSim08Ep01(root); else setTimeout(tryInitSim08Ep01, 200);
+  }
+  tryInitSim08Ep01();
+})();
+</script>
+</div>
+
+</figure>
+</div>
+    <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 8.15: Simulador EP08_01: Distância de Hamming entre Dois Descritores Binários</div>
+  </div>
+</main>
+
+<!-- RODAPÉ COMPLETO E ÚNICO -->
+<footer class="sim-frame-footer">
+  <p>
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
+    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
+  </p>
+</footer>
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  function initSim08Orb(root){
+    if (!root || root.dataset.sim08OrbInit) return;
+    root.dataset.sim08OrbInit = "1";
+
+    const canvas = root.querySelector("#sim08_orb_canvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+
+    let angleDeg = 0;
+    let noiseLevel = 0;
+
+    const numPairs = 32;
+    const pairsSource = [];
+
+    // Gerar pares pseudo-aleatórios determinísticos de teste BRIEF
+    for (let i = 0; i < numPairs; i++) {
+      const r1 = 5 + (i * 1.1) % 35;
+      const t1 = (i * 2.39) % (2 * Math.PI);
+      const r2 = 5 + (i * 1.7) % 35;
+      const t2 = (i * 3.14) % (2 * Math.PI);
+      pairsSource.push({
+        ax: r1 * Math.cos(t1), ay: r1 * Math.sin(t1),
+        bx: r2 * Math.cos(t2), by: r2 * Math.sin(t2)
+      });
+    }
+
+    function getPixelIntensity(px, py, rotationRad) {
+      const c = Math.cos(-rotationRad);
+      const s = Math.sin(-rotationRad);
+      const rx = px * c - py * s;
+      const ry = px * s + py * c;
+
+      let val = 128;
+      if (rx > 0 && ry > 0) val = 200; 
+      if (rx < -5 && ry > 5) val = 45; 
+      if (rx * rx + ry * ry < 15 * 15) val = 220; 
+
+      if (noiseLevel > 0) {
+        val += (Math.random() - 0.5) * noiseLevel;
+      }
+      return Math.min(255, Math.max(0, val));
+    }
+
+    function getCentroidOrientation(rotationRad) {
+      let m10 = 0, m01 = 0;
+      const step = 4;
+      const R = 30;
+      for (let x = -R; x <= R; x += step) {
+        for (let y = -R; y <= R; y += step) {
+          if (x * x + y * y <= R * R) {
+            const intensity = getPixelIntensity(x, y, rotationRad);
+            m10 += x * intensity;
+            m01 += y * intensity;
+          }
+        }
+      }
+      return Math.atan2(m01, m10);
+    }
+
+    function drawPatchBg(cx, cy, r, rotationRad) {
+      const cellSize = 5;
+      for (let x = -r; x < r; x += cellSize) {
+        for (let y = -r; y < r; y += cellSize) {
+          if (x * x + y * y <= r * r) {
+            const intensity = getPixelIntensity(x, y, rotationRad);
+            ctx.fillStyle = `rgb(${intensity}, ${intensity}, ${intensity})`;
+            ctx.fillRect(cx + x, cy + y, cellSize, cellSize);
+          }
+        }
+      }
+      ctx.strokeStyle = "#8a8371";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+
+    function computeDescriptor(rotationRad, estimatedOrient) {
+      const desc = [];
+      for (let i = 0; i < numPairs; i++) {
+        const p = pairsSource[i];
+        const c = Math.cos(estimatedOrient);
+        const s = Math.sin(estimatedOrient);
+
+        const axRot = p.ax * c - p.ay * s;
+        const ayRot = p.ax * s + p.ay * c;
+        const bxRot = p.bx * c - p.by * s;
+        const byRot = p.bx * s + p.by * c;
+
+        const valA = getPixelIntensity(axRot, ayRot, rotationRad);
+        const valB = getPixelIntensity(bxRot, byRot, rotationRad);
+
+        desc.push(valA < valB ? 1 : 0);
+      }
+      return desc;
+    }
+
+    function drawBriefTestGrid(cx, cy, rotationRad, estimatedOrient, desc) {
+      const c = Math.cos(estimatedOrient);
+      const s = Math.sin(estimatedOrient);
+
+      for (let i = 0; i < numPairs; i++) {
+        const p = pairsSource[i];
+        const axRot = cx + (p.ax * c - p.ay * s);
+        const ayRot = cy + (p.ax * s + p.ay * c);
+        const bxRot = cx + (p.bx * c - p.by * s);
+        const byRot = cy + (p.bx * s + p.by * c);
+
+        ctx.strokeStyle = desc[i] === 1 ? "rgba(39, 174, 96, 0.9)" : "rgba(192, 57, 43, 0.9)";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(axRot, ayRot);
+        ctx.lineTo(bxRot, byRot);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(39, 174, 96, 0.8)";
+        ctx.fillRect(axRot - 1.5, ayRot - 1.5, 3, 3);
+        ctx.fillStyle = "rgba(192, 57, 43, 0.8)";
+        ctx.fillRect(bxRot - 1.5, byRot - 1.5, 3, 3);
+      }
+    }
+
+    function drawOrientationArrow(cx, cy, orient) {
+      const arrowLen = 50;
+      const ax = cx + arrowLen * Math.cos(orient);
+      const ay = cy + arrowLen * Math.sin(orient);
+
+      ctx.strokeStyle = "#b9770e";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = "#b9770e";
+      ctx.fill();
+
+      const angle = Math.atan2(ay - cy, ax - cx);
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - 8 * Math.cos(angle - Math.PI / 6), ay - 8 * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(ax - 8 * Math.cos(angle + Math.PI / 6), ay - 8 * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fillStyle = "#b9770e";
+      ctx.fill();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+
+      const leftCenterX = W / 4, rightCenterX = 3 * W / 4;
+      const centerY = H / 2;
+      const patchRadius = 80;
+
+      // 1. Desenhar a imagem de fundo em ambas as visões
+      drawPatchBg(leftCenterX, centerY, patchRadius, 0);
+      drawPatchBg(rightCenterX, centerY, patchRadius, angleDeg * Math.PI / 180);
+
+      // 2. Computar orientações locais via centroide de intensidade
+      const orientOriginal = getCentroidOrientation(0);
+      const angleRad = angleDeg * Math.PI / 180;
+      const orientRotated = getCentroidOrientation(angleRad);
+
+      // 3. Gerar descritores
+      const descOriginal = computeDescriptor(0, orientOriginal);
+      const descRotated = computeDescriptor(angleRad, orientRotated);
+
+      // 4. Desenhar pares de amostragem
+      drawBriefTestGrid(leftCenterX, centerY, 0, orientOriginal, descOriginal);
+      drawBriefTestGrid(rightCenterX, centerY, angleRad, orientRotated, descRotated);
+
+      // 5. Linhas de orientação
+      drawOrientationArrow(leftCenterX, centerY, orientOriginal);
+      drawOrientationArrow(rightCenterX, centerY, orientRotated);
+
+      // 6. Distância de Hamming
+      let hammingDist = 0;
+      for (let i = 0; i < numPairs; i++) {
+        if (descOriginal[i] !== descRotated[i]) hammingDist++;
+      }
+
+      root.querySelector("#sim08_orb_bits").textContent = descRotated.join("");
+      root.querySelector("#sim08_orb_hammVal").textContent = hammingDist;
+      root.querySelector("#sim08_orb_angVal").textContent = angleDeg + "°";
+      root.querySelector("#sim08_orb_slVal").textContent = angleDeg;
+
+      ctx.font = "bold 11px Inter, sans-serif";
+      ctx.fillStyle = "#fafaf7";
+      ctx.textAlign = "center";
+      ctx.fillText("Vizinhança Original (θ = 0°)", leftCenterX, centerY - patchRadius - 15);
+      ctx.fillText("Vizinhança Rotacionada (θ-alinhado)", rightCenterX, centerY - patchRadius - 15);
+
+      ctx.strokeStyle = "#8a8371";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 10);
+      ctx.lineTo(W / 2, H - 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    const slider = root.querySelector("#sim08_orb_slider");
+    slider.addEventListener("input", function(ev){
+      angleDeg = parseInt(ev.target.value, 10);
+      render();
+    });
+
+    root.querySelector("#sim08_orb_btnRot").addEventListener("click", function(){
+      angleDeg = (angleDeg + 15) % 180;
+      if (angleDeg > 180) angleDeg -= 360;
+      slider.value = angleDeg;
+      render();
+    });
+
+    root.querySelector("#sim08_orb_btnReset").addEventListener("click", function(){
+      angleDeg = 0;
+      noiseLevel = 0;
+      slider.value = 0;
+      const btnNoise = root.querySelector("#sim08_orb_btnNoise");
+      btnNoise.classList.remove("sim08_orb_active");
+      btnNoise.textContent = "⚡ Adicionar Ruído";
+      render();
+    });
+
+    const noiseStep = 15;
+    const maxNoise = 150;
+    root.querySelector("#sim08_orb_btnNoise").addEventListener("click", function(){
+      noiseLevel = Math.min(noiseLevel + noiseStep, maxNoise);
+      this.textContent = "⚡ Ruído (" + noiseLevel + ")";
+      this.classList.toggle("sim08_orb_active", noiseLevel > 0);
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSim08Orb(){
+    var root = document.getElementById("sim08_orb");
+    if (root) initSim08Orb(root); else setTimeout(tryInitSim08Orb, 200);
+  }
+  tryInitSim08Orb();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ransac(root){
+    if (!root || root.dataset.sim08RansacInit) return;
+    root.dataset.sim08RansacInit = "1";
+
+    const canvas = root.querySelector("#sim08_ransac_canvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+
+    let pontos = [];
+    let limiar = 15;
+    let modelo = null; // {a, b, inliersIdx, numIter}
+
+    function gerarPontos(){
+      const pts = [];
+      const a = 0.5, b = 60; // reta y = a*x + b (referência)
+      for (let i = 0; i < 30; i++){
+        const x = 40 + Math.random() * (W - 80);
+        const yIdeal = a * x + b;
+        const y = yIdeal + (Math.random() - 0.5) * 20;
+        pts.push({x: x, y: Math.min(Math.max(y, 20), H - 20)});
+      }
+      for (let i = 0; i < 10; i++){
+        pts.push({
+          x: 40 + Math.random() * (W - 80),
+          y: 20 + Math.random() * (H - 40)
+        });
+      }
+      return pts;
+    }
+
+    function distPontoReta(px, py, x1, y1, x2, y2){
+      const num = Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1);
+      const den = Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
+      return den === 0 ? Infinity : num / den;
+    }
+
+    function ajustarMinimosQuadrados(indices){
+      let somaX = 0, somaY = 0, somaXY = 0, somaXX = 0;
+      const n = indices.length;
+      indices.forEach(i => {
+        const p = pontos[i];
+        somaX += p.x; somaY += p.y; somaXY += p.x * p.y; somaXX += p.x * p.x;
+      });
+      const denom = (n * somaXX - somaX * somaX);
+      if (Math.abs(denom) < 1e-6) return null;
+      const a = (n * somaXY - somaX * somaY) / denom;
+      const b = (somaY - a * somaX) / n;
+      return {a: a, b: b};
+    }
+
+    function rodarRansac(){
+      const numIter = 60;
+      let melhorInliers = [];
+      let melhorP1 = null, melhorP2 = null;
+
+      for (let it = 0; it < numIter; it++){
+        const i1 = Math.floor(Math.random() * pontos.length);
+        let i2 = Math.floor(Math.random() * pontos.length);
+        while (i2 === i1) i2 = Math.floor(Math.random() * pontos.length);
+
+        const p1 = pontos[i1], p2 = pontos[i2];
+        const inliersAtual = [];
+
+        pontos.forEach((p, idx) => {
+          const d = distPontoReta(p.x, p.y, p1.x, p1.y, p2.x, p2.y);
+          if (d <= limiar) inliersAtual.push(idx);
+        });
+
+        if (inliersAtual.length > melhorInliers.length){
+          melhorInliers = inliersAtual;
+          melhorP1 = p1; melhorP2 = p2;
+        }
+      }
+
+      const ajuste = ajustarMinimosQuadrados(melhorInliers) ||
+        {a: (melhorP2.y - melhorP1.y) / (melhorP2.x - melhorP1.x + 1e-6), b: melhorP1.y};
+
+      modelo = {
+        a: ajuste.a, 
+        b: ajuste.b,
+        inliersIdx: new Set(melhorInliers),
+        numIter: numIter
+      };
+
+      render();
+    }
+
+    function render(){
+      ctx.clearRect(0, 0, W, H);
+
+      // Desenhar pontos
+      pontos.forEach((p, idx) => {
+        let cor = "#8a8371";
+        if (modelo){
+          cor = modelo.inliersIdx.has(idx) ? "#27ae60" : "#c0392b";
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = cor;
+        ctx.fill();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+      });
+
+      // Desenhar reta ajustada
+      if (modelo){
+        const x0 = 0, x1 = W;
+        const y0 = modelo.a * x0 + modelo.b;
+        const y1 = modelo.a * x1 + modelo.b;
+
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.strokeStyle = "#2980b9";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        root.querySelector("#sim08_ransac_nIn").textContent = modelo.inliersIdx.size;
+        root.querySelector("#sim08_ransac_nOut").textContent = pontos.length - modelo.inliersIdx.size;
+        root.querySelector("#sim08_ransac_nIter").textContent = modelo.numIter;
+      } else {
+        root.querySelector("#sim08_ransac_nIn").textContent = "–";
+        root.querySelector("#sim08_ransac_nOut").textContent = "–";
+        root.querySelector("#sim08_ransac_nIter").textContent = "–";
+      }
+
+      root.querySelector("#sim08_ransac_thVal").textContent = limiar;
+    }
+
+    root.querySelector("#sim08_ransac_slider").addEventListener("input", function(ev){
+      limiar = parseInt(ev.target.value, 10);
+      root.querySelector("#sim08_ransac_slVal").textContent = limiar;
+      if (modelo) rodarRansac();
+      else render();
+    });
+
+    root.querySelector("#sim08_ransac_btnRun").addEventListener("click", rodarRansac);
+
+    root.querySelector("#sim08_ransac_btnNovo").addEventListener("click", function(){
+      pontos = gerarPontos();
+      modelo = null;
+      render();
+    });
+
+    pontos = gerarPontos();
+    render();
+  }
+
+  function tryInitSim08Ransac(){
+    var root = document.getElementById("sim08_ransac");
+    if (root) initSim08Ransac(root); else setTimeout(tryInitSim08Ransac, 200);
+  }
+  tryInitSim08Ransac();
+})();
+</script>
+<script>
+(function(){
+  function initSim08RansacRegistro(root){
+    if (!root || root.dataset.sim08RansacRegistroInit) return;
+    root.dataset.sim08RansacRegistroInit = "1";
+
+    const canvas = root.querySelector("#sim08_reg_canvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    const panelW = 280;
+    const gap = W - panelW * 2;
+    const offB = panelW + gap;
+
+    let matches = []; // {ax, ay, bx, by, outlier}
+    let limiar = 12;
+    let modelo = null; // {a, b, tx, ty, inliersIdx: Set, numIter}
+
+    function desenharMoldura(x0, largura, cor, texto){
+      ctx.strokeStyle = cor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(x0 + 4, 4, largura - 8, H - 8);
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#8a8371";
+      ctx.font = "bold 11px Inter, sans-serif";
+      ctx.fillText(texto, x0 + 12, 20);
+    }
+
+    function gerarCorrespondencias(){
+      const pts = [];
+      const ang = (Math.random() * 20 - 10) * Math.PI / 180;
+      const escala = 0.85 + Math.random() * 0.3;
+      const a = escala * Math.cos(ang), b = escala * Math.sin(ang);
+      const tx = 20 + Math.random() * 20, ty = 10 + Math.random() * 40;
+
+      const nBoas = 18, nRuins = 8;
+      for (let i = 0; i < nBoas; i++){
+        const ax = 30 + Math.random() * (panelW - 60);
+        const ay = 30 + Math.random() * (H - 60);
+        let bx = a * ax - b * ay + tx;
+        let by = b * ax + a * ay + ty;
+        bx += (Math.random() - 0.5) * 8;
+        by += (Math.random() - 0.5) * 8;
+        bx = Math.min(Math.max(bx, 20), panelW - 20);
+        by = Math.min(Math.max(by, 20), H - 20);
+        pts.push({ax, ay, bx: bx + offB, by, outlier: false});
+      }
+      for (let i = 0; i < nRuins; i++){
+        const ax = 30 + Math.random() * (panelW - 60);
+        const ay = 30 + Math.random() * (H - 60);
+        const bx = 20 + Math.random() * (panelW - 40);
+        const by = 20 + Math.random() * (H - 40);
+        pts.push({ax, ay, bx: bx + offB, by, outlier: true});
+      }
+      return pts;
+    }
+
+    function estimarSimilaridade(i1, i2){
+      const p1 = matches[i1], p2 = matches[i2];
+      const dxA = p2.ax - p1.ax, dyA = p2.ay - p1.ay;
+      const dxB = (p2.bx - offB) - (p1.bx - offB), dyB = p2.by - p1.by;
+      const denom = dxA * dxA + dyA * dyA;
+      if (denom < 1e-6) return null;
+      const a = (dxA * dxB + dyA * dyB) / denom;
+      const b = (dxA * dyB - dyA * dxB) / denom;
+      const tx = (p1.bx - offB) - a * p1.ax + b * p1.ay;
+      const ty = p1.by - b * p1.ax - a * p1.ay;
+      return {a, b, tx, ty};
+    }
+
+    function refinarComInliers(indices){
+      let n = indices.length;
+      let mxA = 0, myA = 0, mxB = 0, myB = 0;
+      indices.forEach(i => {
+        const p = matches[i];
+        mxA += p.ax; myA += p.ay; mxB += (p.bx - offB); myB += p.by;
+      });
+      mxA /= n; myA /= n; mxB /= n; myB /= n;
+      let sxx = 0, sxy = 0, syx = 0, syy = 0;
+      indices.forEach(i => {
+        const p = matches[i];
+        const ax = p.ax - mxA, ay = p.ay - myA;
+        const bx = (p.bx - offB) - mxB, by = p.by - myB;
+        sxx += ax * bx; sxy += ay * bx; syx += ax * by; syy += ay * by;
+      });
+      const num = sxy - syx;
+      const den = sxx + syy;
+      if (Math.abs(den) < 1e-6 && Math.abs(num) < 1e-6) return null;
+      const ang = Math.atan2(num, den);
+      let normA = 0;
+      indices.forEach(i => {
+        const p = matches[i];
+        const ax = p.ax - mxA, ay = p.ay - myA;
+        normA += ax * ax + ay * ay;
+      });
+      const escala = normA > 1e-6 ? Math.sqrt((sxx + syy)**2 + (sxy - syx)**2) / normA : 1;
+      const af = escala * Math.cos(ang), bf = escala * Math.sin(ang);
+      const tx = mxB - af * mxA + bf * myA;
+      const ty = myB - bf * mxA - af * myA;
+      return {a: af, b: bf, tx, ty};
+    }
+
+    function distancia(p, m){
+      const bxPred = m.a * p.ax - m.b * p.ay + m.tx;
+      const byPred = m.b * p.ax + m.a * p.ay + m.ty;
+      const dx = bxPred - (p.bx - offB);
+      const dy = byPred - p.by;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function rodarRansac(){
+      const numIter = 80;
+      let melhorInliers = [];
+      let melhorModelo = null;
+
+      for (let it = 0; it < numIter; it++){
+        const i1 = Math.floor(Math.random() * matches.length);
+        let i2 = Math.floor(Math.random() * matches.length);
+        while (i2 === i1) i2 = Math.floor(Math.random() * matches.length);
+
+        const m = estimarSimilaridade(i1, i2);
+        if (!m) continue;
+
+        const inliersAtual = [];
+        matches.forEach((p, idx) => {
+          if (distancia(p, m) <= limiar) inliersAtual.push(idx);
+        });
+
+        if (inliersAtual.length > melhorInliers.length){
+          melhorInliers = inliersAtual;
+          melhorModelo = m;
+        }
+      }
+
+      const refinado = melhorInliers.length >= 2 ? refinarComInliers(melhorInliers) : melhorModelo;
+      modelo = {
+        ...(refinado || melhorModelo),
+        inliersIdx: new Set(melhorInliers),
+        numIter
+      };
+      render();
+    }
+
+    function render(){
+      ctx.clearRect(0, 0, W, H);
+      desenharMoldura(0, panelW, "#e4dcc8", "Imagem A");
+      desenharMoldura(offB, panelW, "#e4dcc8", "Imagem B");
+
+      matches.forEach((p, idx) => {
+        let cor = "#8a8371";
+        if (modelo) cor = modelo.inliersIdx.has(idx) ? "#27ae60" : "#c0392b";
+
+        ctx.beginPath();
+        ctx.moveTo(p.ax, p.ay);
+        ctx.lineTo(p.bx, p.by);
+        ctx.strokeStyle = cor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        [[p.ax, p.ay], [p.bx, p.by]].forEach(([x, y]) => {
+          ctx.beginPath();
+          ctx.arc(x, y, 4.5, 0, 2 * Math.PI);
+          ctx.fillStyle = "#2980b9";
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "#ffffff";
+          ctx.stroke();
+        });
+      });
+
+      if (modelo){
+        root.querySelector("#sim08_reg_nIn").textContent = modelo.inliersIdx.size;
+        root.querySelector("#sim08_reg_nOut").textContent = matches.length - modelo.inliersIdx.size;
+        root.querySelector("#sim08_reg_nIter").textContent = modelo.numIter;
+      } else {
+        root.querySelector("#sim08_reg_nIn").textContent = "–";
+        root.querySelector("#sim08_reg_nOut").textContent = "–";
+        root.querySelector("#sim08_reg_nIter").textContent = "–";
+      }
+      root.querySelector("#sim08_reg_thVal").textContent = limiar;
+    }
+
+    root.querySelector("#sim08_reg_slider").addEventListener("input", function(ev){
+      limiar = parseInt(ev.target.value, 10);
+      root.querySelector("#sim08_reg_slVal").textContent = limiar;
+      if (modelo) rodarRansac();
+      else render();
+    });
+
+    root.querySelector("#sim08_reg_btnRun").addEventListener("click", rodarRansac);
+
+    root.querySelector("#sim08_reg_btnNovo").addEventListener("click", function(){
+      matches = gerarCorrespondencias();
+      modelo = null;
+      render();
+    });
+
+    matches = gerarCorrespondencias();
+    render();
+  }
+
+  function tryInitSim08RansacRegistro(){
+    var root = document.getElementById("sim08_ransac_registro");
+    if (root) initSim08RansacRegistro(root); else setTimeout(tryInitSim08RansacRegistro, 200);
+  }
+  tryInitSim08RansacRegistro();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ep01(root){
+    if (!root || root.dataset.sim08Ep01Init) return;
+    root.dataset.sim08Ep01Init = "1";
+
+    var A = [1, 0, 1, 0, 1, 0, 1, 0];
+    var B = [1, 0, 1, 0, 1, 0, 1, 1];
+
+    var aEl = root.querySelector('#sim08_ep01_a');
+    var bEl = root.querySelector('#sim08_ep01_b');
+    var dbg = root.querySelector('#sim08_ep01_debug');
+
+    function estiloBit(destacado, interativo){
+      var base = destacado 
+        ? 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;' 
+        : 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;';
+      var cursor = interativo ? ' cursor:pointer;' : ' cursor:default;';
+      return base + cursor;
+    }
+
+    function render(){
+      aEl.innerHTML = ''; 
+      bEl.innerHTML = '';
+      var dist = 0;
+
+      for (var k = 0; k < 8; k++){
+        var diff = A[k] !== B[k];
+        if (diff) dist++;
+
+        var da = document.createElement('div');
+        da.className = 'sim08_ep01_bit';
+        da.style.cssText = estiloBit(diff, false);
+        da.textContent = A[k];
+        aEl.appendChild(da);
+
+        var db = document.createElement('div');
+        db.className = 'sim08_ep01_bit';
+        db.style.cssText = estiloBit(diff, true);
+        db.textContent = B[k];
+
+        (function(idx){
+          db.addEventListener('click', function(){
+            B[idx] = 1 - B[idx];
+            render();
+          });
+        })(k);
+
+        bEl.appendChild(db);
+      }
+
+      if (dist === 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#26241d';
+      }
+
+      dbg.textContent = 'A = ' + A.join('') + '   B = ' + B.join('') + '   →   Distância de Hamming = ' + dist;
+    }
+
+    render();
+  }
+
+  function tryInitSim08Ep01(){
+    var root = document.getElementById('sim08_ep01');
+    if (root) initSim08Ep01(root); else setTimeout(tryInitSim08Ep01, 200);
+  }
+  tryInitSim08Ep01();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ep02(root){
+    if (!root || root.dataset.sim08Ep02Init) return;
+    root.dataset.sim08Ep02Init = "1";
+
+    var pontos = [
+      {x:0, y:0, xp:0, yp:0},
+      {x:1, y:1, xp:2, yp:2},
+      {x:2, y:0, xp:4, yp:0},
+      {x:0, y:2, xp:0, yp:4},
+      {x:5, y:5, xp:1, yp:1}
+    ];
+
+    var slEl  = root.querySelector('#sim08_ep02_sl');
+    var vlEl  = root.querySelector('#sim08_ep02_vl');
+    var cards = root.querySelector('#sim08_ep02_cards');
+    var dbg   = root.querySelector('#sim08_ep02_debug');
+
+    function render(){
+      var eps = parseFloat(slEl.value);
+      vlEl.textContent = eps.toFixed(2);
+      cards.innerHTML = '';
+      var inliers = 0;
+
+      pontos.forEach(function(p){
+        var px = 2 * p.x, py = 2 * p.y;
+        var erro = Math.sqrt((px - p.xp) * (px - p.xp) + (py - p.yp) * (py - p.yp));
+        var dentro = erro <= eps;
+        if (dentro) inliers++;
+
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center; border-radius:10px; padding:10px 6px; font-size:11px; transition:all 0.15s ease;' +
+          (dentro 
+            ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' 
+            : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;');
+
+        div.innerHTML = '<div style="font-weight:700; margin-bottom:4px;">(' + p.x + ',' + p.y + ') &rarr; (' + p.xp + ',' + p.yp + ')</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px; font-size:10px;">erro = ' + erro.toFixed(2) + '</div>' +
+          '<div style="font-weight:700; font-size:10px;">' + (dentro ? 'INLIER' : 'outlier') + '</div>';
+
+        cards.appendChild(div);
+      });
+
+      if (inliers > 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'ε = ' + eps.toFixed(2) + '  |  inliers = ' + inliers + ' de ' + pontos.length;
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep02(){
+    var root = document.getElementById('sim08_ep02');
+    if (root) initSim08Ep02(root); else setTimeout(tryInitSim08Ep02, 200);
+  }
+  tryInitSim08Ep02();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ep03(root){
+    if (!root || root.dataset.sim08Ep03Init) return;
+    root.dataset.sim08Ep03Init = "1";
+
+    var I = [
+      [2, 1, 3, 4],
+      [5, 6, 1, 2],
+      [3, 2, 4, 1],
+      [1, 3, 2, 5]
+    ];
+    var N = 4;
+    var II = [];
+    for (var i = 0; i < N; i++){ II.push([0, 0, 0, 0]); }
+
+    for (var i = 0; i < N; i++){
+      for (var j = 0; j < N; j++){
+        II[i][j] = I[i][j] +
+          (i > 0 ? II[i - 1][j] : 0) + 
+          (j > 0 ? II[i][j - 1] : 0) - 
+          (i > 0 && j > 0 ? II[i - 1][j - 1] : 0);
+      }
+    }
+
+    var x1El     = root.querySelector('#sim08_ep03_x1');
+    var y1El     = root.querySelector('#sim08_ep03_y1');
+    var x2El     = root.querySelector('#sim08_ep03_x2');
+    var y2El     = root.querySelector('#sim08_ep03_y2');
+    var vTl      = root.querySelector('#sim08_ep03_v_tl');
+    var vBr      = root.querySelector('#sim08_ep03_v_br');
+    var gridI    = root.querySelector('#sim08_ep03_gridI');
+    var gridII   = root.querySelector('#sim08_ep03_gridII');
+    var formulaEl= root.querySelector('#sim08_ep03_formula');
+    var verifyEl = root.querySelector('#sim08_ep03_verify');
+    var badge    = root.querySelector('#sim08_ep03_badge');
+
+    var CELL = 34, HEAD = 20;
+
+    function cellDiv(text, size, extraStyle){
+      var d = document.createElement('div');
+      d.style.cssText = 'display:flex; align-items:center; justify-content:center; font-family:monospace; font-size:' + size + 'px;' + extraStyle;
+      d.textContent = text;
+      return d;
+    }
+
+    function clampAndRender(changed){
+      var x1 = +x1El.value, y1 = +y1El.value, x2 = +x2El.value, y2 = +y2El.value;
+      if (changed === 'x1' && x1 > x2) x2El.value = x1;
+      if (changed === 'x2' && x2 < x1) x1El.value = x2;
+      if (changed === 'y1' && y1 > y2) y2El.value = y1;
+      if (changed === 'y2' && y2 < y1) y1El.value = y2;
+      render();
+    }
+
+    function render(){
+      var x1 = +x1El.value, y1 = +y1El.value, x2 = +x2El.value, y2 = +y2El.value;
+      vTl.textContent = '(' + x1 + ',' + y1 + ')';
+      vBr.textContent = '(' + x2 + ',' + y2 + ')';
+
+      var sit;
+      if (x1 === x2 && y1 === y2) sit = 'Pixel Único';
+      else if (x1 === 0 && y1 === 0) sit = 'Desde a Origem';
+      else if (x1 === 0) sit = 'Borda Esquerda';
+      else if (y1 === 0) sit = 'Borda Superior';
+      else sit = 'Interno';
+
+      badge.textContent = sit;
+
+      // Grade I
+      gridI.style.gridTemplateColumns = HEAD + 'px repeat(' + N + ',' + CELL + 'px)';
+      gridI.style.gridTemplateRows = HEAD + 'px repeat(' + N + ',' + CELL + 'px)';
+      gridI.innerHTML = '';
+      gridI.appendChild(cellDiv('', 10, 'color:#8a8371;'));
+      for (var c = 0; c < N; c++) gridI.appendChild(cellDiv(c, 10, 'color:#8a8371; font-weight:700;'));
+
+      for (var r = 0; r < N; r++){
+        gridI.appendChild(cellDiv(r, 10, 'color:#8a8371; font-weight:700;'));
+        for (var c = 0; c < N; c++){
+          var dentro = (r >= y1 && r <= y2 && c >= x1 && c <= x2);
+          gridI.appendChild(cellDiv(I[r][c], 12, 'border-radius:4px; transition:all 0.15s ease;' +
+            (dentro 
+              ? 'background:#f1ead7; border:2px solid #26241d; font-weight:700; color:#26241d;'
+              : 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;')));
+        }
+      }
+
+      // Grade II (5x5 dados)
+      var M = N + 1;
+      gridII.style.gridTemplateColumns = HEAD + 'px repeat(' + M + ',' + CELL + 'px)';
+      gridII.style.gridTemplateRows = HEAD + 'px repeat(' + M + ',' + CELL + 'px)';
+      gridII.innerHTML = '';
+      gridII.appendChild(cellDiv('', 10, 'color:#8a8371;'));
+      for (var c2 = 0; c2 < M; c2++) gridII.appendChild(cellDiv(c2 - 1, 10, 'color:#8a8371; font-weight:700;'));
+
+      var t1 = [y2 + 1, x2 + 1];
+      var t2 = [y2 + 1, x1];
+      var t3 = [y1, x2 + 1];
+      var t4 = [y1, x1];
+
+      function styleFor(r2, c2){
+        var isVirtual = (r2 === 0 || c2 === 0);
+        var base = isVirtual
+          ? 'border-radius:4px; background:#fafaf7; border:1px dashed #e4dcc8; color:#8a8371;'
+          : 'border-radius:4px; background:#fafaf7; border:1px solid #e4dcc8; color:#26241d;';
+
+        function match(t, color, tcolor){
+          if (r2 === t[0] && c2 === t[1]) {
+            return 'border-radius:4px; font-weight:700; background:' + color + '; border:2px solid ' + tcolor + '; color:#ffffff;';
+          }
+          return null;
+        }
+
+        return match(t1, '#2980b9', '#1c5d85') || 
+               match(t2, '#d35400', '#a04000') ||
+               match(t3, '#d35400', '#a04000') || 
+               match(t4, '#27ae60', '#1e8449') || base;
+      }
+
+      for (var r2 = 0; r2 < M; r2++){
+        gridII.appendChild(cellDiv(r2 - 1, 10, 'color:#8a8371; font-weight:700;'));
+        for (var c2 = 0; c2 < M; c2++){
+          var val = (r2 === 0 || c2 === 0) ? 0 : II[r2 - 1][c2 - 1];
+          gridII.appendChild(cellDiv(val, 12, styleFor(r2, c2)));
+        }
+      }
+
+      function term(y, x){ return (y < 0 || x < 0) ? 0 : II[y][x]; }
+      var a = term(y2, x2), b = term(y2, x1 - 1), c3 = term(y1 - 1, x2), d = term(y1 - 1, x1 - 1);
+      var S = a - b - c3 + d;
+
+      formulaEl.innerHTML =
+        'S = II(' + y2 + ',' + x2 + ') &minus; II(' + y2 + ',' + (x1 - 1) + ') &minus; II(' + (y1 - 1) + ',' + x2 + ') + II(' + (y1 - 1) + ',' + (x1 - 1) + ')<br>' +
+        'S = ' + a + ' &minus; ' + b + ' &minus; ' + c3 + ' + ' + d + ' = <b>' + S + '</b>';
+
+      var direta = 0;
+      for (var rr = y1; rr <= y2; rr++){
+        for (var cc = x1; cc <= x2; cc++){
+          direta += I[rr][cc];
+        }
+      }
+
+      if (direta === S) {
+        verifyEl.style.borderColor = '#a3e4d7';
+        verifyEl.style.background  = '#eafaf1';
+        verifyEl.style.color       = '#04342C';
+      } else {
+        verifyEl.style.borderColor = '#f5b7b1';
+        verifyEl.style.background  = '#fdecea';
+        verifyEl.style.color       = '#c0392b';
+      }
+
+      verifyEl.innerHTML = '&#10004; Verificação (Soma Direta dos Pixels) = ' + direta + (direta === S ? ' &rarr; Bate com S' : ' &rarr; Erro');
+    }
+
+    x1El.addEventListener('input', function(){ clampAndRender('x1'); });
+    y1El.addEventListener('input', function(){ clampAndRender('y1'); });
+    x2El.addEventListener('input', function(){ clampAndRender('x2'); });
+    y2El.addEventListener('input', function(){ clampAndRender('y2'); });
+
+    root.querySelectorAll('button[data-preset]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var p = btn.getAttribute('data-preset').split(',').map(Number);
+        x1El.value = p[0]; y1El.value = p[1]; x2El.value = p[2]; y2El.value = p[3];
+        render();
+      });
+    });
+
+    render();
+  }
+
+  function tryInitSim08Ep03(){
+    var root = document.getElementById('sim08_ep03');
+    if (root) initSim08Ep03(root); else setTimeout(tryInitSim08Ep03, 200);
+  }
+  tryInitSim08Ep03();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ep04(root){
+    if (!root || root.dataset.sim08Ep04Init) return;
+    root.dataset.sim08Ep04Init = "1";
+
+    var dxEl   = root.querySelector('#sim08_ep04_dx');
+    var dxvEl  = root.querySelector('#sim08_ep04_dx_v');
+    var tauEl  = root.querySelector('#sim08_ep04_tau');
+    var tauvEl = root.querySelector('#sim08_ep04_tau_v');
+    var boxA   = root.querySelector('#sim08_ep04_boxA');
+    var boxB   = root.querySelector('#sim08_ep04_boxB');
+    var dbg    = root.querySelector('#sim08_ep04_debug');
+
+    var ESCALA = 10;
+    var A = {x1: 5, y1: 3, x2: 15, y2: 13};
+
+    function iou(a, b){
+      var ix1 = Math.max(a.x1, b.x1), iy1 = Math.max(a.y1, b.y1);
+      var ix2 = Math.min(a.x2, b.x2), iy2 = Math.min(a.y2, b.y2);
+      var iw  = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+      var inter = iw * ih;
+      var areaA = (a.x2 - a.x1) * (a.y2 - a.y1);
+      var areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
+      return inter / (areaA + areaB - inter);
+    }
+
+    function render(){
+      var dx  = parseInt(dxEl.value, 10);
+      var tau = parseFloat(tauEl.value);
+
+      dxvEl.textContent  = dx;
+      tauvEl.textContent = tau.toFixed(2);
+
+      var B = {x1: 5 + dx, y1: 3 + dx * 0.4, x2: 15 + dx, y2: 13 + dx * 0.4};
+
+      boxA.style.left   = (A.x1 * ESCALA) + 'px';
+      boxA.style.top    = (A.y1 * ESCALA) + 'px';
+      boxA.style.width  = ((A.x2 - A.x1) * ESCALA) + 'px';
+      boxA.style.height = ((A.y2 - A.y1) * ESCALA) + 'px';
+
+      boxB.style.left   = (B.x1 * ESCALA) + 'px';
+      boxB.style.top    = (B.y1 * ESCALA) + 'px';
+      boxB.style.width  = ((B.x2 - B.x1) * ESCALA) + 'px';
+      boxB.style.height = ((B.y2 - B.y1) * ESCALA) + 'px';
+
+      var val = iou(A, B);
+      var suprimida = val >= tau;
+
+      if (suprimida) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'IoU(A,B) = ' + val.toFixed(4) + '  |  τ = ' + tau.toFixed(2) + '  →  Candidata (Vermelha) ' + 
+        (suprimida ? 'SUPRIMIDA (IoU ≥ τ)' : 'MANTIDA (IoU < τ)');
+    }
+
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep04(){
+    var root = document.getElementById('sim08_ep04');
+    if (root) initSim08Ep04(root); else setTimeout(tryInitSim08Ep04, 200);
+  }
+  tryInitSim08Ep04();
+})();
+</script>
+<script>
+(function(){
+  function initSim08Ep05(root){
+    if (!root || root.dataset.sim08Ep05Init) return;
+    root.dataset.sim08Ep05Init = "1";
+
+    var mask = [[1, 0], [0, 1]];
+    var conect = 8;
+    var CORES = ['#eafaf1', '#fdecea'];
+    var BORDAS = ['#a3e4d7', '#f5b7b1'];
+    var TEXTOS = ['#04342C', '#c0392b'];
+
+    var btn4   = root.querySelector('#sim08_ep05_c4');
+    var btn8   = root.querySelector('#sim08_ep05_c8');
+    var gridEl = root.querySelector('#sim08_ep05_grid');
+    var dbg    = root.querySelector('#sim08_ep05_debug');
+
+    function rotula(){
+      var H = mask.length, W = mask[0].length;
+      var labels = [[0, 0], [0, 0]];
+      var atual = 0;
+      var viz4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      var viz8 = viz4.concat([[-1, -1], [-1, 1], [1, -1], [1, 1]]);
+      var viz = conect === 8 ? viz8 : viz4;
+
+      for (var i = 0; i < H; i++){
+        for (var j = 0; j < W; j++){
+          if (mask[i][j] === 1 && labels[i][j] === 0){
+            atual++;
+            var fila = [[i, j]];
+            labels[i][j] = atual;
+            while (fila.length){
+              var pos = fila.pop();
+              var r = pos[0], c = pos[1];
+              for (var k = 0; k < viz.length; k++){
+                var nr = r + viz[k][0], nc = c + viz[k][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W && mask[nr][nc] === 1 && labels[nr][nc] === 0){
+                  labels[nr][nc] = atual;
+                  fila.push([nr, nc]);
+                }
+              }
+            }
+          }
+        }
+      }
+      return {labels: labels, k: atual};
+    }
+
+    function estiloBotoes(){
+      btn4.classList.toggle('sim08_ep05_active', conect === 4);
+      btn8.classList.toggle('sim08_ep05_active', conect === 8);
+    }
+
+    function render(){
+      var res = rotula();
+      gridEl.innerHTML = '';
+
+      for (var i = 0; i < 2; i++){
+        for (var j = 0; j < 2; j++){
+          var d = document.createElement('div');
+          var lab = res.labels[i][j];
+          var estilo = 'width:56px; height:56px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-family:monospace; font-weight:700; font-size:13px; transition:all 0.15s ease;';
+
+          if (lab === 0){
+            estilo += 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;';
+          } else {
+            var idx = (lab - 1) % 2;
+            estilo += 'background:' + CORES[idx] + '; border:2px solid ' + BORDAS[idx] + '; color:' + TEXTOS[idx] + ';';
+          }
+
+          d.style.cssText = estilo;
+          d.textContent = mask[i][j] + (lab ? ' (r' + lab + ')' : '');
+          gridEl.appendChild(d);
+        }
+      }
+
+      estiloBotoes();
+
+      if (res.k === 1) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#26241d';
+      }
+
+      dbg.textContent = 'Conectividade = ' + conect + '  →  ' + res.k + ' Instância(s) Encontrada(s)';
+    }
+
+    btn4.addEventListener('click', function(){ conect = 4; render(); });
+    btn8.addEventListener('click', function(){ conect = 8; render(); });
+
+    render();
+  }
+
+  function tryInitSim08Ep05(){
+    var root = document.getElementById('sim08_ep05');
+    if (root) initSim08Ep05(root); else setTimeout(tryInitSim08Ep05, 200);
+  }
+  tryInitSim08Ep05();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0806Init) return;
+    root.dataset.ep0806Init = "1";
+
+    var H = 10, W = 22;
+    var mask = [], labels = [], metrics = [];
+    var colors = ['#ffffff', '#7ee7c6', '#fca5a5', '#fde047', '#93c5fd', '#c084fc', '#f472b6'];
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [];
+            var queue = [[r, c]];
+            visited[r][c] = true;
+
+            while (queue.length > 0) {
+              var curr = queue.shift();
+              var cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true;
+                    queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) {
+                borderPts.push([pc, pr]);
+              }
+            });
+
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+
+            borderPts.sort(function(a, b) {
+              return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx);
+            });
+
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1];
+        area -= contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length;
+      var m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else {
+          return [pts[0], pts[end]];
+        }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureJS(mat) {
+      var blobs = cv2_findContours(mat);
+      var res = [];
+      labels = Array.from({length: H}, function(){ return Array(W).fill(0); });
+
+      blobs.forEach(function(item, idx) {
+        var contour = item.contour;
+        var pixels = item.pixels;
+        var labelId = idx + 1;
+
+        pixels.forEach(function(p){ labels[p[0]][p[1]] = labelId; });
+
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+
+        var poly = cv2_approxPolyDP(contour, 0.01);
+
+        res.push({
+          id: labelId,
+          area: area,
+          perimeter: per,
+          cx: moments.cx,
+          cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0,
+          vertices: poly.length
+        });
+      });
+
+      res.sort(function(a, b) {
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+      });
+
+      res.forEach(function(m, i) { m.id = i + 1; });
+      return res;
+    }
+
+    function render() {
+      var gridContainer = root.querySelector('#ep0806_grid_container');
+      gridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var l = labels[r][c];
+          var cell = document.createElement('div');
+          var bg = l === 0 ? '#ffffff' : colors[(l % (colors.length - 1)) + 1];
+          var fg = l === 0 ? '#8a8371' : '#26241d';
+          cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:monospace;user-select:none;background:' + bg + ';color:' + fg + ';';
+          cell.textContent = l;
+          grid.appendChild(cell);
+        }
+      }
+      gridContainer.appendChild(grid);
+
+      var tbody = root.querySelector('#ep0806_tbody');
+      tbody.innerHTML = '';
+
+      if (metrics.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:12px;color:#8a8371;text-align:center;">Nenhuma instância binária encontrada.</td></tr>';
+        return;
+      }
+
+      metrics.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        var centerStr = '(' + m.cx.toFixed(2) + ', ' + m.cy.toFixed(2) + ')';
+        var bboxStr = '(' + m.x + ', ' + m.y + ', ' + m.w + ', ' + m.h + ')';
+
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + centerStr + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + bboxStr + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function generate() {
+      mask = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var numObj = Math.floor(Math.random() * 2) + 2;
+
+      for (var o = 0; o < numObj; o++) {
+        var w = Math.floor(Math.random() * 3) + 3;
+        var h = Math.floor(Math.random() * 3) + 3;
+        var sr = Math.floor(Math.random() * (H - h));
+        var sc = Math.floor(Math.random() * (W / numObj - w)) + Math.floor(o * (W / numObj));
+
+        for (var r = 0; r < h; r++) {
+          for (var c = 0; c < w; c++) {
+            if (Math.random() > 0.15) mask[sr + r][sc + c] = 1;
+          }
+        }
+      }
+
+      metrics = measureJS(mask);
+      render();
+    }
+
+    root.querySelector('#ep0806_btnRandom').addEventListener('click', generate);
+    generate();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0806');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0807Init) return;
+    root.dataset.ep0807Init = "1";
+
+    var H = 12, W = 28;
+    var imgBase = [], imgRuido = [], imgAbertura = [], imgLimpa = [];
+    var medidasObjetos = [];
+    var etapaAtual = 'ruido', modoExibicao = 'val', modoConectividade = 4;
+
+    var elBtnOrig = root.querySelector('#ep0807_btnOrig');
+    var elBtnAbert = root.querySelector('#ep0807_btnAbert');
+    var elBtnFech = root.querySelector('#ep0807_btnFech');
+    var elBtnConn4 = root.querySelector('#ep0807_btnConn4');
+    var elBtnConn8 = root.querySelector('#ep0807_btnConn8');
+    var elBtnVal = root.querySelector('#ep0807_btnVal');
+    var elBtnCor = root.querySelector('#ep0807_btnCor');
+    var elBtnRandom = root.querySelector('#ep0807_btnRandom');
+    var elGridContainer = root.querySelector('#ep0807_grid_container');
+    var elTbody = root.querySelector('#ep0807_tbody');
+
+    var neighbors4 = [[0,0], [-1,0], [1,0], [0,-1], [0,1]];
+    var neighbors8 = [[0,0], [-1,0], [1,0], [0,-1], [0,1], [-1,-1], [-1,1], [1,-1], [1,1]];
+
+    function dilate(mat, conn) {
+      var neighbors = conn === 8 ? neighbors8 : neighbors4;
+      var res = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var hit = false;
+          for (var i = 0; i < neighbors.length; i++) {
+            var nr = r + neighbors[i][0], nc = c + neighbors[i][1];
+            if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+              if (mat[nr][nc] === 1) { hit = true; break; }
+            }
+          }
+          res[r][c] = hit ? 1 : 0;
+        }
+      }
+      return res;
+    }
+
+    function erode(mat, conn) {
+      var neighbors = conn === 8 ? neighbors8 : neighbors4;
+      var res = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var fit = true;
+          for (var i = 0; i < neighbors.length; i++) {
+            var nr = r + neighbors[i][0], nc = c + neighbors[i][1];
+            if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+              if (mat[nr][nc] !== 1) { fit = false; break; }
+            } else { fit = false; }
+          }
+          res[r][c] = fit ? 1 : 0;
+        }
+      }
+      return res;
+    }
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length, m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureOpenCV(mat) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.01);
+        medidas.push({
+          area: area, perimeter: per, cx: moments.cx, cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0, vertices: poly.length
+        });
+      });
+      medidas.sort(function(a, b) { return a.x !== b.x ? a.x - b.x : a.y - b.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function recalcularMorfologia() {
+      imgAbertura = dilate(erode(imgRuido, modoConectividade), modoConectividade);
+      imgLimpa = erode(dilate(imgAbertura, modoConectividade), modoConectividade);
+      medidasObjetos = measureOpenCV(imgLimpa);
+      renderGrid();
+      renderTabela();
+    }
+
+    function gerarCenarioAleatorio() {
+      imgBase = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var numObjetos = Math.floor(Math.random() * 2) + 2; 
+      var setores = [ { minC: 1, maxC: 8 }, { minC: 10, maxC: 17 }, { minC: 19, maxC: 25 } ];
+      var objetoPixels = [];
+      for (var o = 0; o < numObjetos; o++) {
+        var setor = setores[o];
+        var tipoForma = Math.floor(Math.random() * 3);
+        var objW = Math.floor(Math.random() * 2) + 4, objH = Math.floor(Math.random() * 2) + 4;
+        var startC = Math.floor(Math.random() * (setor.maxC - setor.minC - objW + 1)) + setor.minC;
+        var startR = Math.floor(Math.random() * (H - 4 - objH + 1)) + 2;
+        for (var r = 0; r < objH; r++) {
+          for (var c = 0; c < objW; c++) {
+            var pr = startR + r, pc = startC + c, isObj = false;
+            if (tipoForma === 0) isObj = true;
+            else if (tipoForma === 1) { if (r >= objH / 2 || c < objW / 2) isObj = true; }
+            else if (tipoForma === 2) { if (r < objH / 2 || (c >= Math.floor(objW / 3) && c <= Math.floor(2 * objW / 3))) isObj = true; }
+            if (isObj) { imgBase[pr][pc] = 1; objetoPixels.push([pr, pc]); }
+          }
+        }
+      }
+      imgRuido = JSON.parse(JSON.stringify(imgBase));
+      var qtdSal = Math.floor(Math.random() * 2) + 2;
+      for (var s = 0; s < qtdSal; s++) {
+        var sr = Math.floor(Math.random() * (H - 2)) + 1, sc = Math.floor(Math.random() * (W - 2)) + 1;
+        if (imgBase[sr][sc] === 0) imgRuido[sr][sc] = 1;
+      }
+      var shuffledObj = objetoPixels.filter(function(p){ return p[0] > 0 && p[0] < H-1 && p[1] > 0 && p[1] < W-1; }).sort(function() { return 0.5 - Math.random(); });
+      var qtdPimenta = Math.max(1, Math.floor(shuffledObj.length * 0.10));
+      for (var p = 0; p < qtdPimenta; p++) { imgRuido[shuffledObj[p][0]][shuffledObj[p][1]] = 0; }
+      recalcularMorfologia();
+    }
+
+    function renderGrid(){
+      var mat = imgRuido;
+      if (etapaAtual === 'abertura') mat = imgAbertura;
+      if (etapaAtual === 'fechamento') mat = imgLimpa;
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var val = mat[r][c], cell = document.createElement('div');
+          var bg = val === 1 ? '#26241d' : '#ffffff';
+          var fg = val === 1 ? '#7ee7c6' : '#8a8371';
+          cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:monospace;user-select:none;background:' + bg + ';color:' + fg + ';';
+          if (modoExibicao === 'val') cell.textContent = val; else cell.textContent = '';
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="12" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado após o processamento morfológico.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cx.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cy.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.x + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.y + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.w + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.h + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    function setEtapa(etapa, btn){
+      [elBtnOrig, elBtnAbert, elBtnFech].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      etapaAtual = etapa; renderGrid();
+    }
+
+    function setConectividade(conn, btn){
+      [elBtnConn4, elBtnConn8].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      modoConectividade = conn; recalcularMorfologia();
+    }
+
+    function setModo(modo, btn){
+      [elBtnVal, elBtnCor].forEach(function(b){ b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600'; });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      modoExibicao = modo; renderGrid();
+    }
+
+    elBtnOrig.addEventListener('click', function(){ setEtapa('ruido', elBtnOrig); });
+    elBtnAbert.addEventListener('click', function(){ setEtapa('abertura', elBtnAbert); });
+    elBtnFech.addEventListener('click', function(){ setEtapa('fechamento', elBtnFech); });
+    elBtnConn4.addEventListener('click', function(){ setConectividade(4, elBtnConn4); });
+    elBtnConn8.addEventListener('click', function(){ setConectividade(8, elBtnConn8); });
+    elBtnVal.addEventListener('click', function(){ setModo('val', elBtnVal); });
+    elBtnCor.addEventListener('click', function(){ setModo('cor', elBtnCor); });
+    elBtnRandom.addEventListener('click', function(){ gerarCenarioAleatorio(); });
+
+    gerarCenarioAleatorio();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0807');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0808Init) return;
+    root.dataset.ep0808Init = "1";
+
+    var H = 10, W = 20, stage = 0;
+    var matOrig = [], matMed = [], matBin = [], medidasObjetos = [];
+
+    var elBtnRand = root.querySelector('#ep0808_btnRand');
+    var elGridContainer = root.querySelector('#ep0808_grid_container');
+    var elTbody = root.querySelector('#ep0808_tbody');
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length, m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureOpenCV(mat) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.02);
+        medidas.push({
+          area: area, perimeter: per, cx: moments.cx, cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0, vertices: poly.length
+        });
+      });
+      medidas.sort(function(a, b) { return a.x !== b.x ? a.x - b.x : a.y - b.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function gerarCenario() {
+      matOrig = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var w1 = Math.floor(Math.random() * 2) + 4, h1 = Math.floor(Math.random() * 2) + 4;
+      var x1 = Math.floor(Math.random() * 2) + 1, y1 = Math.floor(Math.random() * 2) + 1;
+      var val1 = 150;
+      for (var r = y1; r < y1 + h1; r++) { for (var c = x1; c < x1 + w1; c++) matOrig[r][c] = val1; }
+
+      var w2 = Math.floor(Math.random() * 2) + 4, h2 = Math.floor(Math.random() * 2) + 4;
+      var x2 = Math.floor(Math.random() * 2) + 11, y2 = Math.floor(Math.random() * 2) + 2;
+      var val2 = 180;
+      for (var r = y2; r < y2 + h2; r++) { for (var c = x2; c < x2 + w2; c++) matOrig[r][c] = val2; }
+
+      for (var i = 0; i < 4; i++) {
+        var sr = Math.floor(Math.random() * H), sc = Math.floor(Math.random() * W);
+        if (matOrig[sr][sc] === 0) matOrig[sr][sc] = 255;
+      }
+      matOrig[y1 + 1][x1 + 1] = 0; matOrig[y2 + 1][x2 + 1] = 0;
+
+      matMed = JSON.parse(JSON.stringify(matOrig));
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var vals = [];
+          for (var dr = -1; dr <= 1; dr++) {
+            for (var dc = -1; dc <= 1; dc++) {
+              var nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < H && nc >= 0 && nc < W) { vals.push(matOrig[nr][nc]); } else { vals.push(0); }
+            }
+          }
+          vals.sort(function(a, b){ return a - b; });
+          matMed[r][c] = vals[4];
+        }
+      }
+
+      matBin = matMed.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
+      medidasObjetos = measureOpenCV(matBin);
+      renderGrid();
+      renderTabela();
+    }
+
+    function renderGrid(){
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      var currentMat = stage === 0 ? matOrig : (stage === 1 ? matMed : matBin);
+
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var v = currentMat[r][c], cell = document.createElement('div');
+          if (stage === 2) {
+            var bgBin = v === 1 ? '#26241d' : '#ffffff', fgBin = v === 1 ? '#7ee7c6' : '#8a8371';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgBin + ';color:' + fgBin + ';';
+          } else {
+            var fgCinza = v > 128 ? '#000000' : '#ffffff';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgCinza + ';';
+          }
+          cell.textContent = v;
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="12" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado após a filtragem.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cx.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cy.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.x + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.y + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.w + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.h + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    function setStage(s, btn){
+      [root.querySelector('#ep0808_stage0'), root.querySelector('#ep0808_stage1'), root.querySelector('#ep0808_stage2')].forEach(function(b){
+        b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      stage = s; renderGrid();
+    }
+
+    elBtnRand.addEventListener('click', gerarCenario);
+    root.querySelector('#ep0808_stage0').addEventListener('click', function(){ setStage(0, this); });
+    root.querySelector('#ep0808_stage1').addEventListener('click', function(){ setStage(1, this); });
+    root.querySelector('#ep0808_stage2').addEventListener('click', function(){ setStage(2, this); });
+
+    gerarCenario();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0808');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0809Init) return;
+    root.dataset.ep0809Init = "1";
+
+    var H = 10, W = 20, stage = 0;
+    var matGrad = [], matGlob = [], matAdapt = [], medidasObjetos = [];
+
+    var elBtnRand = root.querySelector('#ep0809_btnRand');
+    var elGridContainer = root.querySelector('#ep0809_grid_container');
+    var elTbody = root.querySelector('#ep0809_tbody');
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length, m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureOpenCV(mat) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.02);
+        medidas.push({
+          area: area, perimeter: per, cx: moments.cx, cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0, vertices: poly.length
+        });
+      });
+      medidas.sort(function(a, b) { return a.x !== b.x ? a.x - b.x : a.y - b.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function gerarCenario() {
+      matGrad = Array.from({length: H}, function(_, r){
+        return Array.from({length: W}, function(_, c){ return Math.round(20 + c * 9.5); });
+      });
+      var w1 = 3, h1 = 3;
+      var x1 = Math.floor(Math.random() * 2) + 2, y1 = Math.floor(Math.random() * 2) + 2;
+      for (var r = y1; r < y1 + h1; r++) { for (var c = x1; c < x1 + w1; c++) matGrad[r][c] += 90; }
+
+      var w2 = 3, h2 = 3;
+      var x2 = Math.floor(Math.random() * 2) + 14, y2 = Math.floor(Math.random() * 2) + 2;
+      for (var r = y2; r < y2 + h2; r++) { for (var c = x2; c < x2 + w2; c++) matGrad[r][c] += 90; }
+
+      matGlob = matGrad.map(function(row) { return row.map(function(v) { return v > 110 ? 1 : 0; }); });
+
+      var blockSize = 5, half = Math.floor(blockSize / 2), C_val = 20;
+      matAdapt = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var sum = 0, count = 0;
+          for (var dr = -half; dr <= half; dr++) {
+            for (var dc = -half; dc <= half; dc++) {
+              var nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < H && nc >= 0 && nc < W) { sum += matGrad[nr][nc]; count++; }
+            }
+          }
+          var mean = sum / count;
+          matAdapt[r][c] = matGrad[r][c] > (mean + C_val) ? 1 : 0;
+        }
+      }
+      medidasObjetos = measureOpenCV(matAdapt);
+      renderGrid();
+      renderTabela();
+    }
+
+    function renderGrid(){
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      var currentMat = stage === 0 ? matGrad : (stage === 1 ? matGlob : matAdapt);
+
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var v = currentMat[r][c], cell = document.createElement('div');
+          if (stage > 0) {
+            var bgBin = v === 1 ? '#26241d' : '#ffffff', fgBin = v === 1 ? '#7ee7c6' : '#8a8371';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgBin + ';color:' + fgBin + ';';
+          } else {
+            var fgCinza = v > 120 ? '#ffffff' : '#374151';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:rgb(' + (255 - v) + ',' + (255 - v) + ',' + (255 - v) + ');color:' + fgCinza + ';';
+          }
+          cell.textContent = v;
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="12" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado após o limiar adaptativo.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cx.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cy.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.x + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.y + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.w + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.h + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    function setStage(s, btn){
+      [root.querySelector('#ep0809_stage0'), root.querySelector('#ep0809_stage1'), root.querySelector('#ep0809_stage2')].forEach(function(b){
+        b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      stage = s; renderGrid();
+    }
+
+    elBtnRand.addEventListener('click', gerarCenario);
+    root.querySelector('#ep0809_stage0').addEventListener('click', function(){ setStage(0, this); });
+    root.querySelector('#ep0809_stage1').addEventListener('click', function(){ setStage(1, this); });
+    root.querySelector('#ep0809_stage2').addEventListener('click', function(){ setStage(2, this); });
+
+    gerarCenario();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0809');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0810Init) return;
+    root.dataset.ep0810Init = "1";
+
+    var H = 11, W = 21, stage = 0;
+    var matOrig = [], matBin = [], matDist = [], matWash = [], medidasObjetos = [];
+
+    var elBtnRand = root.querySelector('#ep0810_btnRand');
+    var elGridContainer = root.querySelector('#ep0810_grid_container');
+    var elTbody = root.querySelector('#ep0810_tbody');
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_moments(blobPixels) {
+      var m00 = blobPixels.length, m10 = 0.0, m01 = 0.0;
+      blobPixels.forEach(function(p) { m10 += p[1]; m01 += p[0]; });
+      return { m00: m00, cx: m00 > 0 ? m10 / m00 : 0, cy: m00 > 0 ? m01 / m00 : 0 };
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function measureOpenCV(mat) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var per = cv2_arcLength(contour);
+        var bbox = cv2_boundingRect(pixels);
+        var moments = cv2_moments(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.02);
+        medidas.push({
+          area: area, perimeter: per, cx: moments.cx, cy: moments.cy,
+          x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h,
+          circularity: per > 0 ? (4 * Math.PI * area) / (per * per) : 0,
+          solidity: hull_area > 0 ? area / hull_area : 0, vertices: poly.length
+        });
+      });
+      medidas.sort(function(a, b) { return a.x !== b.x ? a.x - b.x : a.y - b.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function gerarCenario() {
+      matOrig = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var r1 = Math.floor(Math.random() * 3) + 2, r2 = Math.floor(Math.random() * 3) + 2; 
+      var cy1 = Math.floor(Math.random() * 2) + 4, cx1 = Math.floor(Math.random() * 2) + 3;
+      var cx2 = cx1 + r1 + r2, cy2 = cy1;
+
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          var d1 = Math.hypot(r - cy1, c - cx1), d2 = Math.hypot(r - cy2, c - cx2);
+          if (d1 <= r1 || d2 <= r2) { matOrig[r][c] = 140 + Math.floor(Math.random() * 20); }
+        }
+      }
+
+      matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
+      matDist = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var fundoPixels = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) { if (matBin[r][c] === 0) fundoPixels.push([r, c]); }
+      }
+
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (matBin[r][c] === 1) {
+            var minDist = Infinity;
+            for (var k = 0; k < fundoPixels.length; k++) {
+              var dist = Math.hypot(r - fundoPixels[k][0], c - fundoPixels[k][1]);
+              if (dist < minDist) minDist = dist;
+            }
+            matDist[r][c] = Math.round(minDist);
+          }
+        }
+      }
+
+      matWash = JSON.parse(JSON.stringify(matBin));
+      var colCorte = cx1 + r1; 
+      for (var r = 0; r < H; r++) { if (matWash[r][colCorte] === 1) matWash[r][colCorte] = 0; }
+
+      medidasObjetos = measureOpenCV(matWash);
+      renderGrid();
+      renderTabela();
+    }
+
+    function renderGrid(){
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var cell = document.createElement('div');
+          if (stage === 0) {
+            var v = matOrig[r][c]; cell.textContent = v;
+            var fgCinza = v > 120 ? '#ffffff' : '#374151';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:rgb(' + (255 - v) + ',' + (255 - v) + ',' + (255 - v) + ');color:' + fgCinza + ';';
+          } else if (stage === 1) {
+            var v = matBin[r][c]; cell.textContent = v;
+            var bgBin = v === 1 ? '#26241d' : '#ffffff', fgBin = v === 1 ? '#7ee7c6' : '#8a8371';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgBin + ';color:' + fgBin + ';';
+          } else if (stage === 2) {
+            var v = matDist[r][c]; cell.textContent = v;
+            var bgDist = v > 0 ? 'rgb(' + (240 - v * 45) + ',' + (240 - v * 30) + ',255)' : '#ffffff';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgDist + ';color:#26241d;';
+          } else {
+            var v = matWash[r][c]; cell.textContent = v;
+            var bgWash = v === 1 ? '#26241d' : '#ffffff', fgWash = v === 1 ? '#7ee7c6' : '#8a8371';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgWash + ';color:' + fgWash + ';';
+          }
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="12" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado após o corte do Watershed.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.perimeter.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cx.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.cy.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.x + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.y + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.w + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.h + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.circularity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    function setStage(s, btn){
+      [root.querySelector('#ep0810_stage0'), root.querySelector('#ep0810_stage1'), root.querySelector('#ep0810_stage2'), root.querySelector('#ep0810_stage3')].forEach(function(b){
+        b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      stage = s; renderGrid();
+    }
+
+    elBtnRand.addEventListener('click', gerarCenario);
+    root.querySelector('#ep0810_stage0').addEventListener('click', function(){ setStage(0, this); });
+    root.querySelector('#ep0810_stage1').addEventListener('click', function(){ setStage(1, this); });
+    root.querySelector('#ep0810_stage2').addEventListener('click', function(){ setStage(2, this); });
+    root.querySelector('#ep0810_stage3').addEventListener('click', function(){ setStage(3, this); });
+
+    gerarCenario();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0810');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0811Init) return;
+    root.dataset.ep0811Init = "1";
+
+    var H = 10, W = 20, stage = 0;
+    var showGT = true, showDET = true;
+    // matOrig/matBin: cena. medidasObjetos: 1 registro por objeto real (GT), casado com sua melhor DET.
+    // detBoxesAtuais: caixas "detectadas" simuladas (com ruído/deslocamento em relação ao objeto real).
+    var matOrig = [], matBin = [], medidasObjetos = [], detBoxesAtuais = [];
+
+    var elBtnRand = root.querySelector('#ep0811_btnRand');
+    var elToggleGT = root.querySelector('#ep0811_toggleGT');
+    var elToggleDET = root.querySelector('#ep0811_toggleDET');
+    var elGridContainer = root.querySelector('#ep0811_grid_container');
+    var elTbody = root.querySelector('#ep0811_tbody');
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function calculateIoU(boxA, boxB) {
+      var ax1 = boxA.x, ay1 = boxA.y, ax2 = boxA.x + boxA.w, ay2 = boxA.y + boxA.h;
+      var bx1 = boxB.x, by1 = boxB.y, bx2 = boxB.x + boxB.w, by2 = boxB.y + boxB.h;
+      var ix1 = Math.max(ax1, bx1), iy1 = Math.max(ay1, by1);
+      var ix2 = Math.min(ax2, bx2), iy2 = Math.min(ay2, by2);
+      var iw = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+      var inter = iw * ih;
+      var areaA = boxA.w * boxA.h, areaB = boxB.w * boxB.h;
+      var union = areaA + areaB - inter;
+      return union > 0 ? inter / union : 0.0;
+    }
+
+    // FIX: bbox extraída dos pixels reais do objeto (mat) é o GABARITO (GT) — é a posição
+    // verdadeira e exata do objeto na cena. As caixas em `detBoxes` (com deslocamento
+    // aleatório) representam a saída ruidosa de um detector, e são casadas ao GT mais
+    // próximo por IoU.
+    function measureOpenCV(mat, detBoxes) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var gtBbox = cv2_boundingRect(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.02);
+        var solidity = hull_area > 0 ? area / hull_area : 0;
+        var classe = solidity < 0.85 ? "Cruz (Côncavo)" : "Retângulo (Convexo)";
+        var bestIoU = 0.0, matchedDET = { x: 0, y: 0, w: 0, h: 0 };
+
+        detBoxes.forEach(function(d) {
+          var iou = calculateIoU(gtBbox, d);
+          if (iou > bestIoU) { bestIoU = iou; matchedDET = d; }
+        });
+
+        medidas.push({
+          classe: classe, area: area, gtBox: gtBbox, detBox: matchedDET,
+          solidity: solidity, vertices: poly.length, iou: bestIoU, ok: bestIoU >= 0.50
+        });
+      });
+      medidas.sort(function(a, b) { return a.gtBox.x !== b.gtBox.x ? a.gtBox.x - b.gtBox.x : a.gtBox.y - b.gtBox.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function gerarCenario() {
+      matOrig = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var armLen = Math.floor(Math.random() * 2) + 1, thick = 1;
+      var w1 = armLen * 2 + thick, h1 = armLen * 2 + thick;
+      var x1 = Math.floor(Math.random() * Math.max(1, 8 - w1)) + 1;
+      var y1 = Math.floor(Math.random() * Math.max(1, H - h1)) + 1;
+
+      for (var r = 0; r < h1; r++) {
+        for (var c = 0; c < w1; c++) {
+          if ((c >= armLen && c < armLen + thick) || (r >= armLen && r < armLen + thick)) { matOrig[y1 + r][x1 + c] = 180; }
+        }
+      }
+
+      var w2 = Math.floor(Math.random() * 3) + 3, h2 = Math.floor(Math.random() * 3) + 3;
+      var x2 = Math.floor(Math.random() * Math.max(1, W - 10 - w2)) + 10;
+      var y2 = Math.floor(Math.random() * Math.max(1, H - h2)) + 1;
+
+      for (var r = y2; r < y2 + h2; r++) {
+        for (var c = x2; c < x2 + w2; c++) { matOrig[r][c] = 180; }
+      }
+
+      // Estas caixas simulam a saída de um DETECTOR real: deslocadas/imprecisas em relação
+      // ao objeto verdadeiro (que será obtido depois via segmentação em matBin -> GT).
+      var shiftX1 = Math.random() > 0.5 ? 1 : 0, shiftY1 = Math.random() > 0.5 ? 1 : 0;
+      var shiftX2 = Math.random() > 0.6 ? -2 : 0;
+
+      detBoxesAtuais = [
+        { x: Math.max(0, x1 + shiftX1), y: Math.max(0, y1 + shiftY1), w: w1, h: h1 },
+        { x: Math.max(0, x2 + shiftX2), y: y2, w: w2 + (shiftX2 !== 0 ? 2 : 0), h: h2 }
+      ];
+
+      matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
+      medidasObjetos = measureOpenCV(matBin, detBoxesAtuais);
+      renderGrid();
+      renderTabela();
+    }
+
+    function inBox(r, c, box) { return r >= box.y && r < box.y + box.h && c >= box.x && c < box.x + box.w; }
+    function isBoxEdge(r, c, box) { if (!inBox(r, c, box)) return false; return r === box.y || r === box.y + box.h - 1 || c === box.x || c === box.x + box.w - 1; }
+
+    function renderGrid(){
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      var currentMat = stage === 0 ? matOrig : matBin;
+
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var v = currentMat[r][c], cell = document.createElement('div');
+          var isGT = false, isDetOK = false, isDetFail = false;
+
+          if (stage === 1) {
+            // FIX: GT agora vem de m.gtBox (bbox real extraída dos pixels do objeto)
+            if (showGT) { medidasObjetos.forEach(function(m) { if (isBoxEdge(r, c, m.gtBox)) isGT = true; }); }
+            // FIX: DET agora vem de m.detBox (bbox ruidosa casada por IoU)
+            if (showDET) {
+              medidasObjetos.forEach(function(m) {
+                if (isBoxEdge(r, c, m.detBox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
+              });
+            }
+
+            if (isGT && isDetOK) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#7c3aed;color:#ffffff;border:2px double #a78bfa;box-sizing:border-box;';
+            } else if (isGT && isDetFail) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#c026d3;color:#ffffff;border:2px double #f472b6;box-sizing:border-box;';
+            } else if (isDetOK) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#059669;color:#ffffff;border:2px solid #34d399;box-sizing:border-box;';
+            } else if (isDetFail) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#dc2626;color:#ffffff;border:2px solid #f87171;box-sizing:border-box;';
+            } else if (isGT) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#2563eb;color:#ffffff;border:2px dashed #93c5fd;box-sizing:border-box;';
+            } else {
+              var bgBin = v === 1 ? '#26241d' : '#ffffff', fgBin = v === 1 ? '#7ee7c6' : '#8a8371';
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgBin + ';color:' + fgBin + ';border:none;';
+            }
+          } else {
+            var fgCinza = v > 100 ? '#ffffff' : '#374151';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:rgb(' + (255 - v) + ',' + (255 - v) + ',' + (255 - v) + ');color:' + fgCinza + ';border:none;';
+          }
+          cell.textContent = v;
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="9" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado na cena.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        // FIX: bboxDet vem de m.detBox (caixa ruidosa) e bboxGT vem de m.gtBox (caixa real)
+        var bboxDet = '(' + m.detBox.x + ',' + m.detBox.y + ',' + m.detBox.w + ',' + m.detBox.h + ')';
+        var bboxGT = '(' + m.gtBox.x + ',' + m.gtBox.y + ',' + m.gtBox.w + ',' + m.gtBox.h + ')';
+        var statusHtml = m.ok ? '<span style="color:#27ae60;font-weight:bold;">✔ True</span>' : '<span style="color:#e74c3c;font-weight:bold;">✖ False</span>';
+
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.classe + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + bboxDet + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + bboxGT + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.iou.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + statusHtml + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    elToggleGT.addEventListener('click', function(){
+      showGT = !showGT;
+      if (showGT) {
+        this.style.background = '#2563eb'; this.style.borderColor = '#1d4ed8'; this.style.color = '#ffffff';
+        this.querySelector('span').textContent = '🟦';
+      } else {
+        this.style.background = '#f1ead7'; this.style.borderColor = '#d4cebe'; this.style.color = '#5e5a4a';
+        this.querySelector('span').textContent = '⬜';
+      }
+      renderGrid();
+    });
+
+    elToggleDET.addEventListener('click', function(){
+      showDET = !showDET;
+      if (showDET) {
+        this.style.background = '#059669'; this.style.borderColor = '#047857'; this.style.color = '#ffffff';
+        this.querySelector('span').textContent = '🟩';
+      } else {
+        this.style.background = '#f1ead7'; this.style.borderColor = '#d4cebe'; this.style.color = '#5e5a4a';
+        this.querySelector('span').textContent = '⬜';
+      }
+      renderGrid();
+    });
+
+    elBtnRand.addEventListener('click', gerarCenario);
+
+    function setStage(s, btn){
+      [root.querySelector('#ep0811_stage0'), root.querySelector('#ep0811_stage1')].forEach(function(b){
+        b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      stage = s; renderGrid();
+    }
+
+    root.querySelector('#ep0811_stage0').addEventListener('click', function(){ setStage(0, this); });
+    root.querySelector('#ep0811_stage1').addEventListener('click', function(){ setStage(1, this); });
+
+    gerarCenario();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0811');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+<script>
+
+function svgNS(tag){
+  var SVG_NS = "http" + "://www.w3.org/2000/svg";
+  return document.createElementNS(SVG_NS, tag);
+}
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var ruidoEl = root.querySelector('#ep0812c_ruido'), ruidovEl = root.querySelector('#ep0812c_ruido_v');
+    var biasEl = root.querySelector('#ep0812c_bias'), biasvEl = root.querySelector('#ep0812c_bias_v');
+    var thrEl = root.querySelector('#ep0812c_thr'), thrvEl = root.querySelector('#ep0812c_thr_v');
+    var erroEl = root.querySelector('#ep0812c_erro');
+    var svgWrap = root.querySelector('#ep0812c_svg');
+    var svgEl = svgNS('svg');
+    svgEl.setAttribute('viewBox', '0 0 360 340');
+    svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
+    svgWrap.appendChild(svgEl);
+
+    var tbody = root.querySelector('#ep0812c_tbody');
+    var dbg = root.querySelector('#ep0812c_debug');
+
+    var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
+    var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
+    var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
+    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240];      // direção fixa do erro por objeto (graus)
+    var SCALE = [0.9, 1.15, 0.8, 1.2, 1.0, 0.95, 1.1, 1.25, 0.85]; // fator de encolhimento/expansão do bbox (fixo)
+
+    var OBJS = [
+      {cx:55,  cy:45,  r:22},
+      {cx:150, cy:70,  r:24},
+      {cx:250, cy:50,  r:22},
+      {cx:320, cy:130, r:20},
+      {cx:90,  cy:190, r:24},
+      {cx:190, cy:220, r:24},
+      {cx:275, cy:190, r:24},
+      {cx:315, cy:270, r:22},
+      {cx:150, cy:150, r:18}
+    ];
+
+    function svgShape(tipo, cx, cy, r, cor){
+      var s = '';
+      if(tipo==='Circ'){
+        s = '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+cor+'"/>';
+      } else if(tipo==='Elip'){
+        s = '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(r*1.1)+'" ry="'+(r*0.65)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Quad'){
+        s = '<rect x="'+(cx-r*0.8)+'" y="'+(cy-r*0.8)+'" width="'+(r*1.6)+'" height="'+(r*1.6)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Cruz'){
+        var w = r*0.5, l = r*1.4;
+        s = '<g fill="'+cor+'">'+
+            '<rect x="'+(cx-w/2)+'" y="'+(cy-l/2)+'" width="'+w+'" height="'+l+'"/>'+
+            '<rect x="'+(cx-l/2)+'" y="'+(cy-w/2)+'" width="'+l+'" height="'+w+'"/></g>';
+      } else {
+        var sides = {Tria:3, Pent:5, Hexa:6, Hept:7}[tipo];
+        var isStar = (tipo==='Estr');
+        var pts = [];
+        if(isStar){
+          var spikes=5, outer=r, inner=r*0.45;
+          for(var i=0;i<spikes*2;i++){
+            var rad = (i%2===0)?outer:inner;
+            var ang = Math.PI/spikes*i - Math.PI/2;
+            pts.push((cx+rad*Math.cos(ang)).toFixed(1)+','+(cy+rad*Math.sin(ang)).toFixed(1));
+          }
+        } else {
+          for(var i=0;i<sides;i++){
+            var ang = 2*Math.PI/sides*i - Math.PI/2;
+            pts.push((cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1));
+          }
+        }
+        s = '<polygon points="'+pts.join(' ')+'" fill="'+cor+'"/>';
+      }
+      return s;
+    }
+
+    // bbox "verdadeiro": retângulo justo em torno da forma (sem folga artificial)
+    function trueBBox(tipo, cx, cy, r){
+      var hw = r, hh = r;
+      if(tipo==='Elip'){ hw = r*1.1; hh = r*0.65; }
+      else if(tipo==='Quad'){ hw = r*0.8; hh = r*0.8; }
+      else if(tipo==='Cruz'){ hw = r*0.7; hh = r*0.7; }
+      return [cx-hw, cy-hh, cx+hw, cy+hh];
+    }
+
+    function iou(a, b){
+      var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+      var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+      var inter = Math.max(0, x2-x1) * Math.max(0, y2-y1);
+      var areaA = (a[2]-a[0])*(a[3]-a[1]);
+      var areaB = (b[2]-b[0])*(b[3]-b[1]);
+      var uni = areaA + areaB - inter;
+      return uni > 0 ? inter/uni : 0;
+    }
+
+    function render(){
+      var ruido = parseInt(ruidoEl.value);
+      var bias = parseInt(biasEl.value);
+      var thr = parseFloat(thrEl.value);
+      var erroAtivo = erroEl.checked;
+      ruidovEl.textContent = ruido;
+      biasvEl.textContent = bias;
+      thrvEl.textContent = thr.toFixed(2);
+
+      var svgContent = '';
+      var rows = '';
+      var acertos = 0;
+
+      OBJS.forEach(function(o, i){
+        var tipoReal = TIPOS[i];
+        var cor = CORES[i];
+
+        var gtBox = trueBBox(tipoReal, o.cx, o.cy, o.r);
+        svgContent += '<g opacity="0.9">'+svgShape(tipoReal, o.cx, o.cy, o.r, cor)+'</g>';
+        svgContent += '<rect x="'+gtBox[0]+'" y="'+gtBox[1]+'" width="'+(gtBox[2]-gtBox[0])+'" height="'+(gtBox[3]-gtBox[1])+'" fill="none" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.2"/>';
+
+        // bbox detectado: escala fixa individual + jitter (ruído) + viés em x
+        var scl = SCALE[i];
+        var mag = ruido * FATOR[i];
+        var ang = ANGS[i] * Math.PI/180;
+        var jx = mag*Math.cos(ang), jy = mag*Math.sin(ang);
+        var dw = (gtBox[2]-gtBox[0]) * scl, dh = (gtBox[3]-gtBox[1]) * scl;
+        var dcx = o.cx + jx + bias, dcy = o.cy + jy;
+        var detBox = [dcx-dw/2, dcy-dh/2, dcx+dw/2, dcy+dh/2];
+
+        var val = iou(gtBox, detBox);
+        var passaLimiar = val >= thr;
+
+        var corDet = passaLimiar ? '#27ae60' : '#c0392b';
+        svgContent += '<rect x="'+detBox[0]+'" y="'+detBox[1]+'" width="'+(detBox[2]-detBox[0])+'" height="'+(detBox[3]-detBox[1])+'" fill="none" stroke="'+corDet+'" stroke-width="1.6"/>';
+
+        var tipoDetectado = tipoReal;
+        if(erroAtivo && (i===1 || i===6)){
+          tipoDetectado = TIPOS[(i+2)%TIPOS.length];
+        }
+        var tipoCorreto = (tipoDetectado === tipoReal);
+        var acertou = passaLimiar && tipoCorreto;
+        if(acertou) acertos++;
+
+        svgContent += '<text x="'+(o.cx)+'" y="'+(gtBox[1]-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
+
+        rows += '<tr>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+tipoReal+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(tipoCorreto?'':'color:#c0392b;font-weight:bold;')+'">'+tipoDetectado+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+val.toFixed(2)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(passaLimiar?'sim':'não')+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(acertou?'color:#27ae60;font-weight:bold;':'color:#c0392b;font-weight:bold;')+'">'+(acertou?'✔':'✘')+'</td>'+
+          '</tr>';
+      });
+
+      svgEl.innerHTML = svgContent;
+      tbody.innerHTML = rows;
+
+      var acc = (acertos/OBJS.length*100).toFixed(1);
+      dbg.textContent = 'Objetos validados: '+acertos+' / '+OBJS.length+'  →  Acurácia = '+acc+'%';
+    }
+
+    ruidoEl.addEventListener('input', render);
+    biasEl.addEventListener('input', render);
+    thrEl.addEventListener('input', render);
+    erroEl.addEventListener('change', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0812c');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+</script>
+</body>
+</html>
