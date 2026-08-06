@@ -8111,14 +8111,37 @@ Figura&nbsp;9.35: Linha de base clássica de segmentação: suavização, limiar
 </section>
 <section id="bloco-3-construção-da-arquitetura-u-net-e-funções-de-perda" class="level5" data-number="9.5.3.2.3">
 <h5 data-number="9.5.3.2.3" class="anchored" data-anchor-id="bloco-3-construção-da-arquitetura-u-net-e-funções-de-perda"><span class="header-section-number">9.5.3.2.3</span> Bloco 3: Construção da Arquitetura U-Net e Funções de Perda</h5>
-<p>A U-Net combina um <strong>codificador</strong> (redução espacial e extração de contexto) e um <strong>decodificador</strong> (reconstrução espacial via convoluções transpostas). O ponto central são as <strong>conexões de atalho</strong> (<em>skip connections</em>), que concatenam os mapas de características do codificador às etapas do decodificador na mesma resolução, preservando contornos e bordas.</p>
-<pre class="text"><code>Entrada → Codificador (Conv→Conv→Pool) × 3 → Base
-                ↳ Conexões de atalho reinjetam mapas de alta resolução ↲
-Base → Decodificador (Upsample→Concat→Conv→Conv) × 3 → Saída 1×1 (logits)
-</code></pre>
+<p>A U-Net é uma arquitetura em formato de “U” (daí o nome), pensada especificamente para segmentação de imagens. Ela é formada por dois caminhos que trabalham em conjunto:</p>
+<ul>
+<li>🔽 <strong>Codificador (encoder):</strong> desce pela imagem, reduzindo a resolução espacial a cada etapa enquanto extrai características cada vez mais abstratas (bordas → texturas → formas → contexto).</li>
+<li>🔼 <strong>Decodificador (decoder):</strong> sobe de volta, reconstruindo a resolução original através de convoluções transpostas (<em>upsampling</em>), até gerar uma máscara do mesmo tamanho da imagem de entrada.</li>
+</ul>
+<p>O elemento que torna a U-Net especial são as <strong>conexões de atalho</strong> (<em>skip connections</em>): elas levam os mapas de características do codificador diretamente para a etapa correspondente do decodificador, na mesma resolução. Isso evita que detalhes finos — como contornos e bordas — se percam durante a compressão espacial.</p>
+<p><strong>Fluxo geral da arquitetura:</strong></p>
+<pre class="text"><code>Entrada
+  │
+  ▼
+Codificador (Conv → Conv → Pool) × 3
+  │
+  ├──── conexões de atalho reinjetam mapas de alta resolução  ────┐
+  ▼                                                               │
+Base (bottleneck)                                                 │
+  │                                                               │
+  ▼                                                               │
+Decodificador (Upsample → Concat → Conv → Conv) × 3  ◄────────────┘
+  │
+  ▼
+Saída 1×1 (logits)</code></pre>
+<p><strong>Componentes principais:</strong></p>
 <ol type="1">
-<li><strong>Bloco Convolucional Base (<code>BlocoConv</code>):</strong> Duas convoluções <span class="math inline">\(3 \times 3\)</span> consecutivas com ativação ReLU e <em>padding</em> de preservação espacial.</li>
-<li><strong>Perda Combinada (BCE + Dice):</strong> A função <code>perda_segmentacao</code> soma a Entropia Cruzada Binária ao Coeficiente de Dice para otimizar tanto o acerto pontual quanto a sobreposição da forma.</li>
+<li><p><strong>Bloco Convolucional Base (<code>BlocoConv</code>)</strong> A unidade fundamental repetida em toda a rede. Aplica duas convoluções <span class="math inline">\(3 \times 3\)</span> em sequência, cada uma seguida de ativação ReLU, com <em>padding</em> que preserva as dimensões espaciais da entrada. É esse bloco que aparece tanto no codificador quanto no decodificador.</p></li>
+<li><p><strong>Convolução Transposta (<code>nn.ConvTranspose2d</code>)</strong> É a operação responsável pelo <em>upsampling</em> no decodificador: ao invés de reduzir a resolução espacial (como o <code>MaxPool2d</code> faz no codificador), ela a aumenta, aprendendo os pesos necessários para “desfazer” a compressão e recuperar gradualmente o tamanho original da imagem.</p></li>
+<li><p><strong>Perda Combinada (BCE + Dice)</strong> A função <code>perda_segmentacao</code> soma duas métricas complementares:</p>
+<ul>
+<li><strong>Entropia Cruzada Binária (BCE):</strong> avalia o acerto <em>pixel a pixel</em>.</li>
+<li><strong>Coeficiente de Dice:</strong> avalia a <em>sobreposição global</em> entre a máscara prevista e a real.</li>
+</ul>
+<p>Juntas, elas equilibram precisão local com fidelidade da forma segmentada como um todo.</p></li>
 </ol>
 <div id="c33cd552" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> BlocoConv(nn.Module):</span>
@@ -8223,48 +8246,48 @@ Base → Decodificador (Upsample→Concat→Conv→Conv) × 3 → Saída 1×1 (l
 <span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a>historico_perda_unet, historico_iou_unet <span class="op">=</span> [], []</span>
 <span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> epoca <span class="kw">in</span> <span class="bu">range</span>(epocas_unet):</span>
-<span id="cb52-16"><a href="#cb52-16" aria-hidden="true" tabindex="-1"></a>    modelo_unet.train()</span>
-<span id="cb52-17"><a href="#cb52-17" aria-hidden="true" tabindex="-1"></a>    perm <span class="op">=</span> torch.randperm(n)</span>
-<span id="cb52-18"><a href="#cb52-18" aria-hidden="true" tabindex="-1"></a>    perda_epoca <span class="op">=</span> <span class="fl">0.0</span></span>
-<span id="cb52-19"><a href="#cb52-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-20"><a href="#cb52-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, n, tam_lote):</span>
-<span id="cb52-21"><a href="#cb52-21" aria-hidden="true" tabindex="-1"></a>        idx <span class="op">=</span> perm[i : i <span class="op">+</span> tam_lote]</span>
-<span id="cb52-22"><a href="#cb52-22" aria-hidden="true" tabindex="-1"></a>        otimizador_unet.zero_grad()</span>
-<span id="cb52-23"><a href="#cb52-23" aria-hidden="true" tabindex="-1"></a>        logits <span class="op">=</span> modelo_unet(X_treino_unet[idx])</span>
-<span id="cb52-24"><a href="#cb52-24" aria-hidden="true" tabindex="-1"></a>        perda <span class="op">=</span> perda_segmentacao(logits, Y_treino_unet[idx])</span>
-<span id="cb52-25"><a href="#cb52-25" aria-hidden="true" tabindex="-1"></a>        perda.backward()</span>
-<span id="cb52-26"><a href="#cb52-26" aria-hidden="true" tabindex="-1"></a>        otimizador_unet.step()</span>
-<span id="cb52-27"><a href="#cb52-27" aria-hidden="true" tabindex="-1"></a>        perda_epoca <span class="op">+=</span> perda.item() <span class="op">*</span> <span class="bu">len</span>(idx)</span>
-<span id="cb52-28"><a href="#cb52-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-29"><a href="#cb52-29" aria-hidden="true" tabindex="-1"></a>    modelo_unet.<span class="bu">eval</span>()</span>
-<span id="cb52-30"><a href="#cb52-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
-<span id="cb52-31"><a href="#cb52-31" aria-hidden="true" tabindex="-1"></a>        predicao_val <span class="op">=</span> (torch.sigmoid(modelo_unet(X_val_unet)) <span class="op">&gt;</span> <span class="fl">0.5</span>).<span class="bu">float</span>()</span>
-<span id="cb52-32"><a href="#cb52-32" aria-hidden="true" tabindex="-1"></a>        intersecao <span class="op">=</span> (predicao_val <span class="op">*</span> Y_val_unet).<span class="bu">sum</span>(dim<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>))</span>
-<span id="cb52-33"><a href="#cb52-33" aria-hidden="true" tabindex="-1"></a>        uniao <span class="op">=</span> ((predicao_val <span class="op">+</span> Y_val_unet) <span class="op">&gt;</span> <span class="dv">0</span>).<span class="bu">float</span>().<span class="bu">sum</span>(dim<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>))</span>
-<span id="cb52-34"><a href="#cb52-34" aria-hidden="true" tabindex="-1"></a>        iou_epoca <span class="op">=</span> (intersecao <span class="op">/</span> uniao.clamp(<span class="bu">min</span><span class="op">=</span><span class="fl">1e-6</span>)).mean().item()</span>
-<span id="cb52-35"><a href="#cb52-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-36"><a href="#cb52-36" aria-hidden="true" tabindex="-1"></a>    historico_perda_unet.append(perda_epoca <span class="op">/</span> n)</span>
-<span id="cb52-37"><a href="#cb52-37" aria-hidden="true" tabindex="-1"></a>    historico_iou_unet.append(iou_epoca)</span>
-<span id="cb52-38"><a href="#cb52-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-39"><a href="#cb52-39" aria-hidden="true" tabindex="-1"></a>iou_unet_final <span class="op">=</span> historico_iou_unet[<span class="op">-</span><span class="dv">1</span>]</span>
-<span id="cb52-40"><a href="#cb52-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IoU médio final da U-Net na validação: </span><span class="sc">{</span>iou_unet_final<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb52-41"><a href="#cb52-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-42"><a href="#cb52-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico da evolução do treinamento</span></span>
-<span id="cb52-43"><a href="#cb52-43" aria-hidden="true" tabindex="-1"></a>fig, ax1 <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="fl">3.8</span>))</span>
-<span id="cb52-44"><a href="#cb52-44" aria-hidden="true" tabindex="-1"></a>ax1.plot(historico_perda_unet, color<span class="op">=</span><span class="st">"#dc2626"</span>, label<span class="op">=</span><span class="st">"Perda (treino)"</span>)</span>
-<span id="cb52-45"><a href="#cb52-45" aria-hidden="true" tabindex="-1"></a>ax1.set_xlabel(<span class="st">"Época"</span>)</span>
-<span id="cb52-46"><a href="#cb52-46" aria-hidden="true" tabindex="-1"></a>ax1.set_ylabel(<span class="st">"Perda"</span>, color<span class="op">=</span><span class="st">"#dc2626"</span>)</span>
-<span id="cb52-47"><a href="#cb52-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-48"><a href="#cb52-48" aria-hidden="true" tabindex="-1"></a>ax2 <span class="op">=</span> ax1.twinx()</span>
-<span id="cb52-49"><a href="#cb52-49" aria-hidden="true" tabindex="-1"></a>ax2.plot(historico_iou_unet, color<span class="op">=</span><span class="st">"#2563eb"</span>, label<span class="op">=</span><span class="st">"IoU (validação)"</span>)</span>
-<span id="cb52-50"><a href="#cb52-50" aria-hidden="true" tabindex="-1"></a>ax2.set_ylabel(<span class="st">"IoU (validação)"</span>, color<span class="op">=</span><span class="st">"#2563eb"</span>)</span>
-<span id="cb52-51"><a href="#cb52-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-52"><a href="#cb52-52" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Treinamento da U-Net — Segmentação de Nódulos Sintéticos"</span>)</span>
-<span id="cb52-53"><a href="#cb52-53" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
-<span id="cb52-54"><a href="#cb52-54" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb52-16"><a href="#cb52-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> epoca <span class="op">%</span> <span class="dv">5</span> <span class="op">==</span> <span class="dv">0</span>:  <span class="co"># Imprime a cada 5 épocas</span></span>
+<span id="cb52-17"><a href="#cb52-17" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(epoca <span class="op">+</span> <span class="dv">1</span>, <span class="st">"/"</span>, epocas_unet)</span>
+<span id="cb52-18"><a href="#cb52-18" aria-hidden="true" tabindex="-1"></a>    modelo_unet.train()</span>
+<span id="cb52-19"><a href="#cb52-19" aria-hidden="true" tabindex="-1"></a>    perm <span class="op">=</span> torch.randperm(n)</span>
+<span id="cb52-20"><a href="#cb52-20" aria-hidden="true" tabindex="-1"></a>    perda_epoca <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb52-21"><a href="#cb52-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-22"><a href="#cb52-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, n, tam_lote):</span>
+<span id="cb52-23"><a href="#cb52-23" aria-hidden="true" tabindex="-1"></a>        idx <span class="op">=</span> perm[i : i <span class="op">+</span> tam_lote]</span>
+<span id="cb52-24"><a href="#cb52-24" aria-hidden="true" tabindex="-1"></a>        otimizador_unet.zero_grad()</span>
+<span id="cb52-25"><a href="#cb52-25" aria-hidden="true" tabindex="-1"></a>        logits <span class="op">=</span> modelo_unet(X_treino_unet[idx])</span>
+<span id="cb52-26"><a href="#cb52-26" aria-hidden="true" tabindex="-1"></a>        perda <span class="op">=</span> perda_segmentacao(logits, Y_treino_unet[idx])</span>
+<span id="cb52-27"><a href="#cb52-27" aria-hidden="true" tabindex="-1"></a>        perda.backward()</span>
+<span id="cb52-28"><a href="#cb52-28" aria-hidden="true" tabindex="-1"></a>        otimizador_unet.step()</span>
+<span id="cb52-29"><a href="#cb52-29" aria-hidden="true" tabindex="-1"></a>        perda_epoca <span class="op">+=</span> perda.item() <span class="op">*</span> <span class="bu">len</span>(idx)</span>
+<span id="cb52-30"><a href="#cb52-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-31"><a href="#cb52-31" aria-hidden="true" tabindex="-1"></a>    modelo_unet.<span class="bu">eval</span>()</span>
+<span id="cb52-32"><a href="#cb52-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb52-33"><a href="#cb52-33" aria-hidden="true" tabindex="-1"></a>        predicao_val <span class="op">=</span> (torch.sigmoid(modelo_unet(X_val_unet)) <span class="op">&gt;</span> <span class="fl">0.5</span>).<span class="bu">float</span>()</span>
+<span id="cb52-34"><a href="#cb52-34" aria-hidden="true" tabindex="-1"></a>        intersecao <span class="op">=</span> (predicao_val <span class="op">*</span> Y_val_unet).<span class="bu">sum</span>(dim<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>))</span>
+<span id="cb52-35"><a href="#cb52-35" aria-hidden="true" tabindex="-1"></a>        uniao <span class="op">=</span> ((predicao_val <span class="op">+</span> Y_val_unet) <span class="op">&gt;</span> <span class="dv">0</span>).<span class="bu">float</span>().<span class="bu">sum</span>(dim<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>))</span>
+<span id="cb52-36"><a href="#cb52-36" aria-hidden="true" tabindex="-1"></a>        iou_epoca <span class="op">=</span> (intersecao <span class="op">/</span> uniao.clamp(<span class="bu">min</span><span class="op">=</span><span class="fl">1e-6</span>)).mean().item()</span>
+<span id="cb52-37"><a href="#cb52-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-38"><a href="#cb52-38" aria-hidden="true" tabindex="-1"></a>    historico_perda_unet.append(perda_epoca <span class="op">/</span> n)</span>
+<span id="cb52-39"><a href="#cb52-39" aria-hidden="true" tabindex="-1"></a>    historico_iou_unet.append(iou_epoca)</span>
+<span id="cb52-40"><a href="#cb52-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-41"><a href="#cb52-41" aria-hidden="true" tabindex="-1"></a>iou_unet_final <span class="op">=</span> historico_iou_unet[<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb52-42"><a href="#cb52-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IoU médio final da U-Net na validação: </span><span class="sc">{</span>iou_unet_final<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb52-43"><a href="#cb52-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-44"><a href="#cb52-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico da evolução do treinamento</span></span>
+<span id="cb52-45"><a href="#cb52-45" aria-hidden="true" tabindex="-1"></a>r <span class="op">=</span> mm.showTrainCurves(historico_perda_unet, historico_iou_unet,</span>
+<span id="cb52-46"><a href="#cb52-46" aria-hidden="true" tabindex="-1"></a>                   titulo<span class="op">=</span><span class="st">"Treinamento da U-Net — Segmentação de Nódulos Sintéticos"</span>,</span>
+<span id="cb52-47"><a href="#cb52-47" aria-hidden="true" tabindex="-1"></a>                   subtitulo<span class="op">=</span><span class="st">"Perda no conjunto de treino e IoU médio no conjunto de validação ao longo de 35 épocas"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Parâmetros treináveis da U-Net: 120681
-IoU médio final da U-Net na validação: 0.8902</code></pre>
+1 / 35
+6 / 35
+11 / 35
+16 / 35
+21 / 35
+26 / 35
+31 / 35
+IoU médio final da U-Net na validação: 0.8850</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div id="fig-09-unet-treinamento" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -8287,91 +8310,63 @@ Figura&nbsp;9.36: Evolução do treinamento da U-Net compacta: redução da perd
 <li><strong>Painel de Métricas:</strong> O gráfico de barras na <a href="#fig-09-unet-comparativo" class="quarto-xref">Figura&nbsp;<span>9.37</span></a> contrasta o IoU médio de ambos os métodos na validação.</li>
 <li><strong>Visualização Qualitativa:</strong> A comparação visual em três amostras demonstra como as conexões de atalho recuperam o contorno do nódulo mesmo sob ruído acentuado.</li>
 </ol>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Gráfico comparativo de barras</span></span>
-<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>metodos_seg <span class="op">=</span> [<span class="st">"Clássico</span><span class="ch">\n</span><span class="st">(Suavização + Otsu)"</span>, <span class="st">"U-Net</span><span class="ch">\n</span><span class="st">(Aprendizado)"</span>]</span>
-<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>ious_medios <span class="op">=</span> [iou_classico_medio, iou_unet_final]</span>
+<div id="cell-fig-09-unet-comparativo" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.  comparativo </span></span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IoU médio (clássico Suavização + Otsu): </span><span class="sc">{</span>iou_classico_medio<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IoU médio (U-Net): </span><span class="sc">{</span>iou_unet_final<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
 <span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="fl">4.5</span>, <span class="fl">3.8</span>))</span>
-<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a>plt.bar(metodos_seg, ious_medios, color<span class="op">=</span>[<span class="st">"#f97316"</span>, <span class="st">"#16a34a"</span>])</span>
-<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="dv">0</span>, <span class="fl">1.0</span>)</span>
-<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"IoU Médio (Validação)"</span>)</span>
-<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Segmentação Clássica vs. U-Net"</span>)</span>
-<span id="cb54-10"><a href="#cb54-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-11"><a href="#cb54-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, v <span class="kw">in</span> <span class="bu">enumerate</span>(ious_medios):</span>
-<span id="cb54-12"><a href="#cb54-12" aria-hidden="true" tabindex="-1"></a>    plt.text(i, v <span class="op">+</span> <span class="fl">0.02</span>, <span class="ss">f"</span><span class="sc">{</span>v<span class="sc">:.3f}</span><span class="ss">"</span>, ha<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb54-13"><a href="#cb54-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-14"><a href="#cb54-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb54-15"><a href="#cb54-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb54-16"><a href="#cb54-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-17"><a href="#cb54-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Exibição qualitativa lado a lado em 3 amostras via mm.show</span></span>
-<span id="cb54-18"><a href="#cb54-18" aria-hidden="true" tabindex="-1"></a>imgs_comparativas <span class="op">=</span> []</span>
-<span id="cb54-19"><a href="#cb54-19" aria-hidden="true" tabindex="-1"></a>titulos_comparativos <span class="op">=</span> []</span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Exibição qualitativa lado a lado em 3 amostras via mm.show</span></span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a>imgs_comparativas <span class="op">=</span> []</span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>titulos_comparativos <span class="op">=</span> []</span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb54-10"><a href="#cb54-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb54-11"><a href="#cb54-11" aria-hidden="true" tabindex="-1"></a>        pred_unet <span class="op">=</span> (</span>
+<span id="cb54-12"><a href="#cb54-12" aria-hidden="true" tabindex="-1"></a>            (torch.sigmoid(modelo_unet(X_val_unet[i : i <span class="op">+</span> <span class="dv">1</span>])) <span class="op">&gt;</span> <span class="fl">0.5</span>)</span>
+<span id="cb54-13"><a href="#cb54-13" aria-hidden="true" tabindex="-1"></a>            .<span class="bu">float</span>()</span>
+<span id="cb54-14"><a href="#cb54-14" aria-hidden="true" tabindex="-1"></a>            .squeeze()</span>
+<span id="cb54-15"><a href="#cb54-15" aria-hidden="true" tabindex="-1"></a>            .numpy()</span>
+<span id="cb54-16"><a href="#cb54-16" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> <span class="dv">255</span></span>
+<span id="cb54-17"><a href="#cb54-17" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb54-18"><a href="#cb54-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-19"><a href="#cb54-19" aria-hidden="true" tabindex="-1"></a>    pred_classico <span class="op">=</span> segmenta_classico(imgs_val[i], elemento_estrutural)</span>
 <span id="cb54-20"><a href="#cb54-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-21"><a href="#cb54-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
-<span id="cb54-22"><a href="#cb54-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
-<span id="cb54-23"><a href="#cb54-23" aria-hidden="true" tabindex="-1"></a>        pred_unet <span class="op">=</span> (</span>
-<span id="cb54-24"><a href="#cb54-24" aria-hidden="true" tabindex="-1"></a>            (torch.sigmoid(modelo_unet(X_val_unet[i : i <span class="op">+</span> <span class="dv">1</span>])) <span class="op">&gt;</span> <span class="fl">0.5</span>)</span>
-<span id="cb54-25"><a href="#cb54-25" aria-hidden="true" tabindex="-1"></a>            .<span class="bu">float</span>()</span>
-<span id="cb54-26"><a href="#cb54-26" aria-hidden="true" tabindex="-1"></a>            .squeeze()</span>
-<span id="cb54-27"><a href="#cb54-27" aria-hidden="true" tabindex="-1"></a>            .numpy()</span>
-<span id="cb54-28"><a href="#cb54-28" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> <span class="dv">255</span></span>
-<span id="cb54-29"><a href="#cb54-29" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb54-30"><a href="#cb54-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-31"><a href="#cb54-31" aria-hidden="true" tabindex="-1"></a>    pred_classico <span class="op">=</span> segmenta_classico(imgs_val[i], elemento_estrutural)</span>
-<span id="cb54-32"><a href="#cb54-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-33"><a href="#cb54-33" aria-hidden="true" tabindex="-1"></a>    imgs_comparativas.extend(</span>
-<span id="cb54-34"><a href="#cb54-34" aria-hidden="true" tabindex="-1"></a>        [imgs_val[i], masks_val[i], pred_classico, pred_unet.astype(np.uint8)]</span>
-<span id="cb54-35"><a href="#cb54-35" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb54-36"><a href="#cb54-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-37"><a href="#cb54-37" aria-hidden="true" tabindex="-1"></a>    t_prefix <span class="op">=</span> <span class="ss">f"Amostra </span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb54-38"><a href="#cb54-38" aria-hidden="true" tabindex="-1"></a>    titulos_comparativos.extend(</span>
-<span id="cb54-39"><a href="#cb54-39" aria-hidden="true" tabindex="-1"></a>        [</span>
-<span id="cb54-40"><a href="#cb54-40" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Imagem"</span>,</span>
-<span id="cb54-41"><a href="#cb54-41" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Referência"</span>,</span>
-<span id="cb54-42"><a href="#cb54-42" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Clássico"</span>,</span>
-<span id="cb54-43"><a href="#cb54-43" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: U-Net"</span>,</span>
-<span id="cb54-44"><a href="#cb54-44" aria-hidden="true" tabindex="-1"></a>        ]</span>
-<span id="cb54-45"><a href="#cb54-45" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb54-46"><a href="#cb54-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb54-47"><a href="#cb54-47" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb54-48"><a href="#cb54-48" aria-hidden="true" tabindex="-1"></a>    imgs_comparativas,</span>
-<span id="cb54-49"><a href="#cb54-49" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>titulos_comparativos,</span>
-<span id="cb54-50"><a href="#cb54-50" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>,</span>
-<span id="cb54-51"><a href="#cb54-51" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="fl">7.5</span>),</span>
-<span id="cb54-52"><a href="#cb54-52" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div id="fig-09-unet-comparativo" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<span id="cb54-21"><a href="#cb54-21" aria-hidden="true" tabindex="-1"></a>    imgs_comparativas.extend(</span>
+<span id="cb54-22"><a href="#cb54-22" aria-hidden="true" tabindex="-1"></a>        [imgs_val[i], masks_val[i], pred_classico, pred_unet.astype(np.uint8)]</span>
+<span id="cb54-23"><a href="#cb54-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb54-24"><a href="#cb54-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-25"><a href="#cb54-25" aria-hidden="true" tabindex="-1"></a>    t_prefix <span class="op">=</span> <span class="ss">f"Amostra </span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb54-26"><a href="#cb54-26" aria-hidden="true" tabindex="-1"></a>    titulos_comparativos.extend(</span>
+<span id="cb54-27"><a href="#cb54-27" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb54-28"><a href="#cb54-28" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Imagem"</span>,</span>
+<span id="cb54-29"><a href="#cb54-29" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Referência"</span>,</span>
+<span id="cb54-30"><a href="#cb54-30" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: Clássico"</span>,</span>
+<span id="cb54-31"><a href="#cb54-31" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>t_prefix<span class="sc">}</span><span class="ss">: U-Net"</span>,</span>
+<span id="cb54-32"><a href="#cb54-32" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb54-33"><a href="#cb54-33" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb54-34"><a href="#cb54-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-35"><a href="#cb54-35" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb54-36"><a href="#cb54-36" aria-hidden="true" tabindex="-1"></a>    imgs_comparativas,</span>
+<span id="cb54-37"><a href="#cb54-37" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>titulos_comparativos,</span>
+<span id="cb54-38"><a href="#cb54-38" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">4</span>,</span>
+<span id="cb54-39"><a href="#cb54-39" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="fl">7.5</span>),</span>
+<span id="cb54-40"><a href="#cb54-40" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+IoU médio (clássico Suavização + Otsu): 0.7516
+IoU médio (U-Net): 0.8850</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-09-unet-comparativo" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-09-unet-comparativo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display">
-<div id="fig-09-unet-comparativo-1" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-subfloat-fig figure">
-<div aria-describedby="fig-09-unet-comparativo-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap09.py.pt_files/figure-html/fig-09-unet-comparativo-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-09-unet-comparativo">
+<img src="cap09.py.pt_files/figure-html/fig-09-unet-comparativo-output-2.png" class="img-fluid figure-img">
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-09-unet-comparativo-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-(a) Comparativo quantitativo (IoU médio) e qualitativo entre a abordagem clássica e a U-Net treinada em três amostras de validação.
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-unet-comparativo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;9.37: Comparativo quantitativo (IoU médio) e qualitativo entre a abordagem clássica e a U-Net treinada em três amostras de validação.
 </figcaption>
 </figure>
 </div>
-</div>
-<div class="cell-output cell-output-display">
-<div id="fig-09-unet-comparativo-2" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-subfloat-fig figure">
-<div aria-describedby="fig-09-unet-comparativo-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap09.py.pt_files/figure-html/fig-09-unet-comparativo-output-2.png" id="fig-09-unet-comparativo-2" class="img-fluid figure-img" data-ref-parent="fig-09-unet-comparativo">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-09-unet-comparativo-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-(b)
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-09-unet-comparativo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.37
-</figcaption>
-</figure>
 </div>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -8390,70 +8385,162 @@ Figura&nbsp;9.37
 </div>
 </section>
 </section>
-<section id="engenharia-de-dados-de-visão-roboflow" class="level4" data-number="9.5.3.3">
-<h4 data-number="9.5.3.3" class="anchored" data-anchor-id="engenharia-de-dados-de-visão-roboflow"><span class="header-section-number">9.5.3.3</span> Engenharia de Dados de Visão (Roboflow)</h4>
-<p>O mesmo <em>pipeline</em> de treinamento da U-Net pode ser estendido a imagens reais exportadas por plataformas de anotação como o <strong>Roboflow</strong>. Ao selecionar a opção de exportação <code>png-mask-semantic</code>, obtêm-se arquivos de imagem e máscaras de segmentação diretamente compatíveis com a classe <code>UNetCompacta</code>.</p>
+<section id="engenharia-de-dados-para-visão-computacional-roboflow" class="level4" data-number="9.5.3.3">
+<h4 data-number="9.5.3.3" class="anchored" data-anchor-id="engenharia-de-dados-para-visão-computacional-roboflow"><span class="header-section-number">9.5.3.3</span> Engenharia de Dados para Visão Computacional (Roboflow)</h4>
+<p>O treinamento da U-Net também pode utilizar imagens anotadas em plataformas de engenharia de dados para visão computacional, como o <em>Roboflow</em>. Antes de exportar um conjunto de dados, é recomendável verificar se o modelo disponível na plataforma detecta corretamente os objetos de interesse. Essa validação é ilustrada na <a href="#fig-09-roboflow-detection" class="quarto-xref">Figura&nbsp;<span>9.38</span></a>.</p>
+<p>Após essa etapa, o conjunto de dados pode ser exportado no formato <code>png-mask-semantic</code>, produzindo imagens e máscaras de segmentação semântica diretamente compatíveis com a classe <code>UNetCompacta</code>, que podem ser utilizadas sem modificações adicionais no treinamento em PyTorch.</p>
 <div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Importante</span>🌐 Dependência de Conexão e Chave de API
+<span class="screen-reader-only">Importante</span>🌐 Dependência de conexão e chave de API
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>As células a seguir exigem autenticação gratuita via API do Roboflow (<code>app.roboflow.com</code>). O código demonstra o carregamento e a formatação das máscaras semânticas para reutilização no laço de treinamento PyTorch.</p>
+<p>As células desta seção exigem acesso à Internet e autenticação gratuita por meio de uma chave de API do <em>Roboflow</em> (<code>app.roboflow.com</code>). Antes de executá-las, crie um arquivo <code>chave_roboflow.txt</code> na pasta deste notebook contendo apenas sua chave de API. Um modelo está disponível em <code>chave_roboflow.txt.exemplo</code>.</p>
+<p>Por motivos de segurança, esse arquivo não deve ser compartilhado nem incluído no repositório do projeto.</p>
 </div>
 </div>
+<div id="cell-fig-09-roboflow-detection" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Projeto:</span></span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="co"># https://app.roboflow.com/mctest/geometric-test00/models</span></span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> roboflow <span class="im">import</span> Roboflow</span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"chave_roboflow.txt"</span>) <span class="im">as</span> f:</span>
+<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a>    api_key <span class="op">=</span> f.read().strip()</span>
+<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a>rf <span class="op">=</span> Roboflow(api_key<span class="op">=</span>api_key)</span>
+<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a>modelo <span class="op">=</span> (rf.workspace(<span class="st">"mctest"</span>)</span>
+<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a>            .project(<span class="st">"geometric-test00"</span>)</span>
+<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a>            .version(<span class="dv">6</span>)</span>
+<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a>            .model)</span>
+<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a>img <span class="op">=</span> <span class="st">"dados/dataset/test/images/00000.jpg"</span></span>
+<span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Inferência e exibição das detecções</span></span>
+<span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a>pred <span class="op">=</span> modelo.predict(img, confidence<span class="op">=</span><span class="dv">40</span>, overlap<span class="op">=</span><span class="dv">30</span>)</span>
+<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a>preds <span class="op">=</span> pred.json()[<span class="st">"predictions"</span>]</span>
+<span id="cb56-20"><a href="#cb56-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">str</span>(preds[<span class="dv">0</span>])[:<span class="dv">90</span>], <span class="st">"..."</span>)</span>
+<span id="cb56-21"><a href="#cb56-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-22"><a href="#cb56-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Salva a imagem anotada</span></span>
+<span id="cb56-23"><a href="#cb56-23" aria-hidden="true" tabindex="-1"></a>pred.save(<span class="st">"resultado.jpg"</span>)</span>
+<span id="cb56-24"><a href="#cb56-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb56-25"><a href="#cb56-25" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb56-26"><a href="#cb56-26" aria-hidden="true" tabindex="-1"></a>    mm.read(<span class="st">"resultado.jpg"</span>),</span>
+<span id="cb56-27"><a href="#cb56-27" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Resultado da inferência com o modelo do Roboflow"</span></span>
+<span id="cb56-28"><a href="#cb56-28" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>loading Roboflow workspace...
+loading Roboflow project...</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>{'x': 269, 'y': 141, 'width': 45, 'height': 45, 'confidence': 0.9937416911125183, 'class': ...</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-09-roboflow-detection" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-09-roboflow-detection-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap09.py.pt_files/figure-html/fig-09-roboflow-detection-output-3.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-roboflow-detection-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;9.38: Inferência realizada por um modelo hospedado no Roboflow sobre uma imagem local. As detecções são retornadas em formato JSON e a imagem anotada é exibida para verificar rapidamente a qualidade do modelo antes da exportação do conjunto de dados para segmentação.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Antes de executar a próxima célula, é necessário criar um projeto no <em>Roboflow</em>, enviar as imagens e realizar a anotação manual dos objetos de interesse. Essas anotações serão utilizadas para treinar um modelo de detecção e gerar o conjunto de dados com máscaras semânticas no formato <code>png-mask-semantic</code>, utilizado pela U-Net.</p>
+<p>Como esse processo depende da disponibilidade de um conjunto de imagens anotadas, a célula abaixo está inicialmente desabilitada (<code>eval: false</code>). Após concluir as anotações, treinar o modelo no <em>Roboflow</em> e disponibilizar uma versão do conjunto de dados para exportação, basta alterar a opção para <code>eval: true</code> (ou remover <code>eval: false</code>) para que o <em>notebook</em> faça automaticamente o <em>download</em> do conjunto de dados e execute o treinamento da U-Net sobre as imagens reais.</p>
 <div id="ae9f60a3" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># resolver isso:</span></span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="co"># # 1. Autenticação e download do dataset no formato de máscaras semânticas</span></span>
-<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a><span class="co"># rf = Roboflow(api_key="SUA_CHAVE_DE_API")  </span></span>
-<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a><span class="co"># projeto = rf.workspace("nome-do-workspace").project("nome-do-projeto")</span></span>
-<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a><span class="co"># dataset = projeto.version(1).download("png-mask-semantic")</span></span>
-<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a><span class="co"># # 2. Função de carregamento e redimensionamento das amostras reais</span></span>
-<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a><span class="co"># def carrega_split_roboflow(pasta, tam=TAM_IMG):</span></span>
-<span id="cb55-10"><a href="#cb55-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     imagens, mascaras = [], []</span></span>
-<span id="cb55-11"><a href="#cb55-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     for caminho_mascara in sorted(glob.glob(f"{pasta}/*_mask.png")):</span></span>
-<span id="cb55-12"><a href="#cb55-12" aria-hidden="true" tabindex="-1"></a><span class="co">#         caminho_imagem = caminho_mascara.replace("_mask.png", ".jpg")</span></span>
-<span id="cb55-13"><a href="#cb55-13" aria-hidden="true" tabindex="-1"></a><span class="co">#         if not os.path.exists(caminho_imagem):</span></span>
-<span id="cb55-14"><a href="#cb55-14" aria-hidden="true" tabindex="-1"></a><span class="co">#             continue</span></span>
-<span id="cb55-15"><a href="#cb55-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-16"><a href="#cb55-16" aria-hidden="true" tabindex="-1"></a><span class="co">#         img = cv2.resize(</span></span>
-<span id="cb55-17"><a href="#cb55-17" aria-hidden="true" tabindex="-1"></a><span class="co">#             cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE), (tam, tam)</span></span>
-<span id="cb55-18"><a href="#cb55-18" aria-hidden="true" tabindex="-1"></a><span class="co">#         )</span></span>
-<span id="cb55-19"><a href="#cb55-19" aria-hidden="true" tabindex="-1"></a><span class="co">#         mask = cv2.resize(</span></span>
-<span id="cb55-20"><a href="#cb55-20" aria-hidden="true" tabindex="-1"></a><span class="co">#             cv2.imread(caminho_mascara, cv2.IMREAD_GRAYSCALE), (tam, tam)</span></span>
-<span id="cb55-21"><a href="#cb55-21" aria-hidden="true" tabindex="-1"></a><span class="co">#         )</span></span>
-<span id="cb55-22"><a href="#cb55-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-23"><a href="#cb55-23" aria-hidden="true" tabindex="-1"></a><span class="co">#         imagens.append(img)</span></span>
-<span id="cb55-24"><a href="#cb55-24" aria-hidden="true" tabindex="-1"></a><span class="co">#         mascaras.append((mask &gt; 127).astype(np.uint8) * 255)</span></span>
-<span id="cb55-25"><a href="#cb55-25" aria-hidden="true" tabindex="-1"></a><span class="co">#     return imagens, mascaras</span></span>
-<span id="cb55-26"><a href="#cb55-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-27"><a href="#cb55-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-28"><a href="#cb55-28" aria-hidden="true" tabindex="-1"></a><span class="co"># # 3. Formatação dos tensores e treinamento</span></span>
-<span id="cb55-29"><a href="#cb55-29" aria-hidden="true" tabindex="-1"></a><span class="co"># imgs_tr_real, masks_tr_real = carrega_split_roboflow(f"{dataset.location}/train")</span></span>
-<span id="cb55-30"><a href="#cb55-30" aria-hidden="true" tabindex="-1"></a><span class="co"># X_tr_real, Y_tr_real = para_tensores(imgs_tr_real, masks_tr_real)</span></span>
-<span id="cb55-31"><a href="#cb55-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-32"><a href="#cb55-32" aria-hidden="true" tabindex="-1"></a><span class="co"># modelo_unet_real = UNetCompacta()</span></span>
-<span id="cb55-33"><a href="#cb55-33" aria-hidden="true" tabindex="-1"></a><span class="co"># otimizador_real = optim.Adam(modelo_unet_real.parameters(), lr=1e-3)</span></span>
-<span id="cb55-34"><a href="#cb55-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-35"><a href="#cb55-35" aria-hidden="true" tabindex="-1"></a><span class="co"># for epoca in range(epocas_unet):</span></span>
-<span id="cb55-36"><a href="#cb55-36" aria-hidden="true" tabindex="-1"></a><span class="co">#     modelo_unet_real.train()</span></span>
-<span id="cb55-37"><a href="#cb55-37" aria-hidden="true" tabindex="-1"></a><span class="co">#     perm = torch.randperm(X_tr_real.size(0))</span></span>
-<span id="cb55-38"><a href="#cb55-38" aria-hidden="true" tabindex="-1"></a><span class="co">#     for i in range(0, X_tr_real.size(0), tam_lote):</span></span>
-<span id="cb55-39"><a href="#cb55-39" aria-hidden="true" tabindex="-1"></a><span class="co">#         idx = perm[i : i + tam_lote]</span></span>
-<span id="cb55-40"><a href="#cb55-40" aria-hidden="true" tabindex="-1"></a><span class="co">#         otimizador_real.zero_grad()</span></span>
-<span id="cb55-41"><a href="#cb55-41" aria-hidden="true" tabindex="-1"></a><span class="co">#         perda = perda_segmentacao(</span></span>
-<span id="cb55-42"><a href="#cb55-42" aria-hidden="true" tabindex="-1"></a><span class="co">#             modelo_unet_real(X_tr_real[idx]), Y_tr_real[idx]</span></span>
-<span id="cb55-43"><a href="#cb55-43" aria-hidden="true" tabindex="-1"></a><span class="co">#         )</span></span>
-<span id="cb55-44"><a href="#cb55-44" aria-hidden="true" tabindex="-1"></a><span class="co">#         perda.backward()</span></span>
-<span id="cb55-45"><a href="#cb55-45" aria-hidden="true" tabindex="-1"></a><span class="co">#         otimizador_real.step()</span></span>
-<span id="cb55-46"><a href="#cb55-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-47"><a href="#cb55-47" aria-hidden="true" tabindex="-1"></a><span class="co"># print("Treinamento da U-Net sobre o conjunto de dados real concluído.")</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> roboflow <span class="im">import</span> Roboflow</span>
+<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Leitura da chave de API a partir de arquivo local (não versionado)</span></span>
+<span id="cb59-5"><a href="#cb59-5" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb59-6"><a href="#cb59-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    Cada leitor deve criar o arquivo "chave_roboflow.txt" na mesma pasta</span></span>
+<span id="cb59-7"><a href="#cb59-7" aria-hidden="true" tabindex="-1"></a><span class="co">#    deste notebook, contendo apenas a chave de API do Roboflow</span></span>
+<span id="cb59-8"><a href="#cb59-8" aria-hidden="true" tabindex="-1"></a><span class="co">#    (disponível em app.roboflow.com &gt; Settings &gt; API Key).</span></span>
+<span id="cb59-9"><a href="#cb59-9" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb59-10"><a href="#cb59-10" aria-hidden="true" tabindex="-1"></a><span class="co">#    Esse arquivo NUNCA deve ser commitado no GitHub — ele está listado</span></span>
+<span id="cb59-11"><a href="#cb59-11" aria-hidden="true" tabindex="-1"></a><span class="co">#    no .gitignore. Um arquivo de exemplo (chave_roboflow.txt.exemplo)</span></span>
+<span id="cb59-12"><a href="#cb59-12" aria-hidden="true" tabindex="-1"></a><span class="co">#    é fornecido apenas como modelo.</span></span>
+<span id="cb59-13"><a href="#cb59-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-14"><a href="#cb59-14" aria-hidden="true" tabindex="-1"></a>CAMINHO_CHAVE <span class="op">=</span> <span class="st">"chave_roboflow.txt"</span></span>
+<span id="cb59-15"><a href="#cb59-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-16"><a href="#cb59-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(CAMINHO_CHAVE):</span>
+<span id="cb59-17"><a href="#cb59-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">FileNotFoundError</span>(</span>
+<span id="cb59-18"><a href="#cb59-18" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Arquivo '</span><span class="sc">{</span>CAMINHO_CHAVE<span class="sc">}</span><span class="ss">' não encontrado.</span><span class="ch">\n</span><span class="ss">"</span></span>
+<span id="cb59-19"><a href="#cb59-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Crie esse arquivo na pasta do notebook contendo apenas sua "</span></span>
+<span id="cb59-20"><a href="#cb59-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"chave de API do Roboflow (obtida em app.roboflow.com &gt; Settings &gt; API Key).</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb59-21"><a href="#cb59-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Não compartilhe nem envie esse arquivo para o GitHub."</span></span>
+<span id="cb59-22"><a href="#cb59-22" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb59-23"><a href="#cb59-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-24"><a href="#cb59-24" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"chave_roboflow.txt"</span>, <span class="st">"r"</span>) <span class="im">as</span> f:</span>
+<span id="cb59-25"><a href="#cb59-25" aria-hidden="true" tabindex="-1"></a>    api_key <span class="op">=</span> f.read().strip()</span>
+<span id="cb59-26"><a href="#cb59-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-27"><a href="#cb59-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">repr</span>(api_key))  <span class="co"># confira se não há \n, espaços ou aspas sobrando</span></span>
+<span id="cb59-28"><a href="#cb59-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(api_key))   <span class="co"># chaves do Roboflow costumam ter tamanho fixo, sem espaços</span></span>
+<span id="cb59-29"><a href="#cb59-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-30"><a href="#cb59-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-31"><a href="#cb59-31" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Autenticação e download do dataset no formato de máscaras semânticas</span></span>
+<span id="cb59-32"><a href="#cb59-32" aria-hidden="true" tabindex="-1"></a><span class="co"># https://app.roboflow.com/mctest/geometric-objects/annotate</span></span>
+<span id="cb59-33"><a href="#cb59-33" aria-hidden="true" tabindex="-1"></a>rf <span class="op">=</span> Roboflow(api_key<span class="op">=</span>api_key)</span>
+<span id="cb59-34"><a href="#cb59-34" aria-hidden="true" tabindex="-1"></a>projeto <span class="op">=</span> rf.workspace(<span class="st">"mctest"</span>).project(<span class="st">"geometric-objects"</span>)</span>
+<span id="cb59-35"><a href="#cb59-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-36"><a href="#cb59-36" aria-hidden="true" tabindex="-1"></a>flag_anotado <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb59-37"><a href="#cb59-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-38"><a href="#cb59-38" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> flag_anotado:</span>
+<span id="cb59-39"><a href="#cb59-39" aria-hidden="true" tabindex="-1"></a>    dataset <span class="op">=</span> projeto.version(<span class="dv">1</span>).download(<span class="st">"png-mask-semantic"</span>)</span>
+<span id="cb59-40"><a href="#cb59-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-41"><a href="#cb59-41" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Função de carregamento e redimensionamento das amostras reais</span></span>
+<span id="cb59-42"><a href="#cb59-42" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> carrega_split_roboflow(pasta, tam<span class="op">=</span>TAM_IMG):</span>
+<span id="cb59-43"><a href="#cb59-43" aria-hidden="true" tabindex="-1"></a>    imagens, mascaras <span class="op">=</span> [], []</span>
+<span id="cb59-44"><a href="#cb59-44" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> caminho_mascara <span class="kw">in</span> <span class="bu">sorted</span>(glob.glob(<span class="ss">f"</span><span class="sc">{</span>pasta<span class="sc">}</span><span class="ss">/*_mask.png"</span>)):</span>
+<span id="cb59-45"><a href="#cb59-45" aria-hidden="true" tabindex="-1"></a>        caminho_imagem <span class="op">=</span> caminho_mascara.replace(<span class="st">"_mask.png"</span>, <span class="st">".jpg"</span>)</span>
+<span id="cb59-46"><a href="#cb59-46" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> os.path.exists(caminho_imagem):</span>
+<span id="cb59-47"><a href="#cb59-47" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb59-48"><a href="#cb59-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-49"><a href="#cb59-49" aria-hidden="true" tabindex="-1"></a>        img <span class="op">=</span> cv2.resize(</span>
+<span id="cb59-50"><a href="#cb59-50" aria-hidden="true" tabindex="-1"></a>            cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE), (tam, tam)</span>
+<span id="cb59-51"><a href="#cb59-51" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb59-52"><a href="#cb59-52" aria-hidden="true" tabindex="-1"></a>        mask <span class="op">=</span> cv2.resize(</span>
+<span id="cb59-53"><a href="#cb59-53" aria-hidden="true" tabindex="-1"></a>            cv2.imread(caminho_mascara, cv2.IMREAD_GRAYSCALE), (tam, tam)</span>
+<span id="cb59-54"><a href="#cb59-54" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb59-55"><a href="#cb59-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-56"><a href="#cb59-56" aria-hidden="true" tabindex="-1"></a>        imagens.append(img)</span>
+<span id="cb59-57"><a href="#cb59-57" aria-hidden="true" tabindex="-1"></a>        mascaras.append((mask <span class="op">&gt;</span> <span class="dv">127</span>).astype(np.uint8) <span class="op">*</span> <span class="dv">255</span>)</span>
+<span id="cb59-58"><a href="#cb59-58" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> imagens, mascaras</span>
+<span id="cb59-59"><a href="#cb59-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-60"><a href="#cb59-60" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> flag_anotado:</span>
+<span id="cb59-61"><a href="#cb59-61" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 4. Formatação dos tensores e treinamento</span></span>
+<span id="cb59-62"><a href="#cb59-62" aria-hidden="true" tabindex="-1"></a>    imgs_tr_real, masks_tr_real <span class="op">=</span> carrega_split_roboflow(<span class="ss">f"</span><span class="sc">{</span>dataset<span class="sc">.</span>location<span class="sc">}</span><span class="ss">/train"</span>)</span>
+<span id="cb59-63"><a href="#cb59-63" aria-hidden="true" tabindex="-1"></a>    X_tr_real, Y_tr_real <span class="op">=</span> para_tensores(imgs_tr_real, masks_tr_real)</span>
+<span id="cb59-64"><a href="#cb59-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-65"><a href="#cb59-65" aria-hidden="true" tabindex="-1"></a>    modelo_unet_real <span class="op">=</span> UNetCompacta()</span>
+<span id="cb59-66"><a href="#cb59-66" aria-hidden="true" tabindex="-1"></a>    otimizador_real <span class="op">=</span> optim.Adam(modelo_unet_real.parameters(), lr<span class="op">=</span><span class="fl">1e-3</span>)</span>
+<span id="cb59-67"><a href="#cb59-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-68"><a href="#cb59-68" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> epoca <span class="kw">in</span> <span class="bu">range</span>(epocas_unet):</span>
+<span id="cb59-69"><a href="#cb59-69" aria-hidden="true" tabindex="-1"></a>        modelo_unet_real.train()</span>
+<span id="cb59-70"><a href="#cb59-70" aria-hidden="true" tabindex="-1"></a>        perm <span class="op">=</span> torch.randperm(X_tr_real.size(<span class="dv">0</span>))</span>
+<span id="cb59-71"><a href="#cb59-71" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, X_tr_real.size(<span class="dv">0</span>), tam_lote):</span>
+<span id="cb59-72"><a href="#cb59-72" aria-hidden="true" tabindex="-1"></a>            idx <span class="op">=</span> perm[i : i <span class="op">+</span> tam_lote]</span>
+<span id="cb59-73"><a href="#cb59-73" aria-hidden="true" tabindex="-1"></a>            otimizador_real.zero_grad()</span>
+<span id="cb59-74"><a href="#cb59-74" aria-hidden="true" tabindex="-1"></a>            perda <span class="op">=</span> perda_segmentacao(</span>
+<span id="cb59-75"><a href="#cb59-75" aria-hidden="true" tabindex="-1"></a>                modelo_unet_real(X_tr_real[idx]), Y_tr_real[idx]</span>
+<span id="cb59-76"><a href="#cb59-76" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb59-77"><a href="#cb59-77" aria-hidden="true" tabindex="-1"></a>            perda.backward()</span>
+<span id="cb59-78"><a href="#cb59-78" aria-hidden="true" tabindex="-1"></a>            otimizador_real.step()</span>
+<span id="cb59-79"><a href="#cb59-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-80"><a href="#cb59-80" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Treinamento da U-Net sobre o conjunto de dados real concluído."</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>'QATxmGIATl4QkVynr6P3'
+20
+loading Roboflow workspace...
+loading Roboflow project...</code></pre>
+</div>
 </div>
 </section>
 </section>
@@ -8465,51 +8552,51 @@ Figura&nbsp;9.37
 <p>Sistemas de Realidade Aumentada (RA) projetam elementos virtuais sobre uma cena real com alinhamento geométrico. O processo utiliza a <strong>homografia</strong> para estimar a transformação de perspectiva entre a posição conhecida de um marcador e sua projeção na imagem.</p>
 <ol type="1">
 <li><strong>Detecção do Marcador ArUco:</strong> Identifica-se o marcador na imagem com <code>cv2.aruco.ArucoDetector</code>.</li>
-<li><strong>Projeção por Homografia:</strong> A matriz de homografia <span class="math inline">\(H\)</span> calculada por <code>cv2.findHomography</code> deforma a imagem virtual para sobrepô-la ao marcador na <a href="#fig-09-realidade-aumentada" class="quarto-xref">Figura&nbsp;<span>9.38</span></a>.</li>
+<li><strong>Projeção por Homografia:</strong> A matriz de homografia <span class="math inline">\(H\)</span> calculada por <code>cv2.findHomography</code> deforma a imagem virtual para sobrepô-la ao marcador na <a href="#fig-09-realidade-aumentada" class="quarto-xref">Figura&nbsp;<span>9.39</span></a>.</li>
 </ol>
 <div id="cell-fig-09-realidade-aumentada" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Geração do marcador ArUco sintético</span></span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>dic <span class="op">=</span> cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)</span>
-<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>aruco <span class="op">=</span> cv2.cvtColor(</span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>    cv2.aruco.generateImageMarker(dic, <span class="dv">7</span>, <span class="dv">200</span>), cv2.COLOR_GRAY2BGR</span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a>src <span class="op">=</span> np.float32([[<span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">200</span>, <span class="dv">0</span>], [<span class="dv">200</span>, <span class="dv">200</span>], [<span class="dv">0</span>, <span class="dv">200</span>]])</span>
-<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a>dst <span class="op">=</span> np.float32([[<span class="dv">150</span>, <span class="dv">120</span>], [<span class="dv">430</span>, <span class="dv">90</span>], [<span class="dv">460</span>, <span class="dv">350</span>], [<span class="dv">140</span>, <span class="dv">380</span>]])</span>
-<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Simulação da cena com o marcador projetado</span></span>
-<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a>cena <span class="op">=</span> np.full((<span class="dv">480</span>, <span class="dv">640</span>, <span class="dv">3</span>), <span class="dv">200</span>, np.uint8)</span>
-<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a>H_cena, _ <span class="op">=</span> cv2.findHomography(src, dst)</span>
-<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a>mask_cena <span class="op">=</span> cv2.warpPerspective(</span>
-<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a>    np.full((<span class="dv">200</span>, <span class="dv">200</span>), <span class="dv">255</span>, np.uint8), H_cena, (<span class="dv">640</span>, <span class="dv">480</span>)</span>
-<span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a>cena[mask_cena <span class="op">&gt;</span> <span class="dv">0</span>] <span class="op">=</span> cv2.warpPerspective(aruco, H_cena, (<span class="dv">640</span>, <span class="dv">480</span>))[</span>
-<span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a>    mask_cena <span class="op">&gt;</span> <span class="dv">0</span></span>
-<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb56-20"><a href="#cb56-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-21"><a href="#cb56-21" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Detecção e sobreposição da imagem virtual</span></span>
-<span id="cb56-22"><a href="#cb56-22" aria-hidden="true" tabindex="-1"></a>det <span class="op">=</span> cv2.aruco.ArucoDetector(dic, cv2.aruco.DetectorParameters())</span>
-<span id="cb56-23"><a href="#cb56-23" aria-hidden="true" tabindex="-1"></a>corners, ids, _ <span class="op">=</span> det.detectMarkers(cena)</span>
-<span id="cb56-24"><a href="#cb56-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-25"><a href="#cb56-25" aria-hidden="true" tabindex="-1"></a>virtual <span class="op">=</span> cv2.resize(</span>
-<span id="cb56-26"><a href="#cb56-26" aria-hidden="true" tabindex="-1"></a>    cv2.cvtColor(skdata.astronaut(), cv2.COLOR_RGB2BGR), (<span class="dv">200</span>, <span class="dv">200</span>)</span>
-<span id="cb56-27"><a href="#cb56-27" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb56-28"><a href="#cb56-28" aria-hidden="true" tabindex="-1"></a>H_ra, _ <span class="op">=</span> cv2.findHomography(src, corners[<span class="dv">0</span>][<span class="dv">0</span>])</span>
-<span id="cb56-29"><a href="#cb56-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-30"><a href="#cb56-30" aria-hidden="true" tabindex="-1"></a>ra <span class="op">=</span> cena.copy()</span>
-<span id="cb56-31"><a href="#cb56-31" aria-hidden="true" tabindex="-1"></a>mask_ra <span class="op">=</span> cv2.warpPerspective(</span>
-<span id="cb56-32"><a href="#cb56-32" aria-hidden="true" tabindex="-1"></a>    np.full((<span class="dv">200</span>, <span class="dv">200</span>), <span class="dv">255</span>, np.uint8), H_ra, (<span class="dv">640</span>, <span class="dv">480</span>)</span>
-<span id="cb56-33"><a href="#cb56-33" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb56-34"><a href="#cb56-34" aria-hidden="true" tabindex="-1"></a>ra[mask_ra <span class="op">&gt;</span> <span class="dv">0</span>] <span class="op">=</span> cv2.warpPerspective(virtual, H_ra, (<span class="dv">640</span>, <span class="dv">480</span>))[mask_ra <span class="op">&gt;</span> <span class="dv">0</span>]</span>
-<span id="cb56-35"><a href="#cb56-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-36"><a href="#cb56-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição dos resultados com mm.show</span></span>
-<span id="cb56-37"><a href="#cb56-37" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb56-38"><a href="#cb56-38" aria-hidden="true" tabindex="-1"></a>    [cv2.cvtColor(cena, cv2.COLOR_BGR2RGB), cv2.cvtColor(ra, cv2.COLOR_BGR2RGB)],</span>
-<span id="cb56-39"><a href="#cb56-39" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Marcador Detectado na Cena"</span>, <span class="st">"Sobreposição Virtual via Homografia"</span>],</span>
-<span id="cb56-40"><a href="#cb56-40" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb56-41"><a href="#cb56-41" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">4</span>),</span>
-<span id="cb56-42"><a href="#cb56-42" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Geração do marcador ArUco sintético</span></span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>dic <span class="op">=</span> cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)</span>
+<span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>aruco <span class="op">=</span> cv2.cvtColor(</span>
+<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>    cv2.aruco.generateImageMarker(dic, <span class="dv">7</span>, <span class="dv">200</span>), cv2.COLOR_GRAY2BGR</span>
+<span id="cb61-5"><a href="#cb61-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb61-6"><a href="#cb61-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-7"><a href="#cb61-7" aria-hidden="true" tabindex="-1"></a>src <span class="op">=</span> np.float32([[<span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">200</span>, <span class="dv">0</span>], [<span class="dv">200</span>, <span class="dv">200</span>], [<span class="dv">0</span>, <span class="dv">200</span>]])</span>
+<span id="cb61-8"><a href="#cb61-8" aria-hidden="true" tabindex="-1"></a>dst <span class="op">=</span> np.float32([[<span class="dv">150</span>, <span class="dv">120</span>], [<span class="dv">430</span>, <span class="dv">90</span>], [<span class="dv">460</span>, <span class="dv">350</span>], [<span class="dv">140</span>, <span class="dv">380</span>]])</span>
+<span id="cb61-9"><a href="#cb61-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-10"><a href="#cb61-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Simulação da cena com o marcador projetado</span></span>
+<span id="cb61-11"><a href="#cb61-11" aria-hidden="true" tabindex="-1"></a>cena <span class="op">=</span> np.full((<span class="dv">480</span>, <span class="dv">640</span>, <span class="dv">3</span>), <span class="dv">200</span>, np.uint8)</span>
+<span id="cb61-12"><a href="#cb61-12" aria-hidden="true" tabindex="-1"></a>H_cena, _ <span class="op">=</span> cv2.findHomography(src, dst)</span>
+<span id="cb61-13"><a href="#cb61-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-14"><a href="#cb61-14" aria-hidden="true" tabindex="-1"></a>mask_cena <span class="op">=</span> cv2.warpPerspective(</span>
+<span id="cb61-15"><a href="#cb61-15" aria-hidden="true" tabindex="-1"></a>    np.full((<span class="dv">200</span>, <span class="dv">200</span>), <span class="dv">255</span>, np.uint8), H_cena, (<span class="dv">640</span>, <span class="dv">480</span>)</span>
+<span id="cb61-16"><a href="#cb61-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb61-17"><a href="#cb61-17" aria-hidden="true" tabindex="-1"></a>cena[mask_cena <span class="op">&gt;</span> <span class="dv">0</span>] <span class="op">=</span> cv2.warpPerspective(aruco, H_cena, (<span class="dv">640</span>, <span class="dv">480</span>))[</span>
+<span id="cb61-18"><a href="#cb61-18" aria-hidden="true" tabindex="-1"></a>    mask_cena <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb61-19"><a href="#cb61-19" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb61-20"><a href="#cb61-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-21"><a href="#cb61-21" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Detecção e sobreposição da imagem virtual</span></span>
+<span id="cb61-22"><a href="#cb61-22" aria-hidden="true" tabindex="-1"></a>det <span class="op">=</span> cv2.aruco.ArucoDetector(dic, cv2.aruco.DetectorParameters())</span>
+<span id="cb61-23"><a href="#cb61-23" aria-hidden="true" tabindex="-1"></a>corners, ids, _ <span class="op">=</span> det.detectMarkers(cena)</span>
+<span id="cb61-24"><a href="#cb61-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-25"><a href="#cb61-25" aria-hidden="true" tabindex="-1"></a>virtual <span class="op">=</span> cv2.resize(</span>
+<span id="cb61-26"><a href="#cb61-26" aria-hidden="true" tabindex="-1"></a>    cv2.cvtColor(skdata.astronaut(), cv2.COLOR_RGB2BGR), (<span class="dv">200</span>, <span class="dv">200</span>)</span>
+<span id="cb61-27"><a href="#cb61-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb61-28"><a href="#cb61-28" aria-hidden="true" tabindex="-1"></a>H_ra, _ <span class="op">=</span> cv2.findHomography(src, corners[<span class="dv">0</span>][<span class="dv">0</span>])</span>
+<span id="cb61-29"><a href="#cb61-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-30"><a href="#cb61-30" aria-hidden="true" tabindex="-1"></a>ra <span class="op">=</span> cena.copy()</span>
+<span id="cb61-31"><a href="#cb61-31" aria-hidden="true" tabindex="-1"></a>mask_ra <span class="op">=</span> cv2.warpPerspective(</span>
+<span id="cb61-32"><a href="#cb61-32" aria-hidden="true" tabindex="-1"></a>    np.full((<span class="dv">200</span>, <span class="dv">200</span>), <span class="dv">255</span>, np.uint8), H_ra, (<span class="dv">640</span>, <span class="dv">480</span>)</span>
+<span id="cb61-33"><a href="#cb61-33" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb61-34"><a href="#cb61-34" aria-hidden="true" tabindex="-1"></a>ra[mask_ra <span class="op">&gt;</span> <span class="dv">0</span>] <span class="op">=</span> cv2.warpPerspective(virtual, H_ra, (<span class="dv">640</span>, <span class="dv">480</span>))[mask_ra <span class="op">&gt;</span> <span class="dv">0</span>]</span>
+<span id="cb61-35"><a href="#cb61-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb61-36"><a href="#cb61-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição dos resultados com mm.show</span></span>
+<span id="cb61-37"><a href="#cb61-37" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb61-38"><a href="#cb61-38" aria-hidden="true" tabindex="-1"></a>    [cv2.cvtColor(cena, cv2.COLOR_BGR2RGB), cv2.cvtColor(ra, cv2.COLOR_BGR2RGB)],</span>
+<span id="cb61-39"><a href="#cb61-39" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Marcador Detectado na Cena"</span>, <span class="st">"Sobreposição Virtual via Homografia"</span>],</span>
+<span id="cb61-40"><a href="#cb61-40" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb61-41"><a href="#cb61-41" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">4</span>),</span>
+<span id="cb61-42"><a href="#cb61-42" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-09-realidade-aumentada" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -8517,7 +8604,7 @@ Figura&nbsp;9.37
 <img src="cap09.py.pt_files/figure-html/fig-09-realidade-aumentada-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-realidade-aumentada-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de canto e sobreposição de imagem virtual por matriz de homografia exibidas.
+Figura&nbsp;9.39: Realidade aumentada baseada em marcador ArUco: detecção de canto e sobreposição de imagem virtual por matriz de homografia exibidas.
 </figcaption>
 </figure>
 </div>
@@ -8529,84 +8616,84 @@ Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de c
 <p>A <strong>fotogrametria</strong> converte dimensões em <em>pixels</em> para medidas físicas (como centímetros) a partir de um objeto de referência de dimensão conhecida presente na cena.</p>
 <ol type="1">
 <li><strong>Segmentação e Bounding Box:</strong> Localizam-se o cartão de referência e o objeto alvo na imagem.</li>
-<li><strong>Escalonamento Físico:</strong> A razão <span class="math inline">\(\text{cm/pixel}\)</span> é calculada a partir da largura do cartão (<span class="math inline">\(8{,}56\text{ cm}\)</span>, padrão ISO/IEC 7810), permitindo medir o objeto em centímetros na <a href="#fig-09-fotogrametria" class="quarto-xref">Figura&nbsp;<span>9.39</span></a>.</li>
+<li><strong>Escalonamento Físico:</strong> A razão <span class="math inline">\(\text{cm/pixel}\)</span> é calculada a partir da largura do cartão (<span class="math inline">\(8{,}56\text{ cm}\)</span>, padrão ISO/IEC 7810), permitindo medir o objeto em centímetros na <a href="#fig-09-fotogrametria" class="quarto-xref">Figura&nbsp;<span>9.40</span></a>.</li>
 </ol>
 <div id="cell-fig-09-fotogrametria" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>COR_REFERENCIA <span class="op">=</span> (<span class="dv">200</span>, <span class="dv">200</span>, <span class="dv">200</span>)  <span class="co"># Cartão de referência (cinza)</span></span>
-<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>COR_OBJETO <span class="op">=</span> (<span class="dv">60</span>, <span class="dv">60</span>, <span class="dv">220</span>)  <span class="co"># Objeto alvo (vermelho)</span></span>
-<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Desenho da cena sintética</span></span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>cena_medicao <span class="op">=</span> np.full((<span class="dv">300</span>, <span class="dv">500</span>, <span class="dv">3</span>), <span class="dv">255</span>, dtype<span class="op">=</span>np.uint8)</span>
-<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
-<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a>    cena_medicao, (<span class="dv">30</span>, <span class="dv">200</span>), (<span class="dv">30</span> <span class="op">+</span> <span class="dv">140</span>, <span class="dv">200</span> <span class="op">+</span> <span class="dv">88</span>), COR_REFERENCIA, <span class="op">-</span><span class="dv">1</span></span>
-<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(cena_medicao, (<span class="dv">250</span>, <span class="dv">100</span>), (<span class="dv">250</span> <span class="op">+</span> <span class="dv">220</span>, <span class="dv">100</span> <span class="op">+</span> <span class="dv">150</span>), COR_OBJETO, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-11"><a href="#cb57-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-12"><a href="#cb57-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> caixa_delimitadora_por_cor(imagem_bgr, cor_bgr, tolerancia<span class="op">=</span><span class="dv">40</span>):</span>
-<span id="cb57-13"><a href="#cb57-13" aria-hidden="true" tabindex="-1"></a>    diferenca <span class="op">=</span> np.<span class="bu">abs</span>(imagem_bgr.astype(<span class="bu">int</span>) <span class="op">-</span> np.array(cor_bgr)).<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">2</span>)</span>
-<span id="cb57-14"><a href="#cb57-14" aria-hidden="true" tabindex="-1"></a>    mascara <span class="op">=</span> (diferenca <span class="op">&lt;</span> tolerancia).astype(np.uint8) <span class="op">*</span> <span class="dv">255</span></span>
-<span id="cb57-15"><a href="#cb57-15" aria-hidden="true" tabindex="-1"></a>    contornos, _ <span class="op">=</span> cv2.findContours(</span>
-<span id="cb57-16"><a href="#cb57-16" aria-hidden="true" tabindex="-1"></a>        mascara, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE</span>
-<span id="cb57-17"><a href="#cb57-17" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb57-18"><a href="#cb57-18" aria-hidden="true" tabindex="-1"></a>    maior_contorno <span class="op">=</span> <span class="bu">max</span>(contornos, key<span class="op">=</span>cv2.contourArea)</span>
-<span id="cb57-19"><a href="#cb57-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> cv2.boundingRect(maior_contorno)</span>
-<span id="cb57-20"><a href="#cb57-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-21"><a href="#cb57-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-22"><a href="#cb57-22" aria-hidden="true" tabindex="-1"></a>x_ref, y_ref, w_ref_px, h_ref_px <span class="op">=</span> caixa_delimitadora_por_cor(</span>
-<span id="cb57-23"><a href="#cb57-23" aria-hidden="true" tabindex="-1"></a>    cena_medicao, COR_REFERENCIA</span>
-<span id="cb57-24"><a href="#cb57-24" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-25"><a href="#cb57-25" aria-hidden="true" tabindex="-1"></a>x_obj, y_obj, w_obj_px, h_obj_px <span class="op">=</span> caixa_delimitadora_por_cor(</span>
-<span id="cb57-26"><a href="#cb57-26" aria-hidden="true" tabindex="-1"></a>    cena_medicao, COR_OBJETO</span>
-<span id="cb57-27"><a href="#cb57-27" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-28"><a href="#cb57-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-29"><a href="#cb57-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo de escala física</span></span>
-<span id="cb57-30"><a href="#cb57-30" aria-hidden="true" tabindex="-1"></a>LARGURA_REFERENCIA_CM <span class="op">=</span> <span class="fl">8.56</span></span>
-<span id="cb57-31"><a href="#cb57-31" aria-hidden="true" tabindex="-1"></a>razao_cm_por_px <span class="op">=</span> LARGURA_REFERENCIA_CM <span class="op">/</span> w_ref_px</span>
-<span id="cb57-32"><a href="#cb57-32" aria-hidden="true" tabindex="-1"></a>largura_obj_cm <span class="op">=</span> w_obj_px <span class="op">*</span> razao_cm_por_px</span>
-<span id="cb57-33"><a href="#cb57-33" aria-hidden="true" tabindex="-1"></a>altura_obj_cm <span class="op">=</span> h_obj_px <span class="op">*</span> razao_cm_por_px</span>
-<span id="cb57-34"><a href="#cb57-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-35"><a href="#cb57-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Desenho das caixas e medições estimadas</span></span>
-<span id="cb57-36"><a href="#cb57-36" aria-hidden="true" tabindex="-1"></a>resultado <span class="op">=</span> cena_medicao.copy()</span>
-<span id="cb57-37"><a href="#cb57-37" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
-<span id="cb57-38"><a href="#cb57-38" aria-hidden="true" tabindex="-1"></a>    resultado, (x_ref, y_ref), (x_ref <span class="op">+</span> w_ref_px, y_ref <span class="op">+</span> h_ref_px), (<span class="dv">0</span>, <span class="dv">180</span>, <span class="dv">0</span>), <span class="dv">2</span></span>
-<span id="cb57-39"><a href="#cb57-39" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-40"><a href="#cb57-40" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
-<span id="cb57-41"><a href="#cb57-41" aria-hidden="true" tabindex="-1"></a>    resultado, (x_obj, y_obj), (x_obj <span class="op">+</span> w_obj_px, y_obj <span class="op">+</span> h_obj_px), (<span class="dv">0</span>, <span class="dv">180</span>, <span class="dv">0</span>), <span class="dv">2</span></span>
-<span id="cb57-42"><a href="#cb57-42" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-43"><a href="#cb57-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-44"><a href="#cb57-44" aria-hidden="true" tabindex="-1"></a>cv2.putText(</span>
-<span id="cb57-45"><a href="#cb57-45" aria-hidden="true" tabindex="-1"></a>    resultado,</span>
-<span id="cb57-46"><a href="#cb57-46" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>LARGURA_REFERENCIA_CM<span class="sc">:.2f}</span><span class="ss"> cm"</span>,</span>
-<span id="cb57-47"><a href="#cb57-47" aria-hidden="true" tabindex="-1"></a>    (x_ref, y_ref <span class="op">-</span> <span class="dv">8</span>),</span>
-<span id="cb57-48"><a href="#cb57-48" aria-hidden="true" tabindex="-1"></a>    cv2.FONT_HERSHEY_SIMPLEX,</span>
-<span id="cb57-49"><a href="#cb57-49" aria-hidden="true" tabindex="-1"></a>    <span class="fl">0.55</span>,</span>
-<span id="cb57-50"><a href="#cb57-50" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">0</span>, <span class="dv">120</span>, <span class="dv">0</span>),</span>
-<span id="cb57-51"><a href="#cb57-51" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span>,</span>
-<span id="cb57-52"><a href="#cb57-52" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-53"><a href="#cb57-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-54"><a href="#cb57-54" aria-hidden="true" tabindex="-1"></a>cv2.putText(</span>
-<span id="cb57-55"><a href="#cb57-55" aria-hidden="true" tabindex="-1"></a>    resultado,</span>
-<span id="cb57-56"><a href="#cb57-56" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>largura_obj_cm<span class="sc">:.1f}</span><span class="ss"> x </span><span class="sc">{</span>altura_obj_cm<span class="sc">:.1f}</span><span class="ss"> cm"</span>,</span>
-<span id="cb57-57"><a href="#cb57-57" aria-hidden="true" tabindex="-1"></a>    (x_obj, y_obj <span class="op">-</span> <span class="dv">8</span>),</span>
-<span id="cb57-58"><a href="#cb57-58" aria-hidden="true" tabindex="-1"></a>    cv2.FONT_HERSHEY_SIMPLEX,</span>
-<span id="cb57-59"><a href="#cb57-59" aria-hidden="true" tabindex="-1"></a>    <span class="fl">0.6</span>,</span>
-<span id="cb57-60"><a href="#cb57-60" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">0</span>, <span class="dv">120</span>, <span class="dv">0</span>),</span>
-<span id="cb57-61"><a href="#cb57-61" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span>,</span>
-<span id="cb57-62"><a href="#cb57-62" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb57-63"><a href="#cb57-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb57-64"><a href="#cb57-64" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb57-65"><a href="#cb57-65" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb57-66"><a href="#cb57-66" aria-hidden="true" tabindex="-1"></a>        cv2.cvtColor(cena_medicao, cv2.COLOR_BGR2RGB),</span>
-<span id="cb57-67"><a href="#cb57-67" aria-hidden="true" tabindex="-1"></a>        cv2.cvtColor(resultado, cv2.COLOR_BGR2RGB),</span>
-<span id="cb57-68"><a href="#cb57-68" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb57-69"><a href="#cb57-69" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb57-70"><a href="#cb57-70" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Cena Original"</span>,</span>
-<span id="cb57-71"><a href="#cb57-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Medição por Referência de Escala (Centímetros)"</span>,</span>
-<span id="cb57-72"><a href="#cb57-72" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb57-73"><a href="#cb57-73" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb57-74"><a href="#cb57-74" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">4</span>),</span>
-<span id="cb57-75"><a href="#cb57-75" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>COR_REFERENCIA <span class="op">=</span> (<span class="dv">200</span>, <span class="dv">200</span>, <span class="dv">200</span>)  <span class="co"># Cartão de referência (cinza)</span></span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>COR_OBJETO <span class="op">=</span> (<span class="dv">60</span>, <span class="dv">60</span>, <span class="dv">220</span>)  <span class="co"># Objeto alvo (vermelho)</span></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Desenho da cena sintética</span></span>
+<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a>cena_medicao <span class="op">=</span> np.full((<span class="dv">300</span>, <span class="dv">500</span>, <span class="dv">3</span>), <span class="dv">255</span>, dtype<span class="op">=</span>np.uint8)</span>
+<span id="cb62-6"><a href="#cb62-6" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
+<span id="cb62-7"><a href="#cb62-7" aria-hidden="true" tabindex="-1"></a>    cena_medicao, (<span class="dv">30</span>, <span class="dv">200</span>), (<span class="dv">30</span> <span class="op">+</span> <span class="dv">140</span>, <span class="dv">200</span> <span class="op">+</span> <span class="dv">88</span>), COR_REFERENCIA, <span class="op">-</span><span class="dv">1</span></span>
+<span id="cb62-8"><a href="#cb62-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-9"><a href="#cb62-9" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(cena_medicao, (<span class="dv">250</span>, <span class="dv">100</span>), (<span class="dv">250</span> <span class="op">+</span> <span class="dv">220</span>, <span class="dv">100</span> <span class="op">+</span> <span class="dv">150</span>), COR_OBJETO, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb62-10"><a href="#cb62-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-11"><a href="#cb62-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-12"><a href="#cb62-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> caixa_delimitadora_por_cor(imagem_bgr, cor_bgr, tolerancia<span class="op">=</span><span class="dv">40</span>):</span>
+<span id="cb62-13"><a href="#cb62-13" aria-hidden="true" tabindex="-1"></a>    diferenca <span class="op">=</span> np.<span class="bu">abs</span>(imagem_bgr.astype(<span class="bu">int</span>) <span class="op">-</span> np.array(cor_bgr)).<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb62-14"><a href="#cb62-14" aria-hidden="true" tabindex="-1"></a>    mascara <span class="op">=</span> (diferenca <span class="op">&lt;</span> tolerancia).astype(np.uint8) <span class="op">*</span> <span class="dv">255</span></span>
+<span id="cb62-15"><a href="#cb62-15" aria-hidden="true" tabindex="-1"></a>    contornos, _ <span class="op">=</span> cv2.findContours(</span>
+<span id="cb62-16"><a href="#cb62-16" aria-hidden="true" tabindex="-1"></a>        mascara, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE</span>
+<span id="cb62-17"><a href="#cb62-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb62-18"><a href="#cb62-18" aria-hidden="true" tabindex="-1"></a>    maior_contorno <span class="op">=</span> <span class="bu">max</span>(contornos, key<span class="op">=</span>cv2.contourArea)</span>
+<span id="cb62-19"><a href="#cb62-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> cv2.boundingRect(maior_contorno)</span>
+<span id="cb62-20"><a href="#cb62-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-21"><a href="#cb62-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-22"><a href="#cb62-22" aria-hidden="true" tabindex="-1"></a>x_ref, y_ref, w_ref_px, h_ref_px <span class="op">=</span> caixa_delimitadora_por_cor(</span>
+<span id="cb62-23"><a href="#cb62-23" aria-hidden="true" tabindex="-1"></a>    cena_medicao, COR_REFERENCIA</span>
+<span id="cb62-24"><a href="#cb62-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-25"><a href="#cb62-25" aria-hidden="true" tabindex="-1"></a>x_obj, y_obj, w_obj_px, h_obj_px <span class="op">=</span> caixa_delimitadora_por_cor(</span>
+<span id="cb62-26"><a href="#cb62-26" aria-hidden="true" tabindex="-1"></a>    cena_medicao, COR_OBJETO</span>
+<span id="cb62-27"><a href="#cb62-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-28"><a href="#cb62-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-29"><a href="#cb62-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo de escala física</span></span>
+<span id="cb62-30"><a href="#cb62-30" aria-hidden="true" tabindex="-1"></a>LARGURA_REFERENCIA_CM <span class="op">=</span> <span class="fl">8.56</span></span>
+<span id="cb62-31"><a href="#cb62-31" aria-hidden="true" tabindex="-1"></a>razao_cm_por_px <span class="op">=</span> LARGURA_REFERENCIA_CM <span class="op">/</span> w_ref_px</span>
+<span id="cb62-32"><a href="#cb62-32" aria-hidden="true" tabindex="-1"></a>largura_obj_cm <span class="op">=</span> w_obj_px <span class="op">*</span> razao_cm_por_px</span>
+<span id="cb62-33"><a href="#cb62-33" aria-hidden="true" tabindex="-1"></a>altura_obj_cm <span class="op">=</span> h_obj_px <span class="op">*</span> razao_cm_por_px</span>
+<span id="cb62-34"><a href="#cb62-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-35"><a href="#cb62-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Desenho das caixas e medições estimadas</span></span>
+<span id="cb62-36"><a href="#cb62-36" aria-hidden="true" tabindex="-1"></a>resultado <span class="op">=</span> cena_medicao.copy()</span>
+<span id="cb62-37"><a href="#cb62-37" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
+<span id="cb62-38"><a href="#cb62-38" aria-hidden="true" tabindex="-1"></a>    resultado, (x_ref, y_ref), (x_ref <span class="op">+</span> w_ref_px, y_ref <span class="op">+</span> h_ref_px), (<span class="dv">0</span>, <span class="dv">180</span>, <span class="dv">0</span>), <span class="dv">2</span></span>
+<span id="cb62-39"><a href="#cb62-39" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-40"><a href="#cb62-40" aria-hidden="true" tabindex="-1"></a>cv2.rectangle(</span>
+<span id="cb62-41"><a href="#cb62-41" aria-hidden="true" tabindex="-1"></a>    resultado, (x_obj, y_obj), (x_obj <span class="op">+</span> w_obj_px, y_obj <span class="op">+</span> h_obj_px), (<span class="dv">0</span>, <span class="dv">180</span>, <span class="dv">0</span>), <span class="dv">2</span></span>
+<span id="cb62-42"><a href="#cb62-42" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-43"><a href="#cb62-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-44"><a href="#cb62-44" aria-hidden="true" tabindex="-1"></a>cv2.putText(</span>
+<span id="cb62-45"><a href="#cb62-45" aria-hidden="true" tabindex="-1"></a>    resultado,</span>
+<span id="cb62-46"><a href="#cb62-46" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>LARGURA_REFERENCIA_CM<span class="sc">:.2f}</span><span class="ss"> cm"</span>,</span>
+<span id="cb62-47"><a href="#cb62-47" aria-hidden="true" tabindex="-1"></a>    (x_ref, y_ref <span class="op">-</span> <span class="dv">8</span>),</span>
+<span id="cb62-48"><a href="#cb62-48" aria-hidden="true" tabindex="-1"></a>    cv2.FONT_HERSHEY_SIMPLEX,</span>
+<span id="cb62-49"><a href="#cb62-49" aria-hidden="true" tabindex="-1"></a>    <span class="fl">0.55</span>,</span>
+<span id="cb62-50"><a href="#cb62-50" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">0</span>, <span class="dv">120</span>, <span class="dv">0</span>),</span>
+<span id="cb62-51"><a href="#cb62-51" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span>,</span>
+<span id="cb62-52"><a href="#cb62-52" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-53"><a href="#cb62-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-54"><a href="#cb62-54" aria-hidden="true" tabindex="-1"></a>cv2.putText(</span>
+<span id="cb62-55"><a href="#cb62-55" aria-hidden="true" tabindex="-1"></a>    resultado,</span>
+<span id="cb62-56"><a href="#cb62-56" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>largura_obj_cm<span class="sc">:.1f}</span><span class="ss"> x </span><span class="sc">{</span>altura_obj_cm<span class="sc">:.1f}</span><span class="ss"> cm"</span>,</span>
+<span id="cb62-57"><a href="#cb62-57" aria-hidden="true" tabindex="-1"></a>    (x_obj, y_obj <span class="op">-</span> <span class="dv">8</span>),</span>
+<span id="cb62-58"><a href="#cb62-58" aria-hidden="true" tabindex="-1"></a>    cv2.FONT_HERSHEY_SIMPLEX,</span>
+<span id="cb62-59"><a href="#cb62-59" aria-hidden="true" tabindex="-1"></a>    <span class="fl">0.6</span>,</span>
+<span id="cb62-60"><a href="#cb62-60" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">0</span>, <span class="dv">120</span>, <span class="dv">0</span>),</span>
+<span id="cb62-61"><a href="#cb62-61" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span>,</span>
+<span id="cb62-62"><a href="#cb62-62" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb62-63"><a href="#cb62-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-64"><a href="#cb62-64" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb62-65"><a href="#cb62-65" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb62-66"><a href="#cb62-66" aria-hidden="true" tabindex="-1"></a>        cv2.cvtColor(cena_medicao, cv2.COLOR_BGR2RGB),</span>
+<span id="cb62-67"><a href="#cb62-67" aria-hidden="true" tabindex="-1"></a>        cv2.cvtColor(resultado, cv2.COLOR_BGR2RGB),</span>
+<span id="cb62-68"><a href="#cb62-68" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb62-69"><a href="#cb62-69" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb62-70"><a href="#cb62-70" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Cena Original"</span>,</span>
+<span id="cb62-71"><a href="#cb62-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Medição por Referência de Escala (Centímetros)"</span>,</span>
+<span id="cb62-72"><a href="#cb62-72" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb62-73"><a href="#cb62-73" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb62-74"><a href="#cb62-74" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">4</span>),</span>
+<span id="cb62-75"><a href="#cb62-75" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-09-fotogrametria" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -8614,7 +8701,7 @@ Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de c
 <img src="cap09.py.pt_files/figure-html/fig-09-fotogrametria-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-fotogrametria-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.39: Medição de dimensões físicas reais utilizando um cartão de referência de escala conhecida (8,56 cm) renderizada.
+Figura&nbsp;9.40: Medição de dimensões físicas reais utilizando um cartão de referência de escala conhecida (8,56 cm) renderizada.
 </figcaption>
 </figure>
 </div>
@@ -8627,53 +8714,53 @@ Figura&nbsp;9.39: Medição de dimensões físicas reais utilizando um cartão d
 <p><span class="math display">\[Z = \frac{f \cdot B}{d}\]</span></p>
 <ol type="1">
 <li><strong>Par Estéreo Sintético:</strong> Cria-se o deslocamento horizontal diferenciado para objetos próximos (<code>DESLOC_OBJETO</code>) e distantes (<code>DESLOC_FUNDO</code>).</li>
-<li><strong>Mapa de Disparidade:</strong> O algoritmo <code>cv2.StereoBM_create</code> calcula o mapa de profundidade na <a href="#fig-09-visao-estereo" class="quarto-xref">Figura&nbsp;<span>9.40</span></a>, onde intensidades mais claras indicam maior disparidade (objetos mais próximos).</li>
+<li><strong>Mapa de Disparidade:</strong> O algoritmo <code>cv2.StereoBM_create</code> calcula o mapa de profundidade na <a href="#fig-09-visao-estereo" class="quarto-xref">Figura&nbsp;<span>9.41</span></a>, onde intensidades mais claras indicam maior disparidade (objetos mais próximos).</li>
 </ol>
 <div id="cell-fig-09-visao-estereo" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>img_base <span class="op">=</span> cv2.cvtColor(skdata.astronaut(), cv2.COLOR_RGB2GRAY)</span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>DESLOC_FUNDO <span class="op">=</span> <span class="dv">4</span>  <span class="co"># Objeto distante</span></span>
-<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>DESLOC_OBJETO <span class="op">=</span> <span class="dv">22</span>  <span class="co"># Objeto próximo</span></span>
-<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> deslocar(imagem, dx):</span>
-<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a>    M <span class="op">=</span> np.float32([[<span class="dv">1</span>, <span class="dv">0</span>, dx], [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>]])</span>
-<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> cv2.warpAffine(imagem, M, (imagem.shape[<span class="dv">1</span>], imagem.shape[<span class="dv">0</span>]))</span>
-<span id="cb58-10"><a href="#cb58-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-11"><a href="#cb58-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-12"><a href="#cb58-12" aria-hidden="true" tabindex="-1"></a>img_esquerda <span class="op">=</span> img_base.copy()</span>
-<span id="cb58-13"><a href="#cb58-13" aria-hidden="true" tabindex="-1"></a>img_direita <span class="op">=</span> deslocar(img_base, <span class="op">-</span>DESLOC_FUNDO)</span>
-<span id="cb58-14"><a href="#cb58-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-15"><a href="#cb58-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulação de objeto em primeiro plano</span></span>
-<span id="cb58-16"><a href="#cb58-16" aria-hidden="true" tabindex="-1"></a>y0, y1, x0, x1 <span class="op">=</span> <span class="dv">180</span>, <span class="dv">340</span>, <span class="dv">200</span>, <span class="dv">360</span></span>
-<span id="cb58-17"><a href="#cb58-17" aria-hidden="true" tabindex="-1"></a>img_direita[y0:y1, x0:x1] <span class="op">=</span> deslocar(img_base, <span class="op">-</span>DESLOC_OBJETO)[y0:y1, x0:x1]</span>
-<span id="cb58-18"><a href="#cb58-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-19"><a href="#cb58-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo da disparidade estéreo</span></span>
-<span id="cb58-20"><a href="#cb58-20" aria-hidden="true" tabindex="-1"></a>correspondencia_estereo <span class="op">=</span> cv2.StereoBM_create(</span>
-<span id="cb58-21"><a href="#cb58-21" aria-hidden="true" tabindex="-1"></a>    numDisparities<span class="op">=</span><span class="dv">32</span>, blockSize<span class="op">=</span><span class="dv">15</span></span>
-<span id="cb58-22"><a href="#cb58-22" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb58-23"><a href="#cb58-23" aria-hidden="true" tabindex="-1"></a>mapa_disparidade <span class="op">=</span> (</span>
-<span id="cb58-24"><a href="#cb58-24" aria-hidden="true" tabindex="-1"></a>    correspondencia_estereo.compute(img_esquerda, img_direita).astype(</span>
-<span id="cb58-25"><a href="#cb58-25" aria-hidden="true" tabindex="-1"></a>        np.float32</span>
-<span id="cb58-26"><a href="#cb58-26" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb58-27"><a href="#cb58-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">/</span> <span class="fl">16.0</span></span>
-<span id="cb58-28"><a href="#cb58-28" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb58-29"><a href="#cb58-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-30"><a href="#cb58-30" aria-hidden="true" tabindex="-1"></a>disp_fundo <span class="op">=</span> mapa_disparidade[:<span class="dv">150</span>, :<span class="dv">150</span>].mean()</span>
-<span id="cb58-31"><a href="#cb58-31" aria-hidden="true" tabindex="-1"></a>disp_objeto <span class="op">=</span> mapa_disparidade[<span class="dv">200</span>:<span class="dv">320</span>, <span class="dv">220</span>:<span class="dv">340</span>].mean()</span>
-<span id="cb58-32"><a href="#cb58-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-33"><a href="#cb58-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Disparidade média no fundo: </span><span class="sc">{</span>disp_fundo<span class="sc">:.2f}</span><span class="ss"> px"</span>)</span>
-<span id="cb58-34"><a href="#cb58-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Disparidade média no objeto em primeiro plano: </span><span class="sc">{</span>disp_objeto<span class="sc">:.2f}</span><span class="ss"> px"</span>)</span>
-<span id="cb58-35"><a href="#cb58-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
-<span id="cb58-36"><a href="#cb58-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"→ Disparidade maior = objeto mais próximo da câmera, conforme Z = f·B/d.</span><span class="ch">\n</span><span class="st">"</span></span>
-<span id="cb58-37"><a href="#cb58-37" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb58-38"><a href="#cb58-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb58-39"><a href="#cb58-39" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb58-40"><a href="#cb58-40" aria-hidden="true" tabindex="-1"></a>    [img_esquerda, img_direita, mapa_disparidade],</span>
-<span id="cb58-41"><a href="#cb58-41" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Imagem Esquerda"</span>, <span class="st">"Imagem Direita"</span>, <span class="st">"Mapa de Disparidade"</span>],</span>
-<span id="cb58-42"><a href="#cb58-42" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>,</span>
-<span id="cb58-43"><a href="#cb58-43" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">3.5</span>),</span>
-<span id="cb58-44"><a href="#cb58-44" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>img_base <span class="op">=</span> cv2.cvtColor(skdata.astronaut(), cv2.COLOR_RGB2GRAY)</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>DESLOC_FUNDO <span class="op">=</span> <span class="dv">4</span>  <span class="co"># Objeto distante</span></span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a>DESLOC_OBJETO <span class="op">=</span> <span class="dv">22</span>  <span class="co"># Objeto próximo</span></span>
+<span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-6"><a href="#cb63-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-7"><a href="#cb63-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> deslocar(imagem, dx):</span>
+<span id="cb63-8"><a href="#cb63-8" aria-hidden="true" tabindex="-1"></a>    M <span class="op">=</span> np.float32([[<span class="dv">1</span>, <span class="dv">0</span>, dx], [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>]])</span>
+<span id="cb63-9"><a href="#cb63-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> cv2.warpAffine(imagem, M, (imagem.shape[<span class="dv">1</span>], imagem.shape[<span class="dv">0</span>]))</span>
+<span id="cb63-10"><a href="#cb63-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-11"><a href="#cb63-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-12"><a href="#cb63-12" aria-hidden="true" tabindex="-1"></a>img_esquerda <span class="op">=</span> img_base.copy()</span>
+<span id="cb63-13"><a href="#cb63-13" aria-hidden="true" tabindex="-1"></a>img_direita <span class="op">=</span> deslocar(img_base, <span class="op">-</span>DESLOC_FUNDO)</span>
+<span id="cb63-14"><a href="#cb63-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-15"><a href="#cb63-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulação de objeto em primeiro plano</span></span>
+<span id="cb63-16"><a href="#cb63-16" aria-hidden="true" tabindex="-1"></a>y0, y1, x0, x1 <span class="op">=</span> <span class="dv">180</span>, <span class="dv">340</span>, <span class="dv">200</span>, <span class="dv">360</span></span>
+<span id="cb63-17"><a href="#cb63-17" aria-hidden="true" tabindex="-1"></a>img_direita[y0:y1, x0:x1] <span class="op">=</span> deslocar(img_base, <span class="op">-</span>DESLOC_OBJETO)[y0:y1, x0:x1]</span>
+<span id="cb63-18"><a href="#cb63-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-19"><a href="#cb63-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Cálculo da disparidade estéreo</span></span>
+<span id="cb63-20"><a href="#cb63-20" aria-hidden="true" tabindex="-1"></a>correspondencia_estereo <span class="op">=</span> cv2.StereoBM_create(</span>
+<span id="cb63-21"><a href="#cb63-21" aria-hidden="true" tabindex="-1"></a>    numDisparities<span class="op">=</span><span class="dv">32</span>, blockSize<span class="op">=</span><span class="dv">15</span></span>
+<span id="cb63-22"><a href="#cb63-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb63-23"><a href="#cb63-23" aria-hidden="true" tabindex="-1"></a>mapa_disparidade <span class="op">=</span> (</span>
+<span id="cb63-24"><a href="#cb63-24" aria-hidden="true" tabindex="-1"></a>    correspondencia_estereo.compute(img_esquerda, img_direita).astype(</span>
+<span id="cb63-25"><a href="#cb63-25" aria-hidden="true" tabindex="-1"></a>        np.float32</span>
+<span id="cb63-26"><a href="#cb63-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb63-27"><a href="#cb63-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">/</span> <span class="fl">16.0</span></span>
+<span id="cb63-28"><a href="#cb63-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb63-29"><a href="#cb63-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-30"><a href="#cb63-30" aria-hidden="true" tabindex="-1"></a>disp_fundo <span class="op">=</span> mapa_disparidade[:<span class="dv">150</span>, :<span class="dv">150</span>].mean()</span>
+<span id="cb63-31"><a href="#cb63-31" aria-hidden="true" tabindex="-1"></a>disp_objeto <span class="op">=</span> mapa_disparidade[<span class="dv">200</span>:<span class="dv">320</span>, <span class="dv">220</span>:<span class="dv">340</span>].mean()</span>
+<span id="cb63-32"><a href="#cb63-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-33"><a href="#cb63-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Disparidade média no fundo: </span><span class="sc">{</span>disp_fundo<span class="sc">:.2f}</span><span class="ss"> px"</span>)</span>
+<span id="cb63-34"><a href="#cb63-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Disparidade média no objeto em primeiro plano: </span><span class="sc">{</span>disp_objeto<span class="sc">:.2f}</span><span class="ss"> px"</span>)</span>
+<span id="cb63-35"><a href="#cb63-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb63-36"><a href="#cb63-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"→ Disparidade maior = objeto mais próximo da câmera, conforme Z = f·B/d.</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb63-37"><a href="#cb63-37" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb63-38"><a href="#cb63-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-39"><a href="#cb63-39" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb63-40"><a href="#cb63-40" aria-hidden="true" tabindex="-1"></a>    [img_esquerda, img_direita, mapa_disparidade],</span>
+<span id="cb63-41"><a href="#cb63-41" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Imagem Esquerda"</span>, <span class="st">"Imagem Direita"</span>, <span class="st">"Mapa de Disparidade"</span>],</span>
+<span id="cb63-42"><a href="#cb63-42" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb63-43"><a href="#cb63-43" aria-hidden="true" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">3.5</span>),</span>
+<span id="cb63-44"><a href="#cb63-44" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Disparidade média no fundo: 2.58 px
 Disparidade média no objeto em primeiro plano: 21.63 px
@@ -8687,7 +8774,7 @@ Disparidade média no objeto em primeiro plano: 21.63 px
 <img src="cap09.py.pt_files/figure-html/fig-09-visao-estereo-output-2.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-visao-estereo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.40: Par estéreo sintético e mapa de disparidade correspondente: regiões mais claras indicam maior disparidade (objetos mais próximos da câmera) exibidos.
+Figura&nbsp;9.41: Par estéreo sintético e mapa de disparidade correspondente: regiões mais claras indicam maior disparidade (objetos mais próximos da câmera) exibidos.
 </figcaption>
 </figure>
 </div>
@@ -8801,20 +8888,20 @@ Figura&nbsp;9.40: Par estéreo sintético e mapa de disparidade correspondente: 
 <h4 class="unnumbered anchored" data-anchor-id="download">Download</h4>
 <p>Baixe <code>morph.py</code> e <code>testsuite.py</code> executando a célula abaixo:</p>
 <div id="af5ceefe" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
-<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
-<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
-<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
-<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
-<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
-<span id="cb60-8"><a href="#cb60-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-9"><a href="#cb60-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
-<span id="cb60-10"><a href="#cb60-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
-<span id="cb60-11"><a href="#cb60-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
-<span id="cb60-12"><a href="#cb60-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
-<span id="cb60-13"><a href="#cb60-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-14"><a href="#cb60-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys, importlib, inspect, urllib.request</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a><span class="co"># URLs do repositório</span></span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>BASE_URL <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"</span></span>
+<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> [<span class="st">"morph.py"</span>, <span class="st">"testsuite.py"</span>]:</span>
+<span id="cb65-6"><a href="#cb65-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(f):</span>
+<span id="cb65-7"><a href="#cb65-7" aria-hidden="true" tabindex="-1"></a>        urllib.request.urlretrieve(<span class="ss">f"</span><span class="sc">{</span>BASE_URL<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>, f)</span>
+<span id="cb65-8"><a href="#cb65-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb65-9"><a href="#cb65-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> morph, testsuite</span>
+<span id="cb65-10"><a href="#cb65-10" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(morph)<span class="op">;</span> importlib.<span class="bu">reload</span>(testsuite)</span>
+<span id="cb65-11"><a href="#cb65-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb65-12"><a href="#cb65-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span>
+<span id="cb65-13"><a href="#cb65-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb65-14"><a href="#cb65-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Ambiente pronto. Morph: </span><span class="sc">{</span>morph<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss"> | TestSuite: </span><span class="sc">{</span>testsuite<span class="sc">.</span>__version__<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>✅ Ambiente pronto. Morph: 1.1.8 | TestSuite: 1.1.2</code></pre>
 </div>
@@ -8824,10 +8911,10 @@ Figura&nbsp;9.40: Par estéreo sintético e mapa de disparidade correspondente: 
 <h4 class="unnumbered anchored" data-anchor-id="executando-os-testes">Executando os Testes</h4>
 <p>Para avaliar os testes, execute <code>TestSuite("EP09_01.extensão").run()</code> numa nova célula, trocando a extensão pela da linguagem usada (<code>.py</code>, <code>.java</code>, <code>.c</code>, <code>.cpp</code>, <code>.js</code> ou <code>.r</code>). O sistema baixa os casos de teste do GitHub, executa o programa e calcula a nota automaticamente.</p>
 <p>Para testar código Python diretamente, sem salvar arquivo, use <code>run_code(codigo)</code> passando o código como <em>string</em> numa variável <code>codigo</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>codigo <span class="op">=</span> <span class="st">"""</span></span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a><span class="st"># ... seu código aqui ...</span></span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_01"</span>).run_code(codigo)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>codigo <span class="op">=</span> <span class="st">"""</span></span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a><span class="st"># ... seu código aqui ...</span></span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_01"</span>).run_code(codigo)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="ep09_01-convolução-2d-manual-forward-de-uma-camada-aprendida" class="level3" data-number="9.10.1">
@@ -9049,20 +9136,20 @@ z(i,j) = b + \sum_{u=0}^{k_h-1} \sum_{v=0}^{k_w-1} K(u,v) \cdot X_{pad}(i \cdot 
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.41: Simulador EP09_01: Convolução 2D Manual (correlação cruzada + viés + ReLU)
+Figura&nbsp;9.42: Simulador EP09_01: Convolução 2D Manual (correlação cruzada + viés + ReLU)
 </figcaption>
 </figure>
 </div>
 </div>
 <div id="313a192b" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_01.py</span>
-<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_01.py</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP09_01.py</code></pre>
 </div>
 </div>
 <div id="cd43eff7" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_01.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_01.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_1.cases
@@ -9278,20 +9365,20 @@ avg</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.42: Simulador EP09_02: <em>Pooling</em> Manual (máximo vs.&nbsp;média)
+Figura&nbsp;9.43: Simulador EP09_02: <em>Pooling</em> Manual (máximo vs.&nbsp;média)
 </figcaption>
 </figure>
 </div>
 </div>
 <div id="9e2c1aac" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_02.py</span>
-<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_02.py</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP09_02.py</code></pre>
 </div>
 </div>
 <div id="60840de7" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_02.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_02.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_2.cases
@@ -9486,20 +9573,20 @@ Total: 3296</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.43: Simulador EP09_03: Contagem de Parâmetros — Convolução vs.&nbsp;Camada Totalmente Conectada
+Figura&nbsp;9.44: Simulador EP09_03: Contagem de Parâmetros — Convolução vs.&nbsp;Camada Totalmente Conectada
 </figcaption>
 </figure>
 </div>
 </div>
 <div id="5089f172" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_03.py</span>
-<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_03.py</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP09_03.py</code></pre>
 </div>
 </div>
 <div id="812061c2" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_03.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_03.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_3.cases
@@ -9698,20 +9785,20 @@ Total mantidas: 1</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.44: Simulador EP09_04: IoU e Supressão de Não-Máximos
+Figura&nbsp;9.45: Simulador EP09_04: IoU e Supressão de Não-Máximos
 </figcaption>
 </figure>
 </div>
 </div>
 <div id="42579f84" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_04.py</span>
-<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_04.py</span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP09_04.py</code></pre>
 </div>
 </div>
 <div id="1c457d61" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_04.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_04.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_4.cases
@@ -9879,20 +9966,20 @@ Objeto: 13.45 x 9.17 cm</td>
 </script>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-sim-ep05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.45: Simulador EP09_05: <em>Pipeline</em> Integrado — NMS + Medição por Referência de Escala
+Figura&nbsp;9.46: Simulador EP09_05: <em>Pipeline</em> Integrado — NMS + Medição por Referência de Escala
 </figcaption>
 </figure>
 </div>
 </div>
 <div id="c006cfd6" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_05.py</span>
-<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP09_05.py</span>
+<span id="cb80-2"><a href="#cb80-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Código Python</span></span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Writing EP09_05.py</code></pre>
 </div>
 </div>
 <div id="c5d8fdbf" class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb82"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP09_05.py"</span>).run()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_05.cases
 📥 Tentando: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/cap9/EP9_5.cases
