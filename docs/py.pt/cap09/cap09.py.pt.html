@@ -7487,7 +7487,7 @@ Figura&nbsp;9.29: Resultado da inferência com o modelo Faster R-CNN pré-treina
 <p>Como exemplo, o experimento utiliza um conjunto sintético de formas geométricas (triângulos, quadrados, estrelas, entre outras), com variações de cor, tamanho, rotação e degradação por ruído do tipo sal e pimenta.</p>
 <section id="bloco-1-geração-do-dataset-sintético-1" class="level5" data-number="9.5.2.2.1">
 <h5 data-number="9.5.2.2.1" class="anchored" data-anchor-id="bloco-1-geração-do-dataset-sintético-1"><span class="header-section-number">9.5.2.2.1</span> Bloco 1: Geração do <em>Dataset</em> Sintético</h5>
-<p>Este bloco gera um conjunto sintético para treinamento e avaliação do detector. Cada imagem contém entre um e três objetos pertencentes a uma das nove classes:</p>
+<p>O bloco a seguir gera um conjunto sintético para treinamento e avaliação do detector. Cada imagem contém entre um e três objetos pertencentes a uma das nove classes:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>CLASSES <span class="op">=</span> [</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Triangle'</span>, <span class="st">'Square'</span>, <span class="st">'Pentagon'</span>, <span class="st">'Hexagon'</span>,</span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Heptagon'</span>, <span class="st">'Circle'</span>, <span class="st">'Ellipse'</span>, <span class="st">'Star'</span>, <span class="st">'Cross'</span></span>
@@ -7505,98 +7505,93 @@ Figura&nbsp;9.29: Resultado da inferência com o modelo Faster R-CNN pré-treina
 <span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>]</span>
 <span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>N_LADOS <span class="op">=</span> {<span class="st">'Triangle'</span>: <span class="dv">3</span>, <span class="st">'Square'</span>: <span class="dv">4</span>, <span class="st">'Pentagon'</span>: <span class="dv">5</span>, <span class="st">'Hexagon'</span>: <span class="dv">6</span>, <span class="st">'Heptagon'</span>: <span class="dv">7</span>}</span>
 <span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_regular(cx, cy, r, n_lados, rot_graus):</span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>    ang0 <span class="op">=</span> np.deg2rad(rot_graus <span class="op">-</span> <span class="dv">90</span>)</span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>    angs <span class="op">=</span> ang0 <span class="op">+</span> <span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> np.arange(n_lados) <span class="op">/</span> n_lados</span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.stack([cx <span class="op">+</span> r <span class="op">*</span> np.cos(angs), cy <span class="op">+</span> r <span class="op">*</span> np.sin(angs)], axis<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_estrela(cx, cy, r_externo, rot_graus, n_pontas<span class="op">=</span><span class="dv">5</span>):</span>
-<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>    r_interno <span class="op">=</span> r_externo <span class="op">*</span> <span class="fl">0.45</span></span>
-<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>    ang0 <span class="op">=</span> np.deg2rad(rot_graus <span class="op">-</span> <span class="dv">90</span>)</span>
-<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>    angs <span class="op">=</span> ang0 <span class="op">+</span> np.pi <span class="op">*</span> np.arange(<span class="dv">2</span> <span class="op">*</span> n_pontas) <span class="op">/</span> n_pontas</span>
-<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>    raios <span class="op">=</span> np.where(np.arange(<span class="dv">2</span> <span class="op">*</span> n_pontas) <span class="op">%</span> <span class="dv">2</span> <span class="op">==</span> <span class="dv">0</span>, r_externo, r_interno)</span>
-<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.stack([cx <span class="op">+</span> raios <span class="op">*</span> np.cos(angs), cy <span class="op">+</span> raios <span class="op">*</span> np.sin(angs)], axis<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb35-20"><a href="#cb35-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_cruz(cx, cy, r, rot_graus, espessura_rel<span class="op">=</span><span class="fl">0.35</span>):</span>
-<span id="cb35-23"><a href="#cb35-23" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> r <span class="op">*</span> espessura_rel</span>
-<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a>    base <span class="op">=</span> np.array([</span>
-<span id="cb35-25"><a href="#cb35-25" aria-hidden="true" tabindex="-1"></a>        (<span class="op">-</span>w, <span class="op">-</span>r), (w, <span class="op">-</span>r), (w, <span class="op">-</span>w), (r, <span class="op">-</span>w), (r, w), (w, w),</span>
-<span id="cb35-26"><a href="#cb35-26" aria-hidden="true" tabindex="-1"></a>        (w, r), (<span class="op">-</span>w, r), (<span class="op">-</span>w, w), (<span class="op">-</span>r, w), (<span class="op">-</span>r, <span class="op">-</span>w), (<span class="op">-</span>w, <span class="op">-</span>w),</span>
-<span id="cb35-27"><a href="#cb35-27" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb35-28"><a href="#cb35-28" aria-hidden="true" tabindex="-1"></a>    theta <span class="op">=</span> np.deg2rad(rot_graus)</span>
-<span id="cb35-29"><a href="#cb35-29" aria-hidden="true" tabindex="-1"></a>    R <span class="op">=</span> np.array([[np.cos(theta), <span class="op">-</span>np.sin(theta)], [np.sin(theta), np.cos(theta)]])</span>
-<span id="cb35-30"><a href="#cb35-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> base <span class="op">@</span> R.T <span class="op">+</span> np.array([cx, cy])</span>
-<span id="cb35-31"><a href="#cb35-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-32"><a href="#cb35-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-33"><a href="#cb35-33" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> desenha_objeto(img, classe_idx, cx, cy, tamanho, rotacao, cor):</span>
-<span id="cb35-34"><a href="#cb35-34" aria-hidden="true" tabindex="-1"></a>    nome <span class="op">=</span> CLASSES[classe_idx]</span>
-<span id="cb35-35"><a href="#cb35-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> nome <span class="kw">in</span> N_LADOS:</span>
-<span id="cb35-36"><a href="#cb35-36" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_regular(cx, cy, tamanho, N_LADOS[nome], rotacao)</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_regular(cx, cy, r, n_lados, rot_graus):</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>    ang0 <span class="op">=</span> np.deg2rad(rot_graus <span class="op">-</span> <span class="dv">90</span>)</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>    angs <span class="op">=</span> ang0 <span class="op">+</span> <span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> np.arange(n_lados) <span class="op">/</span> n_lados</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.stack([cx <span class="op">+</span> r <span class="op">*</span> np.cos(angs), cy <span class="op">+</span> r <span class="op">*</span> np.sin(angs)], axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_estrela(cx, cy, r_externo, rot_graus, n_pontas<span class="op">=</span><span class="dv">5</span>):</span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>    r_interno <span class="op">=</span> r_externo <span class="op">*</span> <span class="fl">0.45</span></span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>    ang0 <span class="op">=</span> np.deg2rad(rot_graus <span class="op">-</span> <span class="dv">90</span>)</span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>    angs <span class="op">=</span> ang0 <span class="op">+</span> np.pi <span class="op">*</span> np.arange(<span class="dv">2</span> <span class="op">*</span> n_pontas) <span class="op">/</span> n_pontas</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>    raios <span class="op">=</span> np.where(np.arange(<span class="dv">2</span> <span class="op">*</span> n_pontas) <span class="op">%</span> <span class="dv">2</span> <span class="op">==</span> <span class="dv">0</span>, r_externo, r_interno)</span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.stack([cx <span class="op">+</span> raios <span class="op">*</span> np.cos(angs), cy <span class="op">+</span> raios <span class="op">*</span> np.sin(angs)], axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poligono_cruz(cx, cy, r, rot_graus, espessura_rel<span class="op">=</span><span class="fl">0.35</span>):</span>
+<span id="cb35-20"><a href="#cb35-20" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> r <span class="op">*</span> espessura_rel</span>
+<span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a>    base <span class="op">=</span> np.array([</span>
+<span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a>        (<span class="op">-</span>w, <span class="op">-</span>r), (w, <span class="op">-</span>r), (w, <span class="op">-</span>w), (r, <span class="op">-</span>w), (r, w), (w, w),</span>
+<span id="cb35-23"><a href="#cb35-23" aria-hidden="true" tabindex="-1"></a>        (w, r), (<span class="op">-</span>w, r), (<span class="op">-</span>w, w), (<span class="op">-</span>r, w), (<span class="op">-</span>r, <span class="op">-</span>w), (<span class="op">-</span>w, <span class="op">-</span>w),</span>
+<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb35-25"><a href="#cb35-25" aria-hidden="true" tabindex="-1"></a>    theta <span class="op">=</span> np.deg2rad(rot_graus)</span>
+<span id="cb35-26"><a href="#cb35-26" aria-hidden="true" tabindex="-1"></a>    R <span class="op">=</span> np.array([[np.cos(theta), <span class="op">-</span>np.sin(theta)], [np.sin(theta), np.cos(theta)]])</span>
+<span id="cb35-27"><a href="#cb35-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> base <span class="op">@</span> R.T <span class="op">+</span> np.array([cx, cy])</span>
+<span id="cb35-28"><a href="#cb35-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-29"><a href="#cb35-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> desenha_objeto(img, classe_idx, cx, cy, tamanho, rotacao, cor):</span>
+<span id="cb35-30"><a href="#cb35-30" aria-hidden="true" tabindex="-1"></a>    nome <span class="op">=</span> CLASSES[classe_idx]</span>
+<span id="cb35-31"><a href="#cb35-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> nome <span class="kw">in</span> N_LADOS:</span>
+<span id="cb35-32"><a href="#cb35-32" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_regular(cx, cy, tamanho, N_LADOS[nome], rotacao)</span>
+<span id="cb35-33"><a href="#cb35-33" aria-hidden="true" tabindex="-1"></a>        cv2.fillPoly(img, [pts.astype(np.int32)], cor)</span>
+<span id="cb35-34"><a href="#cb35-34" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> pts[:, <span class="dv">0</span>], pts[:, <span class="dv">1</span>]</span>
+<span id="cb35-35"><a href="#cb35-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Star'</span>:</span>
+<span id="cb35-36"><a href="#cb35-36" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_estrela(cx, cy, tamanho, rotacao)</span>
 <span id="cb35-37"><a href="#cb35-37" aria-hidden="true" tabindex="-1"></a>        cv2.fillPoly(img, [pts.astype(np.int32)], cor)</span>
 <span id="cb35-38"><a href="#cb35-38" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> pts[:, <span class="dv">0</span>], pts[:, <span class="dv">1</span>]</span>
-<span id="cb35-39"><a href="#cb35-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Star'</span>:</span>
-<span id="cb35-40"><a href="#cb35-40" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_estrela(cx, cy, tamanho, rotacao)</span>
+<span id="cb35-39"><a href="#cb35-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Cross'</span>:</span>
+<span id="cb35-40"><a href="#cb35-40" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_cruz(cx, cy, tamanho, rotacao)</span>
 <span id="cb35-41"><a href="#cb35-41" aria-hidden="true" tabindex="-1"></a>        cv2.fillPoly(img, [pts.astype(np.int32)], cor)</span>
 <span id="cb35-42"><a href="#cb35-42" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> pts[:, <span class="dv">0</span>], pts[:, <span class="dv">1</span>]</span>
-<span id="cb35-43"><a href="#cb35-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Cross'</span>:</span>
-<span id="cb35-44"><a href="#cb35-44" aria-hidden="true" tabindex="-1"></a>        pts <span class="op">=</span> poligono_cruz(cx, cy, tamanho, rotacao)</span>
-<span id="cb35-45"><a href="#cb35-45" aria-hidden="true" tabindex="-1"></a>        cv2.fillPoly(img, [pts.astype(np.int32)], cor)</span>
-<span id="cb35-46"><a href="#cb35-46" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> pts[:, <span class="dv">0</span>], pts[:, <span class="dv">1</span>]</span>
-<span id="cb35-47"><a href="#cb35-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Circle'</span>:</span>
-<span id="cb35-48"><a href="#cb35-48" aria-hidden="true" tabindex="-1"></a>        cv2.circle(img, (<span class="bu">int</span>(cx), <span class="bu">int</span>(cy)), <span class="bu">int</span>(tamanho), cor, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb35-49"><a href="#cb35-49" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> np.array([cx <span class="op">-</span> tamanho, cx <span class="op">+</span> tamanho]), np.array([cy <span class="op">-</span> tamanho, cy <span class="op">+</span> tamanho])</span>
-<span id="cb35-50"><a href="#cb35-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:  <span class="co"># Ellipse</span></span>
-<span id="cb35-51"><a href="#cb35-51" aria-hidden="true" tabindex="-1"></a>        eixo <span class="op">=</span> (<span class="bu">int</span>(tamanho), <span class="bu">int</span>(tamanho <span class="op">*</span> <span class="fl">0.6</span>))</span>
-<span id="cb35-52"><a href="#cb35-52" aria-hidden="true" tabindex="-1"></a>        cv2.ellipse(img, (<span class="bu">int</span>(cx), <span class="bu">int</span>(cy)), eixo, rotacao, <span class="dv">0</span>, <span class="dv">360</span>, cor, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb35-53"><a href="#cb35-53" aria-hidden="true" tabindex="-1"></a>        ang <span class="op">=</span> np.deg2rad(rotacao)</span>
-<span id="cb35-54"><a href="#cb35-54" aria-hidden="true" tabindex="-1"></a>        dx <span class="op">=</span> np.hypot(eixo[<span class="dv">0</span>] <span class="op">*</span> np.cos(ang), eixo[<span class="dv">1</span>] <span class="op">*</span> np.sin(ang))</span>
-<span id="cb35-55"><a href="#cb35-55" aria-hidden="true" tabindex="-1"></a>        dy <span class="op">=</span> np.hypot(eixo[<span class="dv">0</span>] <span class="op">*</span> np.sin(ang), eixo[<span class="dv">1</span>] <span class="op">*</span> np.cos(ang))</span>
-<span id="cb35-56"><a href="#cb35-56" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> np.array([cx <span class="op">-</span> dx, cx <span class="op">+</span> dx]), np.array([cy <span class="op">-</span> dy, cy <span class="op">+</span> dy])</span>
-<span id="cb35-57"><a href="#cb35-57" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> xs.<span class="bu">min</span>(), ys.<span class="bu">min</span>(), xs.<span class="bu">max</span>(), ys.<span class="bu">max</span>()</span>
-<span id="cb35-58"><a href="#cb35-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-59"><a href="#cb35-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-60"><a href="#cb35-60" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> adiciona_ruido_sal_pimenta(img, quantidade<span class="op">=</span><span class="fl">0.05</span>):</span>
-<span id="cb35-61"><a href="#cb35-61" aria-hidden="true" tabindex="-1"></a>    img_ruidosa <span class="op">=</span> img.copy()</span>
-<span id="cb35-62"><a href="#cb35-62" aria-hidden="true" tabindex="-1"></a>    h, w, c <span class="op">=</span> img_ruidosa.shape</span>
-<span id="cb35-63"><a href="#cb35-63" aria-hidden="true" tabindex="-1"></a>    num_ruido <span class="op">=</span> <span class="bu">int</span>(quantidade <span class="op">*</span> h <span class="op">*</span> w)</span>
-<span id="cb35-64"><a href="#cb35-64" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb35-65"><a href="#cb35-65" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Sal (255, 255, 255)</span></span>
-<span id="cb35-66"><a href="#cb35-66" aria-hidden="true" tabindex="-1"></a>    coords_sal <span class="op">=</span> [np.random.randint(<span class="dv">0</span>, i <span class="op">-</span> <span class="dv">1</span>, num_ruido) <span class="cf">for</span> i <span class="kw">in</span> (h, w)]</span>
-<span id="cb35-67"><a href="#cb35-67" aria-hidden="true" tabindex="-1"></a>    img_ruidosa[coords_sal[<span class="dv">0</span>], coords_sal[<span class="dv">1</span>]] <span class="op">=</span> [<span class="dv">255</span>, <span class="dv">255</span>, <span class="dv">255</span>]</span>
-<span id="cb35-68"><a href="#cb35-68" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb35-69"><a href="#cb35-69" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Pimenta (0, 0, 0)</span></span>
-<span id="cb35-70"><a href="#cb35-70" aria-hidden="true" tabindex="-1"></a>    coords_pimenta <span class="op">=</span> [np.random.randint(<span class="dv">0</span>, i <span class="op">-</span> <span class="dv">1</span>, num_ruido) <span class="cf">for</span> i <span class="kw">in</span> (h, w)]</span>
-<span id="cb35-71"><a href="#cb35-71" aria-hidden="true" tabindex="-1"></a>    img_ruidosa[coords_pimenta[<span class="dv">0</span>], coords_pimenta[<span class="dv">1</span>]] <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]</span>
-<span id="cb35-72"><a href="#cb35-72" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb35-73"><a href="#cb35-73" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img_ruidosa</span>
-<span id="cb35-74"><a href="#cb35-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-75"><a href="#cb35-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-76"><a href="#cb35-76" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gera_imagem_ruidosa(tam_img<span class="op">=</span><span class="dv">160</span>, n_objetos<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">3</span>), taxa_ruido<span class="op">=</span><span class="fl">0.01</span>, rng<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb35-77"><a href="#cb35-77" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> rng <span class="kw">or</span> random.Random()</span>
-<span id="cb35-78"><a href="#cb35-78" aria-hidden="true" tabindex="-1"></a>    img_limpa <span class="op">=</span> np.full((tam_img, tam_img, <span class="dv">3</span>), <span class="dv">255</span>, dtype<span class="op">=</span>np.uint8)</span>
-<span id="cb35-79"><a href="#cb35-79" aria-hidden="true" tabindex="-1"></a>    anotacoes <span class="op">=</span> []</span>
-<span id="cb35-80"><a href="#cb35-80" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb35-81"><a href="#cb35-81" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(rng.randint(<span class="op">*</span>n_objetos)):</span>
-<span id="cb35-82"><a href="#cb35-82" aria-hidden="true" tabindex="-1"></a>        classe_idx <span class="op">=</span> rng.randrange(<span class="bu">len</span>(CLASSES))</span>
-<span id="cb35-83"><a href="#cb35-83" aria-hidden="true" tabindex="-1"></a>        tamanho <span class="op">=</span> rng.randint(tam_img <span class="op">//</span> <span class="dv">10</span>, tam_img <span class="op">//</span> <span class="dv">5</span>)</span>
-<span id="cb35-84"><a href="#cb35-84" aria-hidden="true" tabindex="-1"></a>        cx <span class="op">=</span> rng.randint(tamanho <span class="op">+</span> <span class="dv">2</span>, tam_img <span class="op">-</span> tamanho <span class="op">-</span> <span class="dv">2</span>)</span>
-<span id="cb35-85"><a href="#cb35-85" aria-hidden="true" tabindex="-1"></a>        cy <span class="op">=</span> rng.randint(tamanho <span class="op">+</span> <span class="dv">2</span>, tam_img <span class="op">-</span> tamanho <span class="op">-</span> <span class="dv">2</span>)</span>
-<span id="cb35-86"><a href="#cb35-86" aria-hidden="true" tabindex="-1"></a>        rotacao <span class="op">=</span> rng.uniform(<span class="dv">0</span>, <span class="dv">360</span>)</span>
-<span id="cb35-87"><a href="#cb35-87" aria-hidden="true" tabindex="-1"></a>        cor <span class="op">=</span> <span class="bu">tuple</span>(rng.sample(<span class="bu">range</span>(<span class="dv">30</span>, <span class="dv">226</span>), <span class="dv">3</span>))</span>
-<span id="cb35-88"><a href="#cb35-88" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb35-89"><a href="#cb35-89" aria-hidden="true" tabindex="-1"></a>        x0, y0, x1, y1 <span class="op">=</span> desenha_objeto(img_limpa, classe_idx, cx, cy, tamanho, rotacao, cor)</span>
-<span id="cb35-90"><a href="#cb35-90" aria-hidden="true" tabindex="-1"></a>        x0, y0 <span class="op">=</span> <span class="bu">max</span>(x0, <span class="dv">0</span>), <span class="bu">max</span>(y0, <span class="dv">0</span>)</span>
-<span id="cb35-91"><a href="#cb35-91" aria-hidden="true" tabindex="-1"></a>        x1, y1 <span class="op">=</span> <span class="bu">min</span>(x1, tam_img), <span class="bu">min</span>(y1, tam_img)</span>
-<span id="cb35-92"><a href="#cb35-92" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb35-93"><a href="#cb35-93" aria-hidden="true" tabindex="-1"></a>        xc, yc <span class="op">=</span> (x0 <span class="op">+</span> x1) <span class="op">/</span> <span class="dv">2</span> <span class="op">/</span> tam_img, (y0 <span class="op">+</span> y1) <span class="op">/</span> <span class="dv">2</span> <span class="op">/</span> tam_img</span>
-<span id="cb35-94"><a href="#cb35-94" aria-hidden="true" tabindex="-1"></a>        w, h <span class="op">=</span> (x1 <span class="op">-</span> x0) <span class="op">/</span> tam_img, (y1 <span class="op">-</span> y0) <span class="op">/</span> tam_img</span>
-<span id="cb35-95"><a href="#cb35-95" aria-hidden="true" tabindex="-1"></a>        anotacoes.append((classe_idx, xc, yc, w, h))</span>
-<span id="cb35-96"><a href="#cb35-96" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb35-97"><a href="#cb35-97" aria-hidden="true" tabindex="-1"></a>    img_ruidosa <span class="op">=</span> adiciona_ruido_sal_pimenta(img_limpa, quantidade<span class="op">=</span>taxa_ruido)</span>
-<span id="cb35-98"><a href="#cb35-98" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img_ruidosa, anotacoes</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb35-43"><a href="#cb35-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> nome <span class="op">==</span> <span class="st">'Circle'</span>:</span>
+<span id="cb35-44"><a href="#cb35-44" aria-hidden="true" tabindex="-1"></a>        cv2.circle(img, (<span class="bu">int</span>(cx), <span class="bu">int</span>(cy)), <span class="bu">int</span>(tamanho), cor, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb35-45"><a href="#cb35-45" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> np.array([cx <span class="op">-</span> tamanho, cx <span class="op">+</span> tamanho]), np.array([cy <span class="op">-</span> tamanho, cy <span class="op">+</span> tamanho])</span>
+<span id="cb35-46"><a href="#cb35-46" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:  <span class="co"># Ellipse</span></span>
+<span id="cb35-47"><a href="#cb35-47" aria-hidden="true" tabindex="-1"></a>        eixo <span class="op">=</span> (<span class="bu">int</span>(tamanho), <span class="bu">int</span>(tamanho <span class="op">*</span> <span class="fl">0.6</span>))</span>
+<span id="cb35-48"><a href="#cb35-48" aria-hidden="true" tabindex="-1"></a>        cv2.ellipse(img, (<span class="bu">int</span>(cx), <span class="bu">int</span>(cy)), eixo, rotacao, <span class="dv">0</span>, <span class="dv">360</span>, cor, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb35-49"><a href="#cb35-49" aria-hidden="true" tabindex="-1"></a>        ang <span class="op">=</span> np.deg2rad(rotacao)</span>
+<span id="cb35-50"><a href="#cb35-50" aria-hidden="true" tabindex="-1"></a>        dx <span class="op">=</span> np.hypot(eixo[<span class="dv">0</span>] <span class="op">*</span> np.cos(ang), eixo[<span class="dv">1</span>] <span class="op">*</span> np.sin(ang))</span>
+<span id="cb35-51"><a href="#cb35-51" aria-hidden="true" tabindex="-1"></a>        dy <span class="op">=</span> np.hypot(eixo[<span class="dv">0</span>] <span class="op">*</span> np.sin(ang), eixo[<span class="dv">1</span>] <span class="op">*</span> np.cos(ang))</span>
+<span id="cb35-52"><a href="#cb35-52" aria-hidden="true" tabindex="-1"></a>        xs, ys <span class="op">=</span> np.array([cx <span class="op">-</span> dx, cx <span class="op">+</span> dx]), np.array([cy <span class="op">-</span> dy, cy <span class="op">+</span> dy])</span>
+<span id="cb35-53"><a href="#cb35-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> xs.<span class="bu">min</span>(), ys.<span class="bu">min</span>(), xs.<span class="bu">max</span>(), ys.<span class="bu">max</span>()</span>
+<span id="cb35-54"><a href="#cb35-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-55"><a href="#cb35-55" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> adiciona_ruido_sal_pimenta(img, quantidade<span class="op">=</span><span class="fl">0.05</span>):</span>
+<span id="cb35-56"><a href="#cb35-56" aria-hidden="true" tabindex="-1"></a>    img_ruidosa <span class="op">=</span> img.copy()</span>
+<span id="cb35-57"><a href="#cb35-57" aria-hidden="true" tabindex="-1"></a>    h, w, c <span class="op">=</span> img_ruidosa.shape</span>
+<span id="cb35-58"><a href="#cb35-58" aria-hidden="true" tabindex="-1"></a>    num_ruido <span class="op">=</span> <span class="bu">int</span>(quantidade <span class="op">*</span> h <span class="op">*</span> w)</span>
+<span id="cb35-59"><a href="#cb35-59" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb35-60"><a href="#cb35-60" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Sal (255, 255, 255)</span></span>
+<span id="cb35-61"><a href="#cb35-61" aria-hidden="true" tabindex="-1"></a>    coords_sal <span class="op">=</span> [np.random.randint(<span class="dv">0</span>, i <span class="op">-</span> <span class="dv">1</span>, num_ruido) <span class="cf">for</span> i <span class="kw">in</span> (h, w)]</span>
+<span id="cb35-62"><a href="#cb35-62" aria-hidden="true" tabindex="-1"></a>    img_ruidosa[coords_sal[<span class="dv">0</span>], coords_sal[<span class="dv">1</span>]] <span class="op">=</span> [<span class="dv">255</span>, <span class="dv">255</span>, <span class="dv">255</span>]</span>
+<span id="cb35-63"><a href="#cb35-63" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb35-64"><a href="#cb35-64" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Pimenta (0, 0, 0)</span></span>
+<span id="cb35-65"><a href="#cb35-65" aria-hidden="true" tabindex="-1"></a>    coords_pimenta <span class="op">=</span> [np.random.randint(<span class="dv">0</span>, i <span class="op">-</span> <span class="dv">1</span>, num_ruido) <span class="cf">for</span> i <span class="kw">in</span> (h, w)]</span>
+<span id="cb35-66"><a href="#cb35-66" aria-hidden="true" tabindex="-1"></a>    img_ruidosa[coords_pimenta[<span class="dv">0</span>], coords_pimenta[<span class="dv">1</span>]] <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]</span>
+<span id="cb35-67"><a href="#cb35-67" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb35-68"><a href="#cb35-68" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img_ruidosa</span>
+<span id="cb35-69"><a href="#cb35-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-70"><a href="#cb35-70" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gera_imagem_ruidosa(tam_img<span class="op">=</span><span class="dv">160</span>, n_objetos<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">3</span>), taxa_ruido<span class="op">=</span><span class="fl">0.01</span>, rng<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb35-71"><a href="#cb35-71" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> rng <span class="kw">or</span> random.Random()</span>
+<span id="cb35-72"><a href="#cb35-72" aria-hidden="true" tabindex="-1"></a>    img_limpa <span class="op">=</span> np.full((tam_img, tam_img, <span class="dv">3</span>), <span class="dv">255</span>, dtype<span class="op">=</span>np.uint8)</span>
+<span id="cb35-73"><a href="#cb35-73" aria-hidden="true" tabindex="-1"></a>    anotacoes <span class="op">=</span> []</span>
+<span id="cb35-74"><a href="#cb35-74" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb35-75"><a href="#cb35-75" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(rng.randint(<span class="op">*</span>n_objetos)):</span>
+<span id="cb35-76"><a href="#cb35-76" aria-hidden="true" tabindex="-1"></a>        classe_idx <span class="op">=</span> rng.randrange(<span class="bu">len</span>(CLASSES))</span>
+<span id="cb35-77"><a href="#cb35-77" aria-hidden="true" tabindex="-1"></a>        tamanho <span class="op">=</span> rng.randint(tam_img <span class="op">//</span> <span class="dv">10</span>, tam_img <span class="op">//</span> <span class="dv">5</span>)</span>
+<span id="cb35-78"><a href="#cb35-78" aria-hidden="true" tabindex="-1"></a>        cx <span class="op">=</span> rng.randint(tamanho <span class="op">+</span> <span class="dv">2</span>, tam_img <span class="op">-</span> tamanho <span class="op">-</span> <span class="dv">2</span>)</span>
+<span id="cb35-79"><a href="#cb35-79" aria-hidden="true" tabindex="-1"></a>        cy <span class="op">=</span> rng.randint(tamanho <span class="op">+</span> <span class="dv">2</span>, tam_img <span class="op">-</span> tamanho <span class="op">-</span> <span class="dv">2</span>)</span>
+<span id="cb35-80"><a href="#cb35-80" aria-hidden="true" tabindex="-1"></a>        rotacao <span class="op">=</span> rng.uniform(<span class="dv">0</span>, <span class="dv">360</span>)</span>
+<span id="cb35-81"><a href="#cb35-81" aria-hidden="true" tabindex="-1"></a>        cor <span class="op">=</span> <span class="bu">tuple</span>(rng.sample(<span class="bu">range</span>(<span class="dv">30</span>, <span class="dv">226</span>), <span class="dv">3</span>))</span>
+<span id="cb35-82"><a href="#cb35-82" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb35-83"><a href="#cb35-83" aria-hidden="true" tabindex="-1"></a>        x0, y0, x1, y1 <span class="op">=</span> desenha_objeto(img_limpa, classe_idx, cx, cy, tamanho, rotacao, cor)</span>
+<span id="cb35-84"><a href="#cb35-84" aria-hidden="true" tabindex="-1"></a>        x0, y0 <span class="op">=</span> <span class="bu">max</span>(x0, <span class="dv">0</span>), <span class="bu">max</span>(y0, <span class="dv">0</span>)</span>
+<span id="cb35-85"><a href="#cb35-85" aria-hidden="true" tabindex="-1"></a>        x1, y1 <span class="op">=</span> <span class="bu">min</span>(x1, tam_img), <span class="bu">min</span>(y1, tam_img)</span>
+<span id="cb35-86"><a href="#cb35-86" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb35-87"><a href="#cb35-87" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Padrão YOLO: (classe, x_centro, y_centro, largura, altura) normalizados</span></span>
+<span id="cb35-88"><a href="#cb35-88" aria-hidden="true" tabindex="-1"></a>        xc, yc <span class="op">=</span> (x0 <span class="op">+</span> x1) <span class="op">/</span> <span class="dv">2</span> <span class="op">/</span> tam_img, (y0 <span class="op">+</span> y1) <span class="op">/</span> <span class="dv">2</span> <span class="op">/</span> tam_img</span>
+<span id="cb35-89"><a href="#cb35-89" aria-hidden="true" tabindex="-1"></a>        w, h <span class="op">=</span> (x1 <span class="op">-</span> x0) <span class="op">/</span> tam_img, (y1 <span class="op">-</span> y0) <span class="op">/</span> tam_img</span>
+<span id="cb35-90"><a href="#cb35-90" aria-hidden="true" tabindex="-1"></a>        anotacoes.append((classe_idx, xc, yc, w, h)) </span>
+<span id="cb35-91"><a href="#cb35-91" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb35-92"><a href="#cb35-92" aria-hidden="true" tabindex="-1"></a>    img_ruidosa <span class="op">=</span> adiciona_ruido_sal_pimenta(img_limpa, quantidade<span class="op">=</span>taxa_ruido)</span>
+<span id="cb35-93"><a href="#cb35-93" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img_ruidosa, anotacoes</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="cell-fig-09-yolo-amostras-iniciais" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Geração de 5 amostras para exibição inicial no topo do projeto</span></span>
@@ -7733,99 +7728,110 @@ Figura&nbsp;9.31: Comparação entre a imagem original com ruído do tipo sal e 
 <li><p><strong>Ajuste fino do detector:</strong> A rede <code>YOLO("yolov8n.pt")</code>, inicialmente treinada no COCO, é adaptada ao conjunto geométrico por meio da função <code>.train()</code>. O treinamento utiliza imagens com resolução <span class="math inline">\(320 \times 320\)</span> <em>pixels</em> durante <span class="math inline">\(30\)</span> épocas.</p></li>
 <li><p><strong>Avaliação do modelo:</strong> A função <code>.val()</code> calcula as métricas de detecção no conjunto de validação, incluindo <strong>precisão</strong> (<em>precision</em>), <strong>revocação</strong> (<em>recall</em>) e <strong>mAP@50</strong> (<em>mean Average Precision</em> com limiar de IoU igual a <span class="math inline">\(0,5\)</span>).</p></li>
 </ol>
-<div id="5c41242b" class="cell" data-message="false">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> contextlib</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> logging</span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> cv2</span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ultralytics <span class="im">import</span> YOLO</span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>base_dir <span class="op">=</span> <span class="st">"shapes_dataset"</span></span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Aplicação do Filtro de Mediana em lote sobre as pastas do dataset</span></span>
-<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> split <span class="kw">in</span> [<span class="st">"train"</span>, <span class="st">"val"</span>]:</span>
-<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>    pasta_imgs <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base_dir<span class="sc">}</span><span class="ss">/images/</span><span class="sc">{</span>split<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> os.path.exists(pasta_imgs):</span>
-<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> nome_arq <span class="kw">in</span> os.listdir(pasta_imgs):</span>
-<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> nome_arq.endswith(<span class="st">".jpg"</span>):</span>
-<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>                caminho_completo <span class="op">=</span> os.path.join(pasta_imgs, nome_arq)</span>
-<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>                img_ruidosa <span class="op">=</span> cv2.imread(caminho_completo)</span>
-<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> img_ruidosa <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>:</span>
-<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>                    img_filtrada <span class="op">=</span> cv2.medianBlur(img_ruidosa, ksize<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>                    cv2.imwrite(caminho_completo, img_filtrada)</span>
-<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Pré-processamento em lote (Filtro de Mediana) concluído em train e val.</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<div id="5c41242b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> shutil</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>base_dir <span class="op">=</span> <span class="st">"shapes_dataset"</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>base_dir_filt <span class="op">=</span> <span class="st">"shapes_dataset_filtrado"</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Cria uma CÓPIA filtrada do dataset em uma pasta separada</span></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a><span class="co">#    (o dataset original em base_dir permanece ruidoso, intacto)</span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> split <span class="kw">in</span> [<span class="st">"train"</span>, <span class="st">"val"</span>]:</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>    pasta_imgs_orig <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base_dir<span class="sc">}</span><span class="ss">/images/</span><span class="sc">{</span>split<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>    pasta_labels_orig <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base_dir<span class="sc">}</span><span class="ss">/labels/</span><span class="sc">{</span>split<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>    pasta_imgs_filt <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base_dir_filt<span class="sc">}</span><span class="ss">/images/</span><span class="sc">{</span>split<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>    pasta_labels_filt <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>base_dir_filt<span class="sc">}</span><span class="ss">/labels/</span><span class="sc">{</span>split<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>    os.makedirs(pasta_imgs_filt, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>    os.makedirs(pasta_labels_filt, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> nome_arq <span class="kw">in</span> os.listdir(pasta_imgs_orig):</span>
+<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> nome_arq.endswith(<span class="st">".jpg"</span>):</span>
+<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>            img_ruidosa <span class="op">=</span> cv2.imread(<span class="ss">f"</span><span class="sc">{</span>pasta_imgs_orig<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>nome_arq<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>            img_filtrada <span class="op">=</span> cv2.medianBlur(img_ruidosa, ksize<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>            <span class="co"># grava a versão filtrada na pasta NOVA, não sobrescreve a original</span></span>
+<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a>            cv2.imwrite(<span class="ss">f"</span><span class="sc">{</span>pasta_imgs_filt<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>nome_arq<span class="sc">}</span><span class="ss">"</span>, img_filtrada)</span>
 <span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Carregamento do modelo YOLOv8n</span></span>
-<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>modelo_yolo <span class="op">=</span> YOLO(<span class="st">"yolov8n.pt"</span>)</span>
-<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Callback customizado para imprimir apenas a época em execução</span></span>
-<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_train_epoch_start(trainer):</span>
-<span id="cb41-29"><a href="#cb41-29" aria-hidden="true" tabindex="-1"></a>    epoch_atual <span class="op">=</span> trainer.epoch <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb41-30"><a href="#cb41-30" aria-hidden="true" tabindex="-1"></a>    total_epochs <span class="op">=</span> trainer.epochs</span>
-<span id="cb41-31"><a href="#cb41-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Escreve diretamente no stdout original (burlando o silenciador)</span></span>
-<span id="cb41-32"><a href="#cb41-32" aria-hidden="true" tabindex="-1"></a>    sys.__stdout__.write(<span class="ss">f"🔄 Processando Época </span><span class="sc">{</span>epoch_atual<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>total_epochs<span class="sc">}</span><span class="ss">...</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb41-33"><a href="#cb41-33" aria-hidden="true" tabindex="-1"></a>    sys.__stdout__.flush()</span>
-<span id="cb41-34"><a href="#cb41-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-35"><a href="#cb41-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Adiciona o callback ao modelo</span></span>
-<span id="cb41-36"><a href="#cb41-36" aria-hidden="true" tabindex="-1"></a>modelo_yolo.add_callback(<span class="st">"on_train_epoch_start"</span>, on_train_epoch_start)</span>
+<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># copia os labels (não mudam com o filtro)</span></span>
+<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> nome_arq <span class="kw">in</span> os.listdir(pasta_labels_orig):</span>
+<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a>        shutil.copy(<span class="ss">f"</span><span class="sc">{</span>pasta_labels_orig<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>nome_arq<span class="sc">}</span><span class="ss">"</span>, <span class="ss">f"</span><span class="sc">{</span>pasta_labels_filt<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>nome_arq<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. data.yaml apontando para o dataset FILTRADO</span></span>
+<span id="cb41-29"><a href="#cb41-29" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="ss">f"</span><span class="sc">{</span>base_dir_filt<span class="sc">}</span><span class="ss">/data.yaml"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
+<span id="cb41-30"><a href="#cb41-30" aria-hidden="true" tabindex="-1"></a>    f.write(<span class="ss">f"path: </span><span class="sc">{</span>os<span class="sc">.</span>path<span class="sc">.</span>abspath(base_dir_filt)<span class="sc">}</span><span class="ch">\n</span><span class="ss">train: images/train</span><span class="ch">\n</span><span class="ss">val: images/val</span><span class="ch">\n</span><span class="ss">names:</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb41-31"><a href="#cb41-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, nome <span class="kw">in</span> <span class="bu">enumerate</span>(CLASSES):</span>
+<span id="cb41-32"><a href="#cb41-32" aria-hidden="true" tabindex="-1"></a>        f.write(<span class="ss">f"  </span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>nome<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb41-33"><a href="#cb41-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-34"><a href="#cb41-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Pré-processamento concluído: dataset filtrado salvo em pasta separada.</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb41-35"><a href="#cb41-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-36"><a href="#cb41-36" aria-hidden="true" tabindex="-1"></a>modelo_yolo <span class="op">=</span> YOLO(<span class="st">"yolov8n.pt"</span>)</span>
 <span id="cb41-37"><a href="#cb41-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-38"><a href="#cb41-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Gerenciador de contexto para silenciar o lixo do Ultralytics (C/C++ e Python)</span></span>
-<span id="cb41-39"><a href="#cb41-39" aria-hidden="true" tabindex="-1"></a><span class="at">@contextlib.contextmanager</span></span>
-<span id="cb41-40"><a href="#cb41-40" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> silenciar_logs():</span>
-<span id="cb41-41"><a href="#cb41-41" aria-hidden="true" tabindex="-1"></a>    logger <span class="op">=</span> logging.getLogger(<span class="st">"ultralytics"</span>)</span>
-<span id="cb41-42"><a href="#cb41-42" aria-hidden="true" tabindex="-1"></a>    disabled_state <span class="op">=</span> logger.disabled</span>
-<span id="cb41-43"><a href="#cb41-43" aria-hidden="true" tabindex="-1"></a>    logger.disabled <span class="op">=</span> <span class="va">True</span></span>
-<span id="cb41-44"><a href="#cb41-44" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb41-45"><a href="#cb41-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(os.devnull, <span class="st">"w"</span>) <span class="im">as</span> fnull:</span>
-<span id="cb41-46"><a href="#cb41-46" aria-hidden="true" tabindex="-1"></a>        old_stdout_fd <span class="op">=</span> os.dup(<span class="dv">1</span>)</span>
-<span id="cb41-47"><a href="#cb41-47" aria-hidden="true" tabindex="-1"></a>        old_stderr_fd <span class="op">=</span> os.dup(<span class="dv">2</span>)</span>
-<span id="cb41-48"><a href="#cb41-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
-<span id="cb41-49"><a href="#cb41-49" aria-hidden="true" tabindex="-1"></a>            os.dup2(fnull.fileno(), <span class="dv">1</span>)</span>
-<span id="cb41-50"><a href="#cb41-50" aria-hidden="true" tabindex="-1"></a>            os.dup2(fnull.fileno(), <span class="dv">2</span>)</span>
-<span id="cb41-51"><a href="#cb41-51" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):</span>
-<span id="cb41-52"><a href="#cb41-52" aria-hidden="true" tabindex="-1"></a>                <span class="cf">yield</span></span>
-<span id="cb41-53"><a href="#cb41-53" aria-hidden="true" tabindex="-1"></a>        <span class="cf">finally</span>:</span>
-<span id="cb41-54"><a href="#cb41-54" aria-hidden="true" tabindex="-1"></a>            os.dup2(old_stdout_fd, <span class="dv">1</span>)</span>
-<span id="cb41-55"><a href="#cb41-55" aria-hidden="true" tabindex="-1"></a>            os.dup2(old_stderr_fd, <span class="dv">2</span>)</span>
-<span id="cb41-56"><a href="#cb41-56" aria-hidden="true" tabindex="-1"></a>            os.close(old_stdout_fd)</span>
-<span id="cb41-57"><a href="#cb41-57" aria-hidden="true" tabindex="-1"></a>            os.close(old_stderr_fd)</span>
-<span id="cb41-58"><a href="#cb41-58" aria-hidden="true" tabindex="-1"></a>            logger.disabled <span class="op">=</span> disabled_state</span>
-<span id="cb41-59"><a href="#cb41-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-60"><a href="#cb41-60" aria-hidden="true" tabindex="-1"></a><span class="co"># Execução do Treinamento</span></span>
-<span id="cb41-61"><a href="#cb41-61" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"--- Iniciando Treinamento YOLOv8 ---"</span>)</span>
-<span id="cb41-62"><a href="#cb41-62" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> silenciar_logs():</span>
-<span id="cb41-63"><a href="#cb41-63" aria-hidden="true" tabindex="-1"></a>    resultados_treino <span class="op">=</span> modelo_yolo.train(</span>
-<span id="cb41-64"><a href="#cb41-64" aria-hidden="true" tabindex="-1"></a>        data<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>base_dir<span class="sc">}</span><span class="ss">/data.yaml"</span>,</span>
-<span id="cb41-65"><a href="#cb41-65" aria-hidden="true" tabindex="-1"></a>        epochs<span class="op">=</span><span class="dv">30</span>,</span>
-<span id="cb41-66"><a href="#cb41-66" aria-hidden="true" tabindex="-1"></a>        imgsz<span class="op">=</span><span class="dv">320</span>,</span>
-<span id="cb41-67"><a href="#cb41-67" aria-hidden="true" tabindex="-1"></a>        batch<span class="op">=</span><span class="dv">16</span>,</span>
-<span id="cb41-68"><a href="#cb41-68" aria-hidden="true" tabindex="-1"></a>        device<span class="op">=</span>device,</span>
-<span id="cb41-69"><a href="#cb41-69" aria-hidden="true" tabindex="-1"></a>        verbose<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb41-70"><a href="#cb41-70" aria-hidden="true" tabindex="-1"></a>        plots<span class="op">=</span><span class="va">False</span></span>
-<span id="cb41-71"><a href="#cb41-71" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb41-72"><a href="#cb41-72" aria-hidden="true" tabindex="-1"></a>    metricas <span class="op">=</span> modelo_yolo.val(verbose<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb41-73"><a href="#cb41-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-74"><a href="#cb41-74" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Métricas Finais</span></span>
-<span id="cb41-75"><a href="#cb41-75" aria-hidden="true" tabindex="-1"></a>precision <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/precision(B)"</span>]</span>
-<span id="cb41-76"><a href="#cb41-76" aria-hidden="true" tabindex="-1"></a>recall <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/recall(B)"</span>]</span>
-<span id="cb41-77"><a href="#cb41-77" aria-hidden="true" tabindex="-1"></a>map50 <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/mAP50(B)"</span>]</span>
-<span id="cb41-78"><a href="#cb41-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-79"><a href="#cb41-79" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">--- Desempenho Otimizado do Modelo YOLOv8 ---"</span>)</span>
-<span id="cb41-80"><a href="#cb41-80" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Precisão: </span><span class="sc">{</span>precision<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span>
-<span id="cb41-81"><a href="#cb41-81" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Revocação (Recall): </span><span class="sc">{</span>recall<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span>
-<span id="cb41-82"><a href="#cb41-82" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"mAP@50 (Acurácia de Detecção): </span><span class="sc">{</span>map50<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb41-38"><a href="#cb41-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Callback customizado para imprimir apenas a época em execução</span></span>
+<span id="cb41-39"><a href="#cb41-39" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_train_epoch_start(trainer):</span>
+<span id="cb41-40"><a href="#cb41-40" aria-hidden="true" tabindex="-1"></a>    epoch_atual <span class="op">=</span> trainer.epoch <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb41-41"><a href="#cb41-41" aria-hidden="true" tabindex="-1"></a>    total_epochs <span class="op">=</span> trainer.epochs</span>
+<span id="cb41-42"><a href="#cb41-42" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Escreve diretamente no stdout original (burlando o silenciador)</span></span>
+<span id="cb41-43"><a href="#cb41-43" aria-hidden="true" tabindex="-1"></a>    sys.__stdout__.write(<span class="ss">f"🔄 Processando Época </span><span class="sc">{</span>epoch_atual<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>total_epochs<span class="sc">}</span><span class="ss">...</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb41-44"><a href="#cb41-44" aria-hidden="true" tabindex="-1"></a>    sys.__stdout__.flush()</span>
+<span id="cb41-45"><a href="#cb41-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-46"><a href="#cb41-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Adiciona o callback ao modelo</span></span>
+<span id="cb41-47"><a href="#cb41-47" aria-hidden="true" tabindex="-1"></a>modelo_yolo.add_callback(<span class="st">"on_train_epoch_start"</span>, on_train_epoch_start)</span>
+<span id="cb41-48"><a href="#cb41-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-49"><a href="#cb41-49" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Gerenciador de contexto para silenciar o lixo do Ultralytics (C/C++ e Python)</span></span>
+<span id="cb41-50"><a href="#cb41-50" aria-hidden="true" tabindex="-1"></a><span class="at">@contextlib.contextmanager</span></span>
+<span id="cb41-51"><a href="#cb41-51" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> silenciar_logs():</span>
+<span id="cb41-52"><a href="#cb41-52" aria-hidden="true" tabindex="-1"></a>    logger <span class="op">=</span> logging.getLogger(<span class="st">"ultralytics"</span>)</span>
+<span id="cb41-53"><a href="#cb41-53" aria-hidden="true" tabindex="-1"></a>    disabled_state <span class="op">=</span> logger.disabled</span>
+<span id="cb41-54"><a href="#cb41-54" aria-hidden="true" tabindex="-1"></a>    logger.disabled <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb41-55"><a href="#cb41-55" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb41-56"><a href="#cb41-56" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(os.devnull, <span class="st">"w"</span>) <span class="im">as</span> fnull:</span>
+<span id="cb41-57"><a href="#cb41-57" aria-hidden="true" tabindex="-1"></a>        old_stdout_fd <span class="op">=</span> os.dup(<span class="dv">1</span>)</span>
+<span id="cb41-58"><a href="#cb41-58" aria-hidden="true" tabindex="-1"></a>        old_stderr_fd <span class="op">=</span> os.dup(<span class="dv">2</span>)</span>
+<span id="cb41-59"><a href="#cb41-59" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb41-60"><a href="#cb41-60" aria-hidden="true" tabindex="-1"></a>            os.dup2(fnull.fileno(), <span class="dv">1</span>)</span>
+<span id="cb41-61"><a href="#cb41-61" aria-hidden="true" tabindex="-1"></a>            os.dup2(fnull.fileno(), <span class="dv">2</span>)</span>
+<span id="cb41-62"><a href="#cb41-62" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):</span>
+<span id="cb41-63"><a href="#cb41-63" aria-hidden="true" tabindex="-1"></a>                <span class="cf">yield</span></span>
+<span id="cb41-64"><a href="#cb41-64" aria-hidden="true" tabindex="-1"></a>        <span class="cf">finally</span>:</span>
+<span id="cb41-65"><a href="#cb41-65" aria-hidden="true" tabindex="-1"></a>            os.dup2(old_stdout_fd, <span class="dv">1</span>)</span>
+<span id="cb41-66"><a href="#cb41-66" aria-hidden="true" tabindex="-1"></a>            os.dup2(old_stderr_fd, <span class="dv">2</span>)</span>
+<span id="cb41-67"><a href="#cb41-67" aria-hidden="true" tabindex="-1"></a>            os.close(old_stdout_fd)</span>
+<span id="cb41-68"><a href="#cb41-68" aria-hidden="true" tabindex="-1"></a>            os.close(old_stderr_fd)</span>
+<span id="cb41-69"><a href="#cb41-69" aria-hidden="true" tabindex="-1"></a>            logger.disabled <span class="op">=</span> disabled_state</span>
+<span id="cb41-70"><a href="#cb41-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-71"><a href="#cb41-71" aria-hidden="true" tabindex="-1"></a><span class="co"># Execução do Treinamento</span></span>
+<span id="cb41-72"><a href="#cb41-72" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"--- Iniciando Treinamento YOLOv8 ---"</span>)</span>
+<span id="cb41-73"><a href="#cb41-73" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> silenciar_logs():</span>
+<span id="cb41-74"><a href="#cb41-74" aria-hidden="true" tabindex="-1"></a>    resultados_treino <span class="op">=</span> modelo_yolo.train(</span>
+<span id="cb41-75"><a href="#cb41-75" aria-hidden="true" tabindex="-1"></a>        data<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>base_dir_filt<span class="sc">}</span><span class="ss">/data.yaml"</span>,   <span class="co"># &lt;-- treina no dataset filtrado</span></span>
+<span id="cb41-76"><a href="#cb41-76" aria-hidden="true" tabindex="-1"></a>        epochs<span class="op">=</span><span class="dv">30</span>,</span>
+<span id="cb41-77"><a href="#cb41-77" aria-hidden="true" tabindex="-1"></a>        imgsz<span class="op">=</span><span class="dv">320</span>,</span>
+<span id="cb41-78"><a href="#cb41-78" aria-hidden="true" tabindex="-1"></a>        batch<span class="op">=</span><span class="dv">16</span>,</span>
+<span id="cb41-79"><a href="#cb41-79" aria-hidden="true" tabindex="-1"></a>        device<span class="op">=</span>device,</span>
+<span id="cb41-80"><a href="#cb41-80" aria-hidden="true" tabindex="-1"></a>        verbose<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb41-81"><a href="#cb41-81" aria-hidden="true" tabindex="-1"></a>        plots<span class="op">=</span><span class="va">False</span></span>
+<span id="cb41-82"><a href="#cb41-82" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb41-83"><a href="#cb41-83" aria-hidden="true" tabindex="-1"></a>    metricas <span class="op">=</span> modelo_yolo.val(verbose<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb41-84"><a href="#cb41-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-85"><a href="#cb41-85" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Métricas Finais</span></span>
+<span id="cb41-86"><a href="#cb41-86" aria-hidden="true" tabindex="-1"></a>precision <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/precision(B)"</span>]</span>
+<span id="cb41-87"><a href="#cb41-87" aria-hidden="true" tabindex="-1"></a>recall <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/recall(B)"</span>]</span>
+<span id="cb41-88"><a href="#cb41-88" aria-hidden="true" tabindex="-1"></a>map50 <span class="op">=</span> metricas.results_dict[<span class="st">"metrics/mAP50(B)"</span>]</span>
+<span id="cb41-89"><a href="#cb41-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-90"><a href="#cb41-90" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">--- Desempenho Otimizado do Modelo YOLOv8 ---"</span>)</span>
+<span id="cb41-91"><a href="#cb41-91" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Precisão: </span><span class="sc">{</span>precision<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span>
+<span id="cb41-92"><a href="#cb41-92" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Revocação (Recall): </span><span class="sc">{</span>recall<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span>
+<span id="cb41-93"><a href="#cb41-93" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"mAP@50 (Acurácia de Detecção): </span><span class="sc">{</span>map50<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Pré-processamento em lote (Filtro de Mediana) concluído em train e val.
 
-Downloading https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt to 'yolov8n.pt': 100% ━━━━━━━━━━━━ 6.2MB 11.1MB/s 0.6s.5s&lt;0.1s
+Downloading https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt to 'yolov8n.pt': 100% ━━━━━━━━━━━━ 6.2MB 13.6MB/s 0.5s.4s&lt;0.1s.6s
 --- Iniciando Treinamento YOLOv8 ---
 
 --- Desempenho Otimizado do Modelo YOLOv8 ---
-Precisão: 67.64%
-Revocação (Recall): 80.72%
-mAP@50 (Acurácia de Detecção): 80.58%</code></pre>
+Precisão: 75.31%
+Revocação (Recall): 82.85%
+mAP@50 (Acurácia de Detecção): 88.33%</code></pre>
 </div>
 </div>
 </section>
@@ -7883,8 +7889,12 @@ Figura&nbsp;9.32: Comparação da inferência da YOLOv8 ajustada por transferên
 <span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>        shutil.rmtree(base_dir)</span>
 <span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">'🧹 Diretório de dados temporários </span><span class="sc">{}</span><span class="st"> removido com sucesso.'</span>.<span class="bu">format</span>(base_dir))</span>
 <span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> torch.cuda.is_available():</span>
-<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>        torch.cuda.empty_cache()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> os.path.exists(base_dir_filt):</span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>        shutil.rmtree(base_dir_filt)</span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">'🧹 Diretório de dados temporários </span><span class="sc">{}</span><span class="st"> removido com sucesso.'</span>.<span class="bu">format</span>(base_dir_filt))</span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> torch.cuda.is_available():</span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a>        torch.cuda.empty_cache()</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -7897,7 +7907,7 @@ Figura&nbsp;9.32: Comparação da inferência da YOLOv8 ajustada por transferên
 </div>
 <div class="callout-body-container callout-body">
 <p>No experimento de transferência de aprendizado entre dígitos manuscritos (domínios A e B), a tarefa de origem e a de destino compartilhavam estatísticas visuais muito próximas: ambas eram traços em tons de cinza sobre fundo uniforme. Aqui, a distância entre domínios é bem maior — o YOLO foi pré-treinado em <strong>fotografias naturais coloridas</strong> da COCO (pessoas, animais, veículos, objetos do cotidiano), e a tarefa de destino consiste em <strong>formas geométricas sintéticas, de cor sólida e contorno bem definido</strong>, sem textura, iluminação ou fundo complexo.</p>
-<p>Ainda assim, a transferência de aprendizado é vantajosa: as camadas iniciais de um detector treinado na COCO aprendem filtros genéricos — detectores de bordas, cantos e regiões de contraste — que continuam úteis para delimitar o contorno de um triângulo ou de uma estrela, mesmo que o conteúdo visual final seja bastante distinto. É por isso que permitir o ajuste fino (<em>fine-tuning</em>) de todas as camadas, combinado com o pré-processamento para eliminação do ruído sal e pimenta, viabiliza taxas de acurácia elevadas na detecção de objetos do novo domínio.</p>
+<p>Ainda assim, a transferência de aprendizado é vantajosa: as camadas iniciais de um detector treinado na COCO aprendem filtros genéricos — detectores de bordas, cantos e regiões de contraste — que continuam úteis para delimitar o contorno de um triângulo ou de uma estrela, mesmo que o conteúdo visual final seja bastante distinto. É por isso que permitir o ajuste fino (<em>fine-tuning</em>) de todas as camadas, combinado com um pré-processamento consistente entre treino e inferência para atenuar o ruído sal e pimenta, viabiliza taxas de acurácia elevadas na detecção de objetos do novo domínio.</p>
 </div>
 </div>
 </section>
@@ -7963,8 +7973,8 @@ Figura&nbsp;9.33: Mapa de segmentação semântica gerado pelo modelo DeepLabV3 
 </section>
 <section id="segmentação-semântica-com-arquitetura-u-net" class="level4" data-number="9.5.3.2">
 <h4 data-number="9.5.3.2" class="anchored" data-anchor-id="segmentação-semântica-com-arquitetura-u-net"><span class="header-section-number">9.5.3.2</span> Segmentação Semântica com Arquitetura U-Net</h4>
-<p>A subseção anterior apresentou um modelo pré-treinado (<em>DeepLabV3</em>) produzindo diretamente um rótulo de classe por <em>pixel</em>. Esta seção completa a sequência de projetos práticos — classificação (Projeto Prático 1) e detecção (Projeto Prático 2) — abordando a segmentação semântica implementada e treinada do zero com a <strong>U-Net</strong>, a arquitetura de referência introduzida por <span class="citation" data-cites="ronneberger2015u">Ronneberger; Fischer; Brox (<a href="../referencias.html#ref-ronneberger2015u" role="doc-biblioref">2015</a>)</span>.</p>
-<p>Na classificação do Projeto Prático 1, o mapa de características final era achatado (<em>flatten</em>) em um vetor, descartando a informação espacial em favor de um único rótulo por imagem. A U-Net, por sua vez, produz uma saída com a <strong>mesma resolução espacial da entrada</strong>: um mapa bidimensional no qual cada <em>pixel</em> recebe sua própria classificação. Essa exigência — preservar detalhe espacial de alta resolução ao mesmo tempo em que se constrói contexto semântico em camadas profundas — motiva a arquitetura de codificador-decodificador com conexões de atalho (<em>skip connections</em>).</p>
+<p>A subseção anterior apresentou um modelo pré-treinado (<em>DeepLabV3</em>) produzindo diretamente um rótulo de classe por <em>pixel</em>. Esta seção completa a sequência de projetos práticos — classificação e detecção — abordando a segmentação semântica implementada e treinada do zero com a <strong>U-Net</strong>, a arquitetura de referência introduzida por <span class="citation" data-cites="ronneberger2015u">Ronneberger; Fischer; Brox (<a href="../referencias.html#ref-ronneberger2015u" role="doc-biblioref">2015</a>)</span>.</p>
+<p>Na classificação o mapa de características final era achatado (<em>flatten</em>) em um vetor, descartando a informação espacial em favor de um único rótulo por imagem. A U-Net, por sua vez, produz uma saída com a <strong>mesma resolução espacial da entrada</strong>: um mapa bidimensional no qual cada <em>pixel</em> recebe sua própria classificação. Essa exigência — preservar detalhe espacial de alta resolução ao mesmo tempo em que se constrói contexto semântico em camadas profundas — motiva a arquitetura de codificador-decodificador com conexões de atalho (<em>skip connections</em>).</p>
 <p>O cenário utilizado simula a segmentação de nódulos em exames médicos sintéticos: imagens em escala de cinza contêm uma região circular (“nódulo”) sobreposta a um fundo, ambos contaminados por ruído gaussiano e com médias de intensidade muito próximas — um desafio intencional de baixo contraste, ideal para demonstrar o ganho do aprendizado espacial em relação à limiarização pontual.</p>
 <section id="bloco-1-gerador-do-conjunto-sintético-de-nódulos-e-exibição-inicial" class="level5" data-number="9.5.3.2.1">
 <h5 data-number="9.5.3.2.1" class="anchored" data-anchor-id="bloco-1-gerador-do-conjunto-sintético-de-nódulos-e-exibição-inicial"><span class="header-section-number">9.5.3.2.1</span> Bloco 1: Gerador do Conjunto Sintético de Nódulos e Exibição Inicial</h5>
@@ -8017,7 +8027,7 @@ Figura&nbsp;9.33: Mapa de segmentação semântica gerado pelo modelo DeepLabV3 
 <span id="cb46-41"><a href="#cb46-41" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Conjunto de treino: </span><span class="sc">{</span>N_TREINO<span class="sc">}</span><span class="ss"> imagens | Conjunto de validação: </span><span class="sc">{</span>N_VAL<span class="sc">}</span><span class="ss"> imagens</span><span class="ch">\n</span><span class="ss">"</span></span>
 <span id="cb46-42"><a href="#cb46-42" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb46-43"><a href="#cb46-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb46-44"><a href="#cb46-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição de amostras iniciais via mm.show</span></span>
+<span id="cb46-44"><a href="#cb46-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibição de amostras iniciais </span></span>
 <span id="cb46-45"><a href="#cb46-45" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
 <span id="cb46-46"><a href="#cb46-46" aria-hidden="true" tabindex="-1"></a>    [imgs_treino[<span class="dv">0</span>], masks_treino[<span class="dv">0</span>], imgs_treino[<span class="dv">1</span>], masks_treino[<span class="dv">1</span>]],</span>
 <span id="cb46-47"><a href="#cb46-47" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[<span class="st">"Imagem 1"</span>, <span class="st">"Máscara 1"</span>, <span class="st">"Imagem 2"</span>, <span class="st">"Máscara 2"</span>],</span>
@@ -8035,7 +8045,7 @@ Figura&nbsp;9.33: Mapa de segmentação semântica gerado pelo modelo DeepLabV3 
 <img src="cap09.py.pt_files/figure-html/fig-09-unet-dataset-output-2.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-unet-dataset-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.34: Amostras do conjunto de dados sintético de nódulos: imagem em escala de cinza sob ruído e respectiva máscara binária de referência exibidas via mm.show.
+Figura&nbsp;9.34: Amostras do conjunto de dados sintético de nódulos: imagem em escala de cinza sob ruído e respectiva máscara binária de referência exibidass.
 </figcaption>
 </figure>
 </div>
@@ -8507,7 +8517,7 @@ Figura&nbsp;9.37
 <img src="cap09.py.pt_files/figure-html/fig-09-realidade-aumentada-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-realidade-aumentada-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de canto e sobreposição de imagem virtual por matriz de homografia exibidas via mm.show.
+Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de canto e sobreposição de imagem virtual por matriz de homografia exibidas.
 </figcaption>
 </figure>
 </div>
@@ -8604,7 +8614,7 @@ Figura&nbsp;9.38: Realidade aumentada baseada em marcador ArUco: detecção de c
 <img src="cap09.py.pt_files/figure-html/fig-09-fotogrametria-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-fotogrametria-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.39: Medição de dimensões físicas reais utilizando um cartão de referência de escala conhecida (8,56 cm) renderizada via mm.show.
+Figura&nbsp;9.39: Medição de dimensões físicas reais utilizando um cartão de referência de escala conhecida (8,56 cm) renderizada.
 </figcaption>
 </figure>
 </div>
@@ -8677,7 +8687,7 @@ Disparidade média no objeto em primeiro plano: 21.63 px
 <img src="cap09.py.pt_files/figure-html/fig-09-visao-estereo-output-2.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-09-visao-estereo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;9.40: Par estéreo sintético e mapa de disparidade correspondente: regiões mais claras indicam maior disparidade (objetos mais próximos da câmera) exibidos via mm.show.
+Figura&nbsp;9.40: Par estéreo sintético e mapa de disparidade correspondente: regiões mais claras indicam maior disparidade (objetos mais próximos da câmera) exibidos.
 </figcaption>
 </figure>
 </div>
