@@ -274,7 +274,7 @@ HTML_TEMPLATE = """\
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="sim-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
     Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -296,7 +296,6 @@ INDEX_TEMPLATE = """\
   <link rel="icon" type="image/x-icon" href="../../favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <title>Simuladores Interativos | PDI+VC</title>
   <style>
     :root {{
       --ink:      #1a1612;
@@ -368,7 +367,7 @@ INDEX_TEMPLATE = """\
       padding: 0;
       margin: 0;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 0.6rem;
     }}
     .sim-list li a {{
@@ -382,7 +381,6 @@ INDEX_TEMPLATE = """\
       font-size: 0.82rem;
       border: 1px solid var(--border);
       transition: all 0.2s ease;
-      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }}
@@ -792,7 +790,9 @@ def cmd_extrair(args: argparse.Namespace) -> None:
                     print(f"  ✓ {cap_folder}/{sim_id}  →  {out_file}  ({size_kb:.1f} KB)")
 
             total_sims.append(f"{cap_folder}/{sim_id}")
-            chapter_items_html += f'<li><a href="{cap_folder}/{sim_id}.html" title="{sim["sim_title"]}">{sim_id} — {sim["sim_title"]}</a></li>\n'
+            
+            # 🌟 DESTAQUE PARA O NOME DO SIMULADOR EM NEGRITO PRIMEIRO, SEGUIDO DO ID
+            chapter_items_html += f'<li><a href="{cap_folder}/{sim_id}.html" title="{sim["sim_title"]}"><strong>{sim["sim_title"]}</strong> <span style="opacity:0.6; font-size:0.9em;">({sim_id})</span></a></li>\n'
 
         cap_display_name = cap_folder.replace("cap", "Capítulo ").upper()
         chapters_index_html.append(f"""\

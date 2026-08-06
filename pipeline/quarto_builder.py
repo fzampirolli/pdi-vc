@@ -501,6 +501,63 @@ box-shadow: 0 8px 32px rgba(0,0,0,0.28);
 max-height: 480px;
 object-fit: cover;
 }
+/* ── Botões de expansão (Sidebar / Índice) ─────────────────── */
+.toggle-layout-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(85, 85, 85, 0.65);
+  padding: 3px 7px;
+  font-size: 0.7rem;
+  font-weight: 300;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.55;
+}
+.toggle-layout-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #1a3a5c;
+  border-color: rgba(26, 58, 92, 0.4);
+  opacity: 1;
+}
+
+#toggle-sidebar-btn {
+  position: fixed;
+  top: 12px;
+  left: 15px;
+  z-index: 1100;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+#toggle-toc-btn {
+  position: fixed;
+  top: 12px;
+  right: 15px;
+  z-index: 1100;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Classes para alternar a largura e esconder elementos */
+body.sidebar-hidden #quarto-sidebar {
+  display: none !important;
+}
+body.sidebar-hidden #quarto-document-content,
+body.sidebar-hidden .content,
+body.sidebar-hidden page-columns {
+  grid-column: 1 / -1 !important;
+  max-width: 100% !important;
+  padding-left: 5mm !important;
+}
+body.toc-hidden #TOC,
+body.toc-hidden #quarto-margin-sidebar {
+  display: none !important;
+}
 """
         (qdir / 'custom.css').write_text(css, encoding='utf-8')
         print('  ✓ Gerado custom.css')
@@ -663,13 +720,38 @@ format:
         <link rel="icon" type="image/x-icon" href="includes/favicon.ico">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+        
         <script>
         document.addEventListener('DOMContentLoaded', function() {{
-          document.querySelectorAll('a[href="./"], a[href="."]').forEach(function(a) {{
-            a.setAttribute('href', '../index.html');
+          // 1. Botão flutuante na esquerda (menu lateral)
+          const btnSidebar = document.createElement('button');
+          btnSidebar.id = 'toggle-sidebar-btn';
+          btnSidebar.className = 'toggle-layout-btn';
+          btnSidebar.innerHTML = '◀';
+          btnSidebar.title = 'Esconder/Mostrar Menu Lateral';
+          document.body.appendChild(btnSidebar);
+
+          btnSidebar.addEventListener('click', function() {{
+            document.body.classList.toggle('sidebar-hidden');
+            btnSidebar.innerHTML = document.body.classList.contains('sidebar-hidden') ? '▶' : '◀';
+          }});
+
+          // 2. Botão flutuante na direita (índice / TOC), mesmo espaçamento do botão esquerdo
+          const btnToc = document.createElement('button');
+          btnToc.id = 'toggle-toc-btn';
+          btnToc.className = 'toggle-layout-btn';
+          btnToc.innerHTML = '▶';
+          btnToc.title = 'Esconder/Mostrar Índice';
+          document.body.appendChild(btnToc);
+
+          btnToc.addEventListener('click', function() {{
+            document.body.classList.toggle('toc-hidden');
+            btnToc.innerHTML = document.body.classList.contains('toc-hidden') ? '◀' : '▶';
           }});
         }});
         </script>
+
+
   pdf:
     documentclass: book
     classoption: [openany, oneside, 11pt, a4paper]
