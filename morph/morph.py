@@ -363,23 +363,25 @@ class mm:
         )
 
     @staticmethod
-    def drawImageTab(f, spacing=None):
+    def drawImageTab(f, spacing=None, width=None):
         """Retorna string formatada da matriz para impressão (sem tabs)."""
         if spacing is None:
             spacing = 1  # comportamento anterior
 
-        width = max(len(str(f.max())), len(str(f.min())))
+        if width is None:
+            width = max(len(str(f.max())), len(str(f.min())))
+
         sep = ' ' * spacing
-        fmt = '{:>' + str(width) + 'd}'  # só o número, sem espaço embutido
+        fmt = '{:>' + str(width) + 'd}'
 
         linhas = []
         for i in range(f.shape[0]):
             colunas = [fmt.format(f[i, j]) for j in range(f.shape[1])]
-            linha = sep + sep.join(colunas)  # mesmo separador antes e entre colunas
+            linha = sep + sep.join(colunas)
             linhas.append(linha)
 
         texto = '\n'.join(linhas) + '\n'
-        texto = texto.replace('\t', ' ' * width)  # segurança extra
+        texto = texto.replace('\t', ' ' * width)
         return texto
 
     @staticmethod
