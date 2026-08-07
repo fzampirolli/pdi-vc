@@ -363,10 +363,13 @@ class mm:
         )
 
     @staticmethod
-    def drawImageTab(f):
+    def drawImageTab(f, spacing=None):
         """Retorna string formatada da matriz para impressão (sem tabs)."""
+        if spacing is None:
+            spacing = 1  # comportamento anterior
+
         width = max(len(str(f.max())), len(str(f.min())))
-        fmt = '{:>' + str(width) + 'd} '  # espaço explícito, sem \t
+        fmt = '{:>' + str(width) + 'd}' + ' ' * spacing  # espaço(s) explícito(s), sem \t
         linhas = []
         for i in range(f.shape[0]):
             linha = ''.join(fmt.format(f[i, j]) for j in range(f.shape[1]))
