@@ -16,9 +16,9 @@ O uso de IA para **avaliar** estudantes **não é recomendável como fonte únic
 
 ### D.1 Contexto de uso {.unnumbered}
 
-O **LLMv02-Nq** foi utilizado em três turmas da disciplina **PDI-VC**, ministradas entre maio e agosto de 2026, totalizando aproximadamente uma centena de estudantes. O sistema foi empregado de duas formas complementares:
+O **LLMv02-Nq** foi utilizado em três turmas da disciplina **PDI-VC**, ministradas entre maio e agosto de 2026, totalizando aproximadamente uma centena de estudantes. O *feedback* por IA foi empregado de duas formas complementares:
 
-1. ***Feedback*** **contínuo em atividades formativas** — exercícios de prática enviados ao VPL ao longo do curso, nos quais o estudante podia reenviar o código quantas vezes desejasse antes do prazo. A cada submissão, recebia um *feedback* qualitativo gerado por IA, além da correção objetiva realizada pelo VPL, descrita em @zampirolli2026intelligent.
+1. ***Feedback*** **contínuo em atividades formativas** — exercícios de prática enviados ao VPL ao longo do curso, nos quais o estudante podia reenviar o código quantas vezes desejasse. A cada submissão, recebia um *feedback* qualitativo gerado por IA, além da correção objetiva realizada pelo VPL, descrita em @zampirolli2026intelligent.
 
 2. ***Feedback*** **complementar em simulados (atividades avaliativas)** — quatro simulados realizados ao longo do quadrimestre, previstos no plano de ensino como atividades bônus, cada um valendo até 5% da nota final. Aplicados aproximadamente 30 minutos antes do término das aulas práticas quinzenais em laboratório, os simulados utilizavam o LLMv02-Nq para gerar uma rubrica individual de avaliação, enviada por e-mail juntamente com um resumo comparativo entre a nota atribuída pelo Moodle/VPL e a avaliação produzida pela IA.
 
@@ -64,7 +64,7 @@ O LLMv02-Nq é um script Python assíncrono organizado da seguinte forma:
 
 O sistema aceita três provedores de LLM — **Groq**, **DeepSeek** e **Gemini** — configuráveis em `config.yaml` por meio da chave `llm.provider`. Cada provedor pode ter **múltiplos modelos** cadastrados; a cada chamada, a lista é **embaralhada**, distribuindo a carga entre os estudantes processados em paralelo e reduzindo a chance de erros de limite de requisições (HTTP 429). Quando um modelo falha, o sistema tenta até três vezes antes de passar ao próximo da lista, respeitando o tempo de espera sugerido pelo provedor. Erros de autenticação (401) ou de saldo insuficiente (402) interrompem imediatamente a tentativa naquele provedor.
 
-Um ponto de projeto relevante para a privacidade dos dados é que **nome, e-mail, login, RA e CPF do estudante nunca são enviados à API do LLM** — apenas o nome do arquivo de código e o próprio código-fonte, junto ao *prompt* de rubrica (que não contém dados pessoais).
+Um aspecto importante do projeto diz respeito à privacidade dos dados. **Nome, e-mail, login, RA e CPF do estudante nunca são enviados à API do LLM**. Apenas o nome do arquivo contendo o código-fonte, o próprio código (com os comentários removidos) e o *prompt* da rubrica — que não contém dados pessoais — são transmitidos para processamento.
 
 Ainda assim, é importante reconhecer que os três provedores atualmente suportados — Groq, DeepSeek e Gemini — são serviços comerciais operados por empresas estrangeiras, cujos modelos são executados em infraestrutura fora do país e sujeitos a políticas de uso, disponibilidade e custo que fogem ao controle da instituição de ensino. Essa dependência de provedores externos traz riscos que vão além da correção de código pontual: mudanças de preço, descontinuação de modelos, indisponibilidade temporária do serviço, alterações unilaterais nos termos de uso e, em casos mais sensíveis, restrições geopolíticas de acesso podem comprometer a continuidade de um sistema de avaliação que passe a depender estruturalmente dessas APIs. Por isso, é estratégico que Instituições de Ensino Superior (IES) como a UFABC invistam no desenvolvimento e na hospedagem de **provedores próprios de IA** — por exemplo, modelos abertos (*open-weight*) executados em infraestrutura local ou em nuvem soberana —, reduzindo a dependência de serviços externos, especialmente de outros países, e ampliando o controle institucional sobre custos, disponibilidade, privacidade dos dados de estudantes e continuidade pedagógica de longo prazo. O desenho do LLMv02-Nq já favorece esse caminho: a arquitetura de `providers/` foi construída como uma fábrica (*factory*) extensível, na qual um novo provedor — inclusive um modelo hospedado localmente pela própria instituição, com interface compatível — pode ser adicionado com baixo esforço de integração.
 
@@ -183,25 +183,8 @@ PS.: Explicando o processo: a última versão do seu código salva no Moodle foi
 
 Três elementos didáticos merecem destaque nesse texto: (i) o alerta explícito de que a correção **pode conter erros**; (ii) o convite para que o próprio estudante **contraste a avaliação com outros LLMs**, transformando a IA em ferramenta de estudo ativo em vez de veredito passivo; e (iii) a explicação transparente do processo automatizado, incluindo o(s) modelo(s) usado(s) e a política de reprocessamento até obter uma nota válida.
 
-### D.7 Reforço formativo complementar {.unnumbered}
 
-Além do *feedback* individual por simulado, a estratégia pedagógica incluiu comunicados de turma incentivando a prática deliberada antes das provas, como no exemplo abaixo, enviado ao fórum/e-mail da disciplina:
-
-::: {.callout-note title="Mensagem enviada à turma"}
-Pessoal, boa noite!
-
-Acabei de adicionar novos exercícios práticos no Capítulo 08, do EP08_06 ao EP08_11. Eles seguem o mesmo estilo do Simulado 4 e foram elaborados para auxiliar na preparação para a prova.
-
-Também recomendo que vocês refaçam o Simulado 4, pois ele é um excelente material de revisão.
-
-Bons estudos!
-
-Francisco
-:::
-
-Como esses exercícios (EP08_06–EP08_11) também passam pelo VPL, eles se beneficiam do mesmo mecanismo de *feedback* socrático descrito neste apêndice — porém, por serem atividades **formativas**, o estudante pode reenviar o código quantas vezes desejar antes de dominar o critério, sem qualquer implicação de nota. É nesse cenário — prática repetida, de baixo risco, com retorno imediato — que o uso de IA como apoio ao aprendizado mostra sua maior vantagem pedagógica, distinta do uso (mais delicado) em atividades avaliativas.
-
-### D.8 Riscos, limites éticos e responsabilidade docente {.unnumbered}
+### D.7 Riscos, limites éticos e responsabilidade docente {.unnumbered}
 
 ::: {.callout-important}
 ### O professor não pode simplesmente adotar a nota da IA {.unnumbered}
@@ -217,6 +200,6 @@ Alguns cuidados práticos adotados no uso do LLMv02-Nq, e recomendados a qualque
 - **Canal aberto para contestação.** O e-mail final oferece explicitamente ao estudante a possibilidade de reportar inconsistências, mantendo o professor como autoridade final sobre a nota.
 - **Dados pessoais fora do *prompt*.** Como descrito na Seção D.2, nome, e-mail, login, RA e CPF nunca são enviados à API do LLM, reduzindo riscos de privacidade no uso de provedores externos de IA.
 
-### D.9 Considerações finais {.unnumbered}
+### D.8 Considerações finais {.unnumbered}
 
 O LLMv02-Nq mostra como a IA pode enriquecer o ciclo de *feedback* em disciplinas de programação com alto volume de submissões, oferecendo a cada estudante uma leitura qualitativa e individualizada do próprio código — algo inviável de se fazer manualmente para uma centena de estudantes, em múltiplas questões e provas ao longo do quadrimestre. A pesquisa de opinião citada na Seção D.1 sugere que esse tipo de retorno é bem recebido pelos estudantes. Ainda assim, o uso responsável do sistema depende de um princípio inegociável, reiterado ao longo deste apêndice: **a IA complementa, mas não substitui, a avaliação do professor**, e a nota oficial de qualquer atividade avaliativa deve continuar sendo definida por correção objetiva (VPL/MCTest, [Apêndices A](#apendice-mctest) e [B](#apendice-moodle)) e/ou julgamento humano — nunca pela nota bruta devolvida por um modelo de linguagem.
