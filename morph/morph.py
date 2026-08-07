@@ -365,17 +365,18 @@ class mm:
     @staticmethod
     def drawImageTab(f, spacing=None):
         """Retorna string formatada da matriz para impressão (sem tabs)."""
+        prefixo = ' ' * spacing if spacing is not None else ''
         if spacing is None:
             spacing = 1  # comportamento anterior
 
         width = max(len(str(f.max())), len(str(f.min())))
-        fmt = '{:>' + str(width) + 'd}' + ' ' * spacing  # espaço(s) explícito(s), sem \t
+        fmt = '{:>' + str(width) + 'd}' + ' ' * spacing
+
         linhas = []
         for i in range(f.shape[0]):
-            linha = ''.join(fmt.format(f[i, j]) for j in range(f.shape[1]))
+            linha = prefixo + ''.join(fmt.format(f[i, j]) for j in range(f.shape[1]))
             linhas.append(linha)
         texto = '\n'.join(linhas) + '\n'
-        # segurança extra: elimina qualquer tab que tenha entrado por outro caminho
         texto = texto.replace('\t', ' ' * width)
         return texto
 
