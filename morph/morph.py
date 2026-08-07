@@ -363,6 +363,20 @@ class mm:
         )
 
     @staticmethod
+    def drawImageTab(f):
+        """Retorna string formatada da matriz para impressão (sem tabs)."""
+        width = max(len(str(f.max())), len(str(f.min())))
+        fmt = '{:>' + str(width) + 'd} '  # espaço explícito, sem \t
+        linhas = []
+        for i in range(f.shape[0]):
+            linha = ''.join(fmt.format(f[i, j]) for j in range(f.shape[1]))
+            linhas.append(linha)
+        texto = '\n'.join(linhas) + '\n'
+        # segurança extra: elimina qualquer tab que tenha entrado por outro caminho
+        texto = texto.replace('\t', ' ' * width)
+        return texto
+
+    @staticmethod
     def _plot_grid(f):
         """Configura grade e rótulos para drawImagePlt/drawImageKernel."""
         plt = mm._get_plt()
