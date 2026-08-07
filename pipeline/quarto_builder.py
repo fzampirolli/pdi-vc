@@ -1482,7 +1482,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             cwd=qdir,
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=1200,
             env=env,
         )
         if r.returncode != 0 and run == 2:
