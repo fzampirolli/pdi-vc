@@ -72,10 +72,14 @@ Ainda assim, é importante reconhecer que os três provedores atualmente suporta
 
 Cada tipo de prova é descrito em um arquivo de *prompt* (por exemplo, `Simulado4.txt`), referenciado em `grading.prompt_file` no `config.yaml`. Esse arquivo instrui a LLM a realizar a avaliação em **duas etapas**:
 
-1. **Identificação da questão** — a LLM confirma o tipo de questão avaliada (útil quando há questões paramétricas sorteadas e embaralhadas por estudante, como descrito no [Apêndice A](#apendice-mctest));
+1. **Identificação da questão** — a LLM determina o tipo específico de operação sorteado para aquele estudante (útil quando há questões paramétricas sorteadas e embaralhadas por estudante, como descrito no [Apêndice A](#apendice-mctest));
 2. **Aplicação da rubrica correspondente** — a LLM avalia o código segundo critérios pontuados, cada um com uma faixa máxima de pontos, retornando ao final uma nota no formato `NOTA FINAL: X/PESO`.
 
-No caso do Simulado 4 (tópico *Operadores Morfológicos*), a rubrica define três critérios, com peso total de 100 pontos:
+Em provas parametrizadas, o arquivo de *prompt* costuma conter **várias rubricas paralelas**, uma para cada tipo de questão possível, delimitadas por marcadores como `[START_RUBRICA_TIPO_A]` / `[END_RUBRICA_TIPO_A]`. A LLM identifica primeiro qual tipo foi sorteado para aquele estudante e aplica **apenas** a rubrica correspondente, ignorando as demais — o que evita que critérios de um tipo diferente contaminem a nota.
+
+Quando a prova possui mais de uma questão por atividade VPL, os arquivos de código devem seguir o padrão `Q1.*`, `Q2.*` etc. — um arquivo por questão, com extensão livre conforme a linguagem escolhida pelo estudante —, e cada questão tem peso configurável individualmente em `grading.weights` no `config.yaml`. Quando a prova tem uma única questão, o sistema aceita qualquer nome de arquivo com extensão suportada, desde que seja o único arquivo de código presente na pasta de submissão.
+
+No caso do Simulado 4 (tópico *Operadores Morfológicos*), por exemplo, um dos tipos possíveis definia três critérios, com peso total de 100 pontos para aquela questão:
 
 | Critério | Descrição | Pontuação máxima |
 |---|---|---|
@@ -84,6 +88,15 @@ No caso do Simulado 4 (tópico *Operadores Morfológicos*), a rubrica define tr�
 | 3 — Saída e formatação | Exibição da imagem limpa (`mm.drawImg`) e tabela de medidas formatada | 25 pts |
 
 O *prompt* exige ainda um **formato de resposta obrigatório** (largura de linha, ordem das seções, marcação `NOTA FINAL:`), o que torna a extração automática da nota e a montagem do relatório consolidado mais confiáveis — embora, como discutido na Seção D.8, isso não elimine o risco de erro semântico na avaliação do conteúdo.
+
+#### Duas camadas adicionais de evidência {.unnumbered}
+
+Para reduzir o risco de a LLM alucinar o tipo de questão ou a corretude do código — o risco central discutido na Seção D.7 —, o LLMv02-Nq passou a fornecer à IA duas fontes de evidência objetiva, extraídas automaticamente do próprio `execution.txt` gerado pelo VPL, além do código-fonte:
+
+- **Enunciado oficial da questão.** Como as questões costumam ser sorteadas e embaralhadas por estudante no MCTest ([Apêndice A](#apendice-mctest)), o `execution.txt` de cada estudante já traz, no campo "Descrição resumida da questão", o texto exato da questão que caiu para ele. O sistema extrai esse trecho automaticamente e o envia à LLM como evidência **primária** para identificar o tipo/variação da questão — mais confiável do que inferir apenas pela leitura estática do código, especialmente em submissões incompletas ou ambíguas entre dois tipos próximos (por exemplo, erosão "plana" *versus* "com pesos"). Quando o código entregue diverge do que o enunciado pede, o sistema não ignora o enunciado nem "corrige" a leitura silenciosamente: mantém a identificação pelo enunciado, reduz a confiança da avaliação para "Baixa" e explicita a divergência no *feedback* enviado ao estudante.
+- **Resultado real da execução no VPL.** Quando disponível, o sistema também envia à LLM os casos de teste efetivamente executados sobre aquele código — entrada, saída produzida e saída esperada —, como evidência objetiva de corretude, a ser usada para confirmar ou refutar a leitura da lógica antes de pontuar os critérios de processamento e de saída, em vez de a IA depender apenas de simular mentalmente o código (o que é especialmente falho em laços com `min`/`max`, deslocamento de índice ou cálculo de limiar de Otsu, onde erros sutis passam despercebidos numa leitura estática).
+
+Além disso, a LLM é instruída a declarar explicitamente seu **nível de confiança** (Alta, Média ou Baixa) na identificação de cada tipo de questão, com justificativa quando a confiança não for Alta. Esse valor é extraído automaticamente e alimenta uma coluna `Revisar_Manualmente` no relatório CSV consolidado (Seção D.4), permitindo ao professor priorizar exatamente os casos em que a própria IA reconhece maior incerteza — em vez de tratar todas as avaliações de uma turma como igualmente confiáveis.
 
 ### D.4 Fluxo de execução {.unnumbered}
 
@@ -104,34 +117,82 @@ A execução típica, feita por `bash run.sh config.yaml`, segue os passos:
 | estudante sem nenhum arquivo de código enviado | ❌ Não |
 | Tipo de questão identificado como DESCONHECIDO | ❌ Não |
 
-### D.5 Exemplo real (anonimizado): rubrica do Simulado 4 {.unnumbered}
 
-O trecho a seguir ilustra a saída gerada pelo LLMv02-Nq para um estudante do Simulado 4, usando o modelo `deepseek-chat`. O resumo comparativo aparece no topo do arquivo, seguido do código submetido e da avaliação por critério:
+
+### D.5 Exemplo real (anonimizado): rubrica de uma prova com duas questões {.unnumbered}
+
+O trecho a seguir ilustra, de forma ilustrativa, a saída gerada pelo LLMv02-Nq para um estudante de uma prova com **duas questões** (Q1 e Q2), usando o modelo `deepseek-chat`. O resumo comparativo aparece no topo do arquivo, seguido do código submetido e da avaliação por critério de cada questão. Neste caso, a Q1 foi identificada com confiança alta e nota próxima à do Moodle; a Q2 foi identificada com confiança baixa, por o código entregue divergir do que o enunciado oficial da questão pedia — ilustrando concretamente o mecanismo de sinalização descrito na Seção D.3.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ RESUMO — IA (deepseek-chat)  x  MOODLE                       │
 ├──────────────────────────────────────────────────────────────┤
 │ Peso total : 100 pts                                         │
-│ Q1 (IA) : 100.0 / 100 pts                                    │
-│ Moodle : (Q1=80) = 80 pts                                    │
-│ IA     : 100.0 / 100 pts                                     │
-│ Diferença (IA - Moodle): +20.0 pts                           │
+│ ──────────────────────────────────────────────────────────── │
+│ Q1 (IA) : 50.0 / 50 pts                                      │
+│ Q2 (IA) : 26.7 / 50 pts                                      │
+│ ──────────────────────────────────────────────────────────── │
+│ Moodle : (Q1=47 + Q2=50) = 97 pts                            │
+│ IA     : 76.7 / 100 pts                                      │
+│ ──────────────────────────────────────────────────────────── │
+│ Diferença (IA - Moodle): -20.3 pts                           │
+│ ──────────────────────────────────────────────────────────── │
+│ Q1: tipo identificado = C1 | confiança = Alta                │
+│ Q2: tipo identificado = B  | confiança = Baixa (código não   │
+│   corresponde ao enunciado da questão) ⚠️ REVISAR            │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-```
-Critério 1 - 25/25 pts:
--  O código lê corretamente as dimensões H e W da primeira linha usando `input().split()`.
-Critério 2 - 50/50 pts:
--  Aplica abertura (mm.open0) seguida de fechamento (mm.close0) e ordena por bbox[0]/bbox[1].
-Critério 3 - 25/25 pts:
--  Exibe a imagem limpa com print(mm.drawImg(...)) e imprime a tabela formatada corretamente.
+**Q1 — avaliada com confiança alta:**
 
-NOTA FINAL: 100/100
+```
+Tipo identificado: TIPO C1 (Erosão 2D — plana sem pesos)
+Confiança: Alta
+
+Critério 1 - 10.0/10.0 pts:
+- Lê corretamente altura, largura, a matriz da imagem e as dimensões
+  e valores do elemento estruturante B.
+Critério 2 - 16.7/16.7 pts:
+- Aplica mm.ero0(img, B) e o resultado bate com os testes automáticos
+  do VPL em todos os casos fornecidos.
+Critério 3 - 6.7/6.7 pts:
+- Imprime a imagem resultante no mesmo formato da entrada.
+
+NOTA FINAL: 33.3/33.3
+
+Comentários para o aluno: Implementação correta e alinhada ao enunciado
+sorteado (erosão plana sem pesos). Considere validar também casos de
+borda extremos para reforçar a robustez do código.
 ```
 
-Note que, nesse caso, a IA atribuiu **20 pontos a mais** do que a nota objetiva do VPL (100 contra 80). Essa diferença é justamente o tipo de discrepância que a Seção D.8 discute: ela pode indicar um caso de teste do VPL mais rigoroso que a IA não percebeu (por exemplo, uma pequena diferença de formatação de saída), ou um critério da rubrica interpretado de forma excessivamente generosa pela IA. Em ambos os casos, **a diferença é um sinal para o professor investigar, não um veredito a ser aceito automaticamente**.
+**Q2 — avaliada com confiança baixa, por divergência entre enunciado e código:**
+
+```
+Tipo identificado: TIPO B (Dilatação 1D — com pesos)
+Confiança: Baixa — o enunciado oficial da questão pede dilatação 1D
+com pesos (clamp [0,255], B refletido), mas o código implementa apenas
+a versão plana (sem uso dos valores de peso de B), sem clamp explícito.
+
+Critério 1 - 10.0/10.0 pts:
+- Lê corretamente N, M, o sinal e o vetor B.
+Critério 2 - 10.0/16.7 pts:
+- Implementa corretamente o deslocamento e a reflexão de B para a
+  dilatação, mas ignora os valores de peso de B (trata-os como binários),
+  não atendendo à variação "com pesos" pedida no enunciado. Não há
+  clamp [0,255] no resultado.
+Critério 3 - 6.7/6.7 pts:
+- Imprime o sinal resultante corretamente formatado.
+
+NOTA FINAL: 26.7/33.3
+
+Comentários para o aluno: A lógica geral de dilatação 1D está correta,
+mas a questão sorteada pedia especificamente a variação COM PESOS
+(f[viz] + b[k], com clamp em [0,255]) e o código entregue implementa a
+variação plana. Revise a leitura do enunciado da questão sorteada antes
+de escolher a implementação.
+```
+
+Note que, nesse caso, a IA atribuiu **20,3 pontos a menos** do que a nota objetiva do VPL. A diferença por si só já seria um sinal para investigação (Seção D.7), mas aqui o próprio sistema já entrega ao professor a causa provável: a coluna `Revisar_Manualmente` do CSV é marcada "SIM" para esse estudante, com o motivo específico registrado na coluna de confiança da Q2 — reduzindo o tempo que o professor precisa gastar para descobrir, entre uma centena de estudantes, quais casos merecem atenção prioritária antes da atribuição da nota oficial.
 
 ### D.6 Envio do *feedback* por e-mail {.unnumbered}
 
