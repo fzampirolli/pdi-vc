@@ -734,15 +734,15 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             if any(short_radical in full_ep for full_ep in ep_full_ids_by_cap.get(c, set())):
                 continue
 
-        if not ("ep" in s_id):
-            gen_tokens = extract_key_tokens(s_id)
-            if gen_tokens:
-                has_ep_match = any(
-                    tokens_match_generically(gen_tokens, ep_set)
-                    for ep_set in ep_tokens_by_cap.get(c, [])
-                )
-                if has_ep_match:
-                    continue
+        # if not ("ep" in s_id):
+        #     gen_tokens = extract_key_tokens(s_id)
+        #     if gen_tokens:
+        #         has_ep_match = any(
+        #             tokens_match_generically(gen_tokens, ep_set)
+        #             for ep_set in ep_tokens_by_cap.get(c, [])
+        #         )
+        #         if has_ep_match:
+        #             continue
 
         key = (c, s_id)
         if key not in seen_keys:
