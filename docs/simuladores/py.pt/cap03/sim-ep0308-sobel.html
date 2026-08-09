@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0308-sobel" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="28" id="fig-03-sim-ep0308-sobel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-sim-ep0308-sobel-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0308-sobel" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🧭 Simulador EP03_08: Gradiente de Sobel (Gx e Gy)</span>
@@ -395,6 +398,243 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0308(root){
+    if (!root || root.dataset.simEp0308Init) return;
+    root.dataset.simEp0308Init = "1";
+
+    var ROWS = 5, COLS = 5, N = 25;
+    var pixels = [], gxV = [], gyV = [], mgV = [];
+
+    var gridF  = root.querySelector('#sim_ep0308_grid_f');
+    var gridGx = root.querySelector('#sim_ep0308_grid_gx');
+    var gridGy = root.querySelector('#sim_ep0308_grid_gy');
+    var gridM  = root.querySelector('#sim_ep0308_grid_m');
+    var debug  = root.querySelector('#sim_ep0308_debug');
+    var btnNew = root.querySelector('#sim_ep0308_btnNew');
+
+    function generate() {
+      var block = Math.random() > 0.3;
+      var bg = 30 + Math.floor(Math.random() * 30);
+      var obj = 180 + Math.floor(Math.random() * 50);
+
+      pixels = Array.from({ length: N }, function(_, i) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var v = bg;
+        if (block && r >= 2 && r <= 3 && c >= 2 && c <= 3) v = obj;
+        else if (!block && r + c >= 4) v = obj - 40;
+        v += Math.floor(Math.random() * 10) - 5;
+        return Math.max(0, Math.min(255, v));
+      });
+      calculate();
+    }
+
+    function calculate() {
+      gxV = new Array(N).fill(0);
+      gyV = new Array(N).fill(0);
+      mgV = new Array(N).fill(0);
+
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var i = r * COLS + c;
+          if (r >= 1 && r < ROWS - 1 && c >= 1 && c < COLS - 1) {
+            var p = [
+              pixels[(r - 1) * COLS + (c - 1)], pixels[(r - 1) * COLS + c], pixels[(r - 1) * COLS + (c + 1)],
+              pixels[r * COLS + (c - 1)],       pixels[r * COLS + c],       pixels[r * COLS + (c + 1)],
+              pixels[(r + 1) * COLS + (c - 1)], pixels[(r + 1) * COLS + c], pixels[(r + 1) * COLS + (c + 1)]
+            ];
+            var gx = (p[2] + 2 * p[5] + p[8]) - (p[0] + 2 * p[3] + p[6]);
+            var gy = (p[6] + 2 * p[7] + p[8]) - (p[0] + 2 * p[1] + p[2]);
+
+            gxV[i] = gx;
+            gyV[i] = gy;
+            mgV[i] = Math.min(255, Math.round(Math.sqrt(gx * gx + gy * gy)));
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 150 ? '#000000' : '#ffffff'; }
+
+    function colorGxBetter(v) {
+      var n = Math.max(-400, Math.min(400, v));
+      if (Math.abs(n) < 15) return '#fafaf7';
+      if (n > 0) {
+        var t = Math.min(1, n / 350);
+        var r = Math.round(4 + t * 20);
+        var g = Math.round(44 + t * 71);
+        var b = Math.round(83 + t * 89);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+      } else {
+        var t = Math.min(1, -n / 350);
+        return 'rgb(' + Math.round(12 + t * 0) + ',' + Math.round(68 - t * 24) + ',' + Math.round(165 - t * 82) + ')';
+      }
+    }
+
+    function colorGyBetter(v) {
+      var n = Math.max(-400, Math.min(400, v));
+      if (Math.abs(n) < 15) return '#fafaf7';
+      if (n > 0) {
+        var t = Math.min(1, n / 350);
+        return 'rgb(' + Math.round(186 + t * 63) + ',' + Math.round(117 + t * 70) + ',' + Math.round(23 - t * 18) + ')';
+      } else {
+        var t = Math.min(1, -n / 350);
+        return 'rgb(' + Math.round(99 + t * 0) + ',' + Math.round(56 - t * 20) + ',' + Math.round(11 - t * 5) + ')';
+      }
+    }
+
+    function textSignedColor(bg) {
+      if (bg === '#fafaf7') return '#26241d';
+      var m = bg.match(/rgb\((\d+),(\d+),(\d+)\)/);
+      if (!m) return '#ffffff';
+      var lum = 0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3];
+      return lum > 140 ? '#000000' : '#ffffff';
+    }
+
+    function highlight(tr, tc, on) {
+      var cells = gridF.children;
+      for (var i = 0; i < N; i++) {
+        if (!cells[i]) continue;
+        var p = pixels[i], r = Math.floor(i / COLS), c = i % COLS;
+        if (on && Math.abs(r - tr) <= 1 && Math.abs(c - tc) <= 1) {
+          if (r === tr && c === tc) {
+            cells[i].style.background = '#ebf4fd';
+            cells[i].style.color = '#2980b9';
+            cells[i].style.boxShadow = '0 0 0 2px #2980b9 inset';
+          } else {
+            cells[i].style.background = '#fef5e7';
+            cells[i].style.color = '#b9770e';
+            cells[i].style.boxShadow = '0 0 0 2px #b9770e inset';
+          }
+        } else {
+          cells[i].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+          cells[i].style.color = textColor(p);
+          cells[i].style.boxShadow = 'none';
+        }
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um pixel interno da magnitude para ver a decomposição Gx e Gy.';
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridGx.innerHTML = '';
+      gridGy.innerHTML = '';
+      gridM.innerHTML = '';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], gx = gxV[i], gy = gyV[i], mag = mgV[i];
+        var isBorder = (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1);
+
+        // Célula Original f
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Gx
+        var cgx = document.createElement('div');
+        cgx.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;';
+        if (isBorder) {
+          cgx.style.background = '#fafaf7';
+          cgx.style.color = '#8a8371';
+          cgx.style.border = '1px solid #e4dcc8';
+          cgx.textContent = '—';
+        } else {
+          var bgGx = colorGxBetter(gx);
+          cgx.style.background = bgGx;
+          cgx.style.color = textSignedColor(bgGx);
+          cgx.style.border = '1px solid #e4dcc8';
+          cgx.textContent = (gx > 0 ? '+' : '') + gx;
+        }
+        gridGx.appendChild(cgx);
+
+        // Célula Gy
+        var cgy = document.createElement('div');
+        cgy.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;';
+        if (isBorder) {
+          cgy.style.background = '#fafaf7';
+          cgy.style.color = '#8a8371';
+          cgy.style.border = '1px solid #e4dcc8';
+          cgy.textContent = '—';
+        } else {
+          var bgGy = colorGyBetter(gy);
+          cgy.style.background = bgGy;
+          cgy.style.color = textSignedColor(bgGy);
+          cgy.style.border = '1px solid #e4dcc8';
+          cgy.textContent = (gy > 0 ? '+' : '') + gy;
+        }
+        gridGy.appendChild(cgy);
+
+        // Célula Magnitude m
+        var cm = document.createElement('div');
+        cm.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;transition:all 0.15s ease;';
+        if (isBorder) {
+          cm.style.background = '#26241d';
+          cm.style.border = '1.5px solid #8a8371';
+          cm.style.color = '#7ee7c6';
+          cm.textContent = '0';
+
+          (function(row, col){
+            cm.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel borda (' + row + ',' + col + '): sem vizinhança completa → forçado para <b>0</b>';
+            });
+            cm.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c);
+        } else {
+          cm.style.background = 'rgb(' + mag + ',' + mag + ',' + mag + ')';
+          cm.style.color = textColor(mag);
+          cm.style.border = '1px solid #e4dcc8';
+          cm.style.cursor = 'pointer';
+          cm.textContent = mag;
+
+          (function(row, col, gxv, gyv, mgv){
+            cm.addEventListener('mouseenter', function(){
+              highlight(row, col, true);
+              cm.style.transform = 'scale(1.12)';
+              cm.style.boxShadow = '0 0 0 2px #27ae60 inset';
+              cm.style.background = '#eafaf1';
+              cm.style.color = '#27ae60';
+
+              debug.innerHTML = 'Pixel (' + row + ',' + col + '): Gx = <b>' + gxv + '</b> &nbsp;|&nbsp; Gy = <b>' + gyv + '</b> &nbsp;|&nbsp; |∇f| = round(√(' + gxv + '² + ' + gyv + '²)) = <b>' + mgv + '</b>';
+            });
+
+            cm.addEventListener('mouseleave', function(){
+              highlight(row, col, false);
+              cm.style.transform = 'scale(1)';
+              cm.style.boxShadow = 'none';
+              cm.style.background = 'rgb(' + mgv + ',' + mgv + ',' + mgv + ')';
+              cm.style.color = textColor(mgv);
+              resetDebug();
+            });
+          })(r, c, gx, gy, mag);
+        }
+        gridM.appendChild(cm);
+      }
+    }
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0308(){
+    var root = document.getElementById('sim-ep0308-sobel');
+    if (root) initSimEP0308(root); else setTimeout(tryInitSimEP0308, 200);
+  }
+  tryInitSimEP0308();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 3.33: Simulador EP03_08: Gradiente de Sobel (Gx e Gy)</div>
   </div>
 </main>
@@ -619,7 +859,7 @@ window.Quarto = {
   }
 
   function tryInitSimCap03(){
-    var root = document.getElementById('sim-cap03-filtragem1d');
+    var root = document.getElementById('sim-03-filtragem1d');
     if (root) initSimCap03(root); else setTimeout(tryInitSimCap03, 200);
   }
   tryInitSimCap03();

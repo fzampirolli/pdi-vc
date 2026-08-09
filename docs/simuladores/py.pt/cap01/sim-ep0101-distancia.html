@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0101-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="21" id="fig-01-sim-ep0101-distancia">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-01-sim-ep0101-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0101-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🎮 Simulador EP01_01: Métricas de Distância no Espaço Discreto</span>
@@ -381,6 +384,251 @@ div.csl-indent {
 </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0101(root){
+    if (!root || root.dataset.simEp0101Init) return;
+    root.dataset.simEp0101Init = "1";
+
+    var canvas = root.querySelector('#sim_ep0101_canvas');
+    var ctx = canvas.getContext('2d');
+    var width = 380, height = 280;
+    canvas.width = width; canvas.height = height;
+
+    var axN = root.querySelector('#sim_ep0101_axN'), axR = root.querySelector('#sim_ep0101_axR');
+    var ayN = root.querySelector('#sim_ep0101_ayN'), ayR = root.querySelector('#sim_ep0101_ayR');
+    var bxN = root.querySelector('#sim_ep0101_bxN'), bxR = root.querySelector('#sim_ep0101_bxR');
+    var byN = root.querySelector('#sim_ep0101_byN'), byR = root.querySelector('#sim_ep0101_byR');
+
+    var dispE = root.querySelector('#sim_ep0101_dispE');
+    var dispC = root.querySelector('#sim_ep0101_dispC');
+    var dispX = root.querySelector('#sim_ep0101_dispX');
+    var btnReset = root.querySelector('#sim_ep0101_btnReset');
+
+    var xMin = -6.5, xMax = 7.8;
+    var yMin = -5.2, yMax = 7.2;
+
+    function worldToCanvas(x, y) {
+      var px = ((x - xMin) / (xMax - xMin)) * width;
+      var py = height - ((y - yMin) / (yMax - yMin)) * height;
+      return { x: px, y: py };
+    }
+
+    function canvasToWorld(px, py) {
+      var x = xMin + (px / width) * (xMax - xMin);
+      var y = yMin + ((height - py) / height) * (yMax - yMin);
+      return { x: x, y: y };
+    }
+
+    function getVals() {
+      return {
+        ax: parseFloat(axN.value) || 0,
+        ay: parseFloat(ayN.value) || 0,
+        bx: parseFloat(bxN.value) || 0,
+        by: parseFloat(byN.value) || 0
+      };
+    }
+
+    function updateAll() {
+      var v = getVals();
+      axR.value = v.ax; ayR.value = v.ay;
+      bxR.value = v.bx; byR.value = v.by;
+
+      var dx = v.bx - v.ax;
+      var dy = v.by - v.ay;
+
+      var eucl = Math.hypot(dx, dy);
+      var city = Math.abs(dx) + Math.abs(dy);
+      var chess = Math.max(Math.abs(dx), Math.abs(dy));
+
+      dispE.textContent = eucl.toFixed(2);
+      dispC.textContent = city.toFixed(2);
+      dispX.textContent = chess.toFixed(2);
+
+      drawCanvas(v.ax, v.ay, v.bx, v.by);
+    }
+
+    function drawCanvas(ax, ay, bx, by) {
+      ctx.clearRect(0, 0, width, height);
+
+      // Grade Discreta
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = "#e4dcc8";
+      for (var i = -6; i <= 8; i++) {
+        var p1 = worldToCanvas(i, yMin), p2 = worldToCanvas(i, yMax);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        var p3 = worldToCanvas(xMin, i), p4 = worldToCanvas(xMax, i);
+        ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
+      }
+
+      // Eixos Cartesiano Princpiais
+      ctx.beginPath();
+      ctx.moveTo(worldToCanvas(xMin, 0).x, worldToCanvas(xMin, 0).y);
+      ctx.lineTo(worldToCanvas(xMax, 0).x, worldToCanvas(xMax, 0).y);
+      ctx.moveTo(worldToCanvas(0, yMin).x, worldToCanvas(0, yMin).y);
+      ctx.lineTo(worldToCanvas(0, yMax).x, worldToCanvas(0, yMax).y);
+      ctx.strokeStyle = "#8a8371"; ctx.lineWidth = 1.2; ctx.stroke();
+
+      ctx.font = "9px monospace"; ctx.fillStyle = "#8a8371";
+      for (var tick = -6; tick <= 7; tick += 2) {
+        if (tick !== 0) {
+          var ptX = worldToCanvas(tick, 0); ctx.fillText(tick, ptX.x - 4, ptX.y - 4);
+          var ptY = worldToCanvas(0, tick); ctx.fillText(tick, ptY.x + 4, ptY.y + 3);
+        }
+      }
+
+      var pA = worldToCanvas(ax, ay), pB = worldToCanvas(bx, by);
+      var dx = bx - ax, dy = by - ay;
+      var absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+      ctx.save();
+
+      // ── Chessboard (L_infty) - Lado Máximo
+      ctx.strokeStyle = "#b9770e";
+      ctx.setLineDash([]);
+
+      if (absDx >= absDy) {
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pA.y); ctx.stroke();
+        ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]); ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(pB.x, pA.y); ctx.lineTo(pB.x, pB.y); ctx.stroke();
+      } else {
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(pA.x, pB.y); ctx.stroke();
+        ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]); ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(pA.x, pB.y); ctx.lineTo(pB.x, pB.y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1.0;
+      ctx.setLineDash([]);
+
+      // ── City-block (L1) - Trajeto Ortogonal
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.strokeStyle = "#117a65"; ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // ── Euclidiana (L2) - Reta Direta
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.strokeStyle = "#6b46c1"; ctx.lineWidth = 2.0; ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ── Desenho dos Pontos A e B
+      function drawPoint(px, py, color, label) {
+        ctx.beginPath(); ctx.arc(px, py, 9, 0, 2 * Math.PI);
+        ctx.fillStyle = color + "33"; ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px 'Inter', sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(label, px, py);
+      }
+
+      drawPoint(pA.x, pA.y, "#6b46c1", "A");
+      drawPoint(pB.x, pB.y, "#b9770e", "B");
+
+      ctx.fillStyle = "#6b46c1"; ctx.font = "bold 9.5px monospace"; ctx.textAlign = "left";
+      ctx.fillText("A(" + ax.toFixed(1) + "," + ay.toFixed(1) + ")", pA.x + 10, pA.y - 6);
+
+      ctx.fillStyle = "#b9770e"; ctx.font = "bold 9.5px monospace"; ctx.textAlign = "left";
+      ctx.fillText("B(" + bx.toFixed(1) + "," + by.toFixed(1) + ")", pB.x + 10, pB.y - 6);
+
+      ctx.restore();
+    }
+
+    function bindNumRange(num, range) {
+      num.addEventListener('input', function() { range.value = num.value; updateAll(); });
+      range.addEventListener('input', function() { num.value = range.value; updateAll(); });
+    }
+
+    bindNumRange(axN, axR); bindNumRange(ayN, ayR);
+    bindNumRange(bxN, bxR); bindNumRange(byN, byR);
+
+    btnReset.addEventListener('click', function() {
+      axN.value = 0; ayN.value = 0;
+      bxN.value = 3; byN.value = 4;
+      updateAll();
+    });
+
+    // Eventos de Arraste de Pontos no Canvas
+    var dragging = null;
+
+    function getCanvasCoords(e) {
+      var rect = canvas.getBoundingClientRect();
+      var scaleX = canvas.width / rect.width;
+      var scaleY = canvas.height / rect.height;
+      var clientX = e.clientX, clientY = e.clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+
+      return {
+        x: Math.min(Math.max(0, (clientX - rect.left) * scaleX), width),
+        y: Math.min(Math.max(0, (clientY - rect.top) * scaleY), height)
+      };
+    }
+
+    function distToPoint(cx, cy, wx, wy) {
+      var p = worldToCanvas(wx, wy);
+      return Math.hypot(p.x - cx, p.y - cy);
+    }
+
+    function onStart(e) {
+      var coords = getCanvasCoords(e);
+      var v = getVals();
+      if (distToPoint(coords.x, coords.y, v.ax, v.ay) < 16) {
+        dragging = 'A';
+      } else if (distToPoint(coords.x, coords.y, v.bx, v.by) < 16) {
+        dragging = 'B';
+      }
+      if (dragging) canvas.style.cursor = 'grabbing';
+    }
+
+    function onMove(e) {
+      if (!dragging) return;
+      if (e.cancelable) e.preventDefault();
+      var coords = getCanvasCoords(e);
+      var w = canvasToWorld(coords.x, coords.y);
+      var rx = Math.round(Math.min(xMax - 0.2, Math.max(xMin + 0.2, w.x)) * 2) / 2;
+      var ry = Math.round(Math.min(yMax - 0.2, Math.max(yMin + 0.2, w.y)) * 2) / 2;
+
+      if (dragging === 'A') { axN.value = rx; ayN.value = ry; }
+      else { bxN.value = rx; byN.value = ry; }
+      updateAll();
+    }
+
+    function onEnd() {
+      dragging = null;
+      canvas.style.cursor = 'crosshair';
+    }
+
+    canvas.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+
+    canvas.addEventListener('touchstart', onStart, { passive: false });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+
+    updateAll();
+  }
+
+  function tryInitSimEP0101(){
+    var root = document.getElementById('sim-ep0101-distancia');
+    if (root) initSimEP0101(root); else setTimeout(tryInitSimEP0101, 200);
+  }
+  tryInitSimEP0101();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 1.12: Simulador EP01_01: Distâncias Euclidiana, City-block e Chessboard</div>
   </div>
 </main>

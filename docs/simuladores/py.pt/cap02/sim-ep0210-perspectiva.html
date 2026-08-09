@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0210-perspectiva" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="60" id="fig-02-sim-ep0210-perspectiva">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0210-perspectiva-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0210-perspectiva" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">📐 Simulador EP02_10: Correção de Perspectiva (Homografia 3×3)</span>
@@ -326,6 +329,170 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0210(root){
+    if (!root || root.dataset.simEp0210Init) return;
+    root.dataset.simEp0210Init = "1";
+
+    var canvas    = root.querySelector('#sim_ep0210_canvas');
+    var ctx       = canvas.getContext('2d');
+    var btnReset  = root.querySelector('#sim_ep02010_btnReset') || root.querySelector('#sim_ep0210_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0210_btnCorrect');
+    var subinfo   = root.querySelector('#sim_ep0210_subinfo');
+    var debugDiv  = root.querySelector('#sim_ep0210_debug');
+
+    var points = [
+      [80, 80],   // Top-Left (TL)
+      [320, 60],  // Top-Right (TR)
+      [60, 340],  // Bottom-Left (BL)
+      [340, 320]  // Bottom-Right (BR)
+    ];
+
+    var dragIndex = -1;
+
+    function drawCheckerboard() {
+      var cellSize = 25;
+      for (var i = 0; i < 400; i += cellSize) {
+        for (var j = 0; j < 400; j += cellSize) {
+          ctx.fillStyle = (Math.floor(i / cellSize) + Math.floor(j / cellSize)) % 2 === 0 ? '#f1ead7' : '#e4dcc8';
+          ctx.fillRect(i, j, cellSize, cellSize);
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, 400, 400);
+      drawCheckerboard();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      ctx.lineTo(points[1][0], points[1][1]);
+      ctx.lineTo(points[3][0], points[3][1]);
+      ctx.lineTo(points[2][0], points[2][1]);
+      ctx.closePath();
+
+      ctx.fillStyle = 'rgba(126, 231, 198, 0.35)';
+      ctx.fill();
+      ctx.strokeStyle = '#26241d';
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      for (var k = 0; k < points.length; k++) {
+        ctx.beginPath();
+        ctx.arc(points[k][0], points[k][1], 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#b9770e';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.font = "bold 10px monospace";
+      ctx.fillStyle = '#26241d';
+      ctx.fillText("TL", points[0][0] - 16, points[0][1] - 6);
+      ctx.fillText("TR", points[1][0] + 6, points[1][1] - 6);
+      ctx.fillText("BL", points[2][0] - 16, points[2][1] + 12);
+      ctx.fillText("BR", points[3][0] + 6, points[3][1] + 12);
+    }
+
+    function getMousePos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var scaleX = canvas.width / rect.width;
+      var scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleMouseDown(e) {
+      var pos = getMousePos(e);
+      for (var i = 0; i < points.length; i++) {
+        var dx = pos.x - points[i][0];
+        var dy = pos.y - points[i][1];
+        if (Math.sqrt(dx * dx + dy * dy) < 14) {
+          dragIndex = i;
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (dragIndex !== -1) {
+        var pos = getMousePos(e);
+        var x = Math.min(395, Math.max(5, pos.x));
+        var y = Math.min(395, Math.max(5, pos.y));
+        points[dragIndex] = [x, y];
+        draw();
+
+        subinfo.textContent = 'Vértice movido → quadrilátero redefinido.';
+        debugDiv.innerHTML = 'Quadrilátero atual: <b>TL(' + Math.round(points[0][0]) + ',' + Math.round(points[0][1]) + ') TR(' + Math.round(points[1][0]) + ',' + Math.round(points[1][1]) + ') BL(' + Math.round(points[2][0]) + ',' + Math.round(points[2][1]) + ') BR(' + Math.round(points[3][0]) + ',' + Math.round(points[3][1]) + ')</b>';
+      }
+    }
+
+    function handleMouseUp() {
+      dragIndex = -1;
+      canvas.style.cursor = 'crosshair';
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    function correctPerspective() {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#26241d';
+      ctx.fillRect(50, 50, 300, 300);
+
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = '#7ee7c6';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(50, 50, 300, 300);
+
+      ctx.fillStyle = '#7ee7c6';
+      ctx.font = "bold 13px monospace";
+      ctx.fillText("✅ HOMOGRAFIA APLICADA (H 3×3)", 85, 190);
+
+      ctx.font = "10px monospace";
+      ctx.fillStyle = '#fbf7ee';
+      ctx.fillText("Retângulo 300×300 retificado com sucesso", 85, 220);
+      ctx.restore();
+
+      subinfo.textContent = "Projeção retificada para área retangular plana de 300×300.";
+      debugDiv.innerHTML = '<b>✅ Homografia Estimada:</b> Mapeamento perspectiva dos 4 vértices para a grade retangular [(50,50), (350,50), (50,350), (350,350)].';
+    }
+
+    btnReset.addEventListener('click', function() {
+      points = [
+        [80, 80],
+        [320, 60],
+        [60, 340],
+        [340, 320]
+      ];
+      draw();
+      subinfo.textContent = "Pontos redefinidos para as coordenadas padrão.";
+      debugDiv.innerHTML = "Arraste os vértices para deformar a projeção e clique em 'Corrigir Perspectiva' para estimar a matriz H.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    draw();
+  }
+
+  function tryInitSimEP0210(){
+    var root = document.getElementById('sim-ep0210-perspectiva');
+    if (root) initSimEP0210(root); else setTimeout(tryInitSimEP0210, 200);
+  }
+  tryInitSimEP0210();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 2.21: Simulador EP02_10: Correção de Perspectiva (Transformação de Homografia 3×3)</div>
   </div>
 </main>

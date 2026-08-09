@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -285,7 +285,7 @@ div.csl-indent {
     <h1 class="sim-frame-title" title="Simulador EP04_08: Gradiente Morfológico, Top-hat e Black-hat">Simulador EP04_08: Gradiente Morfológico, Top-hat e Black-hat</h1>
   </div>
   <nav class="sim-frame-nav">
-    <a href="sim-ep0406-fechamento.html" class="sim-btn sim-btn-nav">← sim-ep0406-fechamento</a>
+    <a href="sim-ep0407-pesos.html" class="sim-btn sim-btn-nav">← sim-ep0407-pesos</a>
     <a href="sim-ep0409-distancia.html" class="sim-btn sim-btn-nav">sim-ep0409-distancia →</a>
     <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
     <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0408-gradiente" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="8" id="fig-04-sim-ep0408-gradiente">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-04-sim-ep0408-gradiente-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0408-gradiente" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🌋 Simulador EP04_08: Gradiente / Top-hat / Black-hat</span>
@@ -335,6 +338,119 @@ div.csl-indent {
 </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0408(root){
+    if (!root || root.dataset.simEp0408Init) return;
+    root.dataset.simEp0408Init = "1";
+
+    var gF   = root.querySelector('#sim_ep0408_grid_f');
+    var gGrad= root.querySelector('#sim_ep0408_grid_grad');
+    var gTh  = root.querySelector('#sim_ep0408_grid_th');
+    var gBh  = root.querySelector('#sim_ep0408_grid_bh');
+
+    var btnPico  = root.querySelector('#sim_ep0408_btn_pico');
+    var btnVale  = root.querySelector('#sim_ep0408_btn_vale');
+    var btnReset = root.querySelector('#sim_ep0408_btn_reset');
+
+    var L = 9, C = 9, f = [], B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+
+    function resetMatrix() {
+      f = Array.from({ length: L }, function(){ return new Array(C).fill(10); });
+    }
+
+    function morph(img, Bm, mode) {
+      var Bref = mode === 'dil' ? Bm.slice().reverse().map(function(r){ return r.slice().reverse(); }) : Bm;
+      var HB = Bref.length, WB = Bref[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bref[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C) {
+                if (mode === 'dil' && img[vy][vx] > g[y][x]) g[y][x] = img[vy][vx];
+                if (mode === 'ero' && img[vy][vx] < g[y][x]) g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function paint(grid, img, cmin, cmax, hue) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var v = img[y][x];
+          var t = cmax > cmin ? (v - cmin) / (cmax - cmin) : 0;
+          var c = document.createElement('div');
+          c.style.cssText = 'width:20px;height:20px;border-radius:3px;box-sizing:border-box;';
+          c.style.background = v === 0 ? '#fafaf7' : hue;
+          c.style.opacity = v === 0 ? '1' : (0.35 + 0.65 * Math.min(1, t));
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function render() {
+      var d = morph(f, B, 'dil');
+      var e = morph(f, B, 'ero');
+      var ab = morph(e, B, 'dil');
+      var fc = morph(d, B, 'ero');
+
+      var grad = f.map(function(r, y){ return r.map(function(_, x){ return d[y][x] - e[y][x]; }); });
+      var th   = f.map(function(r, y){ return r.map(function(v, x){ return v - ab[y][x]; }); });
+      var bh   = f.map(function(r, y){ return r.map(function(v, x){ return fc[y][x] - v; }); });
+
+      var maxF = Math.max.apply(null, f.map(function(r){ return Math.max.apply(null, r); }));
+      var maxG = Math.max.apply(null, grad.map(function(r){ return Math.max.apply(null, r); }));
+      var maxTh = Math.max.apply(null, th.map(function(r){ return Math.max.apply(null, r); }));
+      var maxBh = Math.max.apply(null, bh.map(function(r){ return Math.max.apply(null, r); }));
+
+      paint(gF, f, 10, maxF || 1, '#7f8c8d');
+      paint(gGrad, grad, 0, Math.max(1, maxG), '#8e44ad');
+      paint(gTh, th, 0, Math.max(1, maxTh), '#d35400');
+      paint(gBh, bh, 0, Math.max(1, maxBh), '#2980b9');
+    }
+
+    btnPico.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.min(255, f[y][x] + 60 + Math.floor(Math.random() * 30));
+      render();
+    });
+
+    btnVale.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.max(0, f[y][x] - 8 - Math.floor(Math.random() * 4));
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      resetMatrix();
+      f[2][2] = 80;
+      f[6][6] = 2;
+      render();
+    });
+
+    resetMatrix();
+    f[2][2] = 80;
+    f[6][6] = 2;
+    render();
+  }
+
+  function tryInitSimEP0408(){
+    var root = document.getElementById('sim-ep0408-gradiente');
+    if (root) initSimEP0408(root); else setTimeout(tryInitSimEP0408, 200);
+  }
+  tryInitSimEP0408();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 4.37: Simulador EP04_08: Gradiente Morfológico, Top-hat e Black-hat</div>
   </div>
 </main>
@@ -394,7 +510,7 @@ window.Quarto = {
 
     const ero_COLS = 10, ero_ROWS = 10, ero_CELL = 32, ero_PAD = 14;
     const ero_W = ero_COLS * ero_CELL + ero_PAD * 2, ero_H = ero_ROWS * ero_CELL + ero_PAD * 2;
-    const ero_cv = root.querySelector('#sim04_ero_Canvas');
+    const ero_cv = root.querySelector('#sim-04-erosao_Canvas');
     ero_cv.width = ero_W; 
     ero_cv.height = ero_H;
     const ero_ctx = ero_cv.getContext('2d');
@@ -466,7 +582,7 @@ window.Quarto = {
         return 'B[' + o.by + '][' + o.bx + '] → (' + vy + ',' + vx + ') ' + mark;
       });
 
-      root.querySelector('#sim04_ero_offsetInfo').innerHTML =
+      root.querySelector('#sim-04-erosao_offsetInfo').innerHTML =
         '<span style="color:#8a8371; font-size:9.5px">offsets ativos @ (y=' + ero_cy + ', x=' + ero_cx + '):</span><br>' +
         lines.map(l => '<span style="color:' + (l.endsWith('✓') ? '#27ae60' : '#c0392b') + '">' + l + '</span>').join('<br>');
     }
@@ -559,20 +675,20 @@ window.Quarto = {
         }
       }
 
-      root.querySelector('#sim04_ero_mX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_mY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_mX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_mY').textContent = ero_cy;
       const ev = ero_ERO[ero_cy][ero_cx];
-      const mEro = root.querySelector('#sim04_ero_mEro');
+      const mEro = root.querySelector('#sim-04-erosao_mEro');
       mEro.textContent = ev ? '255' : '0';
       mEro.style.color = ev ? '#27ae60' : '#c0392b';
-      root.querySelector('#sim04_ero_vX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_vY').textContent = ero_cy;
-      root.querySelector('#sim04_ero_slX').value = ero_cx;
-      root.querySelector('#sim04_ero_slY').value = ero_cy;
+      root.querySelector('#sim-04-erosao_vX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_vY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_slX').value = ero_cx;
+      root.querySelector('#sim-04-erosao_slY').value = ero_cy;
 
-      const box = root.querySelector('#sim04_ero_stBox');
-      const title = root.querySelector('#sim04_ero_stTitle');
-      const desc = root.querySelector('#sim04_ero_stDesc');
+      const box = root.querySelector('#sim-04-erosao_stBox');
+      const title = root.querySelector('#sim-04-erosao_stTitle');
+      const desc = root.querySelector('#sim-04-erosao_stDesc');
 
       if(contained){
         box.style.background = '#eafaf1'; box.style.borderColor = '#27ae60';
@@ -598,15 +714,15 @@ window.Quarto = {
       }
     });
 
-    root.querySelector('#sim04_ero_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
 
     ero_draw();
   }
 
   function tryInitSim04Ero(){
-    var root = document.getElementById('sim04_ero');
+    var root = document.getElementById('sim-04-erosao');
     if (root) initSim04Ero(root); else setTimeout(tryInitSim04Ero, 200);
   }
   tryInitSim04Ero();
@@ -671,7 +787,7 @@ window.Quarto = {
     buildSteps();
     let idx = 0, playing = false, timer = null;
 
-    const cv = root.querySelector('#sim04_cdil_Canvas');
+    const cv = root.querySelector('#sim-04-cdil_Canvas');
     const ctx = cv.getContext('2d');
 
     const C = {
@@ -752,9 +868,9 @@ window.Quarto = {
       else if (reached) msg = 'Passo ' + idx + ' — saída alcançada! 🎉';
       else msg = 'Passo ' + idx + ' — propagação geodésica';
 
-      root.querySelector('#sim04_cdil_info').textContent = msg;
-      root.querySelector('#sim04_cdil_btnPrev').disabled = idx === 0;
-      root.querySelector('#sim04_cdil_btnNext').disabled = idx === steps.length-1;
+      root.querySelector('#sim-04-cdil_info').textContent = msg;
+      root.querySelector('#sim-04-cdil_btnPrev').disabled = idx === 0;
+      root.querySelector('#sim-04-cdil_btnNext').disabled = idx === steps.length-1;
     }
 
     function step(d) {
@@ -774,7 +890,7 @@ window.Quarto = {
 
     function startPlay() {
       playing = true;
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '⏸ Pausar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '⏸ Pausar';
       timer = setInterval(() => {
         if (idx >= steps.length-1) { stopPlay(); return; }
         idx++;
@@ -785,19 +901,19 @@ window.Quarto = {
     function stopPlay() {
       playing = false;
       clearInterval(timer);
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '▶ Animar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '▶ Animar';
     }
 
-    root.querySelector('#sim04_cdil_btnReset').addEventListener('click', reset);
-    root.querySelector('#sim04_cdil_btnPrev').addEventListener('click', () => step(-1));
-    root.querySelector('#sim04_cdil_btnNext').addEventListener('click', () => step(1));
-    root.querySelector('#sim04_cdil_btnPlay').addEventListener('click', togglePlay);
+    root.querySelector('#sim-04-cdil_btnReset').addEventListener('click', reset);
+    root.querySelector('#sim-04-cdil_btnPrev').addEventListener('click', () => step(-1));
+    root.querySelector('#sim-04-cdil_btnNext').addEventListener('click', () => step(1));
+    root.querySelector('#sim-04-cdil_btnPlay').addEventListener('click', togglePlay);
 
     draw();
   }
 
   function tryInitSim04Cdil(){
-    var root = document.getElementById('sim04_cdil');
+    var root = document.getElementById('sim-04-cdil');
     if (root) initSim04Cdil(root); else setTimeout(tryInitSim04Cdil, 200);
   }
   tryInitSim04Cdil();
@@ -1095,7 +1211,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Advanced(){
-    var root = document.getElementById('sim04_avancado');
+    var root = document.getElementById('sim-04-operadores-av');
     if (root) initSim04Advanced(root); else setTimeout(tryInitSim04Advanced, 200);
   }
   tryInitSim04Advanced();
@@ -1450,7 +1566,7 @@ window.Quarto = {
   }
 
   function tryInitSim04RotulacaoCC(){
-    var root = document.getElementById('sim04_rotulacao_cc');
+    var root = document.getElementById('sim-04-rotulacao');
     if (root) initSim04RotulacaoCC(root); else setTimeout(tryInitSim04RotulacaoCC, 200);
   }
   tryInitSim04RotulacaoCC();
@@ -1919,7 +2035,7 @@ window.Quarto = {
   }
 
   function tryInitSim04TD(){
-    var root = document.getElementById('sim04_td_root');
+    var root = document.getElementById('sim-04-distancia');
     if (root) initSim04TD(root); else setTimeout(tryInitSim04TD, 200);
   }
   tryInitSim04TD();
@@ -2145,7 +2261,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim04_edt_convergencia');
+    var root = document.getElementById('sim-04-tde');
     if (root) initSim04EdtConvergencia(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -2521,7 +2637,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Watershed(){
-    var root = document.getElementById('sim04_watershed_root');
+    var root = document.getElementById('sim-04-watershed');
     if (root) initSim04Watershed(root); else setTimeout(tryInitSim04Watershed, 200);
   }
   tryInitSim04Watershed();

@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0204-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="42" id="fig-02-sim-ep0204-distancia">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0204-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0204-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">📐 Simulador EP02_04: Transformada de Distância Interativa</span>
@@ -342,6 +345,173 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0204(root){
+    if (!root || root.dataset.simEp0204Init) return;
+    root.dataset.simEp0204Init = "1";
+
+    var ROWS = 5, COLS = 5;
+    var binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+
+    // Estado inicial: objeto centralizado no ponto (2, 2)
+    binary[2][2] = 1;
+
+    var gI = root.querySelector('#sim_ep0204_grid_input');
+    var gO = root.querySelector('#sim_ep0204_grid_output');
+    var infoDiv = root.querySelector('#sim_ep0204_info');
+
+    var btnClear   = root.querySelector('#sim_ep0204_btnClear');
+    var btnExample = root.querySelector('#sim_ep0204_btnExample');
+
+    function getMetric() {
+      var selected = root.querySelector('input[name="sim_ep0204_metric"]:checked');
+      return selected ? selected.value : 'chessboard';
+    }
+
+    function computeDT(bin, metric) {
+      var L = bin.length, C = bin[0].length;
+      var dt = Array.from({ length: L }, function(){ return Array(C).fill(0); });
+
+      for (var i = 0; i < L; i++) {
+        for (var j = 0; j < C; j++) {
+          if (bin[i][j] === 1) {
+            dt[i][j] = 0;
+            continue;
+          }
+          var minD = Infinity;
+          for (var oi = 0; oi < L; oi++) {
+            for (var oj = 0; oj < C; oj++) {
+              if (bin[oi][oj] !== 1) continue;
+              var dr = Math.abs(i - oi), dc = Math.abs(j - oj);
+              var d = 0;
+              if (metric === 'euclidean') d = Math.sqrt(dr * dr + dc * dc);
+              else if (metric === 'cityblock') d = dr + dc;
+              else d = Math.max(dr, dc);
+
+              if (d < minD) minD = d;
+            }
+          }
+          dt[i][j] = minD === Infinity ? -1 : minD;
+        }
+      }
+      return dt;
+    }
+
+    function cellColor(val, isObj, maxVal) {
+      if (isObj) return { bg: '#26241d', text: '#7ee7c6' };
+      if (val < 0) return { bg: '#fafaf7', text: '#8a8371' };
+
+      var t = maxVal > 0 ? val / maxVal : 0;
+      var r = 255;
+      var g = Math.round(255 - t * 160);
+      var b = Math.round(255 - t * 180);
+      return {
+        bg: 'rgb(' + r + ',' + g + ',' + b + ')',
+        text: t > 0.55 ? '#78281f' : '#26241d'
+      };
+    }
+
+    function formatVal(val, metric) {
+      if (val === 0) return '0';
+      if (val < 0) return '—';
+      return metric === 'euclidean' ? val.toFixed(2) : String(val);
+    }
+
+    function render() {
+      var metric = getMetric();
+      var dt = computeDT(binary, metric);
+
+      var allVals = [];
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (dt[r][c] > 0) allVals.push(dt[r][c]);
+        }
+      }
+
+      var maxVal = allVals.length ? Math.max.apply(null, allVals) : 1;
+      var hasObj = binary.some(function(row){ return row.some(function(v){ return v === 1; }); });
+
+      // Renderiza Imagem Binária (Input)
+      gI.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gI.innerHTML = '';
+      for (var i = 0; i < ROWS; i++) {
+        for (var j = 0; j < COLS; j++) {
+          (function(rowIdx, colIdx){
+            var isObj = binary[rowIdx][colIdx] === 1;
+            var cell = document.createElement('div');
+            cell.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+            cell.style.background = isObj ? '#26241d' : '#ffffff';
+            cell.style.color = isObj ? '#7ee7c6' : '#8a8371';
+            cell.textContent = isObj ? '1' : '0';
+
+            cell.addEventListener('click', function() {
+              binary[rowIdx][colIdx] = binary[rowIdx][colIdx] === 1 ? 0 : 1;
+              render();
+            });
+
+            gI.appendChild(cell);
+          })(i, j);
+        }
+      }
+
+      // Renderiza Transformada de Distância (Output)
+      gO.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gO.innerHTML = '';
+      for (var r2 = 0; r2 < ROWS; r2++) {
+        for (var c2 = 0; c2 < COLS; c2++) {
+          var isObjOut = binary[r2][c2] === 1;
+          var colors = cellColor(dt[r2][c2], isObjOut, maxVal);
+          var cellO = document.createElement('div');
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+          cellO.style.background = hasObj ? colors.bg : '#fafaf7';
+          cellO.style.color = hasObj ? colors.text : '#8a8371';
+          cellO.textContent = hasObj ? formatVal(dt[r2][c2], metric) : '—';
+          gO.appendChild(cellO);
+        }
+      }
+
+      var metricLabel = {
+        euclidean: 'Euclidiana (L₂ - 2 decimais)',
+        cityblock: 'City-block (L₁ - inteiro)',
+        chessboard: 'Chessboard (L_∞ - inteiro)'
+      };
+
+      var objCount = binary.reduce(function(acc, row){
+        return acc + row.filter(function(v){ return v === 1; }).length;
+      }, 0);
+
+      infoDiv.innerHTML = 'Grade ' + ROWS + '×' + COLS + ' · <b>' + objCount + '</b> pixel(s) de objeto · Métrica: <b>' + metricLabel[metric] + '</b>';
+    }
+
+    var radios = root.querySelectorAll('input[name="sim_ep0204_metric"]');
+    radios.forEach(function(r) {
+      r.addEventListener('change', render);
+    });
+
+    btnClear.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      render();
+    });
+
+    btnExample.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      binary[2][2] = 1;
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0204(){
+    var root = document.getElementById('sim-ep0204-distancia');
+    if (root) initSimEP0204(root); else setTimeout(tryInitSimEP0204, 200);
+  }
+  tryInitSimEP0204();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 2.15: Simulador EP02_04: Transformada de Distância em Imagem Binária (Chessboard, City-block e Euclidiana)</div>
   </div>
 </main>

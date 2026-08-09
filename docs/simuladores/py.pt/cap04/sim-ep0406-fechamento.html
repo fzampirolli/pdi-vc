@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -286,7 +286,7 @@ div.csl-indent {
   </div>
   <nav class="sim-frame-nav">
     <a href="sim-ep0405-abertura.html" class="sim-btn sim-btn-nav">← sim-ep0405-abertura</a>
-    <a href="sim-ep0408-gradiente.html" class="sim-btn sim-btn-nav">sim-ep0408-gradiente →</a>
+    <a href="sim-ep0407-pesos.html" class="sim-btn sim-btn-nav">sim-ep0407-pesos →</a>
     <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
     <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
     <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0406-fechamento" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="6" id="fig-04-sim-ep0406-fechamento">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-04-sim-ep0406-fechamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0406-fechamento" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🧩 Simulador EP04_06: Fechamento Morfológico</span>
@@ -335,6 +338,169 @@ div.csl-indent {
 </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0406(root){
+    if (!root || root.dataset.simEp0406Init) return;
+    root.dataset.simEp0406Init = "1";
+
+    var slN     = root.querySelector('#sim_ep0406_sl_n');
+    var vlN     = root.querySelector('#sim_ep0406_vl_n');
+    var gF      = root.querySelector('#sim_ep0406_grid_f');
+    var gD      = root.querySelector('#sim_ep0406_grid_d');
+    var gG      = root.querySelector('#sim_ep0406_grid_g');
+    var btnNew  = root.querySelector('#sim_ep0406_btnNew');
+    var btnClear= root.querySelector('#sim_ep0406_btnClear');
+
+    var L = 8, C = 8, f = [];
+
+    function generate() {
+      f = [];
+      for (var y = 0; y < L; y++) {
+        var row = [];
+        for (var x = 0; x < C; x++) row.push(0);
+        f.push(row);
+      }
+      for (var y = 1; y < 7; y++) {
+        for (var x = 2; x < 6; x++) f[y][x] = 1;
+      }
+      f[3][3] = 0;
+      f[4][4] = 0;
+    }
+
+    function clearAll() {
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) f[y][x] = 0;
+      }
+    }
+
+    function box(n) {
+      var B = [];
+      for (var i = 0; i < n; i++) {
+        var row = [];
+        for (var j = 0; j < n; j++) row.push(1);
+        B.push(row);
+      }
+      return B;
+    }
+
+    function reflect(M) {
+      var n = M.length, out = [];
+      for (var i = n - 1; i >= 0; i--) out.push(M[i].slice().reverse());
+      return out;
+    }
+
+    function dilate(img, Bm) {
+      var Bref = reflect(Bm);
+      var HB = Bref.length, WB = Bref[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = [];
+      for (var y = 0; y < L; y++) g.push(img[y].slice());
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bref[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && img[vy][vx] > g[y][x]) {
+                g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function erode(img, Bm) {
+      var HB = Bm.length, WB = Bm[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = [];
+      for (var y = 0; y < L; y++) g.push(img[y].slice());
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bm[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && img[vy][vx] < g[y][x]) {
+                g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function paintStatic(grid, img) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;box-sizing:border-box;';
+          c.style.background = img[y][x] === 1 ? '#2c7a7b' : '#fafaf7';
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function paintEditable(grid, img) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          (function(yy, xx){
+            var c = document.createElement('div');
+            c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;cursor:pointer;box-sizing:border-box;transition:all 0.1s ease;';
+            c.style.background = img[yy][xx] === 1 ? '#2c7a7b' : '#fafaf7';
+
+            c.addEventListener('click', function(){
+              f[yy][xx] = 1 - f[yy][xx];
+              render();
+            });
+            grid.appendChild(c);
+          })(y, x);
+        }
+      }
+    }
+
+    function render() {
+      var n = parseInt(slN.value, 10) || 3;
+      vlN.textContent = n + '×' + n;
+      var B = box(n);
+      var d = dilate(f, B);
+      var g = erode(d, B);
+
+      paintEditable(gF, f);
+      paintStatic(gD, d);
+      paintStatic(gG, g);
+    }
+
+    slN.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    btnClear.addEventListener('click', function(){
+      clearAll();
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0406(){
+    var root = document.getElementById('sim-ep0406-fechamento');
+    if (root) initSimEP0406(root); else setTimeout(tryInitSimEP0406, 200);
+  }
+  tryInitSimEP0406();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 4.35: Simulador EP04_06: Fechamento Morfológico (g = (f ⊕ B) ⊖ B)</div>
   </div>
 </main>
@@ -394,7 +560,7 @@ window.Quarto = {
 
     const ero_COLS = 10, ero_ROWS = 10, ero_CELL = 32, ero_PAD = 14;
     const ero_W = ero_COLS * ero_CELL + ero_PAD * 2, ero_H = ero_ROWS * ero_CELL + ero_PAD * 2;
-    const ero_cv = root.querySelector('#sim04_ero_Canvas');
+    const ero_cv = root.querySelector('#sim-04-erosao_Canvas');
     ero_cv.width = ero_W; 
     ero_cv.height = ero_H;
     const ero_ctx = ero_cv.getContext('2d');
@@ -466,7 +632,7 @@ window.Quarto = {
         return 'B[' + o.by + '][' + o.bx + '] → (' + vy + ',' + vx + ') ' + mark;
       });
 
-      root.querySelector('#sim04_ero_offsetInfo').innerHTML =
+      root.querySelector('#sim-04-erosao_offsetInfo').innerHTML =
         '<span style="color:#8a8371; font-size:9.5px">offsets ativos @ (y=' + ero_cy + ', x=' + ero_cx + '):</span><br>' +
         lines.map(l => '<span style="color:' + (l.endsWith('✓') ? '#27ae60' : '#c0392b') + '">' + l + '</span>').join('<br>');
     }
@@ -559,20 +725,20 @@ window.Quarto = {
         }
       }
 
-      root.querySelector('#sim04_ero_mX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_mY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_mX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_mY').textContent = ero_cy;
       const ev = ero_ERO[ero_cy][ero_cx];
-      const mEro = root.querySelector('#sim04_ero_mEro');
+      const mEro = root.querySelector('#sim-04-erosao_mEro');
       mEro.textContent = ev ? '255' : '0';
       mEro.style.color = ev ? '#27ae60' : '#c0392b';
-      root.querySelector('#sim04_ero_vX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_vY').textContent = ero_cy;
-      root.querySelector('#sim04_ero_slX').value = ero_cx;
-      root.querySelector('#sim04_ero_slY').value = ero_cy;
+      root.querySelector('#sim-04-erosao_vX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_vY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_slX').value = ero_cx;
+      root.querySelector('#sim-04-erosao_slY').value = ero_cy;
 
-      const box = root.querySelector('#sim04_ero_stBox');
-      const title = root.querySelector('#sim04_ero_stTitle');
-      const desc = root.querySelector('#sim04_ero_stDesc');
+      const box = root.querySelector('#sim-04-erosao_stBox');
+      const title = root.querySelector('#sim-04-erosao_stTitle');
+      const desc = root.querySelector('#sim-04-erosao_stDesc');
 
       if(contained){
         box.style.background = '#eafaf1'; box.style.borderColor = '#27ae60';
@@ -598,15 +764,15 @@ window.Quarto = {
       }
     });
 
-    root.querySelector('#sim04_ero_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
 
     ero_draw();
   }
 
   function tryInitSim04Ero(){
-    var root = document.getElementById('sim04_ero');
+    var root = document.getElementById('sim-04-erosao');
     if (root) initSim04Ero(root); else setTimeout(tryInitSim04Ero, 200);
   }
   tryInitSim04Ero();
@@ -671,7 +837,7 @@ window.Quarto = {
     buildSteps();
     let idx = 0, playing = false, timer = null;
 
-    const cv = root.querySelector('#sim04_cdil_Canvas');
+    const cv = root.querySelector('#sim-04-cdil_Canvas');
     const ctx = cv.getContext('2d');
 
     const C = {
@@ -752,9 +918,9 @@ window.Quarto = {
       else if (reached) msg = 'Passo ' + idx + ' — saída alcançada! 🎉';
       else msg = 'Passo ' + idx + ' — propagação geodésica';
 
-      root.querySelector('#sim04_cdil_info').textContent = msg;
-      root.querySelector('#sim04_cdil_btnPrev').disabled = idx === 0;
-      root.querySelector('#sim04_cdil_btnNext').disabled = idx === steps.length-1;
+      root.querySelector('#sim-04-cdil_info').textContent = msg;
+      root.querySelector('#sim-04-cdil_btnPrev').disabled = idx === 0;
+      root.querySelector('#sim-04-cdil_btnNext').disabled = idx === steps.length-1;
     }
 
     function step(d) {
@@ -774,7 +940,7 @@ window.Quarto = {
 
     function startPlay() {
       playing = true;
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '⏸ Pausar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '⏸ Pausar';
       timer = setInterval(() => {
         if (idx >= steps.length-1) { stopPlay(); return; }
         idx++;
@@ -785,19 +951,19 @@ window.Quarto = {
     function stopPlay() {
       playing = false;
       clearInterval(timer);
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '▶ Animar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '▶ Animar';
     }
 
-    root.querySelector('#sim04_cdil_btnReset').addEventListener('click', reset);
-    root.querySelector('#sim04_cdil_btnPrev').addEventListener('click', () => step(-1));
-    root.querySelector('#sim04_cdil_btnNext').addEventListener('click', () => step(1));
-    root.querySelector('#sim04_cdil_btnPlay').addEventListener('click', togglePlay);
+    root.querySelector('#sim-04-cdil_btnReset').addEventListener('click', reset);
+    root.querySelector('#sim-04-cdil_btnPrev').addEventListener('click', () => step(-1));
+    root.querySelector('#sim-04-cdil_btnNext').addEventListener('click', () => step(1));
+    root.querySelector('#sim-04-cdil_btnPlay').addEventListener('click', togglePlay);
 
     draw();
   }
 
   function tryInitSim04Cdil(){
-    var root = document.getElementById('sim04_cdil');
+    var root = document.getElementById('sim-04-cdil');
     if (root) initSim04Cdil(root); else setTimeout(tryInitSim04Cdil, 200);
   }
   tryInitSim04Cdil();
@@ -1095,7 +1261,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Advanced(){
-    var root = document.getElementById('sim04_avancado');
+    var root = document.getElementById('sim-04-operadores-av');
     if (root) initSim04Advanced(root); else setTimeout(tryInitSim04Advanced, 200);
   }
   tryInitSim04Advanced();
@@ -1450,7 +1616,7 @@ window.Quarto = {
   }
 
   function tryInitSim04RotulacaoCC(){
-    var root = document.getElementById('sim04_rotulacao_cc');
+    var root = document.getElementById('sim-04-rotulacao');
     if (root) initSim04RotulacaoCC(root); else setTimeout(tryInitSim04RotulacaoCC, 200);
   }
   tryInitSim04RotulacaoCC();
@@ -1919,7 +2085,7 @@ window.Quarto = {
   }
 
   function tryInitSim04TD(){
-    var root = document.getElementById('sim04_td_root');
+    var root = document.getElementById('sim-04-distancia');
     if (root) initSim04TD(root); else setTimeout(tryInitSim04TD, 200);
   }
   tryInitSim04TD();
@@ -2145,7 +2311,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim04_edt_convergencia');
+    var root = document.getElementById('sim-04-tde');
     if (root) initSim04EdtConvergencia(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -2521,7 +2687,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Watershed(){
-    var root = document.getElementById('sim04_watershed_root');
+    var root = document.getElementById('sim-04-watershed');
     if (root) initSim04Watershed(root); else setTimeout(tryInitSim04Watershed, 200);
   }
   tryInitSim04Watershed();

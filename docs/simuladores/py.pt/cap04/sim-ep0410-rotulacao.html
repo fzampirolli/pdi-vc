@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -286,7 +286,7 @@ div.csl-indent {
   </div>
   <nav class="sim-frame-nav">
     <a href="sim-ep0409-distancia.html" class="sim-btn sim-btn-nav">← sim-ep0409-distancia</a>
-    <a href="sim-alg-rotulagem2.html" class="sim-btn sim-btn-nav">sim-alg-rotulagem2 →</a>
+    <a href="sim-04-cdil.html" class="sim-btn sim-btn-nav">sim-04-cdil →</a>
     <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
     <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
     <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0410-rotulacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="10" id="fig-04-sim-ep0410-rotulacao">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-04-sim-ep0410-rotulacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0410-rotulacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🪙 Simulador EP04_10: Moedas Coladas → Separadas → Contadas</span>
@@ -327,6 +330,155 @@ div.csl-indent {
 <div id="sim_ep0410_info" style="background:#fef5e7;border:1px solid #f8c471;border-radius:8px;padding:10px 14px;font-size:11px;color:#7d5a00;text-align:center;line-height:1.5;"></div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0410(root){
+    if (!root || root.dataset.simEp0410Init) return;
+    root.dataset.simEp0410Init = "1";
+
+    var slP  = root.querySelector('#sim_ep0410_sl_p');
+    var vlP  = root.querySelector('#sim_ep0410_vl_p');
+    var gF   = root.querySelector('#sim_ep0410_grid_f');
+    var gL   = root.querySelector('#sim_ep0410_grid_lab');
+    var info = root.querySelector('#sim_ep0410_info');
+
+    var L = 7, C = 10;
+    var B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+    var palette = ['#e74c3c', '#27ae60', '#2980b9', '#8e44ad', '#d35400'];
+
+    function buildF(p) {
+      var f = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      for (var y = 1; y < 6; y++) {
+        for (var x = 1; x < 4; x++) f[y][x] = 1;
+      }
+      for (var y = 1; y < 6; y++) {
+        for (var x = 6; x < 9; x++) f[y][x] = 1;
+      }
+      var midRow = 3;
+      for (var dy = 0; dy < p; dy++) {
+        var ry = midRow - Math.floor(p / 2) + dy;
+        for (var x = 4; x < 6; x++) f[ry][x] = 1;
+      }
+      return f;
+    }
+
+    function erode(img, Bm) {
+      var HB = Bm.length, WB = Bm[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bm[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && img[vy][vx] < g[y][x]) {
+                g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function labelK8(img) {
+      var labels = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      var dirs = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+      var cur = 0, desc = [];
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          if (img[y][x] === 1 && labels[y][x] === 0) {
+            cur++;
+            var stack = [[y, x]];
+            labels[y][x] = cur;
+            var area = 0, miny = y, maxy = y, minx = x, maxx = x;
+
+            while (stack.length) {
+              var cell = stack.pop();
+              var cy = cell[0], cx = cell[1];
+              area++;
+              if (cy < miny) miny = cy;
+              if (cy > maxy) maxy = cy;
+              if (cx < minx) minx = cx;
+              if (cx > maxx) maxx = cx;
+
+              dirs.forEach(function(d){
+                var ny = cy + d[0], nx = cx + d[1];
+                if (ny >= 0 && ny < L && nx >= 0 && nx < C && img[ny][nx] === 1 && labels[ny][nx] === 0) {
+                  labels[ny][nx] = cur;
+                  stack.push([ny, nx]);
+                }
+              });
+            }
+            desc.push({k: cur, area: area, miny: miny, minx: minx, maxy: maxy, maxx: maxx});
+          }
+        }
+      }
+      return {labels: labels, desc: desc};
+    }
+
+    function paintBin(grid, img) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;box-sizing:border-box;';
+          c.style.background = img[y][x] ? '#b9770e' : '#fafaf7';
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function paintLabels(grid, labels) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          var k = labels[y][x];
+          c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;color:#ffffff;box-sizing:border-box;';
+          c.style.background = k > 0 ? palette[(k - 1) % palette.length] : '#fafaf7';
+          c.textContent = k > 0 ? k : '';
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function render() {
+      var p = parseInt(slP.value, 10) || 1;
+      vlP.textContent = p + ' px';
+      var f = buildF(p);
+      var fe = erode(f, B);
+      var res = labelK8(fe);
+
+      paintBin(gF, f);
+      paintLabels(gL, res.labels);
+
+      var txt = '<b>' + res.desc.length + ' objeto(s) detectado(s) após a erosão.</b><br>';
+      res.desc.forEach(function(d){
+        txt += 'Rótulo ' + d.k + ': área = ' + d.area + ', bbox = (' + d.miny + ',' + d.minx + ') → (' + d.maxy + ',' + d.maxx + ')<br>';
+      });
+      if (res.desc.length < 2) {
+        txt += '<i>A ponte ainda é espessa demais para a erosão 3×3 — as moedas continuam fundidas em 1 só objeto.</i>';
+      }
+      info.innerHTML = txt;
+    }
+
+    slP.addEventListener('input', render);
+
+    render();
+  }
+
+  function tryInitSimEP0410(){
+    var root = document.getElementById('sim-ep0410-rotulacao');
+    if (root) initSimEP0410(root); else setTimeout(tryInitSimEP0410, 200);
+  }
+  tryInitSimEP0410();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 4.39: Simulador EP04_10: Separação de Blobs, Rotulação e Descritores</div>
   </div>
 </main>
@@ -386,7 +538,7 @@ window.Quarto = {
 
     const ero_COLS = 10, ero_ROWS = 10, ero_CELL = 32, ero_PAD = 14;
     const ero_W = ero_COLS * ero_CELL + ero_PAD * 2, ero_H = ero_ROWS * ero_CELL + ero_PAD * 2;
-    const ero_cv = root.querySelector('#sim04_ero_Canvas');
+    const ero_cv = root.querySelector('#sim-04-erosao_Canvas');
     ero_cv.width = ero_W; 
     ero_cv.height = ero_H;
     const ero_ctx = ero_cv.getContext('2d');
@@ -458,7 +610,7 @@ window.Quarto = {
         return 'B[' + o.by + '][' + o.bx + '] → (' + vy + ',' + vx + ') ' + mark;
       });
 
-      root.querySelector('#sim04_ero_offsetInfo').innerHTML =
+      root.querySelector('#sim-04-erosao_offsetInfo').innerHTML =
         '<span style="color:#8a8371; font-size:9.5px">offsets ativos @ (y=' + ero_cy + ', x=' + ero_cx + '):</span><br>' +
         lines.map(l => '<span style="color:' + (l.endsWith('✓') ? '#27ae60' : '#c0392b') + '">' + l + '</span>').join('<br>');
     }
@@ -551,20 +703,20 @@ window.Quarto = {
         }
       }
 
-      root.querySelector('#sim04_ero_mX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_mY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_mX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_mY').textContent = ero_cy;
       const ev = ero_ERO[ero_cy][ero_cx];
-      const mEro = root.querySelector('#sim04_ero_mEro');
+      const mEro = root.querySelector('#sim-04-erosao_mEro');
       mEro.textContent = ev ? '255' : '0';
       mEro.style.color = ev ? '#27ae60' : '#c0392b';
-      root.querySelector('#sim04_ero_vX').textContent = ero_cx;
-      root.querySelector('#sim04_ero_vY').textContent = ero_cy;
-      root.querySelector('#sim04_ero_slX').value = ero_cx;
-      root.querySelector('#sim04_ero_slY').value = ero_cy;
+      root.querySelector('#sim-04-erosao_vX').textContent = ero_cx;
+      root.querySelector('#sim-04-erosao_vY').textContent = ero_cy;
+      root.querySelector('#sim-04-erosao_slX').value = ero_cx;
+      root.querySelector('#sim-04-erosao_slY').value = ero_cy;
 
-      const box = root.querySelector('#sim04_ero_stBox');
-      const title = root.querySelector('#sim04_ero_stTitle');
-      const desc = root.querySelector('#sim04_ero_stDesc');
+      const box = root.querySelector('#sim-04-erosao_stBox');
+      const title = root.querySelector('#sim-04-erosao_stTitle');
+      const desc = root.querySelector('#sim-04-erosao_stDesc');
 
       if(contained){
         box.style.background = '#eafaf1'; box.style.borderColor = '#27ae60';
@@ -590,15 +742,15 @@ window.Quarto = {
       }
     });
 
-    root.querySelector('#sim04_ero_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
-    root.querySelector('#sim04_ero_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slX').addEventListener('input', function(){ ero_cx = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_slY').addEventListener('input', function(){ ero_cy = +this.value; ero_draw(); });
+    root.querySelector('#sim-04-erosao_rstBtn').addEventListener('click', function(){ ero_cx = 4; ero_cy = 4; ero_draw(); });
 
     ero_draw();
   }
 
   function tryInitSim04Ero(){
-    var root = document.getElementById('sim04_ero');
+    var root = document.getElementById('sim-04-erosao');
     if (root) initSim04Ero(root); else setTimeout(tryInitSim04Ero, 200);
   }
   tryInitSim04Ero();
@@ -663,7 +815,7 @@ window.Quarto = {
     buildSteps();
     let idx = 0, playing = false, timer = null;
 
-    const cv = root.querySelector('#sim04_cdil_Canvas');
+    const cv = root.querySelector('#sim-04-cdil_Canvas');
     const ctx = cv.getContext('2d');
 
     const C = {
@@ -744,9 +896,9 @@ window.Quarto = {
       else if (reached) msg = 'Passo ' + idx + ' — saída alcançada! 🎉';
       else msg = 'Passo ' + idx + ' — propagação geodésica';
 
-      root.querySelector('#sim04_cdil_info').textContent = msg;
-      root.querySelector('#sim04_cdil_btnPrev').disabled = idx === 0;
-      root.querySelector('#sim04_cdil_btnNext').disabled = idx === steps.length-1;
+      root.querySelector('#sim-04-cdil_info').textContent = msg;
+      root.querySelector('#sim-04-cdil_btnPrev').disabled = idx === 0;
+      root.querySelector('#sim-04-cdil_btnNext').disabled = idx === steps.length-1;
     }
 
     function step(d) {
@@ -766,7 +918,7 @@ window.Quarto = {
 
     function startPlay() {
       playing = true;
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '⏸ Pausar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '⏸ Pausar';
       timer = setInterval(() => {
         if (idx >= steps.length-1) { stopPlay(); return; }
         idx++;
@@ -777,19 +929,19 @@ window.Quarto = {
     function stopPlay() {
       playing = false;
       clearInterval(timer);
-      root.querySelector('#sim04_cdil_btnPlay').textContent = '▶ Animar';
+      root.querySelector('#sim-04-cdil_btnPlay').textContent = '▶ Animar';
     }
 
-    root.querySelector('#sim04_cdil_btnReset').addEventListener('click', reset);
-    root.querySelector('#sim04_cdil_btnPrev').addEventListener('click', () => step(-1));
-    root.querySelector('#sim04_cdil_btnNext').addEventListener('click', () => step(1));
-    root.querySelector('#sim04_cdil_btnPlay').addEventListener('click', togglePlay);
+    root.querySelector('#sim-04-cdil_btnReset').addEventListener('click', reset);
+    root.querySelector('#sim-04-cdil_btnPrev').addEventListener('click', () => step(-1));
+    root.querySelector('#sim-04-cdil_btnNext').addEventListener('click', () => step(1));
+    root.querySelector('#sim-04-cdil_btnPlay').addEventListener('click', togglePlay);
 
     draw();
   }
 
   function tryInitSim04Cdil(){
-    var root = document.getElementById('sim04_cdil');
+    var root = document.getElementById('sim-04-cdil');
     if (root) initSim04Cdil(root); else setTimeout(tryInitSim04Cdil, 200);
   }
   tryInitSim04Cdil();
@@ -1087,7 +1239,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Advanced(){
-    var root = document.getElementById('sim04_avancado');
+    var root = document.getElementById('sim-04-operadores-av');
     if (root) initSim04Advanced(root); else setTimeout(tryInitSim04Advanced, 200);
   }
   tryInitSim04Advanced();
@@ -1442,7 +1594,7 @@ window.Quarto = {
   }
 
   function tryInitSim04RotulacaoCC(){
-    var root = document.getElementById('sim04_rotulacao_cc');
+    var root = document.getElementById('sim-04-rotulacao');
     if (root) initSim04RotulacaoCC(root); else setTimeout(tryInitSim04RotulacaoCC, 200);
   }
   tryInitSim04RotulacaoCC();
@@ -1911,7 +2063,7 @@ window.Quarto = {
   }
 
   function tryInitSim04TD(){
-    var root = document.getElementById('sim04_td_root');
+    var root = document.getElementById('sim-04-distancia');
     if (root) initSim04TD(root); else setTimeout(tryInitSim04TD, 200);
   }
   tryInitSim04TD();
@@ -2137,7 +2289,7 @@ window.Quarto = {
   }
 
   function tryInit(){
-    var root = document.getElementById('sim04_edt_convergencia');
+    var root = document.getElementById('sim-04-tde');
     if (root) initSim04EdtConvergencia(root); else setTimeout(tryInit, 200);
   }
   tryInit();
@@ -2513,7 +2665,7 @@ window.Quarto = {
   }
 
   function tryInitSim04Watershed(){
-    var root = document.getElementById('sim04_watershed_root');
+    var root = document.getElementById('sim-04-watershed');
     if (root) initSim04Watershed(root); else setTimeout(tryInitSim04Watershed, 200);
   }
   tryInitSim04Watershed();

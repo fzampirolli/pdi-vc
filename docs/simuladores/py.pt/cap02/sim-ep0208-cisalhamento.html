@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0208-cisalhamento" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="54" id="fig-02-sim-ep0208-cisalhamento">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0208-cisalhamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0208-cisalhamento" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">✂️ Simulador EP02_08: Cisalhamento (Shear) 2D</span>
@@ -344,6 +347,108 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0208(root){
+    if (!root || root.dataset.simEp0208Init) return;
+    root.dataset.simEp0208Init = "1";
+
+    var slShx    = root.querySelector('#sim_ep0208_sl_shx');
+    var slShy    = root.querySelector('#sim_ep0208_sl_shy');
+    var vlShx    = root.querySelector('#sim_ep0208_vl_shx');
+    var vlShy    = root.querySelector('#sim_ep0208_vl_shy');
+    var gOrig    = root.querySelector('#sim_ep0208_grid_orig');
+    var gShear   = root.querySelector('#sim_ep0208_grid_shear');
+    var infoDiv  = root.querySelector('#sim_ep0208_info');
+
+    var btnNew   = root.querySelector('#sim_ep0208_btnNew');
+    var btnReset = root.querySelector('#sim_ep0208_btnReset');
+
+    var pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+
+    function getSourceCoords(xd, yd, shx, shy) {
+      var det = 1 - shx * shy;
+      if (Math.abs(det) < 1e-6) {
+        if (Math.abs(shx) > 0.5) {
+          return { xs: Math.round(xd - shx * yd), ys: Math.round(yd) };
+        } else {
+          return { xs: Math.round(xd), ys: Math.round(yd - shy * xd) };
+        }
+      }
+      var xs = (xd - shx * yd) / det;
+      var ys = (yd - shy * xd) / det;
+      return { xs: Math.round(xs), ys: Math.round(ys) };
+    }
+
+    function render() {
+      var shx = parseFloat(slShx.value) || 0;
+      var shy = parseFloat(slShy.value) || 0;
+
+      vlShx.textContent = shx.toFixed(2);
+      vlShy.textContent = shy.toFixed(2);
+
+      // Renderiza Grade Original (4x4)
+      gOrig.innerHTML = '';
+      for (var i = 0; i < 4; i++) {
+        for (var j = 0; j < 4; j++) {
+          var val = pixels[i * 4 + j];
+          var cellO = document.createElement('div');
+          var fgColorO = val > 128 ? '#000000' : '#ffffff';
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';box-sizing:border-box;';
+          cellO.textContent = val;
+          gOrig.appendChild(cellO);
+        }
+      }
+
+      // Renderiza Grade Cisalhada (4x4)
+      gShear.innerHTML = '';
+      for (var r = 0; r < 4; r++) {       // y destino
+        for (var c = 0; c < 4; c++) {   // x destino
+          var src = getSourceCoords(c, r, shx, shy);
+          var v = 0;
+
+          if (src.xs >= 0 && src.xs < 4 && src.ys >= 0 && src.ys < 4) {
+            v = pixels[src.ys * 4 + src.xs];
+          }
+
+          var cellS = document.createElement('div');
+          var fgColorS = v > 128 ? '#000000' : '#ffffff';
+          cellS.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgColorS + ';box-sizing:border-box;';
+          cellS.textContent = v;
+          gShear.appendChild(cellS);
+        }
+      }
+
+      var det = 1 - shx * shy;
+      infoDiv.innerHTML = 'shx = <b>' + shx.toFixed(2) + '</b>, shy = <b>' + shy.toFixed(2) + '</b> &nbsp;|&nbsp; <b>Matriz S: [[1, ' + shx.toFixed(2) + '], [' + shy.toFixed(2) + ', 1]]</b> (det = ' + det.toFixed(3) + ')';
+    }
+
+    slShx.addEventListener('input', render);
+    slShy.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slShx.value = '0';
+      slShy.value = '0';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0208(){
+    var root = document.getElementById('sim-ep0208-cisalhamento');
+    if (root) initSimEP0208(root); else setTimeout(tryInitSimEP0208, 200);
+  }
+  tryInitSimEP0208();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 2.19: Simulador EP02_08: Transformaçao Geométrica de Cisalhamento 2D (Shear Horizontal e Vertical)</div>
   </div>
 </main>

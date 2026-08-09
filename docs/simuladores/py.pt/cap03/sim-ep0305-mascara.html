@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0305-mascara" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="1" id="fig-03-sim-ep0305-mascara">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-sim-ep0305-mascara-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0305-mascara" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">⬛ Simulador EP03_05: Máscara AND Binária</span>
@@ -357,6 +360,125 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0305(root){
+    if (!root || root.dataset.simEp0305Init) return;
+    root.dataset.simEp0305Init = "1";
+
+    var gridF      = root.querySelector('#sim_ep0305_grid_f');
+    var gridMask   = root.querySelector('#sim_ep0305_grid_mask');
+    var gridResult = root.querySelector('#sim_ep0305_grid_result');
+    var debugDiv   = root.querySelector('#sim_ep0305_debug');
+    var pctSpan    = root.querySelector('#sim_ep0305_pct');
+    var statPres   = root.querySelector('#sim_ep0305_stat_preserved');
+    var statZero   = root.querySelector('#sim_ep0305_stat_zeroed');
+    var statRatio  = root.querySelector('#sim_ep0305_stat_ratio');
+
+    var btnNew     = root.querySelector('#sim_ep0305_btnNew');
+    var btnReset   = root.querySelector('#sim_ep0305_btnReset');
+
+    var N = 16;
+    var pixels = [];
+    var mask = [];
+
+    function generatePixels() {
+      pixels = Array.from({ length: N }, function(){ return Math.floor(Math.random() * 256); });
+    }
+
+    function resetMask() {
+      mask = Array.from({ length: N }, function(_, i) {
+        var r = Math.floor(i / 4), c = i % 4;
+        return (r + c) % 2 === 0 ? 255 : 0;
+      });
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridMask.innerHTML = '';
+      gridResult.innerHTML = '';
+
+      var preserved = 0, zeroed = 0;
+
+      for (var i = 0; i < N; i++) {
+        var p = pixels[i];
+        var m = mask[i];
+        var res = p & m;
+
+        // Célula F
+        var cellF = document.createElement('div');
+        var fgF = p > 128 ? '#000000' : '#ffffff';
+        cellF.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + fgF + ';box-sizing:border-box;';
+        cellF.textContent = p;
+        gridF.appendChild(cellF);
+
+        // Célula Máscara M (interativa)
+        var cellM = document.createElement('div');
+        cellM.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;user-select:none;box-sizing:border-box;transition:all 0.15s ease;';
+        if (m === 255) {
+          cellM.style.background = '#ebf4fd';
+          cellM.style.border = '2px solid #2980b9';
+          cellM.style.color = '#2980b9';
+        } else {
+          cellM.style.background = '#26241d';
+          cellM.style.border = '2px solid #8a8371';
+          cellM.style.color = '#7ee7c6';
+        }
+        cellM.textContent = m;
+        cellM.title = m === 255 ? 'Clique para bloquear (0)' : 'Clique para passar (255)';
+
+        (function(idx){
+          cellM.addEventListener('click', function(){
+            mask[idx] = mask[idx] === 255 ? 0 : 255;
+            render();
+          });
+        })(i);
+
+        gridMask.appendChild(cellM);
+
+        // Célula Resultado G
+        var cellR = document.createElement('div');
+        var fgR = res > 128 ? '#000000' : '#ffffff';
+        var borderStyle = m === 255 ? '2px solid #27ae60' : '1px solid #e4dcc8';
+        cellR.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;background:rgb(' + res + ',' + res + ',' + res + ');color:' + fgR + ';border:' + borderStyle + ';box-sizing:border-box;';
+        cellR.textContent = res;
+        gridResult.appendChild(cellR);
+
+        if (m === 255) preserved++; else zeroed++;
+      }
+
+      var ratioPct = Math.round((preserved / N) * 100);
+      statPres.textContent = preserved;
+      statZero.textContent = zeroed;
+      statRatio.textContent = ratioPct + '%';
+      pctSpan.textContent = ratioPct + '% visível';
+      debugDiv.innerHTML = 'g(i,j) = f(i,j) &amp; m(i,j) &nbsp;|&nbsp; <b>' + preserved + '</b> preservados · <b>' + zeroed + '</b> zerados';
+    }
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      resetMask();
+      render();
+    });
+
+    generatePixels();
+    resetMask();
+    render();
+  }
+
+  function tryInitSimEP0305(){
+    var root = document.getElementById('sim-ep0305-mascara');
+    if (root) initSimEP0305(root); else setTimeout(tryInitSimEP0305, 200);
+  }
+  tryInitSimEP0305();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 3.30: Simulador EP03_05: Aplicação de Máscara AND Binária</div>
   </div>
 </main>
@@ -581,7 +703,7 @@ window.Quarto = {
   }
 
   function tryInitSimCap03(){
-    var root = document.getElementById('sim-cap03-filtragem1d');
+    var root = document.getElementById('sim-03-filtragem1d');
     if (root) initSimCap03(root); else setTimeout(tryInitSimCap03, 200);
   }
   tryInitSimCap03();

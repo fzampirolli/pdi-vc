@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0309-mediana" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="29" id="fig-03-sim-ep0309-mediana">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-sim-ep0309-mediana-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0309-mediana" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">📉 Simulador EP03_09: Filtro da Mediana 3×3</span>
@@ -362,6 +365,246 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0309(root){
+    if (!root || root.dataset.simEp0309Init) return;
+    root.dataset.simEp0309Init = "1";
+
+    var ROWS = 5, COLS = 5, N = 25, RADIUS = 1;
+    var pixels = [], result = [];
+
+    var gridF  = root.querySelector('#sim_ep0309_grid_f');
+    var gridRes= root.querySelector('#sim_ep0309_grid_result');
+    var vector = root.querySelector('#sim_ep0309_vector');
+    var debug  = root.querySelector('#sim_ep0309_debug');
+    var btnNew = root.querySelector('#sim_ep0309_btnNew');
+
+    function generate() {
+      pixels = Array.from({ length: N }, function(){
+        var v = 110 + Math.floor(Math.random() * 30);
+        var rnd = Math.random();
+        if (rnd > 0.82) v = 255;
+        else if (rnd < 0.18) v = 0;
+        return v;
+      });
+      calculate();
+    }
+
+    function calculate() {
+      result = pixels.slice();
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (r >= RADIUS && r < ROWS - RADIUS && c >= RADIUS && c < COLS - RADIUS) {
+            var win = [];
+            for (var s = -RADIUS; s <= RADIUS; s++) {
+              for (var t = -RADIUS; t <= RADIUS; t++) {
+                win.push(pixels[(r + s) * COLS + (c + t)]);
+              }
+            }
+            win.sort(function(a, b){ return a - b; });
+            result[r * COLS + c] = win[4];
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+    function isNoise(v){ return v === 0 || v === 255; }
+
+    function highlight(tr, tc, on) {
+      var cells = gridF.children;
+      for (var i = 0; i < N; i++) {
+        if (!cells[i]) continue;
+        var p = pixels[i], r = Math.floor(i / COLS), c = i % COLS;
+        if (on && Math.abs(r - tr) <= 1 && Math.abs(c - tc) <= 1) {
+          if (r === tr && c === tc) {
+            cells[i].style.background = '#ebf4fd';
+            cells[i].style.color = '#2980b9';
+            cells[i].style.boxShadow = '0 0 0 2px #2980b9 inset';
+          } else {
+            cells[i].style.background = '#fef5e7';
+            cells[i].style.color = '#b9770e';
+            cells[i].style.boxShadow = '0 0 0 2px #b9770e inset';
+          }
+        } else {
+          if (isNoise(p)) {
+            cells[i].style.background = p === 255 ? '#ffffff' : '#26241d';
+            cells[i].style.color = p === 255 ? '#c0392b' : '#e74c3c';
+            cells[i].style.border = '2px solid #c0392b';
+          } else {
+            cells[i].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+            cells[i].style.color = textColor(p);
+            cells[i].style.border = '1px solid #e4dcc8';
+          }
+          cells[i].style.boxShadow = 'none';
+        }
+      }
+    }
+
+    function showVector(raw, sorted, median) {
+      vector.innerHTML = '';
+
+      var rawLabel = document.createElement('span');
+      rawLabel.style.cssText = 'font-size:10px;color:#8a8371;margin-right:6px;font-family:monospace;';
+      rawLabel.textContent = 'Bruto:';
+      vector.appendChild(rawLabel);
+
+      raw.forEach(function(v){
+        var d = document.createElement('div');
+        var noise = isNoise(v);
+        d.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:28px;height:24px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;margin:1px;';
+        d.style.background = noise ? '#26241d' : '#fafaf7';
+        d.style.color = noise ? '#e74c3c' : '#26241d';
+        d.style.border = noise ? '1.5px solid #c0392b' : '1px solid #e4dcc8';
+        d.textContent = v;
+        vector.appendChild(d);
+      });
+
+      var arr = document.createElement('span');
+      arr.style.cssText = 'font-size:14px;margin:0 6px;color:#8a8371;font-weight:700;';
+      arr.textContent = '→';
+      vector.appendChild(arr);
+
+      var sortLabel = document.createElement('span');
+      sortLabel.style.cssText = 'font-size:10px;color:#8a8371;margin-right:6px;font-family:monospace;';
+      sortLabel.textContent = 'Ordenado:';
+      vector.appendChild(sortLabel);
+
+      sorted.forEach(function(v, i){
+        var d = document.createElement('div');
+        var isMedian = (i === 4);
+        var noise = isNoise(v);
+        d.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:28px;height:24px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;margin:1px;';
+        if (isMedian) {
+          d.style.background = '#eafaf1';
+          d.style.color = '#27ae60';
+          d.style.border = '2px solid #27ae60';
+        } else if (noise) {
+          d.style.background = '#26241d';
+          d.style.color = '#e74c3c';
+          d.style.border = '1.5px solid #c0392b';
+        } else {
+          d.style.background = '#fafaf7';
+          d.style.color = '#26241d';
+          d.style.border = '1px solid #e4dcc8';
+        }
+        d.textContent = v;
+        vector.appendChild(d);
+      });
+
+      var eq = document.createElement('span');
+      eq.style.cssText = 'font-size:11px;margin-left:8px;font-family:monospace;color:#27ae60;font-weight:700;';
+      eq.innerHTML = '→ mediana = <b>' + median + '</b>';
+      vector.appendChild(eq);
+    }
+
+    function resetVector() {
+      vector.innerHTML = '<span style="font-size:11px;color:#8a8371;font-style:italic;">—</span>';
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um píxel interno do resultado para ver o processo de ordenação.';
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridRes.innerHTML = '';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], res = result[i];
+        var isBorder = (r < RADIUS || r >= ROWS - RADIUS || c < RADIUS || c >= COLS - RADIUS);
+        var noise = isNoise(p);
+
+        // Célula F com Ruído
+        var cf = document.createElement('div');
+        if (noise) {
+          cf.style.cssText = 'width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;background:' + (p === 255 ? '#ffffff' : '#26241d') + ';color:' + (p === 255 ? '#c0392b' : '#e74c3c') + ';border:2px solid #c0392b;box-sizing:border-box;';
+        } else {
+          cf.style.cssText = 'width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        }
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '1.5px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel borda (' + row + ',' + col + '): copiado sem filtro → <b>' + val + '</b>';
+              resetVector();
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, resVal){
+            cr.addEventListener('mouseenter', function(){
+              highlight(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var raw = [];
+              for (var s = -RADIUS; s <= RADIUS; s++) {
+                for (var t = -RADIUS; t <= RADIUS; t++) {
+                  raw.push(pixels[(row + s) * COLS + (col + t)]);
+                }
+              }
+              var sorted = raw.slice().sort(function(a, b){ return a - b; });
+              showVector(raw, sorted, resVal);
+
+              var noiseCount = raw.filter(isNoise).length;
+              debug.innerHTML = 'Pixel (' + row + ',' + col + '): ' + noiseCount + ' vizinho(s) com ruído na janela &nbsp;→&nbsp; mediana = posição [4] = <b>' + resVal + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlight(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + resVal + ',' + resVal + ',' + resVal + ')';
+              cr.style.color = textColor(resVal);
+              resetDebug();
+              resetVector();
+            });
+          })(r, c, res);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0309(){
+    var root = document.getElementById('sim-ep0309-mediana');
+    if (root) initSimEP0309(root); else setTimeout(tryInitSimEP0309, 200);
+  }
+  tryInitSimEP0309();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 3.34: Simulador EP03_09: Filtro da Mediana 3×3</div>
   </div>
 </main>
@@ -586,7 +829,7 @@ window.Quarto = {
   }
 
   function tryInitSimCap03(){
-    var root = document.getElementById('sim-cap03-filtragem1d');
+    var root = document.getElementById('sim-03-filtragem1d');
     if (root) initSimCap03(root); else setTimeout(tryInitSimCap03, 200);
   }
   tryInitSimCap03();

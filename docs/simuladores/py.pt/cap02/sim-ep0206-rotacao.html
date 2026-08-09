@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0206-rotacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="48" id="fig-02-sim-ep0206-rotacao">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0206-rotacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0206-rotacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🔄 Simulador EP02_06: Rotação Geométrica 2D</span>
@@ -335,6 +338,152 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0206(root){
+    if (!root || root.dataset.simEp0206Init) return;
+    root.dataset.simEp0206Init = "1";
+
+    var canvas   = root.querySelector('#sim_ep0206_canvas');
+    var ctx      = canvas.getContext('2d');
+    var slAng    = root.querySelector('#sim_ep0206_sl_ang');
+    var vlAng    = root.querySelector('#sim_ep0206_vl_ang');
+    var infoDiv  = root.querySelector('#sim_ep0206_info');
+
+    var btn0     = root.querySelector('#sim_ep0206_btn_0');
+    var btn90    = root.querySelector('#sim_ep0206_btn_90');
+    var btn180   = root.querySelector('#sim_ep0206_btn_180');
+    var btn270   = root.querySelector('#sim_ep0206_btn_270');
+    var btnReset = root.querySelector('#sim_ep0206_btn_reset');
+
+    var w = 300, h = 300;
+    var cx = w / 2, cy = h / 2;
+
+    var size = 70;
+    var half = size / 2;
+
+    var squarePoints = [
+      { x: -half, y: -half },
+      { x:  half, y: -half },
+      { x:  half, y:  half },
+      { x: -half, y:  half }
+    ];
+
+    var markerRel = { x: half, y: -half };
+
+    function rotatePoint(px, py, angRad) {
+      var cos = Math.cos(angRad);
+      var sin = Math.sin(angRad);
+      return {
+        x: px * cos - py * sin,
+        y: px * sin + py * cos
+      };
+    }
+
+    function draw() {
+      var angDeg = parseInt(slAng.value) || 0;
+      vlAng.textContent = angDeg + "°";
+
+      var angRad = angDeg * Math.PI / 180;
+      var cosVal = Math.cos(angRad);
+      var sinVal = Math.sin(angRad);
+
+      infoDiv.innerHTML = 'θ = <b>' + angDeg + '°</b> → cos = ' + cosVal.toFixed(3) + ', sin = ' + sinVal.toFixed(3) + ' &nbsp;|&nbsp; <b>Matriz R(θ): [[' + cosVal.toFixed(3) + ', ' + (-sinVal).toFixed(3) + '], [' + sinVal.toFixed(3) + ', ' + cosVal.toFixed(3) + ']]</b>';
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.save();
+
+      // Linhas da grade suave
+      ctx.strokeStyle = "#e4dcc8";
+      ctx.lineWidth = 0.6;
+      for (var i = 0; i <= 4; i++) {
+        var pos = i * (w / 4);
+        ctx.beginPath();
+        ctx.moveTo(pos, 0); ctx.lineTo(pos, h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, pos); ctx.lineTo(w, pos);
+        ctx.stroke();
+      }
+
+      // Eixos Centrais
+      ctx.beginPath();
+      ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+      ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+      ctx.strokeStyle = "#8a8371";
+      ctx.lineWidth = 1.0;
+      ctx.stroke();
+
+      // Quadrado Rotacionado
+      var rotatedPoints = squarePoints.map(function(p){
+        return rotatePoint(p.x, p.y, angRad);
+      });
+
+      var canvasPoints = rotatedPoints.map(function(p){
+        return { x: cx + p.x, y: cy + p.y };
+      });
+
+      ctx.beginPath();
+      ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+      for (var k = 1; k < canvasPoints.length; k++) {
+        ctx.lineTo(canvasPoints[k].x, canvasPoints[k].y);
+      }
+      ctx.closePath();
+
+      ctx.fillStyle = "rgba(39, 174, 96, 0.65)";
+      ctx.fill();
+      ctx.strokeStyle = "#27ae60";
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      // Marcador de Orientação no Canto (Laranja)
+      var rotatedMarker = rotatePoint(markerRel.x, markerRel.y, angRad);
+      var mX = cx + rotatedMarker.x;
+      var mY = cy + rotatedMarker.y;
+
+      ctx.beginPath();
+      ctx.arc(mX, mY, 7, 0, 2 * Math.PI);
+      ctx.fillStyle = "#b9770e";
+      ctx.fill();
+      ctx.strokeStyle = "#26241d";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Ponto Central (Origem da Rotação)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = "#c0392b";
+      ctx.fill();
+
+      ctx.restore();
+
+      // Texto de Ângulo
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#26241d";
+      ctx.fillText(angDeg + "°", cx + 8, cy - 8);
+    }
+
+    slAng.addEventListener('input', draw);
+
+    btn0.addEventListener('click', function() { slAng.value = 0; draw(); });
+    btn90.addEventListener('click', function() { slAng.value = 90; draw(); });
+    btn180.addEventListener('click', function() { slAng.value = 180; draw(); });
+    btn270.addEventListener('click', function() { slAng.value = 270; draw(); });
+    btnReset.addEventListener('click', function() { slAng.value = 0; draw(); });
+
+    draw();
+  }
+
+  function tryInitSimEP0206(){
+    var root = document.getElementById('sim-ep0206-rotacao');
+    if (root) initSimEP0206(root); else setTimeout(tryInitSimEP0206, 200);
+  }
+  tryInitSimEP0206();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 2.17: Simulador EP02_06: Rotação de Imagem em Torno da Origem por Ângulo θ</div>
   </div>
 </main>

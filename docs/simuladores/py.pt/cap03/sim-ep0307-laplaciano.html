@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0307-laplaciano" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="27" id="fig-03-sim-ep0307-laplaciano">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-sim-ep0307-laplaciano-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0307-laplaciano" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">📐 Simulador EP03_07: Operador Laplaciano (w4)</span>
@@ -375,6 +378,234 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0307(root){
+    if (!root || root.dataset.simEp0307Init) return;
+    root.dataset.simEp0307Init = "1";
+
+    var ROWS = 5, COLS = 5, N = 25;
+    var pixels = [], lapV = [], lapA = [], result = [];
+    var variant = 'subtract';
+
+    var gridF   = root.querySelector('#sim_ep0307_grid_f');
+    var gridL   = root.querySelector('#sim_ep0307_grid_l');
+    var gridRes = root.querySelector('#sim_ep0307_grid_res');
+    var debug   = root.querySelector('#sim_ep0307_debug');
+    var fLabel  = root.querySelector('#sim_ep0307_flabel');
+    var btnV1   = root.querySelector('#sim_ep0307_btn_v1');
+    var btnV2   = root.querySelector('#sim_ep0307_btn_v2');
+    var btnNew  = root.querySelector('#sim_ep0307_btnNew');
+
+    function generate() {
+      var sc = 2 + Math.floor(Math.random() * 2);
+      var dark = 40 + Math.floor(Math.random() * 30);
+      var light = 160 + Math.floor(Math.random() * 40);
+      pixels = Array.from({ length: N }, function(_, i) {
+        var c = i % COLS;
+        var v = c < sc ? dark : light;
+        v += Math.floor(Math.random() * 14) - 7;
+        return Math.max(0, Math.min(255, v));
+      });
+      calculate();
+    }
+
+    function calculate() {
+      lapV = new Array(N).fill(0);
+      lapA = new Array(N).fill(0);
+      result = pixels.slice();
+
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var i = r * COLS + c;
+          if (r >= 1 && r < ROWS - 1 && c >= 1 && c < COLS - 1) {
+            var t  = pixels[(r - 1) * COLS + c];
+            var b  = pixels[(r + 1) * COLS + c];
+            var l  = pixels[r * COLS + (c - 1)];
+            var ri = pixels[r * COLS + (c + 1)];
+            var f  = pixels[i];
+            var lap = t + b + l + ri - 4 * f;
+
+            lapV[i] = lap;
+            lapA[i] = Math.max(0, Math.min(255, lap + 128));
+            result[i] = Math.max(0, Math.min(255, variant === 'subtract' ? f - lap : f + lap));
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+
+    function highlightCross(tr, tc, on) {
+      var cells = gridF.children;
+      for (var i = 0; i < N; i++) {
+        if (!cells[i]) continue;
+        var p = pixels[i];
+        cells[i].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+        cells[i].style.color = textColor(p);
+        cells[i].style.boxShadow = 'none';
+      }
+      if (on) {
+        var ci = tr * COLS + tc;
+        if (cells[ci]) {
+          cells[ci].style.background = '#faece7';
+          cells[ci].style.color = '#c0392b';
+          cells[ci].style.boxShadow = '0 0 0 2px #c0392b inset';
+        }
+        var neighbors = [[tr - 1, tc], [tr + 1, tc], [tr, tc - 1], [tr, tc + 1]];
+        neighbors.forEach(function(n) {
+          var nr = n[0], nc = n[1];
+          if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+            var ni = nr * COLS + nc;
+            if (cells[ni]) {
+              cells[ni].style.background = '#fef5e7';
+              cells[ni].style.color = '#b9770e';
+              cells[ni].style.boxShadow = '0 0 0 2px #b9770e inset';
+            }
+          }
+        });
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um pixel interno do resultado para detalhar a equação.';
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridL.innerHTML = '';
+      gridRes.innerHTML = '';
+      fLabel.textContent = variant === 'subtract' ? '③ Resultado g = f − ∇²f' : '③ Resultado g = f + ∇²f';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], lv = lapV[i], la = lapA[i], res = result[i];
+        var isBorder = (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1);
+
+        // Célula Original f
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Laplaciano l
+        var cl = document.createElement('div');
+        cl.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;';
+        if (isBorder) {
+          cl.style.background = '#fafaf7';
+          cl.style.color = '#8a8371';
+          cl.style.border = '1px solid #e4dcc8';
+          cl.textContent = '—';
+        } else {
+          cl.style.background = 'rgb(' + la + ',' + la + ',' + la + ')';
+          cl.style.color = textColor(la);
+          cl.style.border = '1px solid #e4dcc8';
+          cl.textContent = lv;
+        }
+        gridL.appendChild(cl);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '1.5px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel borda (' + row + ',' + col + '): valor herdado sem cálculo &nbsp;→&nbsp; <b>' + val + '</b>';
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, val, lapVal, origVal){
+            var tVal = pixels[(row - 1) * COLS + col];
+            var bVal = pixels[(row + 1) * COLS + col];
+            var lVal = pixels[row * COLS + (col - 1)];
+            var rVal = pixels[row * COLS + (col + 1)];
+
+            cr.addEventListener('mouseenter', function(){
+              highlightCross(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var sign = variant === 'subtract' ? '−' : '+';
+              debug.innerHTML = '∇²f = (' + tVal + ' + ' + bVal + ' + ' + lVal + ' + ' + rVal + ') − 4·' + origVal + ' = <b>' + lapVal + '</b> &nbsp;|&nbsp; g = clip(' + origVal + ' ' + sign + ' ' + lapVal + ') = <b>' + val + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlightCross(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + val + ',' + val + ',' + val + ')';
+              cr.style.color = textColor(val);
+              resetDebug();
+            });
+          })(r, c, res, lv, p);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    function setVariant(v) {
+      variant = v;
+      if (v === 'subtract') {
+        btnV1.style.background = '#fef5e7';
+        btnV1.style.borderColor = '#b9770e';
+        btnV1.style.color = '#b9770e';
+        btnV1.style.fontWeight = '700';
+
+        btnV2.style.background = '#f1ead7';
+        btnV2.style.borderColor = '#e4dcc8';
+        btnV2.style.color = '#5e5a4a';
+        btnV2.style.fontWeight = '600';
+      } else {
+        btnV2.style.background = '#fef5e7';
+        btnV2.style.borderColor = '#b9770e';
+        btnV2.style.color = '#b9770e';
+        btnV2.style.fontWeight = '700';
+
+        btnV1.style.background = '#f1ead7';
+        btnV1.style.borderColor = '#e4dcc8';
+        btnV1.style.color = '#5e5a4a';
+        btnV1.style.fontWeight = '600';
+      }
+      calculate();
+      render();
+    }
+
+    btnV1.addEventListener('click', function(){ setVariant('subtract'); });
+    btnV2.addEventListener('click', function(){ setVariant('add'); });
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0307(){
+    var root = document.getElementById('sim-ep0307-laplaciano');
+    if (root) initSimEP0307(root); else setTimeout(tryInitSimEP0307, 200);
+  }
+  tryInitSimEP0307();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 3.32: Simulador EP03_07: Operador Laplaciano (w4) para Realce de Bordas</div>
   </div>
 </main>
@@ -599,7 +830,7 @@ window.Quarto = {
   }
 
   function tryInitSimCap03(){
-    var root = document.getElementById('sim-cap03-filtragem1d');
+    var root = document.getElementById('sim-03-filtragem1d');
     if (root) initSimCap03(root); else setTimeout(tryInitSimCap03, 200);
   }
   tryInitSimCap03();

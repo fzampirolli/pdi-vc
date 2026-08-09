@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0211-sudoku" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="65" id="fig-02-sim-ep0211-sudoku">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0211-sudoku-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0211-sudoku" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">🎮 Simulador EP02_11: Perspectiva do Sudoku</span>
@@ -328,6 +331,330 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0211(root){
+    if (!root || root.dataset.simEp0211Init) return;
+    root.dataset.simEp0211Init = "1";
+
+    var srcCanvas = root.querySelector('#sim_ep0211_canvas_src');
+    var dstCanvas = root.querySelector('#sim_ep0211_canvas_dst');
+    var ctxSrc    = srcCanvas.getContext('2d');
+    var ctxDst    = dstCanvas.getContext('2d');
+
+    var btnReset  = root.querySelector('#sim_ep0211_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0211_btnCorrect');
+    var btnPad    = root.querySelector('#sim_ep0211_btnPad');
+    var debugDiv  = root.querySelector('#sim_ep0211_debug');
+
+    var SIZE = 400;
+    var PAD = 32;
+    var img = null;
+    var imgLoaded = false;
+    var points = [];
+    var dragIndex = -1;
+    var showPad = false;
+
+    function defaultPoints() {
+      return [
+        [PAD + 48, PAD + 38],        // TL
+        [SIZE - PAD - 32, PAD + 28], // TR
+        [PAD + 35, SIZE - PAD - 32], // BL
+        [SIZE - PAD - 28, SIZE - PAD - 24] // BR
+      ];
+    }
+
+    function loadImage() {
+      var imageObj = new Image();
+      imageObj.src = "sudoku.png";
+      imageObj.crossOrigin = "Anonymous";
+
+      imageObj.onload = function() {
+        img = imageObj;
+        imgLoaded = true;
+        points = defaultPoints();
+        drawSource();
+        drawPlaceholder();
+        debugDiv.innerHTML = "✅ Imagem local carregada! Arraste os marcadores nos cantos da grade.";
+      };
+
+      imageObj.onerror = function() {
+        imageObj.src = "https://upload.wikimedia.org/wikipedia/commons/e/e7/Sudoku_en_peri%C3%B3dico.jpg";
+        imageObj.onload = function() {
+          img = imageObj;
+          imgLoaded = true;
+          points = defaultPoints();
+          drawSource();
+          drawPlaceholder();
+          debugDiv.innerHTML = "⚠️ Imagem local não encontrada. Carregada imagem remota fallback.";
+        };
+        imageObj.onerror = function() {
+          debugDiv.innerHTML = "❌ Erro ao carregar imagem. Verifique a existência de sudoku.png.";
+          imgLoaded = false;
+        };
+      };
+    }
+
+    function drawSource() {
+      if (!imgLoaded || !img) return;
+      ctxSrc.clearRect(0, 0, SIZE, SIZE);
+      ctxSrc.fillStyle = "#f1ead7";
+      ctxSrc.fillRect(0, 0, SIZE, SIZE);
+
+      var maxW = SIZE - 2 * PAD;
+      var maxH = SIZE - 2 * PAD;
+      var scale = Math.min(maxW / img.width, maxH / img.height);
+      var drawW = img.width * scale;
+      var drawH = img.height * scale;
+      var offX = PAD + (maxW - drawW) / 2;
+      var offY = PAD + (maxH - drawH) / 2;
+      ctxSrc.drawImage(img, offX, offY, drawW, drawH);
+
+      if (showPad) {
+        ctxSrc.fillStyle = "rgba(41, 128, 185, 0.2)";
+        ctxSrc.fillRect(0, 0, SIZE, PAD);
+        ctxSrc.fillRect(0, SIZE - PAD, SIZE, PAD);
+        ctxSrc.fillRect(0, 0, PAD, SIZE);
+        ctxSrc.fillRect(SIZE - PAD, 0, PAD, SIZE);
+        ctxSrc.strokeStyle = "#2980b9";
+        ctxSrc.setLineDash([4, 6]);
+        ctxSrc.strokeRect(PAD, PAD, SIZE - 2 * PAD, SIZE - 2 * PAD);
+        ctxSrc.setLineDash([]);
+      }
+
+      if (points.length === 4) {
+        ctxSrc.beginPath();
+        ctxSrc.moveTo(points[0][0], points[0][1]);
+        ctxSrc.lineTo(points[1][0], points[1][1]);
+        ctxSrc.lineTo(points[3][0], points[3][1]);
+        ctxSrc.lineTo(points[2][0], points[2][1]);
+        ctxSrc.closePath();
+        ctxSrc.strokeStyle = "#b9770e";
+        ctxSrc.lineWidth = 2.5;
+        ctxSrc.stroke();
+
+        var labels = ["TL", "TR", "BL", "BR"];
+        for (var i = 0; i < 4; i++) {
+          ctxSrc.beginPath();
+          ctxSrc.arc(points[i][0], points[i][1], 7, 0, 2 * Math.PI);
+          ctxSrc.fillStyle = "#b9770e";
+          ctxSrc.fill();
+          ctxSrc.strokeStyle = "#ffffff";
+          ctxSrc.lineWidth = 2;
+          ctxSrc.stroke();
+
+          ctxSrc.fillStyle = "#26241d";
+          ctxSrc.font = "bold 11px monospace";
+          var dx = (i === 0 || i === 2) ? -20 : 8;
+          var dy = (i < 2) ? -8 : 14;
+          ctxSrc.fillText(labels[i], points[i][0] + dx, points[i][1] + dy);
+        }
+      }
+    }
+
+    function drawPlaceholder() {
+      ctxDst.clearRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#fafaf7";
+      ctxDst.fillRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#8a8371";
+      ctxDst.font = "11px monospace";
+      ctxDst.textAlign = "center";
+      ctxDst.fillText("Clique em 'Corrigir Perspectiva'", SIZE / 2, SIZE / 2 - 10);
+      ctxDst.fillText("para retificar a grade do Sudoku", SIZE / 2, SIZE / 2 + 10);
+      ctxDst.textAlign = "left";
+    }
+
+    function gaussSolve(A, b) {
+      var n = A.length;
+      var M = A.map(function(row, i) { return row.concat([b[i]]); });
+
+      for (var i = 0; i < n; i++) {
+        var maxRow = i;
+        for (var k = i + 1; k < n; k++) {
+          if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+        }
+        var temp = M[i]; M[i] = M[maxRow]; M[maxRow] = temp;
+
+        if (Math.abs(M[i][i]) < 1e-8) return null;
+
+        for (var k = i + 1; k <= n; k++) M[i][k] /= M[i][i];
+        for (var k = 0; k < n; k++) {
+          if (k !== i) {
+            var factor = M[k][i];
+            for (var j = i + 1; j <= n; j++) M[k][j] -= factor * M[i][j];
+          }
+        }
+      }
+      return M.map(function(row) { return row[n]; });
+    }
+
+    function getPerspectiveTransform(src, dst) {
+      var A = [];
+      for (var i = 0; i < 4; i++) {
+        var x = src[i][0], y = src[i][1];
+        var xp = dst[i][0], yp = dst[i][1];
+        A.push([-x, -y, -1, 0, 0, 0, x * xp, y * xp, xp]);
+        A.push([0, 0, 0, -x, -y, -1, x * yp, y * yp, yp]);
+      }
+      var B = [], C = [];
+      for (var i = 0; i < 8; i++) {
+        B.push(A[i].slice(0, 8));
+        C.push(-A[i][8]);
+      }
+      var sol = gaussSolve(B, C);
+      if (!sol) return null;
+      var h = sol.concat([1]);
+      return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], h[8]]];
+    }
+
+    function invertMatrix3x3(m) {
+      var a = m[0][0], b = m[0][1], c = m[0][2];
+      var d = m[1][0], e = m[1][1], f = m[1][2];
+      var g = m[2][0], h = m[2][1], i = m[2][2];
+
+      var det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+      if (Math.abs(det) < 1e-8) return null;
+      var invDet = 1 / det;
+
+      return [
+        [(e * i - f * h) * invDet, (c * h - b * i) * invDet, (b * f - c * e) * invDet],
+        [(f * g - d * i) * invDet, (a * i - c * g) * invDet, (c * d - a * f) * invDet],
+        [(d * h - e * g) * invDet, (b * g - a * h) * invDet, (a * e - b * d) * invDet]
+      ];
+    }
+
+    function warpPerspective(sCanvas, dCanvas, H, outW, outH) {
+      var sCtx = sCanvas.getContext('2d');
+      var dCtx = dCanvas.getContext('2d');
+      var srcImg = sCtx.getImageData(0, 0, sCanvas.width, sCanvas.height);
+      var dstData = dCtx.createImageData(outW, outH);
+      var srcData = srcImg.data;
+      var srcW = sCanvas.width, srcH = sCanvas.height;
+      var Hinv = invertMatrix3x3(H);
+      if (!Hinv) return false;
+
+      for (var y = 0; y < outH; y++) {
+        for (var x = 0; x < outW; x++) {
+          var denom = Hinv[2][0] * x + Hinv[2][1] * y + Hinv[2][2];
+          if (Math.abs(denom) < 1e-6) continue;
+          var u = (Hinv[0][0] * x + Hinv[0][1] * y + Hinv[0][2]) / denom;
+          var v = (Hinv[1][0] * x + Hinv[1][1] * y + Hinv[1][2]) / denom;
+
+          var idxDst = (y * outW + x) * 4;
+          if (u >= 0 && u < srcW - 1 && v >= 0 && v < srcH - 1) {
+            var x0 = Math.floor(u), y0 = Math.floor(v);
+            var dx = u - x0, dy = v - y0;
+            var idx = (y0 * srcW + x0) * 4;
+
+            var c00 = [srcData[idx], srcData[idx + 1], srcData[idx + 2]];
+            var c10 = [srcData[idx + 4], srcData[idx + 5], srcData[idx + 6]];
+            var c01 = [srcData[idx + srcW * 4], srcData[idx + srcW * 4 + 1], srcData[idx + srcW * 4 + 2]];
+            var c11 = [srcData[idx + srcW * 4 + 4], srcData[idx + srcW * 4 + 5], srcData[idx + srcW * 4 + 6]];
+
+            var r = (1 - dx) * (1 - dy) * c00[0] + dx * (1 - dy) * c10[0] + (1 - dx) * dy * c01[0] + dx * dy * c11[0];
+            var g = (1 - dx) * (1 - dy) * c00[1] + dx * (1 - dy) * c10[1] + (1 - dx) * dy * c01[1] + dx * dy * c11[1];
+            var b = (1 - dx) * (1 - dy) * c00[2] + dx * (1 - dy) * c10[2] + (1 - dx) * dy * c01[2] + dx * dy * c11[2];
+
+            dstData.data[idxDst]     = r;
+            dstData.data[idxDst + 1] = g;
+            dstData.data[idxDst + 2] = b;
+            dstData.data[idxDst + 3] = 255;
+          } else {
+            dstData.data[idxDst]     = 241;
+            dstData.data[idxDst + 1] = 234;
+            dstData.data[idxDst + 2] = 215;
+            dstData.data[idxDst + 3] = 255;
+          }
+        }
+      }
+      dCtx.putImageData(dstData, 0, 0);
+      return true;
+    }
+
+    function correctPerspective() {
+      if (!imgLoaded) { debugDiv.textContent = "Aguardando carregamento da imagem."; return; }
+      var pts1 = points.map(function(p){ return [p[0], p[1]]; });
+      var pts2 = [[0, 0], [SIZE, 0], [0, SIZE], [SIZE, SIZE]];
+      var H = getPerspectiveTransform(pts1, pts2);
+
+      if (!H) { debugDiv.textContent = "Erro: pontos colineares ou matriz singular."; return; }
+
+      var tempCanvas = document.createElement('canvas');
+      tempCanvas.width = SIZE;
+      tempCanvas.height = SIZE;
+      tempCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+
+      var success = warpPerspective(tempCanvas, dstCanvas, H, SIZE, SIZE);
+      if (success) {
+        debugDiv.innerHTML = '✅ <b>Homografia 3×3 aplicada:</b> Vértices retificados para grade frontal de ' + SIZE + '×' + SIZE + ' pixels.';
+      } else {
+        debugDiv.textContent = "❌ Falha na reamostragem de perspectiva.";
+      }
+    }
+
+    function getMousePos(e, cEl) {
+      var rect = cEl.getBoundingClientRect();
+      var scaleX = cEl.width / rect.width;
+      var scaleY = cEl.height / rect.height;
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+    }
+
+    srcCanvas.addEventListener('mousedown', function(e) {
+      var pos = getMousePos(e, srcCanvas);
+      for (var i = 0; i < points.length; i++) {
+        if (Math.sqrt(Math.pow(pos[0] - points[i][0], 2) + Math.pow(pos[1] - points[i][1], 2)) < 14) {
+          dragIndex = i;
+          srcCanvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (dragIndex === -1) return;
+      var pos = getMousePos(e, srcCanvas);
+      points[dragIndex] = [
+        Math.min(SIZE - 5, Math.max(5, pos[0])),
+        Math.min(SIZE - 5, Math.max(5, pos[1]))
+      ];
+      drawSource();
+      debugDiv.textContent = 'Posicionando ponto ' + dragIndex + ' → (' + Math.round(points[dragIndex][0]) + ', ' + Math.round(points[dragIndex][1]) + ')';
+    });
+
+    window.addEventListener('mouseup', function() {
+      dragIndex = -1;
+      srcCanvas.style.cursor = 'crosshair';
+    });
+
+    btnReset.addEventListener('click', function() {
+      points = defaultPoints();
+      showPad = false;
+      drawSource();
+      drawPlaceholder();
+      debugDiv.textContent = "Pontos redefinidos para as posições padrão.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    btnPad.addEventListener('click', function() {
+      showPad = !showPad;
+      drawSource();
+    });
+
+    loadImage();
+  }
+
+  function tryInitSimEP0211(){
+    var root = document.getElementById('sim-ep0211-sudoku');
+    if (root) initSimEP0211(root); else setTimeout(tryInitSimEP0211, 200);
+  }
+  tryInitSimEP0211();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 2.24: Simulador EP02_11: Correção de Perspectiva do Sudoku (Homografia 3×3 com Reamostragem Bilinear)</div>
   </div>
 </main>

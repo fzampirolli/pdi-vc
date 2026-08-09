@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -286,7 +286,7 @@ div.csl-indent {
   </div>
   <nav class="sim-frame-nav">
     <a href="sim-ep0309-mediana.html" class="sim-btn sim-btn-nav">← sim-ep0309-mediana</a>
-    <a href="sim-filtragem1d.html" class="sim-btn sim-btn-nav">sim-filtragem1d →</a>
+    <a href="sim-03-filtragem1d.html" class="sim-btn sim-btn-nav">sim-03-filtragem1d →</a>
     <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
     <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
     <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0310-unsharp" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="30" id="fig-03-sim-ep0310-unsharp">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-03-sim-ep0310-unsharp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0310-unsharp" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">✨ Simulador EP03_10: Unsharp Masking (USM)</span>
@@ -368,6 +371,231 @@ div.csl-indent {
     </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0310(root){
+    if (!root || root.dataset.simEp0310Init) return;
+    root.dataset.simEp0310Init = "1";
+
+    var ROWS = 5, COLS = 5, N = 25, RADIUS = 1;
+    var pixels = [], blurred = [], mask = [], result = [];
+    var gainK = 1.0;
+
+    var gridF  = root.querySelector('#sim_ep0310_grid_f');
+    var gridB  = root.querySelector('#sim_ep0310_grid_b');
+    var gridM  = root.querySelector('#sim_ep0310_grid_m');
+    var gridRes= root.querySelector('#sim_ep0310_grid_res');
+    var debug  = root.querySelector('#sim_ep0310_debug');
+    var fLabel = root.querySelector('#sim_ep0310_flabel');
+    var sliderK= root.querySelector('#sim_ep0310_k');
+    var kLabel = root.querySelector('#sim_ep0310_klabel');
+    var btnNew = root.querySelector('#sim_ep0310_btnNew');
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+
+    function colorMask(v) {
+      if (Math.abs(v) < 2) return '#fafaf7';
+      if (v > 0) {
+        var t = Math.min(1, v / 80);
+        return 'rgb(' + Math.round(230 + t * 20) + ',' + Math.round(210 - t * 60) + ',' + Math.round(220 - t * 60) + ')';
+      }
+      var t = Math.min(1, -v / 80);
+      return 'rgb(' + Math.round(210 - t * 60) + ',' + Math.round(220 - t * 40) + ',' + Math.round(230 + t * 20) + ')';
+    }
+
+    function generate() {
+      pixels = Array.from({ length: N }, function(_, i) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var v = (r >= 2 && c >= 2) ? 170 : 70;
+        v += Math.floor(Math.random() * 16) - 8;
+        return Math.max(0, Math.min(255, v));
+      });
+      calculate();
+    }
+
+    function calculate() {
+      blurred = new Array(N).fill(0);
+      mask = new Array(N).fill(0);
+      result = new Array(N).fill(0);
+
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var i = r * COLS + c;
+          if (r >= RADIUS && r < ROWS - RADIUS && c >= RADIUS && c < COLS - RADIUS) {
+            var sum = 0;
+            for (var dr = -RADIUS; dr <= RADIUS; dr++) {
+              for (var dc = -RADIUS; dc <= RADIUS; dc++) {
+                sum += pixels[(r + dr) * COLS + (c + dc)];
+              }
+            }
+            var b = sum / 9;
+            var m = pixels[i] - b;
+            blurred[i] = b;
+            mask[i] = m;
+            result[i] = Math.max(0, Math.min(255, Math.round(pixels[i] + gainK * m)));
+          } else {
+            blurred[i] = pixels[i];
+            mask[i] = 0;
+            result[i] = pixels[i];
+          }
+        }
+      }
+    }
+
+    function highlight(tr, tc, on) {
+      var cells = gridF.children;
+      for (var i = 0; i < N; i++) {
+        if (!cells[i]) continue;
+        var p = pixels[i], r = Math.floor(i / COLS), c = i % COLS;
+        if (on && Math.abs(r - tr) <= 1 && Math.abs(c - tc) <= 1) {
+          if (r === tr && c === tc) {
+            cells[i].style.background = '#ebf4fd';
+            cells[i].style.color = '#2980b9';
+            cells[i].style.boxShadow = '0 0 0 2px #2980b9 inset';
+          } else {
+            cells[i].style.background = '#fef5e7';
+            cells[i].style.color = '#b9770e';
+            cells[i].style.boxShadow = '0 0 0 2px #b9770e inset';
+          }
+        } else {
+          cells[i].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+          cells[i].style.color = textColor(p);
+          cells[i].style.boxShadow = 'none';
+        }
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um píxel interno do resultado para rastrear o pipeline completo.';
+    }
+
+    function render() {
+      gridF.innerHTML = '';
+      gridB.innerHTML = '';
+      gridM.innerHTML = '';
+      gridRes.innerHTML = '';
+      fLabel.textContent = '④ Resultado g = f + ' + gainK.toFixed(1) + '·m';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], b = blurred[i], m = mask[i], res = result[i];
+        var isBorder = (r < RADIUS || r >= ROWS - RADIUS || c < RADIUS || c >= COLS - RADIUS);
+
+        // Célula F
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Desfocado B
+        var cb = document.createElement('div');
+        cb.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;';
+        if (isBorder) {
+          cb.style.background = '#fafaf7';
+          cb.style.color = '#8a8371';
+          cb.style.border = '1px solid #e4dcc8';
+          cb.textContent = '—';
+        } else {
+          var bv = Math.round(b);
+          cb.style.background = 'rgb(' + bv + ',' + bv + ',' + bv + ')';
+          cb.style.color = textColor(bv);
+          cb.style.border = '1px solid #e4dcc8';
+          cb.textContent = b.toFixed(1);
+        }
+        gridB.appendChild(cb);
+
+        // Célula Máscara M
+        var cm = document.createElement('div');
+        cm.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;';
+        if (isBorder) {
+          cm.style.background = '#fafaf7';
+          cm.style.color = '#8a8371';
+          cm.style.border = '1px solid #e4dcc8';
+          cm.textContent = '0';
+        } else {
+          var sg = m >= 0 ? '+' : '';
+          cm.style.background = colorMask(m);
+          cm.style.color = '#26241d';
+          cm.style.border = '1px solid #e4dcc8';
+          cm.textContent = sg + m.toFixed(1);
+        }
+        gridM.appendChild(cm);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '1.5px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel borda (' + row + ',' + col + '): copiado sem alteração &nbsp;→&nbsp; <b>' + val + '</b>';
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, pVal, bVal, mVal, resVal){
+            cr.addEventListener('mouseenter', function(){
+              highlight(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var sg = mVal >= 0 ? '+' : '';
+              var raw = pVal + gainK * mVal;
+              debug.innerHTML = '① f=' + pVal + ' &nbsp;→&nbsp; ② f̄=' + bVal.toFixed(1) + ' &nbsp;→&nbsp; ③ m=f−f̄=' + sg + mVal.toFixed(1) + ' &nbsp;→&nbsp; ④ g = clip(' + pVal + ' + ' + gainK.toFixed(1) + '·(' + sg + mVal.toFixed(1) + ')) = clip(' + raw.toFixed(1) + ') = <b>' + resVal + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlight(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + resVal + ',' + resVal + ',' + resVal + ')';
+              cr.style.color = textColor(resVal);
+              resetDebug();
+            });
+          })(r, c, p, b, m, res);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    sliderK.addEventListener('input', function(e){
+      gainK = parseFloat(e.target.value) || 0;
+      kLabel.textContent = 'k = ' + gainK.toFixed(1);
+      calculate();
+      render();
+    });
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0310(){
+    var root = document.getElementById('sim-ep0310-unsharp');
+    if (root) initSimEP0310(root); else setTimeout(tryInitSimEP0310, 200);
+  }
+  tryInitSimEP0310();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 3.35: Simulador EP03_10: Unsharp Masking (USM)</div>
   </div>
 </main>
@@ -592,7 +820,7 @@ window.Quarto = {
   }
 
   function tryInitSimCap03(){
-    var root = document.getElementById('sim-cap03-filtragem1d');
+    var root = document.getElementById('sim-03-filtragem1d');
     if (root) initSimCap03(root); else setTimeout(tryInitSimCap03, 200);
   }
   tryInitSimCap03();

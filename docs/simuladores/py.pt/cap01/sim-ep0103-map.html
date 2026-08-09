@@ -79,9 +79,9 @@ div.csl-indent {
   margin-left: 2em;
 }</style>
   <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
-  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-1d541e707deb911ee702dcbe28eecf08.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
   <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
-  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-1854e60e0a72f37cbacc43ef673120f4.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-d024cad0e32bf2110a1b02cbacc0c8bd.min.css" id="quarto-bootstrap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
   <link href="../custom.css" rel="stylesheet"/>
   <style>
@@ -296,7 +296,10 @@ div.csl-indent {
 <!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
 <main class="sim-main-wrapper">
   <div class="sim-card-frame">
-    <div id="sim-ep0103-map" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="74" id="fig-01-sim-ep0103-map">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-01-sim-ep0103-map-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0103-map" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
 <span style="font-weight:600;color:#26241d;">📊 Simulador EP01_03: Curva Precisão-Sensibilidade &amp; mAP</span>
@@ -425,6 +428,323 @@ div.csl-indent {
 </div>
 </div>
 </div>
+<script>
+(function(){
+  function initSimEP0103(root){
+    if (!root || root.dataset.simEp0103Init) return;
+    root.dataset.simEp0103Init = "1";
+
+    var LIMIARES = [0.00, 0.09, 0.21, 0.31, 0.39, 0.52, 0.60, 0.71, 0.81, 0.89, 1.00];
+
+    var CENARIOS = {
+      sc1: [[0, 0.94], [1, 0.80], [1, 0.69], [0, 0.67], [1, 0.30], [1, 0.15], [1, 0.15]],
+      sc2: [[1, 0.98], [1, 0.95], [1, 0.91], [1, 0.87], [0, 0.20], [0, 0.10], [0, 0.05]],
+      sc3: [[1, 0.55], [0, 0.52], [1, 0.48], [0, 0.50], [1, 0.51], [0, 0.49], [1, 0.53]],
+      sc4: [[1, 0.90], [0, 0.88], [0, 0.85], [0, 0.80], [1, 0.75], [1, 0.70], [0, 0.65]]
+    };
+
+    var amostras = [];
+
+    var rowsDiv = root.querySelector('#sim_ep0103_rows');
+    var addBtn = root.querySelector('#sim_ep0103_add');
+    var thrSlider = root.querySelector('#sim_ep0103_thr');
+    var thrValEl = root.querySelector('#sim_ep0103_thr_val');
+    var thrLabelEl = root.querySelector('#sim_ep0103_thr_label');
+    var canvas = root.querySelector('#sim_ep0103_canvas');
+    var ctx = canvas.getContext('2d');
+    var mapValEl = root.querySelector('#sim_ep0103_map_val');
+    var tblBody = root.querySelector('#sim_ep0103_tbl_body');
+
+    var mEls = {
+      acc: root.querySelector('#sim_ep0103_m_acc'),
+      pre: root.querySelector('#sim_ep0103_m_pre'),
+      sen: root.querySelector('#sim_ep0103_m_sen'),
+      f1: root.querySelector('#sim_ep0103_m_f1')
+    };
+
+    var bEls = {
+      acc: root.querySelector('#sim_ep0103_b_acc'),
+      pre: root.querySelector('#sim_ep0103_b_pre'),
+      sen: root.querySelector('#sim_ep0103_b_sen'),
+      f1: root.querySelector('#sim_ep0103_b_f1')
+    };
+
+    var cvEls = {
+      vp: root.querySelector('#sim_ep0103_cv_vp'),
+      fn: root.querySelector('#sim_ep0103_cv_fn'),
+      fp: root.querySelector('#sim_ep0103_cv_fp'),
+      vn: root.querySelector('#sim_ep0103_cv_vn')
+    };
+
+    var btnSc1 = root.querySelector('#sim_ep0103_sc1');
+    var btnSc2 = root.querySelector('#sim_ep0103_sc2');
+    var btnSc3 = root.querySelector('#sim_ep0103_sc3');
+    var btnSc4 = root.querySelector('#sim_ep0103_sc4');
+
+    var scBtns = [btnSc1, btnSc2, btnSc3, btnSc4];
+
+    function safe(n, d) { return d === 0 ? 0 : n / d; }
+    function fmt2(v) { return v.toFixed(2); }
+    function pct(v) { return Math.round(v * 100); }
+    function clamp01(v) { return Math.min(1, Math.max(0, v)); }
+
+    function calcMetricas(limiar) {
+      var vp = 0, fn = 0, fp = 0, vn = 0;
+      amostras.forEach(function(s) {
+        var pred = s[1] >= limiar ? 1 : 0;
+        if (s[0] === 1 && pred === 1) vp++;
+        else if (s[0] === 1 && pred === 0) fn++;
+        else if (s[0] === 0 && pred === 1) fp++;
+        else vn++;
+      });
+      var tot = vp + fn + fp + vn;
+      var acc = safe(vp + vn, tot);
+      var pre = safe(vp, vp + fp);
+      var sen = safe(vp, vp + fn);
+      var f1 = safe(2 * pre * sen, pre + sen);
+      return { vp: vp, fn: fn, fp: fp, vn: vn, acc: acc, pre: pre, sen: sen, f1: f1 };
+    }
+
+    function calcAP() {
+      var m = LIMIARES.length;
+      var precisoes = [], sensibilidades = [];
+      for (var i = 0; i < m; i++) {
+        var met = calcMetricas(LIMIARES[i]);
+        precisoes[m - 1 - i] = met.pre;
+        sensibilidades[m - 1 - i] = met.sen;
+      }
+
+      var prec_mono = precisoes.slice();
+      for (var j = m - 2; j >= 0; j--) {
+        if (prec_mono[j] < prec_mono[j + 1]) prec_mono[j] = prec_mono[j + 1];
+      }
+
+      var AP = 0;
+      for (var k = 1; k < m; k++) {
+        AP += prec_mono[k - 1] * (sensibilidades[k] - sensibilidades[k - 1]);
+      }
+      return { precisoes: precisoes, prec_mono: prec_mono, sensibilidades: sensibilidades, AP: AP };
+    }
+
+    function drawCurva(sensibilidades, precisoes, prec_mono) {
+      var W = canvas.width, H = canvas.height;
+      var pad = { top: 18, right: 14, bottom: 32, left: 36 };
+      var cw = W - pad.left - pad.right;
+      var ch = H - pad.top - pad.bottom;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = '#e4dcc8';
+      ctx.lineWidth = 0.6;
+      for (var gi = 0; gi <= 5; gi++) {
+        var gx = pad.left + (gi / 5) * cw;
+        var gy = pad.top + (gi / 5) * ch;
+        ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, pad.top + ch); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cw, gy); ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#8a8371'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + ch);
+      ctx.lineTo(pad.left + cw, pad.top + ch);
+      ctx.stroke();
+
+      ctx.fillStyle = '#8a8371'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+      for (var li = 0; li <= 5; li++) {
+        var ly = pad.top + ch - (li / 5) * ch;
+        ctx.fillText((li * 20) + '%', pad.left - 4, ly + 3);
+      }
+      ctx.textAlign = 'center';
+      for (var lx = 0; lx <= 5; lx++) {
+        var lxx = pad.left + (lx / 5) * cw;
+        ctx.fillText((lx * 20) + '%', lxx, pad.top + ch + 12);
+      }
+      ctx.fillStyle = '#5e5a4a'; ctx.font = '9px sans-serif';
+      ctx.save();
+      ctx.translate(10, pad.top + ch / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center'; ctx.fillText('Precisão', 0, 0);
+      ctx.restore();
+      ctx.textAlign = 'center';
+      ctx.fillText('Sensibilidade', pad.left + cw / 2, H - 4);
+
+      function toX(s) { return pad.left + clamp01(s) * cw; }
+      function toY(p) { return pad.top + ch - clamp01(p) * ch; }
+
+      var m = sensibilidades.length;
+
+      ctx.beginPath();
+      ctx.moveTo(toX(0), toY(0));
+      for (var ai = 0; ai < m; ai++) {
+        ctx.lineTo(toX(sensibilidades[ai]), toY(prec_mono[ai]));
+      }
+      ctx.lineTo(toX(sensibilidades[m - 1]), toY(0));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(41, 128, 185, 0.15)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(toX(sensibilidades[0]), toY(prec_mono[0]));
+      for (var mi = 1; mi < m; mi++) {
+        ctx.lineTo(toX(sensibilidades[mi]), toY(prec_mono[mi]));
+      }
+      ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.8;
+      ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.moveTo(toX(sensibilidades[0]), toY(precisoes[0]));
+      for (var ci = 1; ci < m; ci++) {
+        ctx.lineTo(toX(sensibilidades[ci]), toY(precisoes[ci]));
+      }
+      ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 2; ctx.stroke();
+
+      for (var pi = 0; pi < m; pi++) {
+        ctx.beginPath();
+        ctx.arc(toX(sensibilidades[pi]), toY(precisoes[pi]), 3.5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#2980b9'; ctx.fill();
+      }
+    }
+
+    function update() {
+      var thrIdx = parseInt(thrSlider.value);
+      var thr = LIMIARES[thrIdx];
+      thrValEl.textContent = thr.toFixed(2);
+      thrLabelEl.textContent = thr.toFixed(2);
+
+      var met = calcMetricas(thr);
+      cvEls.vp.textContent = met.vp;
+      cvEls.fn.textContent = met.fn;
+      cvEls.fp.textContent = met.fp;
+      cvEls.vn.textContent = met.vn;
+
+      mEls.acc.textContent = fmt2(met.acc);
+      bEls.acc.style.width = pct(met.acc) + '%';
+      mEls.pre.textContent = fmt2(met.pre);
+      bEls.pre.style.width = pct(met.pre) + '%';
+      mEls.sen.textContent = fmt2(met.sen);
+      bEls.sen.style.width = pct(met.sen) + '%';
+      mEls.f1.textContent = fmt2(met.f1);
+      bEls.f1.style.width = pct(met.f1) + '%';
+
+      var ap = calcAP();
+      mapValEl.textContent = fmt2(ap.AP);
+      drawCurva(ap.sensibilidades, ap.precisoes, ap.prec_mono);
+
+      tblBody.innerHTML = '';
+      var m = LIMIARES.length;
+      for (var i = 0; i < m; i++) {
+        var isSelected = (LIMIARES[m - 1 - i].toFixed(2) === thr.toFixed(2));
+        var bg = isSelected ? '#f1ead7' : (i % 2 === 1 ? '#fafaf7' : '#ffffff');
+        var tr = document.createElement('tr');
+        tr.style.background = bg;
+        tr.innerHTML =
+          '<td style="padding:4px;border:1px solid #e4dcc8;text-align:center;' +
+          (isSelected ? 'font-weight:bold;color:#26241d;' : '') + '">' +
+          LIMIARES[m - 1 - i].toFixed(2) + '</td>' +
+          '<td style="padding:4px;border:1px solid #e4dcc8;text-align:center;color:#27ae60;">' +
+          fmt2(ap.precisoes[i]) + '</td>' +
+          '<td style="padding:4px;border:1px solid #e4dcc8;text-align:center;color:#c0392b;">' +
+          fmt2(ap.prec_mono[i]) + '</td>' +
+          '<td style="padding:4px;border:1px solid #e4dcc8;text-align:center;color:#d35400;">' +
+          fmt2(ap.sensibilidades[i]) + '</td>';
+        tblBody.appendChild(tr);
+      }
+    }
+
+    function renderRows() {
+      rowsDiv.innerHTML = '';
+      amostras.forEach(function(s, idx) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr 24px;gap:4px;align-items:center;';
+
+        var numEl = document.createElement('span');
+        numEl.style.cssText = 'font-size:10px;color:#8a8371;text-align:center;font-weight:bold;';
+        numEl.textContent = idx + 1;
+
+        var selV = document.createElement('select');
+        selV.style.cssText = 'font-size:11px;font-family:monospace;border:1px solid #e4dcc8;border-radius:6px;padding:3px;background:#ffffff;color:#26241d;';
+        [0, 1].forEach(function(v) {
+          var opt = document.createElement('option');
+          opt.value = v;
+          opt.text = v === 1 ? '1 (Pos)' : '0 (Neg)';
+          if (s[0] === v) opt.selected = true;
+          selV.appendChild(opt);
+        });
+        selV.addEventListener('change', function() {
+          amostras[idx][0] = parseInt(selV.value);
+          update();
+        });
+
+        var inpC = document.createElement('input');
+        inpC.type = 'number'; inpC.min = '0'; inpC.max = '1'; inpC.step = '0.01';
+        inpC.value = s[1].toFixed(2);
+        inpC.style.cssText = 'font-size:11px;font-family:monospace;border:1px solid #e4dcc8;border-radius:6px;padding:3px 4px;width:100%;box-sizing:border-box;text-align:center;';
+        inpC.addEventListener('input', function() {
+          var v = parseFloat(inpC.value);
+          if (!isNaN(v)) { amostras[idx][1] = clamp01(v); update(); }
+        });
+
+        var btnRem = document.createElement('button');
+        btnRem.textContent = '×';
+        btnRem.style.cssText = 'font-size:14px;border:none;background:none;color:#c0392b;cursor:pointer;padding:0;line-height:1;font-weight:bold;';
+        btnRem.addEventListener('click', function() {
+          if (amostras.length > 1) { amostras.splice(idx, 1); renderRows(); update(); }
+        });
+
+        row.appendChild(numEl);
+        row.appendChild(selV);
+        row.appendChild(inpC);
+        row.appendChild(btnRem);
+        rowsDiv.appendChild(row);
+      });
+    }
+
+    thrSlider.addEventListener('input', update);
+
+    addBtn.addEventListener('click', function() {
+      amostras.push([0, 0.50]);
+      renderRows();
+      update();
+    });
+
+    function setCenario(key, btn) {
+      scBtns.forEach(function(b) {
+        b.style.background = '#f1ead7';
+        b.style.color = '#5e5a4a';
+        b.style.borderColor = '#e4dcc8';
+        b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d';
+      btn.style.color = '#fbf7ee';
+      btn.style.borderColor = '#26241d';
+      btn.style.fontWeight = '700';
+
+      var data = CENARIOS[key];
+      if (!data) return;
+      amostras = data.map(function(d) { return [d[0], d[1]]; });
+      renderRows();
+      update();
+    }
+
+    btnSc1.addEventListener('click', function() { setCenario('sc1', this); });
+    btnSc2.addEventListener('click', function() { setCenario('sc2', this); });
+    btnSc3.addEventListener('click', function() { setCenario('sc3', this); });
+    btnSc4.addEventListener('click', function() { setCenario('sc4', this); });
+
+    setCenario('sc1', btnSc1);
+  }
+
+  function tryInitSimEP0103(){
+    var root = document.getElementById('sim-ep0103-map');
+    if (root) initSimEP0103(root); else setTimeout(tryInitSimEP0103, 200);
+  }
+  tryInitSimEP0103();
+})();
+</script>
+</div>
+</figure></div>
     <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 1.14: Simulador EP01_03: Mean Average Precision (mAP) e Curva P-S</div>
   </div>
 </main>
