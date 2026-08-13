@@ -339,8 +339,13 @@ class QuartoBuilder:
     #     (qdir / 'cover_hook.tex').write_text('', encoding='utf-8')
 
     #     print('  ✓ Gerado cover_hook.tex')
-        
+            
     def _write_cover_tex(self, qdir: Path, cover_abs: Path) -> None:
+        # 1. Garante que cover_hook.tex exista (evita o erro FATAL do Quarto)
+        cover_hook_file = qdir / 'cover_hook.tex'
+        cover_hook_file.write_text('', encoding='utf-8')
+
+        # 2. Gera o arquivo capa.tex com os comandos LaTeX
         content = (
             r'\frontmatter' + '\n'
             r'\thispagestyle{empty}' + '\n'
@@ -353,8 +358,10 @@ class QuartoBuilder:
         )
         (qdir / 'capa.tex').write_text(content, encoding='utf-8')
 
-        # restaura o marcador que _fix_tex_cover precisa para o patch do .tex completo
+        # 3. Salva o caminho absoluto da capa no arquivo oculto .cover_abs
         (qdir / '.cover_abs').write_text(str(cover_abs), encoding='utf-8')
+
+        print('  ✓ Gerados cover_hook.tex e capa.tex')
         
     def _write_custom_css(self, qdir: Path):
         """
@@ -757,6 +764,7 @@ format:
     classoption: [openany, oneside, 11pt, a4paper]
     title-page: false
     output-file: "livro.{combo.file_key}.pdf"
+    block-headings: false   # <-- adicionar isso
     geometry:
       - left=1.5cm
       - right=1.5cm
@@ -768,6 +776,7 @@ format:
     lot: true
     lof: true
     number-sections: true
+    number-depth: 3   # Apenas numera até h3 (\subsubsection)
     colorlinks: true
     linkcolor: blue
     urlcolor: blue
