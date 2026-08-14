@@ -681,6 +681,8 @@ project:
   type: book
   output-dir: "{output_dir}"
 
+lang: {quarto_lang}
+
 book:
   title: "Processamento Digital de Imagens e Visão Computacional"
   cover-image: "includes/capa_girassol.png"
@@ -689,7 +691,6 @@ book:
     - name: "Francisco de Assis Zampirolli"
       affiliation: "Universidade Federal do ABC"
   date: today
-  language: {quarto_lang}
   downloads: [pdf]
   output-file: "livro.{combo.file_key}"
 
