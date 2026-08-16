@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # publish_all.sh — Pipeline completo: gerar → render → index → deploy para docs/
-# Uso: ./publish_all.sh [--langs py,cpp] [--locales pt,en] [--dry-run] [--skip-git]
+# Uso: ./publish_all.sh [--langs py,cpp] [--locales pt,en] [--dry-run] [--skip-git] [--skip-render]
 
 set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -10,6 +10,7 @@ LANGS="py"
 LOCALES="pt"
 DRY_RUN=""
 SKIP_GIT=""
+SKIP_RENDER=""
 
 # Processa argumentos
 while [[ $# -gt 0 ]]; do
@@ -40,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_GIT="true"
       shift
       ;;
+    --skip-render)
+      SKIP_RENDER="true"
+      shift
+      ;;
     *)
       echo "Opção desconhecida: $1"
       shift
@@ -58,28 +63,26 @@ mkdir -p gen
 mkdir -p docs
 
 # ===================================================================
-# Passo 1: Gerar notebooks traduzidos
+# Passo 1 e 2: Geração e Renderização (ignorados se --skip-render)
 # ===================================================================
-echo ""
-echo "[1/6] Gerando notebooks traduzidos..."
-if [ -n "$DRY_RUN" ]; then
-  echo "      Modo DRY-RUN (sem chamadas à API)"
-fi
-python dev.py --once --langs "$LANGS" --locales "$LOCALES" $DRY_RUN
-echo "      ✓ Notebooks em gen/"
+if [ -z "$SKIP_RENDER" ]; then
+  echo ""
+  echo "[1/6] Gerando notebooks traduzidos..."
+  if [ -n "$DRY_RUN" ]; then
+    echo "      Modo DRY-RUN (sem chamadas à API)"
+  fi
+  python dev.py --once --langs "$LANGS" --locales "$LOCALES" $DRY_RUN
+  echo "      ✓ Notebooks em gen/"
 
-# ===================================================================
-# Passo 2: Renderizar HTML e PDF via dev.py (mantém patch da capa)
-# ===================================================================
-# IMPORTANTE: NÃO chamar `quarto render` diretamente aqui.
-# O pipeline Python (render_quarto / _render_pdf_with_patched_tex)
-# aplica _fix_tex_cover() antes de compilar o PDF, injetando a capa
-# corretamente após \begin{document}. Chamar quarto render --to pdf
-# diretamente bypassa esse patch e o PDF fica sem capa.
-echo ""
-echo "[2/6] Renderizando HTML + PDF via dev.py..."
-python dev.py --once --langs "$LANGS" --locales "$LOCALES" --render all $DRY_RUN
-echo "      ✓ HTML e PDF em gen/book/"
+  echo ""
+  echo "[2/6] Renderizando HTML + PDF via dev.py..."
+  python dev.py --once --langs "$LANGS" --locales "$LOCALES" --render all $DRY_RUN
+  echo "      ✓ HTML e PDF em gen/book/"
+else
+  echo ""
+  echo "[1/6 e 2/6] Pulando geração e renderização (--skip-render ativo)..."
+  echo "            Usando arquivos existentes em gen/book/"
+fi
 
 # ===================================================================
 # Passo 2b: Gerar notebooks para alunos

@@ -69,6 +69,10 @@ full:
 publish:
 	./publish_all.sh --langs $(LANGS) --locales $(LOCALES)
 
+.PHONY: publish-fast
+publish-fast:
+	./publish_all.sh --langs $(LANGS) --locales $(LOCALES) --skip-render
+
 
 # ── Publicação de notebook único ──────────────────────────────────────────────
 .PHONY: render-single
@@ -179,6 +183,7 @@ help:
 	@echo ""
 	@echo "  🌐 Publicação:"
 	@echo "  make publish       → build + docs/ + git push"
+	@echo "  make publish-fast  → deploy para docs/ + git push (sem recompilar HTML/PDF)"
 	@echo "  make index         → só regenera o índice"
 	@echo "  make open          → abre gen/book/index.html"
 	@echo ""
