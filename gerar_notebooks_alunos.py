@@ -1819,11 +1819,30 @@ format:
     #css: styles.css 
 """
 
+def _find_notebooks(exclude: tuple) -> list:
+    """
+    Descobre notebooks de origem para o modo batch/epub:
+      - capítulos:  all/capXX/capXX.ipynb        (2 níveis: all/<cap>/<file>)
+      - apêndices:  all/apendices/apendice_X/apendice_X.ipynb
+                    (3 níveis: all/apendices/<apendice>/<file>)
+    Descarta variantes já processadas (sufixos em EXCLUDE) e ordena
+    capítulos antes de apêndices, cada grupo em ordem alfabética.
+    """
+    caps = glob.glob("all/cap*/cap*.ipynb")
+    apendices = glob.glob("all/apendices/*/*.ipynb")
+    paths = [
+        Path(p) for p in caps + apendices
+        if not any(s in Path(p).stem for s in exclude)
+    ]
+    return sorted(paths, key=lambda p: (p.parent.parent.name != 'all', p.as_posix()))
+
+
 def run_batch_epub(bib_path: str, out_dir: str):
     """
     Gera notebooks pre-processados para EPUB em <out_dir>/capXX/capXX_epub.ipynb
-    e cria _quarto_epub.yml apontando para eles.
-    As refs ja estao resolvidas como texto simples por capitulo.
+    (e, analogamente, <out_dir>/apendice_X/apendice_X_epub.ipynb) e cria
+    _quarto_epub.yml apontando para eles.
+    As refs ja estao resolvidas como texto simples por capitulo/apendice.
 
     Uso posterior:
         quarto render --config _quarto_epub.yml --to epub
@@ -1831,12 +1850,10 @@ def run_batch_epub(bib_path: str, out_dir: str):
     bib      = parse_bib(bib_path)
     out_root = Path(out_dir)
     EXCLUDE  = ("_dist", "_executado", "_fixed", "_aluno", "_epub")
-    notebooks = sorted([
-        Path(p) for p in glob.glob("all/cap*/cap*.ipynb")
-        if not any(s in Path(p).stem for s in EXCLUDE)
-    ])
+    notebooks = _find_notebooks(EXCLUDE)
     if not notebooks:
-        print("Nenhum notebook encontrado com o padrao: all/cap*/cap*.ipynb")
+        print("Nenhum notebook encontrado com os padroes: "
+              "all/cap*/cap*.ipynb , all/apendices/*/*.ipynb")
         return
 
     print(f"[EPUB] Encontrados {len(notebooks)} notebooks:\n")
@@ -1914,13 +1931,11 @@ def run_batch(bib_path: str, out_dir: str,
     bib = parse_bib(bib_path)
     out_root = Path(out_dir)
     EXCLUDE = ("_dist", "_executado", "_fixed")
-    notebooks = sorted([
-        Path(p) for p in glob.glob("all/cap*/cap*.ipynb")
-        if not any(s in Path(p).stem for s in EXCLUDE)
-    ])
+    notebooks = _find_notebooks(EXCLUDE)
     
     if not notebooks:
-        print("Nenhum notebook encontrado com o padrao: all/cap*/cap*.ipynb")
+        print("Nenhum notebook encontrado com os padroes: "
+              "all/cap*/cap*.ipynb , all/apendices/*/*.ipynb")
         return
 
     print(f"Encontrados {len(notebooks)} notebooks:\n")
@@ -1954,6 +1969,7 @@ def run_batch(bib_path: str, out_dir: str,
         "figuras, tabelas e equações renderizadas para Jupyter/Colab.\n\n"
         "## Estrutura\n"
         "`capXX/capXX_aluno.ipynb` — notebook do capítulo XX\n"
+        "`apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X\n"
         "`capXX/images/` — imagens do capítulo\n\n"
         "## Como usar\n"
         "```bash\n"
@@ -2006,7 +2022,7 @@ def main():
     numbering = not args.no_numbering  # True por padrão, False se --no-numbering
 
     if args.epub:
-        run_batch_epub(args.bib, args.out_dir, numbering=numbering)
+        run_batch_epub(args.bib, args.out_dir)
     elif args.batch:
         run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang)
     else:

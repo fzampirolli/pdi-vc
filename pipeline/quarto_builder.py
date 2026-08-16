@@ -7,7 +7,9 @@ Constrói uma pasta Quarto auto-suficiente para cada combo:
         _quarto.yml      ← gerado aqui
         index.qmd        ← gerado aqui (idioma correto)
         prefacio.qmd     ← gerado aqui (prefácio do livro)
-        apendice*.qmd    ← apêndices do livro
+        apendice*.qmd    ← apêndices estáticos, lidos de all/apendices/*.qmd
+        apendice_f/      ← apêndice-notebook, symlink → gen/<combo>/apendices/apendice_f/
+                            (fonte: all/apendices/apendice_f/apendice_f.ipynb)
         capa.tex         ← gerado aqui (capa do PDF, via include-before-body)
         capXX/           ← symlink → gen/<combo>/capXX/
         references.bib   ← symlink → ../../references.bib
@@ -158,14 +160,45 @@ def _prefacio_qmd(combo: Combo) -> str:
     )
     return content
 
-def _apendice_filenames() -> list[str]:
+APENDICES_ROOT = Path('all/apendices')
+
+def _apendice_entries() -> list[Path]:
     """
-    Descobre os apêndices disponíveis em includes/, na ordem alfabética
-    (apendice_a_*.qmd, apendice_b_*.qmd, ...), garantindo A, B, C, D em ordem.
+    Descobre os apêndices disponíveis em all/apendices/, na ordem alfabética
+    do nome (garante A, B, C, D... em ordem, mesmo misturando os dois formatos
+    suportados):
+
+      - arquivo solto  apendice_X_*.qmd        → apêndice estático (texto)
+      - diretório      apendice_X_*/*.ipynb    → apêndice executável (notebook),
+                                                   tratado como um "capítulo",
+                                                   igual a capXX/
+
+    Retorna a lista de Paths: arquivos .qmd, ou diretórios que contêm um .ipynb.
     """
-    return sorted(
-        p.name for p in Path('includes').glob('apendice*.qmd')
-    )
+    if not APENDICES_ROOT.exists():
+        return []
+    entries: list[Path] = []
+    for p in sorted(APENDICES_ROOT.iterdir()):
+        if p.is_file() and p.suffix == '.qmd':
+            entries.append(p)
+        elif p.is_dir() and next(p.glob('*.ipynb'), None) is not None:
+            entries.append(p)
+    return entries
+
+def _read_apendice_qmd(path: Path, combo: Combo) -> Optional[str]:
+    """
+    Lê um apêndice .qmd de all/apendices/<arquivo>, aplicando substituição i18n.
+    Retorna None se o arquivo não existir.
+    """
+    if not path.exists():
+        return None
+    content = path.read_text(encoding='utf-8')
+    print(f'  ✓ {path.name} lido de {path}')
+    lang_label = LANGUAGES[combo.lang].label
+    content = content.replace('{{lang_label}}', lang_label)
+    locale_label = LOCALES[combo.locale].label
+    content = content.replace('{{locale_label}}', locale_label)
+    return content
 
 def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
     """
@@ -173,18 +206,6 @@ def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
     Retorna None se o arquivo não existir (nesse caso, a página não é incluída).
     """
     return _read_include_qmd('ficha_catalografica.qmd', combo)
-
-def _apendice_qmds(combo: Combo) -> dict[str, str]:
-    """
-    Lê todos os apêndices de includes/, aplicando substituição i18n.
-    Retorna {nome_do_arquivo: conteúdo}, na ordem em que devem aparecer no livro.
-    """
-    result = {}
-    for filename in _apendice_filenames():
-        content = _read_include_qmd(filename, combo)
-        if content is not None:
-            result[filename] = content
-    return result
 
 def _refs_qmd(combo: Combo) -> str:
     title = UI_STRINGS[combo.locale].get('references_title', 'Referências')
@@ -211,22 +232,17 @@ def _process_attachments(combo: Combo, nb_root: Path, qdir: Path, all_root: Path
                 shutil.copy2(attachment, target_file)
                 print(f'  ✓ Anexo: {cap}/{attachment.name}')
 
-
-def _write_apendice_qmds(qdir: Path, combo: Combo) -> list[str]:
-    """
-    Lê os apêndices de includes/apendice*.qmd (ordem alfabética garante A, B, C, D...),
-    aplica substituição i18n e escreve cada um em qdir.
-    Retorna a lista de nomes de arquivo escritos, na ordem em que devem entrar no livro.
-    """
-    written: list[str] = []
-    for path in sorted(Path('includes').glob('apendice*.qmd')):
-        content = _read_include_qmd(path.name, combo)
-        if content is None:
-            continue
-        (qdir / path.name).write_text(content, encoding='utf-8')
-        written.append(path.name)
-        print(f'  ✓ Apêndice escrito: {path.name}')
-    return written
+    # ── Anexos soltos em all/apendices/ (arquivos direto na raiz, referenciados
+    #    por algum apêndice .qmd — ex.: imagens que não têm pasta própria) ─────
+    apendices_dir = all_root / 'apendices'
+    if apendices_dir.exists():
+        for attachment in apendices_dir.glob('*'):
+            if attachment.is_file() and attachment.suffix in ['.png', '.jpg', '.jpeg', '.gif', '.csv', '.txt', '.pdf']:
+                target_dir = attachments_dir / 'apendices'
+                target_dir.mkdir(exist_ok=True)
+                target_file = target_dir / attachment.name
+                shutil.copy2(attachment, target_file)
+                print(f'  ✓ Anexo: apendices/{attachment.name}')
 
 
 def _mainmatter_qmd() -> str:
@@ -269,8 +285,8 @@ class QuartoBuilder:
         (qdir / 'prefacio.qmd').write_text(_prefacio_qmd(combo), encoding='utf-8')
         (qdir / 'referencias.qmd').write_text(_refs_qmd(combo), encoding='utf-8')
 
-        # ── Apêndices do livro (apendice_a_*.qmd, apendice_b_*.qmd, ...) ──────
-        apendice_files = _write_apendice_qmds(qdir, combo)
+        # ── Apêndices do livro (all/apendices/apendice_a_*.qmd, .../apendice_f/, ...) ──
+        apendice_files = self._write_apendice_entries(qdir, combo, nb_root)
 
         (qdir / 'mainmatter.qmd').write_text(_mainmatter_qmd(), encoding='utf-8')
 
@@ -280,7 +296,7 @@ class QuartoBuilder:
         _process_attachments(combo, nb_root, qdir, all_root)
 
         self._symlink(qdir / 'references.bib', self.root / 'references.bib')
-        self._symlink(qdir / 'includes',       self.root / 'includes')
+        self._merge_includes_dir(qdir)
 
         self._ensure_preamble_files()
 
@@ -312,6 +328,48 @@ class QuartoBuilder:
             link.unlink()
         link.symlink_to(target.resolve())
 
+    def _merge_includes_dir(self, qdir: Path):
+        """
+        Monta qdir/includes/ como um diretório REAL (não um único symlink),
+        contendo symlinks por arquivo vindos de duas origens:
+
+          1. includes/                → recursos globais do livro (capa,
+                                          favicon, CSL, ficha catalográfica,
+                                          prefácio, imagens de outros
+                                          apêndices legados, etc.)
+          2. all/apendices/imagens/   → imagens específicas dos apêndices,
+                                          na mesma convenção de nome já usada
+                                          por all/capXX/imagens/. Referenciadas
+                                          de dentro de all/apendices/apendice_*.qmd
+                                          como caminho relativo `includes/<arquivo>`
+                                          (ex.: includes/apendice-a-simulado4-
+                                          morfologia.png) — o texto do .qmd não
+                                          muda; só a origem física do arquivo é
+                                          diferente de onde ele é exposto.
+
+        Antes, qdir/includes era um único symlink para includes/ — por isso
+        imagens colocadas em all/apendices/imagens/ não apareciam no
+        caminho relativo `includes/...` que os .qmd dos apêndices usam.
+        Funciona igualmente para `quarto render --to html` e `--to pdf`,
+        já que ambos resolvem os caminhos das imagens a partir da mesma
+        árvore de arquivos em qdir/.
+
+        Em caso de nome de arquivo duplicado nas duas origens, o de
+        all/apendices/imagens/ tem prioridade (mais específico).
+        """
+        dest = qdir / 'includes'
+        dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
+
+        root_includes = self.root / 'includes'
+        if root_includes.exists():
+            for f in root_includes.iterdir():
+                self._symlink(dest / f.name, f)
+
+        apendices_imagens = self.root / 'all' / 'apendices' / 'imagens'
+        if apendices_imagens.exists():
+            for f in apendices_imagens.iterdir():
+                self._symlink(dest / f.name, f)  # sobrescreve em conflito de nome
+
     def _symlink_caps(self, combo: Combo, qdir: Path, nb_root: Path):
         for cap in self.CAPS_PART1 + self.CAPS_PART2:
             cap_dir = nb_root / cap
@@ -324,6 +382,83 @@ class QuartoBuilder:
                 gen_imagens = nb_root / cap / 'imagens'
                 if all_imagens.exists() and not gen_imagens.exists():
                     gen_imagens.symlink_to(all_imagens.resolve())
+
+    def _write_apendice_entries(self, qdir: Path, combo: Combo, nb_root: Path) -> list[str]:
+        """
+        Escreve/linka em qdir os apêndices descobertos em all/apendices/,
+        na ordem em que devem entrar no livro. Suporta dois formatos:
+
+          - apendice_X_*.qmd       → escrito como texto estático em qdir/,
+                                       com substituição i18n (comportamento
+                                       idêntico ao anterior, só muda a origem).
+
+          - apendice_X_*/*.ipynb   → tratado como um "capítulo": o notebook já
+                                       processado (traduzido/executado para o
+                                       combo atual) é lido de
+                                       nb_root/apendices/<pasta>/ e symlinkado
+                                       em qdir/<pasta>/ — exatamente como
+                                       _symlink_caps faz para capXX/. A pasta
+                                       nb_root/apendices/<pasta>/ precisa ter
+                                       sido gerada previamente pelo mesmo
+                                       pipeline que gera nb_root/capXX/ a
+                                       partir de all/capXX/capXX.ipynb.
+
+        Retorna a lista de caminhos (relativos a qdir), na ordem correta, para
+        entrar no bloco `appendices:` do _quarto.yml.
+        """
+        written: list[str] = []
+        for entry in _apendice_entries():
+            if entry.suffix == '.qmd':
+                content = _read_apendice_qmd(entry, combo)
+                if content is None:
+                    continue
+                (qdir / entry.name).write_text(content, encoding='utf-8')
+                written.append(entry.name)
+                print(f'  ✓ Apêndice escrito: {entry.name}')
+                continue
+
+            # entry é um diretório, ex.: all/apendices/apendice_f
+            dirname = entry.name
+            src_dir = nb_root / 'apendices' / dirname
+            using_raw_fallback = False
+
+            if not src_dir.exists():
+                # Pipeline de tradução/execução por combo ainda não processou
+                # este apêndice (o mesmo que gera nb_root/capXX/ a partir de
+                # all/capXX/capXX.ipynb ainda não conhece all/apendices/).
+                # Fallback: usa o .ipynb cru direto de all/apendices/<dirname>/,
+                # sem i18n por combo, apenas para não sumir do livro.
+                src_dir = entry  # all/apendices/apendice_f
+                using_raw_fallback = True
+                print(f'  ⚠ Apêndice-notebook ainda não processado por combo — '
+                      f'usando .ipynb cru (sem i18n): {dirname}')
+
+            nb_name = f'{dirname}.{combo.key}.ipynb'
+            if not (src_dir / nb_name).exists():
+                # Fallback: usa o único .ipynb presente, se o nome não bater
+                # com o padrão <pasta>.<combo>.ipynb usado pelos capítulos
+                # (é sempre o caso do fallback "cru", que não tem sufixo de combo).
+                nb_candidates = sorted(src_dir.glob('*.ipynb'))
+                if not nb_candidates:
+                    print(f'  ⚠ Nenhum .ipynb encontrado em {src_dir} (pulado)')
+                    continue
+                nb_name = nb_candidates[0].name
+
+            dest = qdir / dirname
+            dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
+            for f in src_dir.iterdir():
+                self._symlink(dest / f.name, f)       # symlinks (arquivos e pastas, ex.: imagens/)
+
+            if not using_raw_fallback:
+                all_imagens = self.root / 'all' / 'apendices' / dirname / 'imagens'
+                gen_imagens = src_dir / 'imagens'
+                if all_imagens.exists() and not gen_imagens.exists():
+                    gen_imagens.symlink_to(all_imagens.resolve())
+
+            written.append(f'{dirname}/{nb_name}')
+            print(f'  ✓ Apêndice (notebook) linkado: {dirname}/{nb_name}'
+                  + (' [fallback cru]' if using_raw_fallback else ''))
+        return written
 
     # def _write_cover_tex(self, qdir: Path, cover_abs: Path):
     #     """
@@ -791,7 +926,17 @@ format:
     # include-before-body é processado imediatamente após \\begin{{document}},
     # antes de qualquer conteúdo gerado pelo Pandoc — ao contrário de
     # \\AtBeginDocument (que chega tarde demais no fluxo do book).
-
+    #
+    # Antes, capa.tex era gerado em disco mas NUNCA referenciado aqui no YAML —
+    # só era injetado via patch manual em Python (_fix_tex_cover), que só roda
+    # dentro do pipeline `make pdf`. Por isso `quarto render --to pdf` rodado
+    # direto (sem passar pelo pipeline) sempre saía sem capa. Com o
+    # include-before-body abaixo, a capa entra nos dois casos: no
+    # `quarto render --to pdf` nativo (via este YAML) e no pipeline `make pdf`
+    # (onde o conteúdo é removido e reinserido pelo _fix_tex_cover, então não
+    # duplica).
+    include-before-body:
+      - file: capa.tex
 
     include-in-header:
       - file: cover_hook.tex
@@ -1470,8 +1615,16 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
 
     # Busca .tex em qdir E em output_dir
     def _find_tex(search_dir: Path):
-        return [t for t in search_dir.rglob('*.tex')   # ← rglob em vez de glob
-                if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex')]
+        return [
+            t for t in search_dir.rglob('*.tex')   # ← rglob em vez de glob
+            if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex', 'preamble.tex')
+            # Exclui qualquer .tex dentro de includes/ (recurso, nunca saída do
+            # Quarto) — necessário desde que qdir/includes virou diretório real
+            # com symlinks por arquivo (para mesclar includes/ + all/apendices/
+            # imagens/): rglob agora desce nele, e sem este filtro pegava
+            # includes/preamble.tex como se fosse o .tex do livro.
+            and 'includes' not in t.relative_to(search_dir).parts
+        ]
 
     tex_files = _find_tex(qdir)
     if not tex_files and output_dir.exists():
@@ -1484,9 +1637,17 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
     tex_path = tex_files[0]
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f'  $ lualatex (3x) {tex_path.name}')
-    for run in range(3):
-        r = subprocess.run(
+    log_path = output_dir / f'{tex_path.stem}.log'
+    RERUN_MARKERS = ('Rerun to get', 'Please rerun', 'Rerun LaTeX')
+    FATAL_MARKERS = ('Emergency stop', 'Fatal error occurred')
+    MIN_RUNS, MAX_RUNS = 3, 6
+
+    print(f'  $ lualatex {tex_path.name} (até {MAX_RUNS}x, com checagem de convergência)')
+    last_result = None
+    log_text = ''
+    fatal = False
+    for run in range(1, MAX_RUNS + 1):
+        last_result = subprocess.run(
             ['lualatex', '--interaction=nonstopmode',
              f'--output-directory={output_dir}', str(tex_path)],
             cwd=qdir,
@@ -1495,11 +1656,33 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             timeout=1200,
             env=env,
         )
-        if r.returncode != 0 and run == 2:
-            print('  ⚠ Erro no lualatex:')
-            for line in (r.stdout or '').split('\n')[-15:]:
+
+        log_text = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else ''
+        fatal = any(m in log_text for m in FATAL_MARKERS)
+
+        if fatal:
+            print(f'  ⚠ Erro fatal no lualatex (run {run}/{MAX_RUNS}):')
+            for line in (last_result.stdout or '').split('\n')[-15:]:
                 if line.strip():
                     print(f'      {line}')
+            break
+
+        needs_rerun = any(m in log_text for m in RERUN_MARKERS)
+        print(f'    run {run}/{MAX_RUNS}: {"precisa rerun (xref/TOC/geometria)" if needs_rerun else "convergiu"}')
+
+        if run >= MIN_RUNS and not needs_rerun:
+            break
+    else:
+        if any(m in log_text for m in RERUN_MARKERS):
+            print(f'  ⚠ lualatex não convergiu totalmente após {MAX_RUNS} runs '
+                  f'(ainda pede rerun) — TOC/numeração de página podem estar '
+                  f'desatualizados no PDF final.')
+
+    if not fatal and last_result is not None and last_result.returncode != 0:
+        print('  ⚠ lualatex terminou com erro (não fatal) na última run:')
+        for line in (last_result.stdout or '').split('\n')[-15:]:
+            if line.strip():
+                print(f'      {line}')
 
     # Remove primeiras páginas em branco do PDF gerado
     pdf_files = list(output_dir.glob('*.pdf'))
@@ -1597,8 +1780,11 @@ def _fix_tex_cover(qdir: Path):
     output_dir = qdir.parent.parent / 'book' / combo_name
 
     def _find_tex(search_dir: Path):
-        return [t for t in search_dir.rglob('*.tex')
-                if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex')]
+        return [
+            t for t in search_dir.rglob('*.tex')
+            if t.name not in ('cover_hook.tex', 'fvextra.tex', 'capa.tex', 'preamble.tex')
+            and 'includes' not in t.relative_to(search_dir).parts
+        ]
 
     tex_files = _find_tex(qdir)
     if not tex_files and output_dir.exists():

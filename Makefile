@@ -184,6 +184,7 @@ help:
 	@echo ""
 	@echo "  make render-single FILE=all/cap01/cap01.ipynb  → renderiza HTML sem publicar"
 	@echo "  make publish-single FILE=all/cap01/cap01.ipynb → HTML + git push do arquivo"
+	@echo "  make render-single FILE=all/apendices/apendice_f/apendice_f.ipynb → idem, para apêndice"
 	@echo ""
 	@echo "  🧹 Limpeza:"
 	@echo "  make clean         → apaga gen/, docs/ e .cache/"

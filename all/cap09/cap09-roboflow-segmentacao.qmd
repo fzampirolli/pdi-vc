@@ -1,0 +1,207 @@
+##### Segmentação de objetos utilizando *Roboflow*
+
+Nas subseções anteriores, o *Roboflow* foi utilizado para **detecção de
+objetos**, em que cada objeto é representado por uma caixa delimitadora.
+Na segmentação, a representação é diferente: é preciso delimitar o
+contorno de cada objeto, gerando uma máscara que identifica os pixels
+pertencentes a cada classe. Isso também pode ser feito no *Roboflow*,
+com um projeto do tipo *instance segmentation*.
+
+Nesse tipo de projeto, cada objeto é anotado como um polígono. O
+*Roboflow* não oferece diretamente máscaras semânticas prontas
+(`png-mask-semantic`); a exportação é feita em `coco-segmentation`, com
+os polígonos no arquivo `_annotations.coco.json` de cada *split*. As
+máscaras usadas para treinar a `UNetCompacta` são geradas localmente,
+rasterizando esses polígonos — e, como há **7 classes de formas
+geométricas**, a máscara é **multiclasse** (não apenas objeto/fundo):
+cada pixel recebe o índice da forma a que pertence (0 = fundo).
+
+Como depende de imagens já anotadas, a célula de treinamento está com
+`eval: false`. Após anotar, treinar no *Roboflow* e publicar uma versão
+exportável, basta trocar para `eval: true` para baixar os dados reais e
+treinar a U-Net automaticamente.
+
+```{python}
+#| echo: true
+# https://app.roboflow.com/mctest/geometric-test00-seg/annotate
+projeto_seg = rf.workspace("mctest").project("geometric-test00-seg")
+
+for v in projeto_seg.versions():
+    numero = v.version.split("/")[-1]
+    print(f"Versão {numero}: {len(v.models())} modelo(s) treinado(s)")
+```
+
+```{python}
+#| echo: true
+#| eval: false
+# Requer json, cv2, numpy e torch; epocas_unet e tam_lote já definidos
+# em seções anteriores do notebook.
+import json
+import cv2
+import numpy as np
+import torch.nn as nn
+
+TAM_IMG = 608
+RAIZ_SEG = Path("dados/datasetRoboflowSeg")
+
+def para_tensores(imagens, mascaras):
+    """Converte imagens (uint8) e máscaras de classes (índices) em tensores.
+
+    X: (N, 1, H, W), float, normalizado em [0, 1].
+    Y: (N, H, W), inteiro (long), valor = índice da classe do pixel.
+    """
+    X = torch.tensor(np.array(imagens), dtype=torch.float32) / 255.0
+    Y = torch.tensor(np.array(mascaras), dtype=torch.long)
+    return X.unsqueeze(1), Y
+
+class UNetCompacta(nn.Module):
+    """U-Net enxuta: 2 níveis de downsampling, saída multiclasse (logits)."""
+
+    def __init__(self, canais_entrada=1, canais_saida=8, base=16):
+        super().__init__()
+
+        def bloco(c_in, c_out):
+            return nn.Sequential(
+                nn.Conv2d(c_in, c_out, 3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(c_out, c_out, 3, padding=1), nn.ReLU(inplace=True),
+            )
+
+        self.enc1 = bloco(canais_entrada, base)
+        self.enc2 = bloco(base, base * 2)
+        self.fundo = bloco(base * 2, base * 4)
+
+        self.pool = nn.MaxPool2d(2)
+        self.up2 = nn.ConvTranspose2d(base * 4, base * 2, 2, stride=2)
+        self.dec2 = bloco(base * 4, base * 2)
+        self.up1 = nn.ConvTranspose2d(base * 2, base, 2, stride=2)
+        self.dec1 = bloco(base * 2, base)
+
+        # canais_saida = nº de classes + fundo; sem ativação (CrossEntropy
+        # já aplica log-softmax internamente sobre os logits)
+        self.saida = nn.Conv2d(base, canais_saida, 1)
+
+    def forward(self, x):
+        e1 = self.enc1(x)
+        e2 = self.enc2(self.pool(e1))
+        f = self.fundo(self.pool(e2))
+
+        d2 = self.dec2(torch.cat([self.up2(f), e2], dim=1))
+        d1 = self.dec1(torch.cat([self.up1(d2), e1], dim=1))
+
+        return self.saida(d1)  # logits: (N, canais_saida, H, W)
+
+# CrossEntropyLoss espera logits (N,C,H,W) e alvo com índices (N,H,W)
+perda_segmentacao = nn.CrossEntropyLoss()
+epocas_unet = 20
+tam_lote = 8
+
+# Download do dataset anotado (polígonos no formato COCO)
+dataset = projeto_seg.version(1).download(
+    "coco-segmentation", location=str(RAIZ_SEG)
+)
+
+def carrega_split_coco(pasta, tam=TAM_IMG):
+    """Carrega imagens e rasteriza os polígonos COCO em máscaras multiclasse.
+
+    Cada pixel da máscara recebe o índice da classe (0 = fundo, 1..N =
+    formas). Retorna também os nomes das classes, na ordem dos índices.
+    """
+    with open(os.path.join(pasta, "_annotations.coco.json")) as f:
+        coco = json.load(f)
+
+    # o Roboflow inclui uma "supercategory: none" (id 0) que não é uma
+    # classe real; filtra e reindexa as classes verdadeiras a partir de 1
+    categorias = [c for c in coco["categories"] if c["supercategory"] != "none"]
+    id_para_indice = {c["id"]: i + 1 for i, c in enumerate(categorias)}
+
+    anotacoes_por_imagem = {}
+    for anot in coco["annotations"]:
+        anotacoes_por_imagem.setdefault(anot["image_id"], []).append(anot)
+
+    imagens, mascaras = [], []
+    for info in coco["images"]:
+        caminho_imagem = os.path.join(pasta, info["file_name"])
+        if not os.path.exists(caminho_imagem):
+            continue
+
+        mascara = np.zeros((info["height"], info["width"]), dtype=np.uint8)
+        for anot in anotacoes_por_imagem.get(info["id"], []):
+            indice = id_para_indice[anot["category_id"]]
+            for poligono in anot["segmentation"]:
+                pts = np.array(poligono, dtype=np.int32).reshape(-1, 2)
+                cv2.fillPoly(mascara, [pts], indice)  # int, não 255!
+
+        img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
+        imagens.append(cv2.resize(img, (tam, tam)))
+        # INTER_NEAREST preserva os índices de classe (sem interpolação)
+        mascaras.append(cv2.resize(
+            mascara, (tam, tam), interpolation=cv2.INTER_NEAREST
+        ))
+    return imagens, mascaras, [c["name"] for c in categorias]
+
+imgs_tr_real, masks_tr_real, nomes_classes = carrega_split_coco(
+    f"{RAIZ_SEG}/train"
+)
+NUM_CLASSES = len(nomes_classes) + 1  # + fundo
+X_tr_real, Y_tr_real = para_tensores(imgs_tr_real, masks_tr_real)
+
+modelo_unet_real = UNetCompacta(canais_saida=NUM_CLASSES)
+otimizador_real = optim.Adam(modelo_unet_real.parameters(), lr=1e-3)
+
+for epoca in range(epocas_unet):
+    modelo_unet_real.train()
+    perm = torch.randperm(X_tr_real.size(0))
+    for i in range(0, X_tr_real.size(0), tam_lote):
+        idx = perm[i : i + tam_lote]
+        otimizador_real.zero_grad()
+        perda = perda_segmentacao(
+            modelo_unet_real(X_tr_real[idx]), Y_tr_real[idx]
+        )
+        perda.backward()
+        otimizador_real.step()
+
+print("Treinamento da U-Net sobre o conjunto de dados real concluído.")
+```
+
+::: {.callout-note}
+##### Sobre a categoria `supercategory: none` {.unnumbered}
+Nas exportações COCO do *Roboflow*, `coco["categories"]` inclui uma
+entrada extra (geralmente `id: 0`, nome do projeto, `supercategory:
+"none"`) que representa o projeto em si, não uma classe. `carrega_split_coco`
+filtra essa entrada antes de montar o mapeamento classe → índice.
+:::
+
+Com o modelo treinado, uma imagem de teste do próprio *dataset* baixado
+em `dados/datasetRoboflowSeg` é usada para prever a máscara. Como agora
+são 7 classes + fundo, a predição por pixel usa **argmax** sobre os
+canais (não mais um limiar de 50%, que só fazia sentido no caso binário).
+O resultado é colorido por classe e exibido ao lado da imagem original
+na @fig-09-unet-real-predicao.
+
+```{python}
+#| echo: true
+#| eval: false
+#| label: fig-09-unet-real-predicao
+#| fig-cap: "Predição multiclasse da U-Net em uma imagem real do Roboflow"
+imgs_te_real, masks_te_real, _ = carrega_split_coco(f"{RAIZ_SEG}/test")
+X_te_real, _ = para_tensores(imgs_te_real, masks_te_real)
+
+modelo_unet_real.eval()
+with torch.no_grad():
+    logits = modelo_unet_real(X_te_real[:1])           # (1, NUM_CLASSES, H, W)
+    mascara_pred = logits[0].argmax(dim=0).numpy()      # (H, W), índice da classe
+
+# Uma cor distinta por classe (0 = fundo, em preto)
+CORES = np.array([
+    [0, 0, 0], [230, 25, 75], [60, 180, 75], [255, 225, 25],
+    [0, 130, 200], [245, 130, 48], [145, 30, 180], [70, 240, 240],
+], dtype=np.uint8)[:NUM_CLASSES]
+
+mascara_colorida = CORES[mascara_pred]
+
+mm.show(
+    [imgs_te_real[0], mascara_colorida],
+    title=["Imagem de teste (real)", "Máscara predita (multiclasse)"],
+    figsize=(10, 5)
+)
+```
