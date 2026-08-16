@@ -228,7 +228,7 @@ echo ""
 echo "[5/6] Git push principal..."
 if [ -z "$SKIP_GIT" ]; then
   TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
-  git add docs/ notebooks_alunos/
+  git add -A docs/ notebooks_alunos/
   if git commit -m "publish: $TIMESTAMP (langs: $LANGS, locales: $LOCALES)"; then
     git push origin master || git push origin main
     echo "      ✓ Push realizado"
