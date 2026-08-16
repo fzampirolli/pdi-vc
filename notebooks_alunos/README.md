@@ -4,6 +4,7 @@ Notebooks dos capítulos com referências bibliográficas, figuras, tabelas e eq
 
 ## Estrutura
 `capXX/capXX_aluno.ipynb` — notebook do capítulo XX
+`apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X
 `capXX/images/` — imagens do capítulo
 
 ## Como usar
