@@ -5,7 +5,9 @@ gerar_notebooks_alunos.py
 Pos-processa notebooks Quarto (.ipynb) para distribuicao no Colab/Jupyter.
 Resolve citacoes bibliograficas @key, referencias cruzadas de figuras @fig-*,
 tabelas @tbl-* e equacoes @eq-*, injeta lista de referencias e copia imagens.
-Zero dependencias externas.
+Zero dependencias externas obrigatorias. Excecao: inline `{python} expr}`
+em celulas markdown requer nbclient/nbformat (pip install nbclient nbformat) --
+so ativado se o notebook usar essa sintaxe.
 
 --- MODO UNICO ---
     python gerar_notebooks_alunos.py <notebook.ipynb> <references.bib> [-o saida.ipynb]
@@ -262,6 +264,130 @@ def str_to_source(text: str) -> list:
     if not text:
         return []
     return text.splitlines(keepends=True)
+
+# ---------------------------------------------------------------------------
+# 3b. Resolucao de inline code Python (`{python} expr}` em celulas markdown)
+# ---------------------------------------------------------------------------
+# O Quarto NUNCA grava o valor resolvido de `{python} expr}` de volta no
+# .ipynb fonte -- so substitui na hora de gerar HTML/PDF. Para o aluno ver
+# o numero certo no Colab (que roda o .ipynb puro, sem Quarto), resolvemos
+# isso aqui: executamos o notebook uma unica vez via nbclient e avaliamos
+# cada expressao inline contra o kernel resultante, substituindo o texto
+# literal pelo valor calculado.
+#
+# So paga o custo de execucao em notebooks que de fato usam a sintaxe --
+# guardado por regex (tem_inline_python). A maioria dos capitulos (inclusive
+# os com treino de CNN) passa direto, sem executar nada.
+#
+# Dependencia opcional: pip install nbclient nbformat
+# (so e necessaria se algum notebook usar `{python} ...}` inline).
+# ---------------------------------------------------------------------------
+
+INLINE_PY_RE = re.compile(r'`\{python\}\s*([^`]+?)\s*`')
+
+
+def tem_inline_python(notebook: dict) -> bool:
+    """Verifica se algum notebook usa a sintaxe inline `{python} expr}`."""
+    for cell in notebook.get("cells", []):
+        if cell.get("cell_type") == "markdown":
+            if INLINE_PY_RE.search(source_to_str(cell.get("source", []))):
+                return True
+    return False
+
+def resolver_inline_python(nb_path: Path) -> dict:
+    """
+    Executa o notebook uma vez (via nbclient) e substitui cada
+    `{python} expr}` em celulas markdown pelo valor calculado (str(expr)).
+
+    IMPORTANTE: o client.kc interno do nbclient e assincrono (AsyncKernelClient)
+    nas versoes atuais -- execute()/get_iopub_msg() retornam coroutines, nao
+    valores prontos. Em vez de reimplementar a logica assincrona do nbclient
+    (fragil entre versoes), abrimos um SEGUNDO cliente, este sim sincrono
+    (jupyter_client.BlockingKernelClient), conectado ao MESMO kernel via
+    connection_file, e usamos ele so para avaliar as expressoes inline.
+    As celulas de codigo continuam rodando via client.execute_cell() normal.
+    """
+    try:
+        import nbformat
+        from nbclient import NotebookClient
+        from jupyter_client import BlockingKernelClient
+    except ImportError:
+        print("  [!] nbclient/nbformat nao instalados -- pip install nbclient nbformat")
+        print("  [!] Inline `{python}` NAO sera resolvido; texto literal sera mantido.")
+        return json.loads(nb_path.read_text(encoding="utf-8"))
+
+    nb = nbformat.read(str(nb_path), as_version=4)
+    client = NotebookClient(
+        nb,
+        timeout=600,
+        kernel_name="python3",
+        resources={"metadata": {"path": str(nb_path.parent.resolve())}},
+    )
+
+    def _avaliar_expr(kc_sync, expr: str):
+        """Executa `print(str(expr), end='')` no cliente sincrono e retorna
+        o texto capturado via polling do canal iopub. Retorna None em caso
+        de erro/timeout (o chamador mantem o placeholder original)."""
+        expr = expr.strip()
+        msg_id = kc_sync.execute(f"print(str({expr}), end='')", store_history=False)
+
+        valor_partes = []
+        erro = None
+        recebeu_algo = False
+
+        while True:
+            try:
+                msg = kc_sync.get_iopub_msg(timeout=30)
+            except Exception:
+                break
+
+            if msg.get("parent_header", {}).get("msg_id") != msg_id:
+                continue
+
+            msg_type = msg["msg_type"]
+            content = msg["content"]
+            recebeu_algo = True
+
+            if msg_type == "stream" and content.get("name") == "stdout":
+                valor_partes.append(content.get("text", ""))
+            elif msg_type == "error":
+                erro = "\n".join(content.get("traceback", []))
+            elif msg_type == "status" and content.get("execution_state") == "idle":
+                break
+
+        if erro:
+            primeira_linha = erro.splitlines()[-1] if erro else "erro desconhecido"
+            print(f"  ⚠ Falha ao avaliar inline `{{python}} {expr}}}`: {primeira_linha}")
+            return None
+        if not recebeu_algo:
+            print(f"  ⚠ Nenhuma resposta do kernel ao avaliar `{{python}} {expr}}}` (timeout?)")
+            return None
+        return "".join(valor_partes)
+
+    try:
+        with client.setup_kernel():
+            kc_sync = BlockingKernelClient()
+            kc_sync.load_connection_file(client.km.connection_file)
+            kc_sync.start_channels()
+            kc_sync.wait_for_ready(timeout=60)
+
+            try:
+                for index, cell in enumerate(nb.cells):
+                    if cell.cell_type == "code":
+                        client.execute_cell(cell, index)
+                    elif cell.cell_type == "markdown":
+                        def _avaliar(m):
+                            valor = _avaliar_expr(kc_sync, m.group(1))
+                            return valor if valor is not None else m.group(0)
+                        cell.source = INLINE_PY_RE.sub(_avaliar, cell.source)
+            finally:
+                kc_sync.stop_channels()
+    except Exception as e:
+        print(f"  ❌ Erro executando {nb_path.name} para resolver inline Python: {e}")
+        print(f"     O notebook precisa rodar limpo (Restart Kernel + Run All) antes de gerar material do aluno.")
+        raise
+
+    return json.loads(nbformat.writes(nb))
 
 
 # ---------------------------------------------------------------------------
@@ -1577,7 +1703,19 @@ def process_notebook_epub(nb_path: Path, bib: dict, out_path: Path) -> list:
     """
     return process_notebook(nb_path, bib, out_path)
 
-
+def copy_dataset_dir(nb_source_dir: Path, out_dir: Path, nomes_pasta=("dataset",)):
+    """Copia pastas de dados (ex.: dataset/) que ficam ao lado do notebook,
+    necessarias tanto para a geracao (nbclient) quanto para o aluno rodar
+    o notebook no Colab depois."""
+    for nome in nomes_pasta:
+        src = nb_source_dir / nome
+        if src.is_dir():
+            dst = out_dir / nome
+            if dst.exists():
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
+            n_arquivos = sum(1 for _ in dst.rglob("*") if _.is_file())
+            print(f"  -> Pasta de dados: {nome}/ ({n_arquivos} arquivo(s))")
 
 # ---------------------------------------------------------------------------
 # 12. Processa um unico notebook
@@ -1590,7 +1728,14 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path,
     numbering: se True, adiciona numeração automática às seções
     """
     notebook = json.loads(nb_path.read_text(encoding="utf-8"))
-    
+
+    # Resolve inline `{python} expr}` (Quarto nunca grava isso de volta no
+    # .ipynb fonte). Só executa se o padrão for encontrado -- notebooks
+    # pesados (CNN etc.) que não usam essa sintaxe não são afetados.
+    if tem_inline_python(notebook):
+        print(f"  🔢 Inline Python detectado — executando notebook para resolver valores...")
+        notebook = resolver_inline_python(nb_path)
+
     # EPs não têm numeração de seção — não faz sentido numerar exercícios
     if '.EPs.' in nb_path.name:
         numbering = False
@@ -1870,6 +2015,9 @@ def run_batch_epub(bib_path: str, out_dir: str):
         if image_paths:
             copy_images(nb_path.parent, out_cap, image_paths)
             total_imgs += len(image_paths)
+
+        copy_dataset_dir(nb_path.parent, out_cap)  # <-- nova linha
+
         # Caminho relativo para o _quarto_epub.yml
         chapter_lines.append(f"    - {out_nb.as_posix()}")
         print()
@@ -1959,6 +2107,9 @@ def run_batch(bib_path: str, out_dir: str,
         if image_paths:
             copy_images(nb_path.parent, out_cap, image_paths)
             total_imgs += len(image_paths)
+
+        copy_dataset_dir(nb_path.parent, out_cap)  # <-- nova linha
+
         print()
         
     # Gera README.md
