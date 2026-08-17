@@ -20,11 +20,12 @@ export PATH := $(TINYTEX):$(PATH)
 # ── Watch (modo desenvolvimento) ──────────────────────────────────────────────
 .PHONY: html
 html:
-	$(PY) --langs $(LANGS) --locales $(LOCALES) --render html
+	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html
+	$(MAKE) index
 
 .PHONY: pdf
 pdf:
-	$(PY) --langs $(LANGS) --locales $(LOCALES) --render pdf
+	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render pdf
 
 .PHONY: all-formats
 all-formats:
@@ -38,6 +39,10 @@ build:
 	$(MAKE) eps
 	$(MAKE) moodle
 	$(MAKE) sims
+
+.PHONY: build-index
+build-index:
+	$(MAKE) index
 	
 .PHONY: build-pdf
 build-pdf:
@@ -172,6 +177,7 @@ help:
 	@echo ""
 	@echo "  📚 Build:"
 	@echo "  make build         → py×pt + HTML + índice + eps + moodle + sims"
+	@echo "  make build-index   → py×pt + índice"
 	@echo "  make build-pdf     → py×pt + PDF + índice"
 	@echo "  make build-all     → py×pt + HTML+PDF + índice"
 	@echo "  make full          → todas linguagens×idiomas + HTML+PDF"

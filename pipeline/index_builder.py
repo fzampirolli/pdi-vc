@@ -3,13 +3,19 @@ pipeline/index_builder.py
 =========================
 Gera página principal minimalista com links para cada versão.
 O index.html fica em gen/book/index.html (junto com as versões geradas).
+Injeta também a data/hora da última atualização nos index.html de cada versão,
+substituindo por completo qualquer bloco nativo de data do Quarto (Publicado,
+Data de Publicação, Modified, etc.) e organizando os metadados (Autor,
+Afiliação, Última Atualização) em cartões consistentes e bem estilizados.
 """
 
 from __future__ import annotations
 
+import re
+import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Iterator, Tuple
 
 from .config import LANGUAGES, LOCALES
 
@@ -19,35 +25,35 @@ DIR_BOOK = DIR_GEN / 'book'
 
 class IndexBuilder:
     """Constrói página principal com links para os índices de cada versão."""
-    
+
     def __init__(self, project_root: Path = Path('.')):
         self.root = project_root.resolve()
         self.gen_dir = self.root / DIR_GEN
         self.book_dir = self.root / DIR_BOOK
         self.index_path = self.book_dir / 'index.html'
-    
+
     def scan_versions(self) -> List[Dict]:
         """Escaneia gen/book/ e retorna informações de cada versão."""
         versions = []
-        
+
         if not self.book_dir.exists():
             return versions
-        
+
         for combo_dir in sorted(self.book_dir.iterdir()):
             if not combo_dir.is_dir():
                 continue
-            
+
             parts = combo_dir.name.split('.')
             if len(parts) != 2:
                 continue
-            
+
             lang_key, locale_key = parts
             lang_info = LANGUAGES.get(lang_key)
             locale_info = LOCALES.get(locale_key)
-            
+
             if not lang_info or not locale_info:
                 continue
-            
+
             index_file = combo_dir / 'index.html'
             has_index = index_file.exists()
 
@@ -79,12 +85,218 @@ class IndexBuilder:
                 'has_pdf': has_pdf,
                 'last_modified': datetime.fromtimestamp(combo_dir.stat().st_mtime)
             })
-        
+
         return versions
-    
-    def generate_html(self, versions: List[Dict]) -> str:
+
+    # ------------------------------------------------------------------
+    # Helpers genéricos para manipulação segura de HTML com divs aninhadas
+    # ------------------------------------------------------------------
+
+    _TAG_RE = re.compile(r'<div\b[^>]*>|</div>', flags=re.IGNORECASE)
+
+    @classmethod
+    def _find_matching_div_end(cls, content: str, start: int) -> int:
+        """
+        A partir do índice de abertura de uma tag <div ...> em `start`,
+        retorna o índice logo após a </div> correspondente, respeitando
+        aninhamento de divs internas. Retorna -1 se não encontrar.
+        """
+        m = cls._TAG_RE.match(content, start)
+        if not m or not m.group(0).lower().startswith('<div'):
+            return -1
+
+        depth = 1
+        pos = m.end()
+        while depth > 0:
+            m = cls._TAG_RE.search(content, pos)
+            if not m:
+                return -1
+            if m.group(0).lower().startswith('<div'):
+                depth += 1
+            else:
+                depth -= 1
+            pos = m.end()
+        return pos
+
+    @classmethod
+    def _find_class_divs(cls, content: str, region_start: int, region_end: int, class_name: str) -> List[Tuple[int, int]]:
+        """
+        Localiza TODAS as <div class="...{class_name}...">...</div> dentro da
+        região, em QUALQUER profundidade de aninhamento (não só nível
+        superior), na ordem em que aparecem no documento. Cada uma tem seu
+        fim calculado de forma independente via contagem de profundidade,
+        então funciona tanto se a estrutura real do Quarto usa um wrapper
+        por item quanto se os headings/contents estão soltos, lado a lado,
+        direto dentro do container.
+        """
+        pattern = re.compile(
+            rf'<div[^>]*class="[^"]*{re.escape(class_name)}[^"]*"[^>]*>',
+            flags=re.IGNORECASE
+        )
+        results = []
+        for m in pattern.finditer(content, region_start, region_end):
+            end = cls._find_matching_div_end(content, m.start())
+            if end == -1 or end > region_end:
+                continue
+            results.append((m.start(), end))
+        return results
+
+    @staticmethod
+    def _div_text(content: str, start: int, end: int) -> str:
+        """Extrai texto puro (sem tags) do conteúdo de uma <div>...</div>."""
+        raw = content[start:end]
+        raw = re.sub(r'<[^>]+>', ' ', raw)
+        return re.sub(r'\s+', ' ', raw).strip()
+
+    # ------------------------------------------------------------------
+    # Metadados (Autor / Afiliação / Última Atualização)
+    # ------------------------------------------------------------------
+
+    DATE_HEADING_RE = re.compile(
+        r'(Data\s+de\s+Publica[çc][ãa]o|Publicado(\s+em)?|Published|'
+        r'[ÚU]ltima\s+Atualiza[çc][ãa]o|Last\s+updated|Modified|'
+        r'Data\s+de\s+Modifica[çc][ãa]o|^Data$|^Date$)',
+        flags=re.IGNORECASE
+    )
+
+    META_CONTAINER_RE = re.compile(
+        r'<div[^>]*class="[^"]*quarto-title-meta[^"]*"[^>]*>',
+        flags=re.IGNORECASE
+    )
+
+    META_STYLE_MARKER = '<!-- pdivc-meta-style -->'
+
+    META_STYLE_CSS = f'''{META_STYLE_MARKER}
+<style>
+  /* Bloco de metadados do título (Autor, Afiliação, data de atualização).
+     Não presumimos como o Quarto agrupa heading+contents internamente
+     (pode variar), então estilizamos os elementos nativos diretamente,
+     empilhados como uma lista de rótulo/valor dentro de um cartão. */
+  .quarto-title-meta {{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    row-gap: 0.2rem;
+    column-gap: 0.4rem;
+    margin: 1.75rem 0 2.25rem;
+    padding: 1.15rem 1.5rem 1.35rem;
+    background: #faf7f2;
+    border: 1px solid #e2d9c8;
+    border-radius: 10px;
+  }}
+  .quarto-title-meta-heading {{
+    flex: 0 0 100%;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #8a7f70;
+    margin-top: 0.7rem;
+  }}
+  .quarto-title-meta-heading:first-child {{
+    margin-top: 0;
+  }}
+  .quarto-title-meta-contents,
+  .quarto-title-meta-contents p {{
+    flex: 0 0 100%;
+    font-size: 0.97rem;
+    font-weight: 500;
+    color: #1a2e4a;
+    line-height: 1.35;
+    margin: 0;
+  }}
+  .quarto-title-meta-heading.pdivc-last-updated {{
+    color: #b07d1f;
+  }}
+  .quarto-title-meta-contents.pdivc-last-updated,
+  .quarto-title-meta-contents.pdivc-last-updated p {{
+    color: #a8721c;
+    font-weight: 700;
+    font-size: 1.02rem;
+  }}
+</style>
+'''
+
+    def _ensure_meta_style(self, content: str) -> str:
+        """Injeta o CSS dos metadados uma única vez, logo antes de </head>."""
+        if self.META_STYLE_MARKER in content:
+            return content
+        if '</head>' in content:
+            return content.replace('</head>', self.META_STYLE_CSS + '</head>', 1)
+        # Fallback: injeta no início do documento se não houver </head>
+        return self.META_STYLE_CSS + content
+
+    def inject_last_updated_in_subversions(self, versions: List[Dict], updated_str: str) -> None:
+        """
+        Mantém exclusivamente o campo de "Última Atualização" entre os itens de
+        data (remove "Data de Publicação", "Published", "Modified" nativos do
+        Quarto, e o badge injetado em execuções anteriores), preservando Autor
+        e Afiliação intactos, e deixa o bloco de metadados com visual limpo.
+
+        Não presumimos a estrutura interna exata que o Quarto usa para
+        agrupar heading+contents (pode vir com um wrapper por item, ou com
+        os headings e contents soltos lado a lado dentro do container).
+        Em vez disso: coletamos TODOS os `quarto-title-meta-heading` e TODOS
+        os `quarto-title-meta-contents` do container, na ordem em que
+        aparecem, e pareamos pelo índice de aparição (o i-ésimo heading
+        corresponde ao i-ésimo contents). Isso funciona nos dois formatos.
+        """
+        badge_html = (
+            '<div class="quarto-title-meta-heading pdivc-last-updated">Última Atualização</div>\n'
+            '<div class="quarto-title-meta-contents pdivc-last-updated">\n'
+            f'  <p class="date">{updated_str}</p>\n'
+            '</div>'
+        )
+
+        for v in versions:
+            index_file: Path = v['index_path']
+            if not index_file.exists():
+                continue
+
+            content = index_file.read_text(encoding='utf-8')
+
+            m = self.META_CONTAINER_RE.search(content)
+            if not m:
+                print(f'  ⚠️ Container quarto-title-meta não encontrado em: {index_file}')
+                index_file.write_text(self._ensure_meta_style(content), encoding='utf-8')
+                continue
+
+            container_start = m.start()
+            container_end = self._find_matching_div_end(content, container_start)
+            if container_end == -1:
+                print(f'  ⚠️ Não foi possível fechar quarto-title-meta em: {index_file}')
+                index_file.write_text(self._ensure_meta_style(content), encoding='utf-8')
+                continue
+
+            insert_at = m.end()  # logo após a tag de abertura do container
+            inner_region_end = container_end - len('</div>')
+
+            headings = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-heading')
+            contents = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-contents')
+
+            remove_spans: List[Tuple[int, int]] = []
+            for h, c in zip(headings, contents):
+                heading_text = self._div_text(content, *h)
+                if self.DATE_HEADING_RE.search(heading_text):
+                    remove_spans.append(h)
+                    remove_spans.append(c)
+
+            # Remove do fim para o início para não invalidar os offsets já calculados
+            for s, e in sorted(remove_spans, key=lambda span: span[0], reverse=True):
+                content = content[:s] + content[e:]
+
+            # Insere o badge único de "Última Atualização" logo no início do container
+            content = content[:insert_at] + '\n' + badge_html + '\n' + content[insert_at:]
+
+            content = self._ensure_meta_style(content)
+
+            index_file.write_text(content, encoding='utf-8')
+            print(f'  ✓ Metadados organizados (Última Atualização única) em: {index_file}')
+
+    def generate_html(self, versions: List[Dict], updated: str) -> str:
         """Gera o HTML principal com design editorial refinado."""
-        
+
         cover_img = 'capa_girassol1.png'
 
         by_lang: dict = {}
@@ -134,7 +346,6 @@ class IndexBuilder:
         n_versions = len(versions)
         n_langs    = len(set(v['lang_key'] for v in versions))
         n_locales  = len(set(v['locale_key'] for v in versions))
-        updated    = datetime.now().strftime('%d/%m/%Y %H:%M')
 
         html = f'''<!DOCTYPE html>
 <html lang="pt-BR">
@@ -171,7 +382,6 @@ class IndexBuilder:
       min-height: 100vh;
     }}
 
-    /* ── Hero ────────────────────────────────────────────────────────── */
     .hero {{
       position: relative;
       width: 100%;
@@ -288,7 +498,6 @@ class IndexBuilder:
       50%       {{ transform: translateY(5px); }}
     }}
 
-    /* ── Versions section ────────────────────────────────────────────── */
     #versions {{
       max-width: 1060px;
       margin: 0 auto;
@@ -415,16 +624,11 @@ class IndexBuilder:
     footer a {{ color: var(--gold-lt); text-decoration: none; }}
     footer a:hover {{ text-decoration: underline; }}
 
-    /* ── Responsive ──────────────────────────────────────────────────── */
     @media (max-width: 820px) {{
       .hero {{
         grid-template-columns: 1fr;
         min-height: auto;
       }}
-
-      /* Em mobile a imagem ocupa altura fixa como banner.
-         object-position: center center garante que o meio da imagem
-         fique visível, não só o topo. */
       .hero-cover {{
         height: 70vw;
         max-height: 420px;
@@ -432,22 +636,16 @@ class IndexBuilder:
       .hero-cover img {{
         object-position: center center;
       }}
-
-      /* Overlay agora desce de baixo para cima (a seção de texto vem abaixo) */
       .hero-cover::after {{
         background: linear-gradient(to bottom, transparent 55%, var(--navy) 100%);
       }}
-
       .hero-text {{
         padding: 2.5rem 1.5rem;
       }}
-
       #versions {{ padding: 3rem 1rem 3rem; }}
       .version-card {{ width: 100%; max-width: 340px; }}
     }}
 
-    /* Telas muito pequenas (< 400 px) — altura um pouco maior para
-       dar espaço à imagem sem cortar demais */
     @media (max-width: 400px) {{
       .hero-cover {{
         height: 80vw;
@@ -502,12 +700,9 @@ class IndexBuilder:
 {cards_html}
 </main>
 
-
-
-<!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="sim-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/index.html" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
     © {datetime.now().year} <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
     Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -518,19 +713,18 @@ class IndexBuilder:
 </html>
 '''
         return html
-    
+
     def build(self) -> Path:
-        """Constrói a página index.html principal dentro de gen/book/."""
+        """Constrói a página index.html principal dentro de gen/book/ e atualiza subversões."""
         self.book_dir.mkdir(parents=True, exist_ok=True)
-        
+
         versions = self.scan_versions()
-        
+
         if not versions:
             print('⚠️ Nenhuma versão encontrada em gen/book/')
             print('   Execute o pipeline primeiro: make build LANGS=py,cpp LOCALES=pt,en')
             return self.index_path
-        
-        import shutil
+
         cover_src = self.root / 'includes' / 'capa_girassol1.png'
         cover_dst = self.book_dir / 'capa_girassol1.png'
         if cover_src.exists():
@@ -543,13 +737,27 @@ class IndexBuilder:
             shutil.copy2(fav_src, fav_dst)
             print(f'  ✓ Favicon copiado para {fav_dst}')
 
-        html_content = self.generate_html(versions)
+        # updated = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+        MESES_PT = [
+            '', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ]
+
+        now = datetime.now()
+        updated = f"{now.day} de {MESES_PT[now.month]} de {now.year} às {now.strftime('%H:%M')}"
+
+        # 1. Injeta carimbo em gen/book/py.pt/index.html (e outras versões encontradas)
+        self.inject_last_updated_in_subversions(versions, updated)
+
+        # 2. Gera o portal principal gen/book/index.html
+        html_content = self.generate_html(versions, updated)
         self.index_path.write_text(html_content, encoding='utf-8')
-        
+
         print(f'✅ Página principal gerada: {self.index_path}')
         print(f'   📊 {len(versions)} versões encontradas')
         print(f'\n🌐 Abrir no navegador: file://{self.index_path.absolute()}')
-        
+
         return self.index_path
 
 

@@ -444,20 +444,43 @@ class QuartoBuilder:
                     continue
                 nb_name = nb_candidates[0].name
 
+            # dest = qdir / dirname
+            # dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
+            # for f in src_dir.iterdir():
+            #     self._symlink(dest / f.name, f)       # symlinks (arquivos e pastas, ex.: imagens/)
+
+            # if not using_raw_fallback:
+            #     all_imagens = self.root / 'all' / 'apendices' / dirname / 'imagens'
+            #     gen_imagens = src_dir / 'imagens'
+            #     if all_imagens.exists() and not gen_imagens.exists():
+            #         gen_imagens.symlink_to(all_imagens.resolve())
+
+            # written.append(f'{dirname}/{nb_name}')
+            # print(f'  ✓ Apêndice (notebook) linkado: {dirname}/{nb_name}'
+            #       + (' [fallback cru]' if using_raw_fallback else ''))
+
+
             dest = qdir / dirname
             dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
             for f in src_dir.iterdir():
-                self._symlink(dest / f.name, f)       # symlinks (arquivos e pastas, ex.: imagens/)
-
+                if f.name == nb_name:
+                    # O notebook pode ser executado pelo Quarto (ex.: apendice_f, que tem
+                    # células de código gerando parâmetros usados no texto). Se fosse
+                    # symlink, a execução regravaria outputs direto no arquivo fonte em
+                    # all/apendices/. Copiamos para isolar gen/ do fonte.
+                    shutil.copy2(f, dest / f.name)
+                else:
+                    self._symlink(dest / f.name, f)       # symlinks (imagens/, .qmd etc.)
             if not using_raw_fallback:
                 all_imagens = self.root / 'all' / 'apendices' / dirname / 'imagens'
                 gen_imagens = src_dir / 'imagens'
                 if all_imagens.exists() and not gen_imagens.exists():
                     gen_imagens.symlink_to(all_imagens.resolve())
-
             written.append(f'{dirname}/{nb_name}')
-            print(f'  ✓ Apêndice (notebook) linkado: {dirname}/{nb_name}'
-                  + (' [fallback cru]' if using_raw_fallback else ''))
+            print(f'  ✓ Apêndice (notebook) copiado: {dirname}/{nb_name}'
+                + (' [fallback cru]' if using_raw_fallback else ''))
+
+
         return written
 
     # def _write_cover_tex(self, qdir: Path, cover_abs: Path):
@@ -825,7 +848,7 @@ book:
   author:
     - name: "Francisco de Assis Zampirolli"
       affiliation: "Universidade Federal do ABC"
-  date: today
+  # date: today
   downloads: [pdf]
   output-file: "livro.{combo.file_key}"
 
@@ -866,6 +889,12 @@ format:
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {{
+          // ── Redireciona o título da barra lateral para o index.html geral ────
+          const sidebarTitleLink = document.querySelector('.sidebar-title a, a.sidebar-title');
+          if (sidebarTitleLink) {{
+            sidebarTitleLink.setAttribute('href', '../index.html');
+          }}
+
           // 1. Botão flutuante na esquerda (menu lateral)
           const btnSidebar = document.createElement('button');
           btnSidebar.id = 'toggle-sidebar-btn';
@@ -897,6 +926,7 @@ format:
 
   pdf:
     documentclass: book
+    date: today   # <-- ADICIONE AQUI
     classoption: [openany, oneside, 11pt, a4paper]
     title-page: false
     output-file: "livro.{combo.file_key}.pdf"
@@ -936,7 +966,7 @@ format:
     # (onde o conteúdo é removido e reinserido pelo _fix_tex_cover, então não
     # duplica).
     include-before-body:
-      - file: capa.tex
+        - file: capa.tex
 
     include-in-header:
       - file: cover_hook.tex
@@ -1797,6 +1827,29 @@ def _fix_tex_cover(qdir: Path):
     tex_path = tex_files[0]
     content = tex_path.read_text(encoding='utf-8')
 
+    # ── Extrai a ficha catalográfica do corpo e prepara para mover
+    #    para a contracapa (verso da folha de rosto) ──────────────
+    ficha_match = re.search(
+        r'% FICHA_CATALOGRAFICA_START.*?% FICHA_CATALOGRAFICA_END',
+        content,
+        flags=re.DOTALL,
+    )
+    if ficha_match:
+        ficha_tex = ficha_match.group(0)
+        content = content.replace(ficha_tex, '', 1)
+        
+        # Remove a casca do capítulo vazio gerada pelo Quarto no corpo do .tex:
+        content = re.sub(
+            r'\\chapter\*?\{Ficha Catalogr[aá]fica\}.*?(?=\\chapter|\\part|\\bookmarksetup|\Z)',
+            '',
+            content,
+            flags=re.DOTALL
+        )
+        print('  ✓ Ficha catalográfica extraída do corpo e capítulo residual removido')
+    else:
+        ficha_tex = ''
+        print('  ⚠ Marcadores da ficha catalográfica não encontrados — posição não alterada')
+        
     # Remove babel do Pandoc para evitar conflito com o nosso
     content = re.sub(
         r'\\usepackage\[.*?babel.*?\]\{babel\}|\\usepackage\{babel\}',
@@ -1959,6 +2012,10 @@ def _fix_tex_cover(qdir: Path):
 {{\large \today\par}}
 \end{{center}}
 \end{{titlepage}}
+
+% ── Ficha catalográfica (contracapa) ────────────────────────────
+{ficha_tex}
+
 % ── Ajustes globais do TOC ──────────────────────────────────────
 \clearpage
 \pagestyle{{plain}}
