@@ -7,6 +7,7 @@ Injeta também a data/hora da última atualização nos index.html de cada vers�
 substituindo por completo qualquer bloco nativo de data do Quarto (Publicado,
 Data de Publicação, Modified, etc.) e organizando os metadados (Autor,
 Afiliação, Última Atualização) em cartões consistentes e bem estilizados.
+Injeta a exibição elegante lado a lado da Capa Principal e Contracapa (girassol_contracapa.png).
 """
 
 from __future__ import annotations
@@ -96,11 +97,6 @@ class IndexBuilder:
 
     @classmethod
     def _find_matching_div_end(cls, content: str, start: int) -> int:
-        """
-        A partir do índice de abertura de uma tag <div ...> em `start`,
-        retorna o índice logo após a </div> correspondente, respeitando
-        aninhamento de divs internas. Retorna -1 se não encontrar.
-        """
         m = cls._TAG_RE.match(content, start)
         if not m or not m.group(0).lower().startswith('<div'):
             return -1
@@ -120,15 +116,6 @@ class IndexBuilder:
 
     @classmethod
     def _find_class_divs(cls, content: str, region_start: int, region_end: int, class_name: str) -> List[Tuple[int, int]]:
-        """
-        Localiza TODAS as <div class="...{class_name}...">...</div> dentro da
-        região, em QUALQUER profundidade de aninhamento (não só nível
-        superior), na ordem em que aparecem no documento. Cada uma tem seu
-        fim calculado de forma independente via contagem de profundidade,
-        então funciona tanto se a estrutura real do Quarto usa um wrapper
-        por item quanto se os headings/contents estão soltos, lado a lado,
-        direto dentro do container.
-        """
         pattern = re.compile(
             rf'<div[^>]*class="[^"]*{re.escape(class_name)}[^"]*"[^>]*>',
             flags=re.IGNORECASE
@@ -143,13 +130,12 @@ class IndexBuilder:
 
     @staticmethod
     def _div_text(content: str, start: int, end: int) -> str:
-        """Extrai texto puro (sem tags) do conteúdo de uma <div>...</div>."""
         raw = content[start:end]
         raw = re.sub(r'<[^>]+>', ' ', raw)
         return re.sub(r'\s+', ' ', raw).strip()
 
     # ------------------------------------------------------------------
-    # Metadados (Autor / Afiliação / Última Atualização)
+    # Metadados e Estilos do index.html de cada versão
     # ------------------------------------------------------------------
 
     DATE_HEADING_RE = re.compile(
@@ -168,10 +154,7 @@ class IndexBuilder:
 
     META_STYLE_CSS = f'''{META_STYLE_MARKER}
 <style>
-  /* Bloco de metadados do título (Autor, Afiliação, data de atualização).
-     Não presumimos como o Quarto agrupa heading+contents internamente
-     (pode variar), então estilizamos os elementos nativos diretamente,
-     empilhados como uma lista de rótulo/valor dentro de um cartão. */
+  /* Metadados */
   .quarto-title-meta {{
     display: flex;
     flex-wrap: wrap;
@@ -215,33 +198,109 @@ class IndexBuilder:
     font-weight: 700;
     font-size: 1.02rem;
   }}
+
+  /* Showcase das Capas Lado a Lado */
+  .pdivc-covers-container {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.75rem;
+    margin: 2.2rem 0 3rem 0;
+    padding: 1.2rem;
+    background: linear-gradient(145deg, #f8f6f0 0%, #ede8dc 100%);
+    border: 1px solid #dcd4c2;
+    border-radius: 14px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+  }}
+  .pdivc-cover-card {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: #ffffff;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 6px 18px rgba(26,22,18,0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }}
+  .pdivc-cover-card:hover {{
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(26,22,18,0.14);
+  }}
+  .pdivc-cover-card img {{
+    width: 100%;
+    max-height: 480px;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }}
+  .pdivc-cover-label {{
+    margin-top: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1a2e4a;
+    font-weight: 600;
+  }}
 </style>
 '''
 
+    COVERS_MARKER = '<!-- pdivc-dual-covers -->'
+
+    def _generate_covers_html(self) -> str:
+        """Gera o HTML do container de duas capas lado a lado."""
+        return f'''{self.COVERS_MARKER}
+<div class="pdivc-covers-container">
+  <div class="pdivc-cover-card">
+    <img src="girassol_capa.png" alt="Capa Principal">
+    <div class="pdivc-cover-label">Capa Principal</div>
+  </div>
+  <div class="pdivc-cover-card">
+    <img src="girassol_contracapa.png" alt="Contracapa">
+    <div class="pdivc-cover-label">Contracapa</div>
+  </div>
+</div>
+'''
+
+    def _inject_covers_grid(self, content: str) -> str:
+        """Injeta a exibição lado a lado substituindo a tag nativa de cover do Quarto ou após os metadados."""
+        if self.COVERS_MARKER in content:
+            return content
+
+        covers_html = self._generate_covers_html()
+
+        # 1. Se o Quarto gerou a imagem de capa nativa (<p class="quarto-cover-image"> ou <img>), substitui ela
+        native_cover_pattern = re.compile(
+            r'(?:<p[^>]*>\s*)?<img[^>]*class="[^"]*quarto-cover-image[^"]*"[^>]*>(?:\s*</p>)?',
+            flags=re.IGNORECASE
+        )
+        if native_cover_pattern.search(content):
+            return native_cover_pattern.sub(covers_html, content, count=1)
+
+        # 2. Caso contrário, injeta logo após o container quarto-title-meta
+        m = self.META_CONTAINER_RE.search(content)
+        if m:
+            end_pos = self._find_matching_div_end(content, m.start())
+            if end_pos != -1:
+                return content[:end_pos] + '\n' + covers_html + '\n' + content[end_pos:]
+
+        # 3. Fallback: injeta logo após <header id="title-block-header">
+        if '</header>' in content:
+            return content.replace('</header>', '</header>\n' + covers_html, 1)
+
+        return content
+
     def _ensure_meta_style(self, content: str) -> str:
-        """Injeta o CSS dos metadados uma única vez, logo antes de </head>."""
+        """Injeta o CSS dos metadados e capas uma única vez, logo antes de </head>."""
         if self.META_STYLE_MARKER in content:
             return content
         if '</head>' in content:
             return content.replace('</head>', self.META_STYLE_CSS + '</head>', 1)
-        # Fallback: injeta no início do documento se não houver </head>
         return self.META_STYLE_CSS + content
 
     def inject_last_updated_in_subversions(self, versions: List[Dict], updated_str: str) -> None:
-        """
-        Mantém exclusivamente o campo de "Última Atualização" entre os itens de
-        data (remove "Data de Publicação", "Published", "Modified" nativos do
-        Quarto, e o badge injetado em execuções anteriores), preservando Autor
-        e Afiliação intactos, e deixa o bloco de metadados com visual limpo.
-
-        Não presumimos a estrutura interna exata que o Quarto usa para
-        agrupar heading+contents (pode vir com um wrapper por item, ou com
-        os headings e contents soltos lado a lado dentro do container).
-        Em vez disso: coletamos TODOS os `quarto-title-meta-heading` e TODOS
-        os `quarto-title-meta-contents` do container, na ordem em que
-        aparecem, e pareamos pelo índice de aparição (o i-ésimo heading
-        corresponde ao i-ésimo contents). Isso funciona nos dois formatos.
-        """
+        """Organiza metadados e injeta capas nas subversões (ex: py.pt/index.html)."""
         badge_html = (
             '<div class="quarto-title-meta-heading pdivc-last-updated">Última Atualização</div>\n'
             '<div class="quarto-title-meta-contents pdivc-last-updated">\n'
@@ -256,48 +315,42 @@ class IndexBuilder:
 
             content = index_file.read_text(encoding='utf-8')
 
+            # 1. Trata metadados
             m = self.META_CONTAINER_RE.search(content)
-            if not m:
-                print(f'  ⚠️ Container quarto-title-meta não encontrado em: {index_file}')
-                index_file.write_text(self._ensure_meta_style(content), encoding='utf-8')
-                continue
+            if m:
+                container_start = m.start()
+                container_end = self._find_matching_div_end(content, container_start)
+                if container_end != -1:
+                    insert_at = m.end()
+                    inner_region_end = container_end - len('</div>')
 
-            container_start = m.start()
-            container_end = self._find_matching_div_end(content, container_start)
-            if container_end == -1:
-                print(f'  ⚠️ Não foi possível fechar quarto-title-meta em: {index_file}')
-                index_file.write_text(self._ensure_meta_style(content), encoding='utf-8')
-                continue
+                    headings = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-heading')
+                    contents = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-contents')
 
-            insert_at = m.end()  # logo após a tag de abertura do container
-            inner_region_end = container_end - len('</div>')
+                    remove_spans: List[Tuple[int, int]] = []
+                    for h, c in zip(headings, contents):
+                        heading_text = self._div_text(content, *h)
+                        if self.DATE_HEADING_RE.search(heading_text):
+                            remove_spans.append(h)
+                            remove_spans.append(c)
 
-            headings = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-heading')
-            contents = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-contents')
+                    for s, e in sorted(remove_spans, key=lambda span: span[0], reverse=True):
+                        content = content[:s] + content[e:]
 
-            remove_spans: List[Tuple[int, int]] = []
-            for h, c in zip(headings, contents):
-                heading_text = self._div_text(content, *h)
-                if self.DATE_HEADING_RE.search(heading_text):
-                    remove_spans.append(h)
-                    remove_spans.append(c)
+                    content = content[:insert_at] + '\n' + badge_html + '\n' + content[insert_at:]
 
-            # Remove do fim para o início para não invalidar os offsets já calculados
-            for s, e in sorted(remove_spans, key=lambda span: span[0], reverse=True):
-                content = content[:s] + content[e:]
+            # 2. Injeta grid de duas capas lado a lado
+            content = self._inject_covers_grid(content)
 
-            # Insere o badge único de "Última Atualização" logo no início do container
-            content = content[:insert_at] + '\n' + badge_html + '\n' + content[insert_at:]
-
+            # 3. Injeta estilos CSS
             content = self._ensure_meta_style(content)
 
             index_file.write_text(content, encoding='utf-8')
-            print(f'  ✓ Metadados organizados (Última Atualização única) em: {index_file}')
+            print(f'  ✓ Metadados e Capas lado a lado organizados em: {index_file}')
 
     def generate_html(self, versions: List[Dict], updated: str) -> str:
         """Gera o HTML principal com design editorial refinado."""
-
-        cover_img = 'capa_girassol1.png'
+        cover_img = 'girassol_all.png'
 
         by_lang: dict = {}
         for v in versions:
@@ -725,8 +778,9 @@ class IndexBuilder:
             print('   Execute o pipeline primeiro: make build LANGS=py,cpp LOCALES=pt,en')
             return self.index_path
 
-        cover_src = self.root / 'includes' / 'capa_girassol1.png'
-        cover_dst = self.book_dir / 'capa_girassol1.png'
+        # Copia capa principal e favicon para a raiz de gen/book/
+        cover_src = self.root / 'includes' / 'girassol_all.png'
+        cover_dst = self.book_dir / 'girassol_all.png'
         if cover_src.exists():
             shutil.copy2(cover_src, cover_dst)
             print(f'  ✓ Capa copiada para {cover_dst}')
@@ -737,7 +791,17 @@ class IndexBuilder:
             shutil.copy2(fav_src, fav_dst)
             print(f'  ✓ Favicon copiado para {fav_dst}')
 
-        # updated = datetime.now().strftime('%d/%m/%Y %H:%M')
+        # Copia girassol_capa.png e girassol_contracapa.png para dentro de cada versão gerada (ex: gen/book/py.pt/)
+        girassol_capa = self.root / 'includes' / 'girassol_capa.png'
+        girassol_contracapa_src = self.root / 'includes' / 'girassol_contracapa.png'
+
+        for v in versions:
+            combo_dir = self.book_dir / v['key']
+            if combo_dir.exists():
+                if girassol_capa.exists():
+                    shutil.copy2(girassol_capa, combo_dir / 'girassol_capa.png')
+                if girassol_contracapa_src.exists():
+                    shutil.copy2(girassol_contracapa_src, combo_dir / 'girassol_contracapa.png')
 
         MESES_PT = [
             '', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -747,7 +811,7 @@ class IndexBuilder:
         now = datetime.now()
         updated = f"{now.day} de {MESES_PT[now.month]} de {now.year} às {now.strftime('%H:%M')}"
 
-        # 1. Injeta carimbo em gen/book/py.pt/index.html (e outras versões encontradas)
+        # 1. Injeta carimbo e capas lado a lado em cada versão (ex: py.pt/index.html)
         self.inject_last_updated_in_subversions(versions, updated)
 
         # 2. Gera o portal principal gen/book/index.html

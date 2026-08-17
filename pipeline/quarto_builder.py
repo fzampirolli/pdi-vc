@@ -301,7 +301,7 @@ class QuartoBuilder:
         self._ensure_preamble_files()
 
         # ── Gera capa.tex para o PDF (include-before-body) ───────────────────
-        cover_abs = (self.root / 'includes' / 'capa_girassol.png').resolve()
+        cover_abs = (self.root / 'includes' / 'girassol_capa.png').resolve()
         self._write_cover_tex(qdir, cover_abs)
 
         yml = self._quarto_yml(combo, nb_root, apendice_files=apendice_files)
@@ -313,17 +313,6 @@ class QuartoBuilder:
             r'{breaklines=true,breaksymbolleft={},commandchars=\\\{\}}',
             encoding='utf-8'
         )
-
-        back_cover_abs = (self.root / 'includes' / 'capa5.png').resolve()
-
-        back_cover_block = rf"""
-\clearpage
-\thispagestyle{{empty}}
-\newgeometry{{margin=0pt}}
-\noindent
-\includegraphics[width=\paperwidth, height=\paperheight]{{{back_cover_abs}}}
-\restoregeometry
-"""
 
         print(f'  ✓ Quarto dir: {qdir.relative_to(self.root)}')
         if apendice_files:
@@ -831,7 +820,7 @@ pre {
         bib_path     = (self.root / 'references.bib').resolve()
         csl_path     = (self.root / 'includes' / 'abnt.csl').resolve()
         emoji_filter = (self.root / 'includes' / 'emoji-filter.lua').resolve()
-        cover_abs    = (self.root / 'includes' / 'capa_girassol.png').resolve()
+        cover_abs    = (self.root / 'includes' / 'girassol_capa.png').resolve()
 
         if not csl_path.exists():
             self._create_default_csl(csl_path)
@@ -854,7 +843,7 @@ lang: {quarto_lang}
 
 book:
   title: "Processamento Digital de Imagens e Visão Computacional"
-  cover-image: "includes/capa_girassol.png"
+  cover-image: "includes/girassol_capa.png"
   subtitle: "{subtitle}"
   author:
     - name: "Francisco de Assis Zampirolli"
@@ -938,7 +927,8 @@ format:
   pdf:
     documentclass: book
     date: today   # <-- ADICIONE AQUI
-    classoption: [openany, oneside, 11pt, a4paper]
+    #classoption: [openany, oneside, 11pt, a4paper] 
+    classoption: [openright, twoside, 11pt, a4paper] # frente e verso
     title-page: false
     output-file: "livro.{combo.file_key}.pdf"
     block-headings: false   # <-- adicionar isso
@@ -1030,9 +1020,11 @@ format:
           \\renewcommand{{\\footrulewidth}}{{0.4pt}}
           \\fancypagestyle{{plain}}{{
             \\fancyhf{{}}
+            \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{PDI \& VC}}}}}}
+            \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
             \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
             \\fancyfoot[R]{{\\thepage}}
-            \\renewcommand{{\\headrulewidth}}{{0pt}}
+            \\renewcommand{{\\headrulewidth}}{{0.4pt}}
             \\renewcommand{{\\footrulewidth}}{{0.4pt}}
           }}
           \\usepackage{{titlesec}}
@@ -1737,9 +1729,6 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             reader = PdfReader(str(pdf_path))
             writer = PdfWriter()
             start_page = 2
-            if 'ubuntu' in os_release.lower():
-                # No Debian, o lualatex gera 1 página em branco no início
-                 start_page = 2
             for page in reader.pages[start_page:]:  # pula páginas (em branco)
                 writer.add_page(page)
             with open(str(pdf_path), 'wb') as f:
@@ -1877,7 +1866,8 @@ def _fix_tex_cover(qdir: Path):
     # Substitui qualquer documentclass antigo pelo padrão correto diretamente
     content = re.sub(
         r'\\documentclass\[.*?\]\{(?:scrreprt|scrbook|book)\}',
-        r'\\documentclass[a4paper,11pt,oneside,openany]{book}',
+        #r'\\documentclass[a4paper,11pt,oneside,openany]{book}',
+        r'\\documentclass[a4paper,11pt,twoside,openright]{book}', # frente e verso
         content,
         count=1,
         flags=re.DOTALL
@@ -1925,35 +1915,62 @@ def _fix_tex_cover(qdir: Path):
 \definecolor{outputborder}{RGB}{232,168,64}
 
 % ─────────────────────────────────────────────────────────────
-% Links & Cabeçalho/Rodapé
+% Links & Cabeçalho/Rodapé Frente e Verso (fancyhdr)
 % ─────────────────────────────────────────────────────────────
-\usepackage{hyperref}
-\hypersetup{colorlinks=true, linkcolor=darkblue, urlcolor=blue, citecolor=darkblue}
-
 \usepackage{fancyhdr}
 \pagestyle{fancy}
-\fancyhf{}
+\fancyhf{} % Limpa tudo
+
+\setlength{\headheight}{15pt}
 \renewcommand{\headrulewidth}{0.3pt}
 \renewcommand{\footrulewidth}{0.3pt}
 \renewcommand{\headrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \headrulewidth\hfill}}
 \renewcommand{\footrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \footrulewidth\hfill}}
 
-\fancyhead[L]{\small\textcolor{darkblue}{\textsc{PDI \& VC} - {lang_labels}}}
-\fancyhead[R]{\small\textcolor{gray}{\nouppercase{\leftmark}}}
-\fancyfoot[L]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
-\fancyfoot[C]{\small\textcolor{lightblue}{UFABC}}
-\fancyfoot[R]{\small\textcolor{darkblue}{\thepage}}
+% ── CABEÇALHO (TOPO) ──
+% LE (Par / Esquerda - Borda Externa): Número da página
+\fancyhead[LE]{\small\bfseries\textcolor{darkblue}{\thepage}}
+% RE (Par / Direita - Borda Interna): Título Geral do Livro
+\fancyhead[RE]{\small\textcolor{darkblue}{\textsc{PDI \& VC}}}
 
+% LO (Ímpar / Esquerda - Borda Interna): Capítulo Atual
+\fancyhead[LO]{\small\textcolor{gray}{\nouppercase{\leftmark}}}
+% RO (Ímpar / Direita - Borda Externa): Número da página
+\fancyhead[RO]{\small\bfseries\textcolor{darkblue}{\thepage}}
+
+% ── RODAPÉ (BOTTOM) ──
+% Informações discretas no rodapé
+\fancyfoot[LE]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
+\fancyfoot[RE]{\small\textcolor{lightblue}{UFABC}}
+\fancyfoot[LO]{\small\textcolor{lightblue}{UFABC}}
+\fancyfoot[RO]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
+
+% ── ESTILO PLAIN (1ª página de cada capítulo) ──
+% Agora também exibe cabeçalho, igual às demais páginas
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{\small\textcolor{gray}{\textsc{PDI \& VC}}}
-  \fancyhead[R]{\small\textcolor{gray}{\nouppercase{\leftmark}}} 
-  \fancyfoot[L]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
-  \fancyfoot[C]{\small\textcolor{lightblue}{UFABC}}
-  \fancyfoot[R]{\small\textcolor{darkblue}{\thepage}}
   \renewcommand{\headrulewidth}{0.3pt}
   \renewcommand{\footrulewidth}{0.3pt}
+  \renewcommand{\headrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \headrulewidth\hfill}}
+  \renewcommand{\footrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \footrulewidth\hfill}}
+  \fancyhead[LE]{\small\bfseries\textcolor{darkblue}{\thepage}}
+  \fancyhead[RE]{\small\textcolor{darkblue}{\textsc{PDI \& VC}}}
+  \fancyhead[LO]{\small\textcolor{gray}{\nouppercase{\leftmark}}}
+  \fancyhead[RO]{\small\bfseries\textcolor{darkblue}{\thepage}}
+  \fancyfoot[LE]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
+  \fancyfoot[RE]{\small\textcolor{lightblue}{UFABC}}
+  \fancyfoot[LO]{\small\textcolor{lightblue}{UFABC}}
+  \fancyfoot[RO]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
 }
+
+% Faz com que páginas em branco geradas automaticamente não tenham cabeçalho/rodapé
+\makeatletter
+\def\cleardoublepage{\clearpage\if@twoside \ifodd\c@page\else
+  \hbox{}
+  \thispagestyle{empty}
+  \newpage
+  \if@twocolumn\hbox{}\newpage\fi\fi\fi}
+\makeatother
 
 % ─────────────────────────────────────────────────────────────
 % Estilização de Títulos e Blocos de Código
@@ -1998,7 +2015,7 @@ def _fix_tex_cover(qdir: Path):
 
     cover_block = rf"""
 \frontmatter
-% ── Capa ─────────────────────────────────────────────────────────
+% ── 1. Imagem da Capa (Página 1 - Ímpar / Frente) ─────────────────
 \begin{{titlepage}}
 \thispagestyle{{empty}}
 \newgeometry{{margin=0pt}}
@@ -2007,7 +2024,13 @@ def _fix_tex_cover(qdir: Path):
 \restoregeometry
 \end{{titlepage}}
 
-% ── Folha de rosto ──────────────────────────────────────────────
+% ── 2. Verso da Capa (Página 2 - Par / Página em Branco) ──────────
+\clearpage
+\thispagestyle{{empty}}
+\null
+\clearpage
+
+% ── 3. Folha de Rosto (Página 3 - Ímpar / Frente) ─────────────────
 \begin{{titlepage}}
 \thispagestyle{{empty}}
 \vspace*{{3cm}}
@@ -2024,20 +2047,21 @@ def _fix_tex_cover(qdir: Path):
 \end{{center}}
 \end{{titlepage}}
 
-% ── Ficha catalográfica (contracapa) ────────────────────────────
+% ── 4. Ficha catalográfica (Página 4 - Par / Verso da folha de rosto) ──
 {ficha_tex}
 
-% ── Ajustes globais do TOC ──────────────────────────────────────
-\clearpage
+% ── Ajustes do Sumário e Início do Texto ────────────────────────
+\cleardoublepage
 \pagestyle{{plain}}
 \makeatother
 \tableofcontents
-\clearpage
+\cleardoublepage
 \listoffigures
-\clearpage
+\cleardoublepage
 \listoftables
-\clearpage
+\cleardoublepage
 \mainmatter
+\pagestyle{{fancy}}
 """
 
     # Varre as figuras do .tex garantindo que o pattern exija a estrutura de um simulador real
@@ -2070,13 +2094,37 @@ def _fix_tex_cover(qdir: Path):
     content = re.sub(r'\\renewcommand\*?\\tablename\{Table\}',
                     r'\\renewcommand*\\tablename{Tabela}', content)
 
-    # inclui capa5.png no final
-    content = content.replace(
-        r'\end{document}',
-        f"{back_cover_block}\n\\end{{document}}",
-        1
-    )
     print('  ✓ Nomes em português')
+
+
+    # ── Contracapa ───────────────────────────────────────────────
+    project_root = qdir.parent.parent.parent
+    back_cover_abs = (project_root / 'includes' / 'girassol_contracapa.png').resolve()
+
+    if back_cover_abs.exists():
+        back_cover_block = rf"""
+\clearpage
+% Garante que a contracapa externa fique em página par
+\ifodd\value{{page}}
+  \thispagestyle{{empty}}
+  \mbox{{}}
+  \clearpage
+\fi
+\thispagestyle{{empty}}
+\newgeometry{{margin=0pt}}
+\noindent
+\includegraphics[width=\paperwidth, height=\paperheight]{{{back_cover_abs}}}
+\restoregeometry
+"""
+        content = content.replace(
+            r'\end{document}',
+            f"{back_cover_block}\n\\end{{document}}",
+            1
+        )
+        print('  ✓ Contracapa injetada com sucesso')
+    else:
+        print(f'  ⚠ Arquivo de contracapa não encontrado: {back_cover_abs}')
+
 
     # ═════════════════════════════════════════════════════════════
     # SEU NOVO BLOCO DE CAPTURA/AUDITORIA AQUI:
