@@ -314,6 +314,17 @@ class QuartoBuilder:
             encoding='utf-8'
         )
 
+        back_cover_abs = (self.root / 'includes' / 'capa5.png').resolve()
+
+        back_cover_block = rf"""
+\clearpage
+\thispagestyle{{empty}}
+\newgeometry{{margin=0pt}}
+\noindent
+\includegraphics[width=\paperwidth, height=\paperheight]{{{back_cover_abs}}}
+\restoregeometry
+"""
+
         print(f'  ✓ Quarto dir: {qdir.relative_to(self.root)}')
         if apendice_files:
             print(f'    apêndices:  {", ".join(apendice_files)}')
@@ -2058,6 +2069,13 @@ def _fix_tex_cover(qdir: Path):
                     r'\\renewcommand*\\figurename{Figura}', content)
     content = re.sub(r'\\renewcommand\*?\\tablename\{Table\}',
                     r'\\renewcommand*\\tablename{Tabela}', content)
+
+    # inclui capa5.png no final
+    content = content.replace(
+        r'\end{document}',
+        f"{back_cover_block}\n\\end{{document}}",
+        1
+    )
     print('  ✓ Nomes em português')
 
     # ═════════════════════════════════════════════════════════════
