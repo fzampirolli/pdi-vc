@@ -24,9 +24,10 @@ def setup(testsuite=False):
             urllib.request.urlretrieve(f"{BASE_URL}/{f}", f)
 
     import morph
-    print(f"✅ Ambiente pronto | morph {getattr(morph, '__version__', 'local')} "
-          f"| OpenCV {cv2.__version__}")
+    status = f"✅ Ambiente pronto. Morph: {getattr(morph, '__version__', 'local')} | OpenCV: {cv2.__version__}"
 
     if testsuite:
         import testsuite
-        print(f"TestSuite {testsuite.__version__}")
+        status += f" | TestSuite: {testsuite.__version__}"
+
+    print(status)
