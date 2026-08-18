@@ -28,6 +28,6 @@ def setup(testsuite=False):
 
     if testsuite:
         import testsuite
-        status += f" | TestSuite: {testsuite.__version__}"
+        status += f" | TestSuite: {testsuite.__version__}"   # <- precisa do " | " no começo
 
     print(status)
