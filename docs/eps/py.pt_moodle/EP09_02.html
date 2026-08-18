@@ -1,0 +1,359 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP09_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_02 🟢 Pooling Manual (Máximo e Média)</h2>
+<p>Entre blocos convolucionais, a arquitetura típica de uma CNN intercala camadas de <strong><em>pooling</em></strong>, que reduzem a resolução espacial do mapa de características sem introduzir novos parâmetros treináveis — ao contrário da convolução, o <em>pooling</em> não tem pesos: ele apenas resume cada janela da entrada a um único valor, por um máximo ou por uma média, exatamente como formalizado na Seção “<em>Pooling</em>”.</p>
+<p>Você foi encarregado de implementar essa operação a partir de uma janela deslizante quadrada, sem sobreposição parcial nas bordas (apenas janelas completas), suportando os dois tipos mais comuns: <code>max</code> (preserva o valor mais saliente, tipicamente usado para reter bordas e texturas fortes) e <code>avg</code> (suaviza a região, preservando informação de intensidade média).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler as dimensões <em>H</em> × <em>W</em> do mapa de características de entrada e seus <em>H</em> × <em>W</em> valores reais.</li>
+<li><strong>Janela:</strong> Ler os inteiros <em>k</em> (tamanho da janela quadrada <em>k</em> × <em>k</em>) e <em>s</em> (<em>stride</em>).</li>
+<li><strong>Tipo:</strong> Ler uma <em>string</em>, <code>max</code> ou <code>avg</code>, indicando o tipo de <em>pooling</em>.</li>
+<li><strong>Sem preenchimento:</strong> Esta operação <strong>não</strong> utiliza <em>padding</em>; janelas que ultrapassariam a borda da entrada são descartadas.</li>
+<li><strong>Cálculo:</strong> Para cada posição de saída (<em>i</em>,<em>j</em>), calcular o máximo ou a média dos <em>k</em> × <em>k</em> valores da janela correspondente, iniciando em (<em>i</em> · <em>s</em>,\, <em>j</em> · <em>s</em>).</li>
+<li><strong>Dimensões de saída:</strong> <em>O</em>_<em>h</em> = \lfloor (<em>H</em> - <em>k</em>)/<em>s</em> \rfloor + 1 e <em>O</em>_<em>w</em> = \lfloor (<em>W</em> - <em>k</em>)/<em>s</em> \rfloor + 1.</li>
+<li><strong>Saída:</strong> Imprimir <em>O</em>_<em>h</em> e <em>O</em>_<em>w</em> na primeira linha, seguidos de <em>O</em>_<em>h</em> linhas com <em>O</em>_<em>w</em> valores reais cada, formatados com 4 casas decimais.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Janela quadrada:</strong> <em>k</em> × <em>k</em>, sem suporte a janelas retangulares nesta versão.</li>
+<li><strong>Sem <em>padding</em>:</strong> apenas janelas inteiramente contidas na entrada são consideradas — dimensões que “sobram” são simplesmente descartadas.</li>
+<li><strong><code>avg</code> usa divisão real:</strong> a média é sempre soma/<em>k</em>^2, mesmo quando o resultado tem muitas casas decimais — arredonde apenas na formatação final, conforme a diretriz geral do capítulo.</li>
+<li><strong>Formatação:</strong> todos os valores de saída com exatamente 4 casas decimais.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel na arquitetura</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> máximo</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Preserva a ativação mais forte da janela; comum após camadas convolucionais para reter bordas e texturas salientes</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> médio</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Suaviza a região, preservando a intensidade média; comum em camadas finais (<em>global average pooling</em>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ausência de parâmetros</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Diferencia o <em>pooling</em> da convolução: reduz resolução espacial sem custo adicional de treinamento</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Redução de resolução</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contribui para a invariância a pequenas translações e para a redução do custo computacional das camadas seguintes</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Métodos do <code>morph.py</code> que podem ajudar</h4>
+<p>O <code>morph.py</code> não implementa <em>pooling</em> com subamostragem diretamente, mas duas famílias de operações mostram a mesma ideia sob outra ótica, útil para checar sua intuição:</p>
+<ul>
+<li><code>mm.dil(f, Bc)</code> / <code>mm.dil0(f, B)</code> — dilatação morfológica: substitui cada pixel pelo <strong>máximo</strong> de sua vizinhança definida pelo elemento estruturante <em>B</em> (ex.: <code>mm.sebox(n)</code> para uma janela (2<em>n</em>+1)×(2<em>n</em>+1)). É, conceitualmente, um “<em>max-pooling</em> sem subamostragem” (produz uma imagem do mesmo tamanho, em vez de reduzida).</li>
+<li><code>mm.blur(f, N)</code> — suavização por média em uma janela <em>N</em> × <em>N</em>, análoga ao <em>avg-pooling</em>, também sem redução de resolução.</li>
+<li><code>mm.readImg(h, w, dtype='float')</code> — útil para ler o mapa de entrada em ponto flutuante.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>H</em> e <em>W</em>.</li>
+<li>Próximas <em>H</em> linhas: <em>W</em> valores reais cada.</li>
+<li>Próxima linha: Inteiros <em>k</em> e <em>s</em>.</li>
+<li>Próxima linha: <code>max</code> ou <code>avg</code>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>O</em>_<em>h</em> e <em>O</em>_<em>w</em>.</li>
+<li>Próximas <em>O</em>_<em>h</em> linhas: <em>O</em>_<em>w</em> valores reais cada, com 4 casas decimais.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+max</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+6.0000 4.0000<br/>
+4.0000 5.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>Pooling</em> máximo, janela 2×2, <em>stride</em> 2.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+avg</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+3.7500 2.2500<br/>
+2.2500 2.2500</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>Pooling</em> médio sobre as mesmas janelas.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-09-sim-ep0902">
+</div>
+</div><div id="sim-ep0902" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulador: Pooling Manual</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 sem padding, janelas completas</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Entrada 4×4 fixa — ajuste o tamanho da janela (k), o stride (s) e o tipo, exatamente os parâmetros que o EP09_02 lê na entrada, e veja como eles mudam o tamanho e os valores da saída.</p>
+<div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:6px;">
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Janela (k)</div>
+<div id="ep0902_k_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Stride (s)</div>
+<div id="ep0902_s_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Tipo</div>
+<div style="display:flex;gap:8px;">
+<button id="ep0902_max" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #f0ad4e;background:#fff3cd;color:#7a5c00;font-weight:bold;font-size:11px;">max</button>
+<button id="ep0902_avg" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #ddd;background:#f3f4f6;color:#555;font-weight:bold;font-size:11px;">avg</button>
+</div>
+</div>
+</div>
+<div id="ep0902_formula" style="text-align:center;font-family:monospace;font-size:11px;color:#8a6d3b;background:#fcf5e6;border:1px solid #f0e2bf;border-radius:8px;padding:6px 10px;margin:10px auto 16px;max-width:520px;"></div>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Posição de saída (i,j)</label>
+<span id="ep0902_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(0,0)</span>
+</div>
+<input id="ep0902_sl" max="3" min="0" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:flex-start;">
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Entrada X (4×4)</div>
+<div id="ep0902_grid" style="display:grid;grid-template-columns:repeat(4,44px);gap:3px;"></div>
+<div style="display:flex;gap:10px;justify-content:center;margin-top:8px;font-size:9px;color:#888;">
+<span><span style="display:inline-block;width:9px;height:9px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:2px;vertical-align:middle;"></span> fora da janela</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#fff3cd;border:2px solid #f0ad4e;border-radius:2px;vertical-align:middle;"></span> janela atual</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#eee;border:1px dashed #bbb;border-radius:2px;vertical-align:middle;"></span> descartado (sobra)</span>
+</div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Saída Y (pooling)</div>
+<div id="ep0902_out" style="display:grid;gap:3px;"></div>
+</div>
+</div>
+<div style="margin-top:14px;text-align:center;">
+<button id="ep0902_reset" style="font-family:sans-serif;font-size:11px;color:#5e5a4a;background:#f3efe6;border:1px solid #e0d7c4;border-radius:20px;padding:4px 14px;cursor:pointer;">↺ reiniciar exploração</button>
+</div>
+<div id="ep0902_debug" style="margin-top:16px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<p style="font-size:10px;color:#999;margin-top:10px;text-align:center;">💡 Cada posição do slider revela uma célula da matriz de saída. Células cinza-tracejadas na entrada são "sobras" que nenhuma janela alcança — note como isso acontece quando (H−k) não é múltiplo de s. Trocar k, s ou o tipo reinicia a exploração.</p>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var H = 4, W = 4;
+    var X = [[1,3,2,4],[5,6,1,2],[2,1,0,3],[4,2,5,1]];
+
+    var state = { k: 2, s: 2, tipo: 'max' };
+    var visited = {};
+
+    var slEl = root.querySelector('#ep0902_sl');
+    var vlEl = root.querySelector('#ep0902_vl');
+    var gridEl = root.querySelector('#ep0902_grid');
+    var outEl = root.querySelector('#ep0902_out');
+    var dbg = root.querySelector('#ep0902_debug');
+    var formulaEl = root.querySelector('#ep0902_formula');
+    var resetBtn = root.querySelector('#ep0902_reset');
+    var kBtnsEl = root.querySelector('#ep0902_k_btns');
+    var sBtnsEl = root.querySelector('#ep0902_s_btns');
+    var btnMax = root.querySelector('#ep0902_max');
+    var btnAvg = root.querySelector('#ep0902_avg');
+
+    function btnStyle(active){
+      return 'font-family:monospace;font-size:12px;font-weight:bold;width:34px;height:30px;border-radius:8px;cursor:pointer;' +
+        (active ? 'background:#2980b9;color:white;border:1px solid #2471a3;' : 'background:#f3f4f6;color:#555;border:1px solid #ddd;');
+    }
+
+    function buildButtons(container, values, current, onPick){
+      container.innerHTML = '';
+      values.forEach(function(val){
+        var b = document.createElement('button');
+        b.textContent = val;
+        b.style.cssText = btnStyle(val === current);
+        b.addEventListener('click', function(){ onPick(val); });
+        container.appendChild(b);
+      });
+    }
+
+    function estiloTipoBotoes(){
+      btnMax.style.background = state.tipo==='max' ? '#fff3cd' : '#f3f4f6';
+      btnMax.style.borderColor = state.tipo==='max' ? '#f0ad4e' : '#ddd';
+      btnMax.style.color = state.tipo==='max' ? '#7a5c00' : '#555';
+      btnAvg.style.background = state.tipo==='avg' ? '#fff3cd' : '#f3f4f6';
+      btnAvg.style.borderColor = state.tipo==='avg' ? '#f0ad4e' : '#ddd';
+      btnAvg.style.color = state.tipo==='avg' ? '#7a5c00' : '#555';
+    }
+
+    function computeAll(k, s, tipo){
+      var Oh = Math.floor((H - k)/s) + 1;
+      var Ow = Math.floor((W - k)/s) + 1;
+      var vals = [];
+      for(var i=0; i<Oh; i++){
+        vals.push([]);
+        for(var j=0; j<Ow; j++){
+          var janela = [];
+          for(var r=i*s; r<i*s+k; r++) for(var c=j*s; c<j*s+k; c++) janela.push(X[r][c]);
+          var resultado = tipo === 'max'
+            ? Math.max.apply(null, janela)
+            : janela.reduce(function(a,b){return a+b;},0)/janela.length;
+          vals[i].push({ janela: janela, resultado: resultado });
+        }
+      }
+      return { Oh: Oh, Ow: Ow, vals: vals };
+    }
+
+    var model = null;
+
+    function rebuildModel(resetPosition){
+      model = computeAll(state.k, state.s, state.tipo);
+      outEl.style.gridTemplateColumns = 'repeat(' + model.Ow + ', 48px)';
+      var maxPos = model.Oh*model.Ow - 1;
+      slEl.max = maxPos;
+      if(resetPosition){ slEl.value = 0; visited = {}; }
+      else if(parseInt(slEl.value) > maxPos){ slEl.value = maxPos; }
+      formulaEl.textContent = 'O_h = ⌊(' + H + ' − ' + state.k + ')/' + state.s + '⌋ + 1 = ' + model.Oh +
+        '    O_w = ⌊(' + W + ' − ' + state.k + ')/' + state.s + '⌋ + 1 = ' + model.Ow;
+      estiloTipoBotoes();
+      render();
+    }
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i = Math.floor(pos/model.Ow), j = pos % model.Ow;
+      var key = i+','+j;
+      visited[key] = true;
+      vlEl.textContent = '('+i+','+j+')';
+
+      var winRowStart = i*state.s, winColStart = j*state.s;
+      var alcancavel = []; // marca quais células de X são alcançadas por ALGUMA janela válida
+      for(var r=0;r<H;r++){ alcancavel.push(new Array(W).fill(false)); }
+      for(var oi=0; oi<model.Oh; oi++){
+        for(var oj=0; oj<model.Ow; oj++){
+          for(var r=oi*state.s; r<oi*state.s+state.k; r++)
+            for(var c=oj*state.s; c<oj*state.s+state.k; c++)
+              alcancavel[r][c] = true;
+        }
+      }
+
+      gridEl.innerHTML = '';
+      for(var r=0; r<H; r++){
+        for(var c=0; c<W; c++){
+          var dentroJanela = (r>=winRowStart && r<winRowStart+state.k && c>=winColStart && c<winColStart+state.k);
+          var d = document.createElement('div');
+          var base = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;';
+          if(dentroJanela){
+            base += 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;';
+          } else if(!alcancavel[r][c]){
+            base += 'background:#eee;border:1px dashed #bbb;color:#999;';
+          } else {
+            base += 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;';
+          }
+          d.style.cssText = base;
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+        }
+      }
+
+      var cur = model.vals[i][j];
+
+      outEl.innerHTML = '';
+      for(var oi2=0; oi2<model.Oh; oi2++){
+        for(var oj2=0; oj2<model.Ow; oj2++){
+          var isCurrent = (oi2===i && oj2===j);
+          var wasVisited = !!visited[oi2+','+oj2];
+          var od = document.createElement('div');
+          var style = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:11px;font-weight:bold;';
+          if(isCurrent){
+            style += 'background:#fff3cd;border:2px solid #f0ad4e;color:#7a5c00;';
+          } else if(wasVisited){
+            style += 'background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;';
+          } else {
+            style += 'background:#f3f4f6;border:1px dashed #ccc;color:#bbb;';
+          }
+          od.style.cssText = style;
+          od.textContent = wasVisited ? model.vals[oi2][oj2].resultado.toFixed(2) : '?';
+          outEl.appendChild(od);
+        }
+      }
+
+      var totalVisitadas = Object.keys(visited).length;
+      var totalPos = model.Oh*model.Ow;
+      dbg.textContent = 'janela=['+cur.janela.join(', ')+']  |  tipo='+state.tipo+'  →  resultado='+cur.resultado.toFixed(4)+'   ['+totalVisitadas+'/'+totalPos+' posições exploradas]';
+    }
+
+    function setK(val){
+      state.k = val;
+      buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+      buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+      rebuildModel(true);
+    }
+    function setS(val){
+      state.s = val;
+      buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+      buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+      rebuildModel(true);
+    }
+    buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+    buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+
+    btnMax.addEventListener('click', function(){ state.tipo='max'; rebuildModel(true); });
+    btnAvg.addEventListener('click', function(){ state.tipo='avg'; rebuildModel(true); });
+
+    resetBtn.addEventListener('click', function(){
+      visited = {};
+      slEl.value = 0;
+      render();
+    });
+    slEl.addEventListener('input', render);
+
+    rebuildModel(true);
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0902');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>
