@@ -87,7 +87,7 @@ def _index_qmd(combo: Combo) -> str:
         f'{welcome}\n\n'
         f'### {UI_STRINGS[combo.locale].get("org_title","Organização")} {{.unnumbered}}\n\n'
         f'- **{part1}** — Representação, histogramas, filtragem, morfologia\n'
-        f'- **{part2}** — Segmentação, descritores, detecção, deep learning\n\n'
+        f'- **{part2}** — Segmentação, descritores, detecção, aprendizado profundo\n\n'
         '---\n'
     )
 
