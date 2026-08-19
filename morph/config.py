@@ -5,7 +5,7 @@ OPENCV_VERSION = "5.0.0.93"
 BASE_URL = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"
 
 
-def setup(testsuite=False, demo=False):
+def setup(testsuite=False, demo=False, force=False):
     """Instala o OpenCV correto e baixa os módulos didáticos do curso.
 
     Parâmetros
@@ -29,8 +29,20 @@ def setup(testsuite=False, demo=False):
     # 2. Módulos didáticos (baixa só se ainda não existirem)
     files = ["morph.py"] + (["testsuite.py"] if testsuite else [])
     for f in files:
-        if not os.path.exists(f):
-            urllib.request.urlretrieve(f"{BASE_URL}/{f}", f)
+        if force or not os.path.exists(f):
+            try:
+                urllib.request.urlretrieve(f"{BASE_URL}/{f}", f)
+            except Exception as e:
+                if not os.path.exists(f):
+                    raise RuntimeError(f"Não foi possível baixar {f} e nenhuma cópia local existe.") from e
+                print(f"⚠️ Falha ao atualizar {f} ({e}); usando cópia local existente.")
+
+    if force:
+        import importlib
+        if "morph" in sys.modules:
+            importlib.reload(sys.modules["morph"])
+        if testsuite and "testsuite" in sys.modules:
+            importlib.reload(sys.modules["testsuite"])
 
     import morph
     status = f"✅ Ambiente pronto. Morph: {getattr(morph, '__version__', 'local')} | OpenCV: {cv2.__version__}"
