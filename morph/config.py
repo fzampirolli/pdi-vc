@@ -8,16 +8,26 @@ OPENCV_VERSION = "5.0.0.93"                # foram movidos para opencv_contrib n
 
 
 def _opencv_ok():
-    """Verifica se o cv2 já carregado em memória é a versão/variante correta."""
+    """Verifica o pacote sem carregar cv2 prematuramente."""
+    from importlib.metadata import version, PackageNotFoundError
+
+    # Se cv2 já foi carregado, somente ele pode validar a versão em memória.
+    if "cv2" in sys.modules:
+        try:
+            import cv2
+            return (
+                cv2.__version__ == "5.0.0"
+                and hasattr(cv2, "CascadeClassifier")
+            )
+        except (ImportError, AttributeError):
+            return False
+
+    # Se cv2 ainda não foi carregado, verifica apenas a versão instalada.
     try:
-        import cv2
-        return (
-            cv2.__version__ == "5.0.0"
-            and hasattr(cv2, "CascadeClassifier")
-            and cv2.CascadeClassifier is not None
-        )
-    except (ImportError, AttributeError):
+        return version(OPENCV_PACKAGE) == OPENCV_VERSION
+    except PackageNotFoundError:
         return False
+
 
 
 def _install_opencv():
