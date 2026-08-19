@@ -1,36 +1,32 @@
 """Configuração do ambiente (OpenCV, morph.py e, opcionalmente, testsuite.py)."""
 import os, sys, subprocess, importlib, urllib.request
 
-OPENCV_VERSION = "5.0.0.93"
 BASE_URL = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"
 
-def setup(testsuite=False, demo=False):
-    """Instala o OpenCV correto e baixa os módulos didáticos do curso."""
+OPENCV_PACKAGE = "opencv-contrib-python"   # antes: "opencv-python" — Haar/HOG (CascadeClassifier)
+OPENCV_VERSION = "5.0.0.93"                # foram movidos para opencv_contrib no OpenCV 5.0
 
-    # 1. OpenCV na versão exigida
+def setup(testsuite=False, demo=False):
     try:
         import cv2
-    except ImportError:
-        cv2 = None
-
-    if cv2 is None or cv2.__version__ != "5.0.0":
+        assert cv2.__version__ == "5.0.0" and hasattr(cv2, "CascadeClassifier") \
+               and cv2.CascadeClassifier is not None
+    except (ImportError, AssertionError, AttributeError):
+        # remove qualquer instalação conflitante antes de instalar a versão com contrib
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "-q",
+                         "opencv-python", "opencv-python-headless",
+                         "opencv-contrib-python", "opencv-contrib-python-headless"])
         subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                         f"opencv-python=={OPENCV_VERSION}"], check=True)
-
-        # tenta recarregar em memória (funciona quando o cv2 ainda não
-        # tinha sido importado nesta sessão; para troca de versão de um
-        # binário já carregado, normalmente não é suficiente)
+                         f"{OPENCV_PACKAGE}=={OPENCV_VERSION}"], check=True)
         for mod in list(sys.modules):
             if mod == "cv2" or mod.startswith("cv2."):
                 del sys.modules[mod]
         import cv2
-
-        if cv2.__version__ != "5.0.0":
+        if cv2.__version__ != "5.0.0" or getattr(cv2, "CascadeClassifier", None) is None:
             raise RuntimeError(
-                f"OpenCV instalado (5.0.0), mas a sessão ainda está usando "
-                f"a versão {cv2.__version__} carregada em memória.\n"
-                f"➜ Reinicie o kernel/runtime (Ambiente de execução > Reiniciar sessão "
-                f"no Colab, ou Kernel > Restart no Jupyter) e rode a célula novamente."
+                "OpenCV com suporte a CascadeClassifier instalado, mas a sessão "
+                "ainda está usando a versão antiga carregada em memória.\n"
+                "➜ Reinicie o kernel/runtime e execute a célula novamente."
             )
 
     # 2. Módulos didáticos (baixa só se ainda não existirem)
