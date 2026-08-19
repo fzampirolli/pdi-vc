@@ -4,45 +4,45 @@ import os, sys, subprocess, importlib, urllib.request
 OPENCV_VERSION = "5.0.0.93"
 BASE_URL = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"
 
-
-def setup(testsuite=False, demo=False, force=False):
-    """Instala o OpenCV correto e baixa os módulos didáticos do curso.
-
-    Parâmetros
-    ----------
-    testsuite : bool
-        Se True, também baixa e importa testsuite.py.
-    demo : bool
-        Se True, imprime um exemplo das convenções de escala de pixel
-        (uint8 x float, RGB x BGR) usadas pelas bibliotecas do curso.
-    """
+def setup(testsuite=False, demo=False):
+    """Instala o OpenCV correto e baixa os módulos didáticos do curso."""
 
     # 1. OpenCV na versão exigida
     try:
         import cv2
-        assert cv2.__version__ == "5.0.0"
-    except (ImportError, AssertionError):
+    except ImportError:
+        cv2 = None
+
+    if cv2 is None or cv2.__version__ != "5.0.0":
         subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                          f"opencv-python=={OPENCV_VERSION}"], check=True)
+
+        # tenta recarregar em memória (funciona quando o cv2 ainda não
+        # tinha sido importado nesta sessão; para troca de versão de um
+        # binário já carregado, normalmente não é suficiente)
+        for mod in list(sys.modules):
+            if mod == "cv2" or mod.startswith("cv2."):
+                del sys.modules[mod]
         import cv2
+
+        if cv2.__version__ != "5.0.0":
+            raise RuntimeError(
+                f"OpenCV instalado (5.0.0), mas a sessão ainda está usando "
+                f"a versão {cv2.__version__} carregada em memória.\n"
+                f"➜ Reinicie o kernel/runtime (Ambiente de execução > Reiniciar sessão "
+                f"no Colab, ou Kernel > Restart no Jupyter) e rode a célula novamente."
+            )
 
     # 2. Módulos didáticos (baixa só se ainda não existirem)
     files = ["morph.py"] + (["testsuite.py"] if testsuite else [])
     for f in files:
-        if force or not os.path.exists(f):
+        if not os.path.exists(f):
             try:
                 urllib.request.urlretrieve(f"{BASE_URL}/{f}", f)
             except Exception as e:
                 if not os.path.exists(f):
-                    raise RuntimeError(f"Não foi possível baixar {f} e nenhuma cópia local existe.") from e
-                print(f"⚠️ Falha ao atualizar {f} ({e}); usando cópia local existente.")
-
-    if force:
-        import importlib
-        if "morph" in sys.modules:
-            importlib.reload(sys.modules["morph"])
-        if testsuite and "testsuite" in sys.modules:
-            importlib.reload(sys.modules["testsuite"])
+                    raise RuntimeError(f"Não foi possível baixar {f}.") from e
+                print(f"⚠️ Falha ao atualizar {f} ({e}); usando cópia local.")
 
     import morph
     status = f"✅ Ambiente pronto. Morph: {getattr(morph, '__version__', 'local')} | OpenCV: {cv2.__version__}"
