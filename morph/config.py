@@ -16,7 +16,7 @@ def _opencv_ok():
             and hasattr(cv2, "CascadeClassifier")
             and cv2.CascadeClassifier is not None
         )
-    except (ImportError, AssertionError, AttributeError):
+    except (ImportError, AttributeError):
         return False
 
 
@@ -38,21 +38,36 @@ def _install_opencv():
             del sys.modules[mod]
 
 
-def _restart_colab_if_possible():
-    """No Colab, reinicia o runtime automaticamente. Fora do Colab, apenas avisa."""
+def _halt_for_restart():
+    """
+    Extensões C (.so) não podem ser recarregadas a quente no mesmo processo.
+    É necessário reiniciar o runtime/kernel para usar o novo binário.
+
+    No Colab, tenta desconectar automaticamente a VM. Em qualquer caso,
+    interrompe a execução da célula IMEDIATAMENTE via exceção — chamar
+    runtime.unassign() sozinho não basta, pois a desconexão é assíncrona
+    e o código seguinte da célula continuaria rodando (e falhando) antes
+    da VM ser efetivamente reiniciada.
+    """
+    msg = (
+        "OpenCV foi instalado corretamente, mas a versão antiga já estava "
+        "carregada em memória.\n"
+        "➜ Reinicie o kernel/runtime e execute a célula novamente."
+    )
     try:
-        from google.colab import runtime  # só existe no Colab
+        from google.colab import runtime
         print(
             "🔄 OpenCV foi atualizado, mas a versão antiga já estava carregada em memória.\n"
-            "   Reiniciando o runtime automaticamente — após reiniciar, execute a célula novamente."
+            "   Desconectando o runtime automaticamente — após reconectar, execute a célula novamente."
         )
-        runtime.unassign()
+        try:
+            runtime.unassign()
+        except Exception:
+            pass  # segue para o raise abaixo de qualquer forma
     except ImportError:
-        raise RuntimeError(
-            "OpenCV com suporte a CascadeClassifier foi instalado, mas a sessão "
-            "ainda está usando a versão antiga carregada em memória.\n"
-            "➜ Reinicie o kernel/runtime manualmente e execute a célula novamente."
-        )
+        pass  # não é Colab; segue direto para o raise
+
+    raise RuntimeError(msg)
 
 
 def setup(testsuite=False, demo=False):
@@ -60,10 +75,7 @@ def setup(testsuite=False, demo=False):
     if not _opencv_ok():
         _install_opencv()
         if not _opencv_ok():
-            # Extensões C não podem ser "recarregadas a quente" no mesmo processo.
-            # É necessário reiniciar o runtime/kernel para que o novo binário seja usado.
-            _restart_colab_if_possible()
-            return  # nunca alcançado localmente (RuntimeError interrompe antes)
+            _halt_for_restart()  # sempre levanta exceção — nunca retorna
 
     import cv2  # já garantido correto neste ponto
 
