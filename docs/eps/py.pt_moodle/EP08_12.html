@@ -1,0 +1,356 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_12.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_12.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_12 🔴 Segmentação de Instâncias em Imagem Real: Objetos Geométricos</h2>
+<p>O exemplo de segmentação clássica deste capítulo separou “instâncias” de moedas por desconexão espacial na máscara binária resultante da limiarização de Otsu. Neste exercício você vai aplicar a mesma ideia — mas agora sobre uma imagem real com objetos geométricos variados — encadeando pré-processamento, binarização, extração de contornos (<code>cv2.findContours</code>) e validação do resultado contra um gabarito de <em>bounding boxes</em>.</p>
+<p>Diferente do exercício anterior (rotulação sobre máscara já pronta), aqui você parte da <strong>imagem original</strong>: a qualidade da sua segmentação depende diretamente das escolhas de pré-processamento (filtragem, limiarização, operações morfológicas) feitas antes de rotular os componentes.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> utilizar a imagem <code>00000.jpg</code>.</li>
+<li><strong>Pré-processamento e segmentação:</strong> aplicar as etapas necessárias (filtragem, binarização e operações morfológicas) para separar automaticamente os objetos do fundo, sem recortes manuais.</li>
+<li><strong>Rotulação e medição:</strong> para cada objeto segmentado, determinar:
+<ul>
+<li>área;</li>
+<li>centro de massa (centroide);</li>
+<li>tipo, conforme o conjunto <code>obj2</code>.</li>
+</ul></li>
+<li><strong>Anotação visual:</strong> escrever, no interior de cada objeto, sua área e a sigla do tipo (<code>obj2</code>).</li>
+<li><strong>Validação (IoU):</strong> calcular o <em>Intersection over Union</em> (IoU) entre o <em>bounding box</em> detectado (<code>cv2.boundingRect</code>) e o <em>bounding box</em> de gabarito do tipo correspondente. Um objeto é considerado corretamente segmentado apenas se houver exatamente um <em>bounding box</em> do tipo correto com <strong>IoU ≥ 0,5</strong>.</li>
+<li><strong>Saída:</strong> imprimir, para cada objeto detectado, seu identificador, tipo e se foi validado com sucesso (<code>acertou=1</code>) ou não. A impressão deve seguir a ordem das classes de <code>obj2</code> (0=Tria … 8=Cruz); dentro da mesma classe, ordenar os objetos pela coordenada vertical do centroide (<code>cy</code>) crescente. Ao final, imprimir a acurácia geral.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><p><strong>Sem recorte manual:</strong> toda a segmentação deve ser feita sobre a imagem completa.</p></li>
+<li><p><strong>Conjunto de classes fixo:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a aria-hidden="true" href="#cb66-1" tabindex="-1"></a>obj  <span class="op">=</span> [<span class="st">'Triangulo'</span>,<span class="st">'Quadrado'</span>,<span class="st">'Pendagono'</span>,<span class="st">'Hexagono'</span>,<span class="st">'Heptagono'</span>,<span class="st">'Circulo'</span>,</span>
+<span id="cb66-2"><a aria-hidden="true" href="#cb66-2" tabindex="-1"></a>        <span class="st">'Elipse'</span>,<span class="st">'Estrela'</span>,<span class="st">'Cruz'</span>]</span>
+<span id="cb66-3"><a aria-hidden="true" href="#cb66-3" tabindex="-1"></a>obj2 <span class="op">=</span> [<span class="st">'Tria'</span>,<span class="st">'Quad'</span>,<span class="st">'Pent'</span>,<span class="st">'Hexa'</span>,<span class="st">'Hept'</span>,<span class="st">'Circ'</span>,<span class="st">'Elip'</span>,<span class="st">'Estr'</span>,<span class="st">'Cruz'</span>]</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div></li>
+<li><p><strong>Dimensão da imagem:</strong> 608×608 pixels — usada para desnormalizar as coordenadas do arquivo TXT.</p></li>
+<li><p><strong>Validação por centro de massa:</strong> um objeto só é considerado corretamente segmentado se seu centroide estiver estritamente dentro do <em>boundbox</em> do gabarito correspondente ao mesmo tipo de objeto.</p></li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel na segmentação de instâncias</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pré-processamento (filtragem, limiarização)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Etapa que produz a máscara binária a partir da imagem de intensidade original</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>cv2.findContours</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Extrai os contornos dos componentes conectados na máscara binária</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Momentos geométricos (<code>cv2.moments</code>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Permitem calcular o centro de massa (centroide) de cada contorno</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>approxPolyDP</code> / vértices</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Auxilia na classificação do tipo de objeto (nº de lados aproximado)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Validação via <em>boundbox</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Confirma se a instância segmentada corresponde espacialmente a um objeto do gabarito, medindo a acurácia do método</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplo de Saída Esperada</h4>
+<pre><code>Objeto 1: tipo=Tria, validado=True
+...
+Acurácia: 88.89%</code></pre>
+<p><strong>Parâmetros fixos para reprodutibilidade:</strong> para que a saída bata com o gabarito de correção automática, utilize exatamente: filtro de área mínima de 300 pixels; <code>cv2.approxPolyDP</code> com <code>epsilon = 0.02 * perímetro</code>; limiar de solidez 0.92 e contagem de vértices ≥ 9 (com ≥ 11 para diferenciar Cruz de Estrela) para formas côncavas; razão de aspecto 1.15 para diferenciar Círculo de Elipse; limiar de IoU = 0.5 na validação.</p>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Arquivos de Referência ( .jpg e .txt )</h4>
+<p>Para depuração local, são disponibilizados dois arquivos de referência (incluídos nesta entrega; ao integrá-los ao repositório do capítulo, salve-os em <code>all/cap08/dados/EP08/</code>):</p>
+<ul>
+<li>📥 <strong>Imagem (<code>00000.jpg</code>)</strong>: imagem de objetos geométricos utilizada como entrada do exercício. O objetivo é segmentar automaticamente cada objeto, determinar seu tipo e calcular suas medidas.</li>
+<li>📥 <strong>Gabarito (<code>00000.txt</code>)</strong>: arquivo contendo as <em>bounding boxes</em> normalizadas dos objetos presentes na imagem. Cada linha possui o identificador da classe e as coordenadas normalizadas dos cantos superior esquerdo e inferior direito, sendo utilizado para validar automaticamente a segmentação.</li>
+</ul>
+<p>A Figura 8.26 apresenta a imagem de entrada e a mesma imagem com as <em>bounding boxes</em> desenhadas a partir do arquivo de gabarito.</p>
+<div class="cell" id="cell-fig-08-ep12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a aria-hidden="true" href="#cb68-1" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb68-2"><a aria-hidden="true" href="#cb68-2" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
+<span id="cb68-3"><a aria-hidden="true" href="#cb68-3" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb68-4"><a aria-hidden="true" href="#cb68-4" tabindex="-1"></a></span>
+<span id="cb68-5"><a aria-hidden="true" href="#cb68-5" tabindex="-1"></a><span class="kw">def</span> garantir_e_baixar(nome):</span>
+<span id="cb68-6"><a aria-hidden="true" href="#cb68-6" tabindex="-1"></a>    pasta <span class="op">=</span> <span class="st">"dados/EP12"</span></span>
+<span id="cb68-7"><a aria-hidden="true" href="#cb68-7" tabindex="-1"></a>    caminho <span class="op">=</span> os.path.join(pasta, nome)</span>
+<span id="cb68-8"><a aria-hidden="true" href="#cb68-8" tabindex="-1"></a></span>
+<span id="cb68-9"><a aria-hidden="true" href="#cb68-9" tabindex="-1"></a>    os.makedirs(pasta, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb68-10"><a aria-hidden="true" href="#cb68-10" tabindex="-1"></a></span>
+<span id="cb68-11"><a aria-hidden="true" href="#cb68-11" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(caminho):</span>
+<span id="cb68-12"><a aria-hidden="true" href="#cb68-12" tabindex="-1"></a>        url <span class="op">=</span> (</span>
+<span id="cb68-13"><a aria-hidden="true" href="#cb68-13" tabindex="-1"></a>            <span class="st">"https://raw.githubusercontent.com/"</span></span>
+<span id="cb68-14"><a aria-hidden="true" href="#cb68-14" tabindex="-1"></a>            <span class="st">"fzampirolli/pdi-vc/master/all/cap08/dados/EP12/"</span></span>
+<span id="cb68-15"><a aria-hidden="true" href="#cb68-15" tabindex="-1"></a>            <span class="op">+</span> nome</span>
+<span id="cb68-16"><a aria-hidden="true" href="#cb68-16" tabindex="-1"></a>        )</span>
+<span id="cb68-17"><a aria-hidden="true" href="#cb68-17" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Baixando </span><span class="sc">{</span>nome<span class="sc">}</span><span class="ss">..."</span>)</span>
+<span id="cb68-18"><a aria-hidden="true" href="#cb68-18" tabindex="-1"></a>        urllib.request.urlretrieve(url, caminho)</span>
+<span id="cb68-19"><a aria-hidden="true" href="#cb68-19" tabindex="-1"></a></span>
+<span id="cb68-20"><a aria-hidden="true" href="#cb68-20" tabindex="-1"></a>    <span class="cf">return</span> caminho</span>
+<span id="cb68-21"><a aria-hidden="true" href="#cb68-21" tabindex="-1"></a></span>
+<span id="cb68-22"><a aria-hidden="true" href="#cb68-22" tabindex="-1"></a>img_arq <span class="op">=</span> garantir_e_baixar(<span class="st">"00000.jpg"</span>)</span>
+<span id="cb68-23"><a aria-hidden="true" href="#cb68-23" tabindex="-1"></a>txt_arq <span class="op">=</span> garantir_e_baixar(<span class="st">"00000.txt"</span>)</span>
+<span id="cb68-24"><a aria-hidden="true" href="#cb68-24" tabindex="-1"></a></span>
+<span id="cb68-25"><a aria-hidden="true" href="#cb68-25" tabindex="-1"></a>img <span class="op">=</span> mm.read(img_arq)</span>
+<span id="cb68-26"><a aria-hidden="true" href="#cb68-26" tabindex="-1"></a>img_bb <span class="op">=</span> mm.showBoundBox(img, txt_arq, fmt<span class="op">=</span><span class="st">"yolo"</span>, show<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb68-27"><a aria-hidden="true" href="#cb68-27" tabindex="-1"></a></span>
+<span id="cb68-28"><a aria-hidden="true" href="#cb68-28" tabindex="-1"></a>mm.show(</span>
+<span id="cb68-29"><a aria-hidden="true" href="#cb68-29" tabindex="-1"></a>    [img, img_bb],</span>
+<span id="cb68-30"><a aria-hidden="true" href="#cb68-30" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb68-31"><a aria-hidden="true" href="#cb68-31" tabindex="-1"></a>        <span class="st">"Imagem original"</span>,</span>
+<span id="cb68-32"><a aria-hidden="true" href="#cb68-32" tabindex="-1"></a>        <span class="st">"Bounding boxes do gabarito"</span></span>
+<span id="cb68-33"><a aria-hidden="true" href="#cb68-33" tabindex="-1"></a>    ],</span>
+<span id="cb68-34"><a aria-hidden="true" href="#cb68-34" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb68-35"><a aria-hidden="true" href="#cb68-35" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">10</span>,<span class="dv">5</span>)</span>
+<span id="cb68-36"><a aria-hidden="true" href="#cb68-36" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copiar para a área de transferência"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div class="quarto-float quarto-figure quarto-figure-center" id="fig-08-ep12">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-08-ep12-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img class="img-fluid figure-img" src="cap08.py.pt_files/figure-html/fig-08-ep12-output-1.png"/>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-08-ep12-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 8.26: Simulador EP08_12: Imagem utilizada no EP08_12. À esquerda, a imagem original. À direita, a imagem com as <em>bounding boxes</em> do arquivo de gabarito.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" id="cell-fig-08-sim-ep0812">
+</div>
+</div><div id="sim-ep0812c" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🧮 Simulador EP08_12: Acurácia de Segmentação em Múltiplos Objetos</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">🟢 acertou se IoU ≥ limiar E tipo correto</span>
+
+</div><div style="padding:20px;background:white;overflow:auto">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
+      Cada forma tem um <i>boundbox</i> de gabarito (retângulo tracejado, justo em torno da forma) e um <i>boundbox</i> detectado (retângulo sólido, deslocado/ruidoso). Ajuste o ruído, o viés e o limiar de IoU para ver a validação mudar.
+    </p>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#c0392b;">ruído de segmentação (px, jitter máx. por lado)</label><span id="ep0812c_ruido_v" style="font-family:monospace;font-weight:bold;color:#c0392b;">0</span></div>
+<input id="ep0812c_ruido" max="20" min="0" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#2980b9;">viés sistemático em x (px)</label><span id="ep0812c_bias_v" style="font-family:monospace;font-weight:bold;color:#2980b9;">0</span></div>
+<input id="ep0812c_bias" max="20" min="-20" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:12px;font-weight:bold;color:#27ae60;">limiar de IoU</label><span id="ep0812c_thr_v" style="font-family:monospace;font-weight:bold;color:#27ae60;">0.50</span></div>
+<input id="ep0812c_thr" max="0.9" min="0.1" step="0.05" style="width:100%;" type="range" value="0.5"/>
+</div>
+<div style="display:flex;align-items:center;gap:8px;">
+<input id="ep0812c_erro" style="width:16px;height:16px;" type="checkbox"/>
+<label style="font-size:12px;font-weight:bold;color:#8e44ad;">simular erro de classificação (2 objetos com tipo trocado)</label>
+</div>
+</div>
+<div id="ep0812c_svg" style="width:100%;max-width:420px;margin:0 auto 16px auto;"></div>
+<table class="caption-top" style="width:100%;border-collapse:collapse;font-size:11px;font-family:monospace;margin-bottom:12px;">
+<thead>
+<tr class="header" style="background:#f3efe6;">
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">id</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo real</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">tipo detectado</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">IoU</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">≥ limiar</th>
+<th data-quarto-table-cell-role="th" style="padding: 4px; border: 1px solid #ddd">acertou</th>
+</tr>
+</thead>
+<tbody id="ep0812c_tbody">
+</tbody>
+</table>
+<div id="ep0812c_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:12px;color:#1565c0;text-align:center;"></div>
+</div>
+<script>
+
+
+function svgNS(tag){
+  var SVG_NS = "http" + "://www.w3.org/2000/svg";
+  return document.createElementNS(SVG_NS, tag);
+}
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var ruidoEl = root.querySelector('#ep0812c_ruido'), ruidovEl = root.querySelector('#ep0812c_ruido_v');
+    var biasEl = root.querySelector('#ep0812c_bias'), biasvEl = root.querySelector('#ep0812c_bias_v');
+    var thrEl = root.querySelector('#ep0812c_thr'), thrvEl = root.querySelector('#ep0812c_thr_v');
+    var erroEl = root.querySelector('#ep0812c_erro');
+    var svgWrap = root.querySelector('#ep0812c_svg');
+    var svgEl = svgNS('svg');
+    svgEl.setAttribute('viewBox', '0 0 360 340');
+    svgEl.setAttribute('style', 'width:100%;display:block;background:#0d0d0d;border-radius:12px;border:1px solid #333;');
+    svgWrap.appendChild(svgEl);
+
+    var tbody = root.querySelector('#ep0812c_tbody');
+    var dbg = root.querySelector('#ep0812c_debug');
+
+    var TIPOS = ['Circ','Tria','Quad','Cruz','Pent','Hexa','Hept','Estr','Elip'];
+    var CORES = ['#a33a5b','#8fe3b0','#c98a7a','#5c4a5e','#3fbf5f','#d9c832','#e08a2b','#5c5470','#4a5a3a'];
+    var FATOR = [1.0, 1.3, 0.7, 1.5, 0.9, 1.1, 0.6, 1.4, 0.8]; // sensibilidade individual ao ruído (fixa)
+    var ANGS  = [30, 160, 260, 5, 200, 90, 340, 130, 240];      // direção fixa do erro por objeto (graus)
+    var SCALE = [0.9, 1.15, 0.8, 1.2, 1.0, 0.95, 1.1, 1.25, 0.85]; // fator de encolhimento/expansão do bbox (fixo)
+
+    var OBJS = [
+      {cx:55,  cy:45,  r:22},
+      {cx:150, cy:70,  r:24},
+      {cx:250, cy:50,  r:22},
+      {cx:320, cy:130, r:20},
+      {cx:90,  cy:190, r:24},
+      {cx:190, cy:220, r:24},
+      {cx:275, cy:190, r:24},
+      {cx:315, cy:270, r:22},
+      {cx:150, cy:150, r:18}
+    ];
+
+    function svgShape(tipo, cx, cy, r, cor){
+      var s = '';
+      if(tipo==='Circ'){
+        s = '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+cor+'"/>';
+      } else if(tipo==='Elip'){
+        s = '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(r*1.1)+'" ry="'+(r*0.65)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Quad'){
+        s = '<rect x="'+(cx-r*0.8)+'" y="'+(cy-r*0.8)+'" width="'+(r*1.6)+'" height="'+(r*1.6)+'" fill="'+cor+'"/>';
+      } else if(tipo==='Cruz'){
+        var w = r*0.5, l = r*1.4;
+        s = '<g fill="'+cor+'">'+
+            '<rect x="'+(cx-w/2)+'" y="'+(cy-l/2)+'" width="'+w+'" height="'+l+'"/>'+
+            '<rect x="'+(cx-l/2)+'" y="'+(cy-w/2)+'" width="'+l+'" height="'+w+'"/></g>';
+      } else {
+        var sides = {Tria:3, Pent:5, Hexa:6, Hept:7}[tipo];
+        var isStar = (tipo==='Estr');
+        var pts = [];
+        if(isStar){
+          var spikes=5, outer=r, inner=r*0.45;
+          for(var i=0;i<spikes*2;i++){
+            var rad = (i%2===0)?outer:inner;
+            var ang = Math.PI/spikes*i - Math.PI/2;
+            pts.push((cx+rad*Math.cos(ang)).toFixed(1)+','+(cy+rad*Math.sin(ang)).toFixed(1));
+          }
+        } else {
+          for(var i=0;i<sides;i++){
+            var ang = 2*Math.PI/sides*i - Math.PI/2;
+            pts.push((cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1));
+          }
+        }
+        s = '<polygon points="'+pts.join(' ')+'" fill="'+cor+'"/>';
+      }
+      return s;
+    }
+
+    // bbox "verdadeiro": retângulo justo em torno da forma (sem folga artificial)
+    function trueBBox(tipo, cx, cy, r){
+      var hw = r, hh = r;
+      if(tipo==='Elip'){ hw = r*1.1; hh = r*0.65; }
+      else if(tipo==='Quad'){ hw = r*0.8; hh = r*0.8; }
+      else if(tipo==='Cruz'){ hw = r*0.7; hh = r*0.7; }
+      return [cx-hw, cy-hh, cx+hw, cy+hh];
+    }
+
+    function iou(a, b){
+      var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+      var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+      var inter = Math.max(0, x2-x1) * Math.max(0, y2-y1);
+      var areaA = (a[2]-a[0])*(a[3]-a[1]);
+      var areaB = (b[2]-b[0])*(b[3]-b[1]);
+      var uni = areaA + areaB - inter;
+      return uni > 0 ? inter/uni : 0;
+    }
+
+    function render(){
+      var ruido = parseInt(ruidoEl.value);
+      var bias = parseInt(biasEl.value);
+      var thr = parseFloat(thrEl.value);
+      var erroAtivo = erroEl.checked;
+      ruidovEl.textContent = ruido;
+      biasvEl.textContent = bias;
+      thrvEl.textContent = thr.toFixed(2);
+
+      var svgContent = '';
+      var rows = '';
+      var acertos = 0;
+
+      OBJS.forEach(function(o, i){
+        var tipoReal = TIPOS[i];
+        var cor = CORES[i];
+
+        var gtBox = trueBBox(tipoReal, o.cx, o.cy, o.r);
+        svgContent += '<g opacity="0.9">'+svgShape(tipoReal, o.cx, o.cy, o.r, cor)+'</g>';
+        svgContent += '<rect x="'+gtBox[0]+'" y="'+gtBox[1]+'" width="'+(gtBox[2]-gtBox[0])+'" height="'+(gtBox[3]-gtBox[1])+'" fill="none" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.2"/>';
+
+        // bbox detectado: escala fixa individual + jitter (ruído) + viés em x
+        var scl = SCALE[i];
+        var mag = ruido * FATOR[i];
+        var ang = ANGS[i] * Math.PI/180;
+        var jx = mag*Math.cos(ang), jy = mag*Math.sin(ang);
+        var dw = (gtBox[2]-gtBox[0]) * scl, dh = (gtBox[3]-gtBox[1]) * scl;
+        var dcx = o.cx + jx + bias, dcy = o.cy + jy;
+        var detBox = [dcx-dw/2, dcy-dh/2, dcx+dw/2, dcy+dh/2];
+
+        var val = iou(gtBox, detBox);
+        var passaLimiar = val >= thr;
+
+        var corDet = passaLimiar ? '#27ae60' : '#c0392b';
+        svgContent += '<rect x="'+detBox[0]+'" y="'+detBox[1]+'" width="'+(detBox[2]-detBox[0])+'" height="'+(detBox[3]-detBox[1])+'" fill="none" stroke="'+corDet+'" stroke-width="1.6"/>';
+
+        var tipoDetectado = tipoReal;
+        if(erroAtivo && (i===1 || i===6)){
+          tipoDetectado = TIPOS[(i+2)%TIPOS.length];
+        }
+        var tipoCorreto = (tipoDetectado === tipoReal);
+        var acertou = passaLimiar && tipoCorreto;
+        if(acertou) acertos++;
+
+        svgContent += '<text x="'+(o.cx)+'" y="'+(gtBox[1]-6)+'" font-size="9" fill="#ccc" text-anchor="middle" font-family="monospace">'+ (i+1) +'</text>';
+
+        rows += '<tr>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(i+1)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+tipoReal+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(tipoCorreto?'':'color:#c0392b;font-weight:bold;')+'">'+tipoDetectado+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+val.toFixed(2)+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;">'+(passaLimiar?'sim':'não')+'</td>'+
+          '<td style="padding:4px;border:1px solid #ddd;text-align:center;'+(acertou?'color:#27ae60;font-weight:bold;':'color:#c0392b;font-weight:bold;')+'">'+(acertou?'✔':'✘')+'</td>'+
+          '</tr>';
+      });
+
+      svgEl.innerHTML = svgContent;
+      tbody.innerHTML = rows;
+
+      var acc = (acertos/OBJS.length*100).toFixed(1);
+      dbg.textContent = 'Objetos validados: '+acertos+' / '+OBJS.length+'  →  Acurácia = '+acc+'%';
+    }
+
+    ruidoEl.addEventListener('input', render);
+    biasEl.addEventListener('input', render);
+    thrEl.addEventListener('input', render);
+    erroEl.addEventListener('change', render);
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0812c');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

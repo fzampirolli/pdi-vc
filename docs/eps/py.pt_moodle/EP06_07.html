@@ -1,0 +1,293 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP06_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_07 🟣 Pipeline de Inspeção Industrial: Registro por Translação e Subtração</h2>
+<p>Em uma linha de produção, uma câmera fixa fotografa cada peça que passa pela esteira, comparando-a a uma imagem de referência sem defeitos. O problema: pequenas vibrações da esteira deslocam a peça em relação à posição de referência a cada captura. Se a subtração de imagens for aplicada diretamente, sem correção, o deslocamento por si só já gera diferenças enormes — <strong>falsos positivos</strong> que mascaram os defeitos reais.</p>
+<p>Este é o exercício mais completo do capítulo: você deve <strong>primeiro registrar</strong> (alinhar geometricamente) a imagem capturada usando um deslocamento conhecido (dx, dy), fornecido por um sensor de posição da esteira, e <strong>só então aplicar a subtração</strong> com limiarização, exatamente como descrito na seção de inspeção industrial.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Dimensões e parâmetros:</strong> Ler <em>L</em>, <em>C</em> (dimensões das imagens), o deslocamento inteiro conhecido dx, dy (podendo ser negativos) e o limiar de detecção <em>T</em> (inteiro).</li>
+<li><strong>Imagens:</strong> Ler a matriz de referência (<code>ref</code>, <em>L</em>× <em>C</em>, sem defeitos) e a matriz capturada (<code>cap</code>, <em>L</em>× <em>C</em>, possivelmente deslocada e com defeito).</li>
+<li><strong>Registro por translação:</strong> Construir a imagem alinhada <code>alin</code> aplicando o deslocamento (dx,dy) recebido: alin(<em>i</em>,<em>j</em>) = cap(<em>i</em>+dy,\; <em>j</em>+dx), se (<em>i</em>+dy,\ <em>j</em>+dx) ∈ [0,<em>L</em>)×[0,<em>C</em>); 0, caso contrário</li>
+<li><strong>Preenchimento de borda:</strong> As posições que “saem” da imagem capturada após o deslocamento recebem o valor <strong>0</strong> (<em>zero-padding</em> — fora do campo de visão da câmera; <strong>note que este exercício usa zero, diferente da replicação de borda do EP06_06</strong>).</li>
+<li><strong>Diferença absoluta:</strong> Calcular, pixel a pixel, diff(<em>i</em>,<em>j</em>) = |ref(<em>i</em>,<em>j</em>) - alin(<em>i</em>,<em>j</em>)|</li>
+<li><strong>Limiarização:</strong> Definir <em>m</em>áscara(<em>i</em>,<em>j</em>) = 1 se diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>; caso contrário, <em>m</em>áscara(<em>i</em>,<em>j</em>) = 0.</li>
+<li><strong>Saída:</strong> Nesta ordem — (a) a matriz <code>alin</code> (<em>L</em>× <em>C</em>); (b) a máscara de defeito (<em>L</em>× <em>C</em>); (c) uma última linha com o total de pixels classificados como defeituosos.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong><em>Zero-padding</em>, não replicação:</strong> posições fora dos limites da imagem capturada, após o deslocamento, valem exatamente 0 — este é o ponto que mais diferencia este exercício do EP06_06.</li>
+<li><strong>Comparação estrita:</strong> diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>.</li>
+<li><strong>Sinal de (dx,dy):</strong> o deslocamento pode ser positivo ou negativo; a fórmula do passo 3 deve ser aplicada literalmente, sem inverter os sinais.</li>
+<li><strong>Todos os valores são inteiros:</strong> não há arredondamento nesta etapa.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Etapa omitida</th>
+<th style="padding:10px;border:1px solid #ddd;">Consequência</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pular o registro geométrico</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A borda inteira da imagem (introduzida pelo deslocamento) é marcada como “defeito” — falso positivo sistemático</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Registro com (dx,dy) incorreto</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Peça e referência ficam desalinhadas; a subtração detecta contornos deslocados, não defeitos reais</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limiar <em>T</em> muito baixo</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ruído de captura (variações de 1–2 níveis de cinza) é confundido com defeito</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limiar <em>T</em> muito alto</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Defeitos sutis deixam de ser detectados</td>
+</tr>
+</tbody>
+</table>
+<p>O registro geométrico e a subtração são etapas complementares: o primeiro garante que ambas as imagens representem exatamente a mesma cena no mesmo referencial espacial; o segundo isola o que realmente mudou entre elas — idealmente, apenas os defeitos.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiro <em>L</em>.</li>
+<li>Linha 2: Inteiro <em>C</em>.</li>
+<li>Linha 3: Dois inteiros dx e dy, separados por espaço.</li>
+<li>Linha 4: Inteiro <em>T</em>.</li>
+<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <code>ref</code>.</li>
+<li>Próximas <em>L</em> linhas: elementos inteiros da matriz <code>cap</code>.</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>L</em> linhas com a matriz <code>alin</code>.</li>
+<li><em>L</em> linhas com a máscara de defeito (0/1).</li>
+<li>Última linha: <code>Total de pixels defeituosos: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+1 0<br/>
+30<br/>
+50 50 50<br/>
+50 50 50<br/>
+50 50 50<br/>
+0 50 50<br/>
+0 50 90<br/>
+0 50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 50 0<br/>
+50 90 0<br/>
+50 50 0<br/>
+0 0 1<br/>
+0 1 1<br/>
+0 0 1<br/>
+Total de pixels defeituosos: 4</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">dx=1 desloca a leitura uma coluna à direita; a última coluna de <code>alin</code> fica sem correspondência <br/>
+(vira 0) e é sistematicamente marcada; o defeito real (90) também é detectado.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+20<br/>
+10 10<br/>
+10 10<br/>
+10 10<br/>
+10 60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 10<br/>
+10 60<br/>
+0 0<br/>
+0 1<br/>
+Total de pixels defeituosos: 1</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Sem deslocamento (dx=dy=0): <code>alin</code> é idêntica a <code>cap</code>; apenas o defeito real (60) é detectado.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-06-sim-ep0607">
+</div>
+</div><div id="sim-ep0607" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0607 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0607 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0607 button:hover { background: #e8dfcf; }
+  #sim-ep0607 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0607_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0607_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0607_cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 10px; font-weight: 700; font-family: monospace; border: 1px solid #e4dcc8; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP06_07: Registro por Translação + Subtração</span>
+<span class="sim-ep0607_pill">|ref − alin(dx,dy)| &gt; T</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0607_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Deslocamento Horizontal (dx): <span id="sim-ep0607_vl_dx" style="font-family:monospace; color:#26241d;">1</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_dx" max="2" min="-2" step="1" type="range" value="1"/>
+<div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Limiar (T): <span id="sim-ep0607_vl_t" style="font-family:monospace; color:#26241d;">30</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_t" max="100" min="0" step="5" type="range" value="30"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajuste o deslocamento da esteira (dx) e o limiar T. Observe como a borda "fantasma" desaparece quando dx = 0.
+    </div>
+</div>
+<!-- Exibição das Grades 3x3 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        ref
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        alin (registrada)
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        máscara
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep07(root){
+    if (!root || root.dataset.sim06Ep07Init) return;
+    root.dataset.sim06Ep07Init = "1";
+
+    var N = 3;
+    var ref = [[50, 50, 50], [50, 50, 50], [50, 50, 50]];
+    // cap representa a peça deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
+    var cap = [[0, 50, 50], [0, 50, 90], [0, 50, 50]];
+
+    var slDx  = root.querySelector('#sim-ep0607_sl_dx');
+    var vlDx  = root.querySelector('#sim-ep0607_vl_dx');
+    var slT   = root.querySelector('#sim-ep0607_sl_t');
+    var vlT   = root.querySelector('#sim-ep0607_vl_t');
+    var gRef  = root.querySelector('#sim-ep0607_g_ref');
+    var gAlin = root.querySelector('#sim-ep0607_g_alin');
+    var gMask = root.querySelector('#sim-ep0607_g_mask');
+    var dbg   = root.querySelector('#sim-ep0607_debug');
+
+    function cellStyle(g){
+      var v = Math.max(0, Math.min(255, g));
+      return 'background:rgb(' + v + ',' + v + ',' + v + '); color:' + (v > 140 ? '#000000' : '#ffffff') + ';';
+    }
+
+    function render(){
+      var dx = parseInt(slDx.value, 10);
+      var T  = parseInt(slT.value, 10);
+      vlDx.textContent = dx;
+      vlT.textContent  = T;
+
+      gRef.innerHTML  = '';
+      gAlin.innerHTML = '';
+      gMask.innerHTML = '';
+
+      var alin = [], mask = [], total = 0;
+
+      for (var i = 0; i < N; i++){
+        var rowA = [], rowM = [];
+        for (var j = 0; j < N; j++){
+          var pj = j + dx;
+          var v = (pj >= 0 && pj < N) ? cap[i][pj] : 0;
+          rowA.push(v);
+
+          var diff = Math.abs(ref[i][j] - v);
+          var m = diff > T ? 1 : 0;
+          if (m) total++;
+          rowM.push(m);
+        }
+        alin.push(rowA);
+        mask.push(rowM);
+      }
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var cr = document.createElement('div');
+          cr.className = 'sim-ep0607_cell';
+          cr.style.cssText = cellStyle(ref[i][j]);
+          cr.textContent = ref[i][j];
+          gRef.appendChild(cr);
+
+          var ca = document.createElement('div');
+          ca.className = 'sim-ep0607_cell';
+          ca.style.cssText = cellStyle(alin[i][j]);
+          ca.textContent = alin[i][j];
+          gAlin.appendChild(ca);
+
+          var m = mask[i][j];
+          var cm = document.createElement('div');
+          cm.className = 'sim-ep0607_cell';
+          if (m) {
+            cm.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          } else {
+            cm.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+          }
+          cm.textContent = m;
+          gMask.appendChild(cm);
+        }
+      }
+
+      if (total > 0) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'dx = ' + dx + '  |  T = ' + T + '  |  Total de pixels defeituosos: ' + total + ' / 9';
+    }
+
+    slDx.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep07(){
+    var root = document.getElementById('sim-ep0607');
+    if (root) initSim06Ep07(root); else setTimeout(tryInitSim06Ep07, 200);
+  }
+  tryInitSim06Ep07();
+})();
+
+</script>
+</div><div id="sim-ep0607_g_ref" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_alin" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_mask" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div class="sim-ep0607_panel" id="sim-ep0607_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

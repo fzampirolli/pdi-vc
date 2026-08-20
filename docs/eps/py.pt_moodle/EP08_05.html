@@ -1,0 +1,255 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.pt/EP08_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_05 🟡 Rotulação de Componentes Conectados: Segmentação de Instâncias</h2>
+<p>O exemplo de segmentação clássica deste capítulo separou “instâncias” de moedas simplesmente pela sua desconexão espacial na máscara binária resultante da limiarização de Otsu. Essa etapa final — rotular cada componente conectado com um identificador de instância — é exatamente o que você foi encarregado de implementar aqui, do zero, sobre uma máscara binária já pronta (0 = fundo, 1 = objeto), como se fosse uma reimplementação manual de <code>cv2.connectedComponents</code>.</p>
+<p>Este exercício também expõe, de forma muito concreta, a limitação discutida no capítulo: o resultado depende inteiramente de como se define “vizinhança” entre pixels — e, como você verá no segundo exemplo, dois pixels em diagonal podem ser considerados a mesma instância ou instâncias diferentes, dependendo exclusivamente da <strong>conectividade</strong> escolhida, não de qualquer noção semântica de objeto.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Diretrizes de Implementação</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Ler as dimensões <em>H</em> × <em>W</em> da máscara binária e seus <em>H</em> × <em>W</em> valores (0 ou 1).</li>
+<li><strong>Conectividade:</strong> Ler o inteiro <em>c</em> ∈ 4, 8. Na conectividade 4, os vizinhos de (<em>i</em>,<em>j</em>) são (i-1,<em>j</em>), (i+1,<em>j</em>), (<em>i</em>,j-1) e (<em>i</em>,j+1). Na conectividade 8, somam-se as quatro diagonais: (i-1,j-1), (i-1,j+1), (i+1,j-1) e (i+1,j+1).</li>
+<li><strong>Descoberta de componentes:</strong> Percorrendo a máscara em varredura linha a linha, da esquerda para a direita e de cima para baixo, sempre que um pixel de valor 1 ainda sem rótulo for encontrado, ele inicia um <strong>novo componente</strong>: atribua a ele o próximo rótulo disponível (o primeiro componente descoberto recebe o rótulo 1, o segundo o rótulo 2, e assim por diante) e propague esse mesmo rótulo a todos os pixels de valor 1 alcançáveis a partir dele por uma cadeia de vizinhos (de acordo com a conectividade escolhida) — por busca em largura, profundidade, ou <em>union-find</em>, à sua escolha.</li>
+<li><strong>Pixels de fundo:</strong> permanecem com rótulo 0 e não pertencem a nenhuma instância.</li>
+<li><strong>Saída:</strong> Primeiro, imprimir o mapa de rótulos completo — <em>H</em> linhas com <em>W</em> inteiros cada. Em seguida, para cada rótulo \ell de 1 a <em>K</em> (na ordem de descoberta), imprimir <code>Instância l: A pixels</code>, onde <em>A</em> é a quantidade de pixels com aquele rótulo. Por fim, imprimir <code>Total de instâncias: K</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restrições Computacionais</h4>
+<ul>
+<li><strong>Ordem de descoberta = ordem de varredura:</strong> os rótulos são numerados na ordem em que cada novo componente é encontrado pela varredura linha a linha, não por tamanho ou posição.</li>
+<li><strong>Conectividade explícita:</strong> dois pixels de valor 1 só pertencem à mesma instância se existir uma cadeia de vizinhos <strong>de acordo com <em>c</em></strong> ligando um ao outro — não use a conectividade oposta por engano.</li>
+<li><strong>Máscara binária pura:</strong> todos os valores de entrada são exatamente 0 ou 1.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentação Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel na segmentação clássica de instâncias</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limiarização (Otsu, Cap. 4)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Etapa anterior que produz a máscara binária a partir da imagem de intensidade</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Componente conectado</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Cada instância é definida <strong>apenas</strong> por conectividade espacial dos pixels de objeto, sem qualquer noção de forma, classe ou aparência</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Conectividade 4 vs. 8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parâmetro que altera o resultado: sob conectividade 8, dois blobs unidos apenas na diagonal tornam-se uma única instância</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limitação central</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">A técnica funde instâncias que se tocam ou se sobrepõem (mesmo que sejam objetos claramente distintos), pois não há noção de “objeto” — apenas de “região conectada”</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificação de Entrada e Saída (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Linha 1: Inteiros <em>H</em> e <em>W</em>.</li>
+<li>Próximas <em>H</em> linhas: <em>W</em> inteiros (0 ou 1) cada.</li>
+<li>Última linha: Inteiro <em>c</em> (4 ou 8).</li>
+</ul>
+<p><strong>Saída:</strong></p>
+<ul>
+<li><em>H</em> linhas com <em>W</em> inteiros cada (o mapa de rótulos).</li>
+<li>Uma linha por instância, na ordem de descoberta: <code>Instância l: A pixels</code>.</li>
+<li>Última linha: <code>Total de instâncias: K</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Saída</th>
+<th style="padding:10px;border:1px solid #ddd;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">6 6<br/>
+0 0 0 0 0 0<br/>
+0 1 1 0 0 0<br/>
+0 1 1 0 0 0<br/>
+0 0 0 0 0 0<br/>
+0 0 0 0 1 1<br/>
+0 0 0 0 1 1<br/>
+8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0 0<br/>
+0 1 1 0 0 0<br/>
+0 1 1 0 0 0<br/>
+0 0 0 0 0 0<br/>
+0 0 0 0 2 2<br/>
+0 0 0 0 2 2<br/>
+Instância 1: 4 pixels<br/>
+Instância 2: 4 pixels<br/>
+Total de instâncias: 2</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Dois blocos 2×2 claramente separados: o resultado é o mesmo sob conectividade 4 ou 8.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+1 0<br/>
+0 1<br/>
+8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 0<br/>
+0 1<br/>
+Instância 1: 2 pixels<br/>
+Total de instâncias: 1</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Sob conectividade 8, os dois pixels em diagonal pertencem à <strong>mesma</strong> instância. Repita este exemplo com c=4: o resultado passa a ser 2 instâncias de 1 pixel cada — puramente pela mudança de conectividade, sem qualquer diferença na máscara.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" id="cell-fig-08-sim-ep0805">
+</div>
+</div><div id="sim-ep0805" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0805 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0805 button { font-size: 11px; padding: 6px 16px; border-radius: 20px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0805 button:hover { background: #e8dfcf; }
+  #sim-ep0805 button.sim-ep0805_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim-ep0805_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0805_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP08_05: Componentes Conectados (Conectividade 4 vs. 8)</span>
+<span class="sim-ep0805_pill">Mesma Máscara → Rótulos Diferentes</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Controles de Seleção de Conectividade -->
+<div class="sim-ep0805_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:10px;">
+      A mesma máscara (dois pixels na diagonal) — alterne a conectividade e observe o número de instâncias e as cores dos rótulos mudarem.
+    </div>
+<div style="display:flex; gap:8px; justify-content:center;">
+<button id="sim-ep0805_c4">Conectividade 4</button>
+<button class="sim-ep0805_active" id="sim-ep0805_c8">Conectividade 8</button>
+</div>
+</div>
+<!-- Exibição da Grade 2x2 -->
+<div class="sim-ep0805_panel" style="margin-bottom:14px; display:flex; justify-content:center;">
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep05(root){
+    if (!root || root.dataset.sim08Ep05Init) return;
+    root.dataset.sim08Ep05Init = "1";
+
+    var mask = [[1, 0], [0, 1]];
+    var conect = 8;
+    var CORES = ['#eafaf1', '#fdecea'];
+    var BORDAS = ['#a3e4d7', '#f5b7b1'];
+    var TEXTOS = ['#04342C', '#c0392b'];
+
+    var btn4   = root.querySelector('#sim-ep0805_c4');
+    var btn8   = root.querySelector('#sim-ep0805_c8');
+    var gridEl = root.querySelector('#sim-ep0805_grid');
+    var dbg    = root.querySelector('#sim-ep0805_debug');
+
+    function rotula(){
+      var H = mask.length, W = mask[0].length;
+      var labels = [[0, 0], [0, 0]];
+      var atual = 0;
+      var viz4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      var viz8 = viz4.concat([[-1, -1], [-1, 1], [1, -1], [1, 1]]);
+      var viz = conect === 8 ? viz8 : viz4;
+
+      for (var i = 0; i < H; i++){
+        for (var j = 0; j < W; j++){
+          if (mask[i][j] === 1 && labels[i][j] === 0){
+            atual++;
+            var fila = [[i, j]];
+            labels[i][j] = atual;
+            while (fila.length){
+              var pos = fila.pop();
+              var r = pos[0], c = pos[1];
+              for (var k = 0; k < viz.length; k++){
+                var nr = r + viz[k][0], nc = c + viz[k][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W && mask[nr][nc] === 1 && labels[nr][nc] === 0){
+                  labels[nr][nc] = atual;
+                  fila.push([nr, nc]);
+                }
+              }
+            }
+          }
+        }
+      }
+      return {labels: labels, k: atual};
+    }
+
+    function estiloBotoes(){
+      btn4.classList.toggle('sim-ep0805_active', conect === 4);
+      btn8.classList.toggle('sim-ep0805_active', conect === 8);
+    }
+
+    function render(){
+      var res = rotula();
+      gridEl.innerHTML = '';
+
+      for (var i = 0; i < 2; i++){
+        for (var j = 0; j < 2; j++){
+          var d = document.createElement('div');
+          var lab = res.labels[i][j];
+          var estilo = 'width:56px; height:56px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-family:monospace; font-weight:700; font-size:13px; transition:all 0.15s ease;';
+
+          if (lab === 0){
+            estilo += 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;';
+          } else {
+            var idx = (lab - 1) % 2;
+            estilo += 'background:' + CORES[idx] + '; border:2px solid ' + BORDAS[idx] + '; color:' + TEXTOS[idx] + ';';
+          }
+
+          d.style.cssText = estilo;
+          d.textContent = mask[i][j] + (lab ? ' (r' + lab + ')' : '');
+          gridEl.appendChild(d);
+        }
+      }
+
+      estiloBotoes();
+
+      if (res.k === 1) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#26241d';
+      }
+
+      dbg.textContent = 'Conectividade = ' + conect + '  →  ' + res.k + ' Instância(s) Encontrada(s)';
+    }
+
+    btn4.addEventListener('click', function(){ conect = 4; render(); });
+    btn8.addEventListener('click', function(){ conect = 8; render(); });
+
+    render();
+  }
+
+  function tryInitSim08Ep05(){
+    var root = document.getElementById('sim-ep0805');
+    if (root) initSim08Ep05(root); else setTimeout(tryInitSim08Ep05, 200);
+  }
+  tryInitSim08Ep05();
+})();
+
+</script>
+</div><div id="sim-ep0805_grid" style="display:grid; grid-template-columns:repeat(2, 56px); gap:6px;"></div><div class="sim-ep0805_panel" id="sim-ep0805_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>
