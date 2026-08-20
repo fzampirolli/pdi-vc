@@ -14,7 +14,7 @@ hide() {
 
         base=$(basename "$d")
 
-        if [ "$base" != "cap01" ]; then
+        if [ "$base" != "cap09" ]; then
             mv "$d" "all/_$base"
         fi
     done

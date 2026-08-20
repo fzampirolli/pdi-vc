@@ -126,14 +126,29 @@ _section_numbering = SectionNumbering()
 def parse_bib(bib_path: str) -> dict:
     text = Path(bib_path).read_text(encoding="utf-8")
     entries = {}
-    entry_re = re.compile(r'@\w+\s*\{\s*([^,]+),\s*(.*?)\n\}', re.DOTALL)
-    field_re = re.compile(r'(\w+)\s*=\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', re.DOTALL)
-    for m in entry_re.finditer(text):
-        key  = m.group(1).strip()
-        body = m.group(2)
-        fields = {f.group(1).lower(): f.group(2).strip()
-                  for f in field_re.finditer(body)}
-        entries[key] = fields
+    
+    # Captura cada bloco @tipo{chave, ...} com casamento balanceado ou delimitador seguro
+    # Aceita chaves alfanuméricas, hífens, underlines e dois-pontos
+    raw_entries = re.findall(r'@\w+\s*\{\s*([a-zA-Z0-9_:-]+)\s*,\s*(.*?)(?=\n@|\Z)', text, re.DOTALL)
+    
+    # Regex para capturar campos tanto com {valor} quanto com "valor" ou números puros
+    field_re = re.compile(
+        r'(\w+)\s*=\s*(?:\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}|"([^"]*)"|(\d+))',
+        re.DOTALL
+    )
+    
+    for key, body in raw_entries:
+        key = key.strip()
+        fields = {}
+        for m in field_re.finditer(body):
+            field_name = m.group(1).lower()
+            # Pega o primeiro grupo não-vazio (chaves {}, aspas "" ou número)
+            field_value = m.group(2) if m.group(2) is not None else (m.group(3) if m.group(3) is not None else m.group(4))
+            fields[field_name] = field_value.strip().replace('\n', ' ')
+        
+        if fields:
+            entries[key] = fields
+            
     return entries
 
 

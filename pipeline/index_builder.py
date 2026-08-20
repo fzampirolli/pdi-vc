@@ -359,6 +359,15 @@ class IndexBuilder:
         simuladores_url = f"https://fzampirolli.github.io/pdi-vc/simuladores/{combo_key}/index.html"
         eps_url = f"https://fzampirolli.github.io/pdi-vc/eps/{combo_key}/index.html"
 
+        # Usa URL absoluta (mesmo padrão dos botões acima) para não depender
+        # da resolução de caminho relativo da página atual — evita duplicar
+        # o diretório da versão (ex: py.pt/py.pt/...).
+        pdf_filename = Path(pdf_relative).name if pdf_relative else None
+        pdf_url = (
+            f"https://fzampirolli.github.io/pdi-vc/{combo_key}/{pdf_filename}"
+            if pdf_filename else None
+        )
+
         actions = f'''
       <a class="pdivc-action pdivc-action-navy" href="{simuladores_url}" target="_blank" rel="noopener">
         <span class="pdivc-action-icon">🕹️</span><span>Simuladores Interativos</span>
@@ -367,16 +376,11 @@ class IndexBuilder:
         <span class="pdivc-action-icon">📝</span><span>Exercícios de Programação</span>
       </a>'''
 
-        if has_pdf and pdf_relative:
+        if has_pdf and pdf_url:
             actions += f'''
-      <a class="pdivc-action pdivc-action-outline" href="{pdf_relative}">
+      <a class="pdivc-action pdivc-action-outline" href="{pdf_url}" target="_blank" rel="noopener">
         <span class="pdivc-action-icon">📄</span><span>Baixar PDF</span>
       </a>'''
-        else:
-            actions += '''
-      <span class="pdivc-action pdivc-action-outline" style="opacity:0.55; cursor:not-allowed;">
-        <span class="pdivc-action-icon">📄</span><span>PDF em breve</span>
-      </span>'''
 
         return actions
 
