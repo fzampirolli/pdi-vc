@@ -3,11 +3,18 @@ pipeline/index_builder.py
 =========================
 Gera página principal minimalista com links para cada versão.
 O index.html fica em gen/book/index.html (junto com as versões geradas).
-Injeta também a data/hora da última atualização nos index.html de cada versão,
-substituindo por completo qualquer bloco nativo de data do Quarto (Publicado,
-Data de Publicação, Modified, etc.) e organizando os metadados (Autor,
-Afiliação, Última Atualização) em cartões consistentes e bem estilizados.
-Injeta a exibição elegante lado a lado da Capa Principal e Contracapa (girassol_contracapa.png).
+
+Em cada versão (ex: gen/book/py.pt/index.html), substitui o bloco nativo de
+metadados do Quarto (Autor, Afiliação, Data de Publicação, Modified, etc.)
+por um único PAINEL unificado, organizado em três seções rotuladas:
+
+  1) Sobre esta edição  -> pills com Autor / Afiliação / Última Atualização
+  2) Acesso rápido       -> botões para Simuladores, EPs e PDF
+  3) Capas do livro      -> Capa Principal e Contracapa lado a lado
+
+O objetivo é priorizar a informação (rótulos claros, agrupamento visual)
+e manter a mesma identidade visual (navy + dourado + serifada) do portal
+principal, em vez de vários blocos soltos com estilos diferentes.
 """
 
 from __future__ import annotations
@@ -16,7 +23,7 @@ import re
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Iterator, Tuple
+from typing import List, Dict, Tuple, Optional
 
 from .config import LANGUAGES, LOCALES
 
@@ -135,7 +142,8 @@ class IndexBuilder:
         return re.sub(r'\s+', ' ', raw).strip()
 
     # ------------------------------------------------------------------
-    # Metadados e Estilos do index.html de cada versão
+    # Painel unificado (metadados + acesso rápido + capas) do index.html
+    # de cada versão
     # ------------------------------------------------------------------
 
     DATE_HEADING_RE = re.compile(
@@ -150,66 +158,125 @@ class IndexBuilder:
         flags=re.IGNORECASE
     )
 
-    META_STYLE_MARKER = '<!-- pdivc-meta-style -->'
+    # Cobre nativa do Quarto (quando ele já injeta a capa como <img>/<p>)
+    NATIVE_COVER_RE = re.compile(
+        r'(?:<p[^>]*>\s*)?<img[^>]*class="[^"]*quarto-cover-image[^"]*"[^>]*/?>(?:\s*</p>)?',
+        flags=re.IGNORECASE
+    )
 
-    META_STYLE_CSS = f'''{META_STYLE_MARKER}
+    PANEL_MARKER = '<!-- pdivc-panel -->'
+    PANEL_STYLE_MARKER = '<!-- pdivc-panel-style -->'
+    FONTS_MARKER = '<!-- pdivc-fonts -->'
+
+    FONTS_LINK_HTML = f'''{FONTS_MARKER}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+'''
+
+    PANEL_STYLE_CSS = f'''{PANEL_STYLE_MARKER}
 <style>
-  /* Metadados */
-  .quarto-title-meta {{
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    row-gap: 0.2rem;
-    column-gap: 0.4rem;
-    margin: 1.75rem 0 2.25rem;
-    padding: 1.15rem 1.5rem 1.35rem;
-    background: #faf7f2;
-    border: 1px solid #e2d9c8;
-    border-radius: 10px;
+  .pdivc-panel {{
+    position: relative;
+    margin: 1.85rem 0 2.6rem;
+    padding: 1.7rem 1.85rem 1.9rem;
+    background: linear-gradient(150deg, #faf7f2 0%, #f0ebe0 100%);
+    border: 1px solid #dcd4c2;
+    border-radius: 14px;
+    box-shadow: 0 4px 22px rgba(26,22,18,0.09);
+    overflow: hidden;
   }}
-  .quarto-title-meta-heading {{
-    flex: 0 0 100%;
+  .pdivc-panel-accent {{
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1a2e4a 0%, #c8963c 100%);
+  }}
+  .pdivc-panel-section {{
+    padding: 1.1rem 0;
+    border-bottom: 1px dashed #d8d0c0;
+  }}
+  .pdivc-panel-section:first-of-type {{ padding-top: 0.35rem; }}
+  .pdivc-panel-section-last {{ border-bottom: none; padding-bottom: 0.15rem; }}
+  .pdivc-panel-caption {{
     font-family: 'JetBrains Mono', 'Courier New', monospace;
     font-size: 0.68rem;
     font-weight: 600;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #8a7f70;
-    margin-top: 0.7rem;
-  }}
-  .quarto-title-meta-heading:first-child {{
-    margin-top: 0;
-  }}
-  .quarto-title-meta-contents,
-  .quarto-title-meta-contents p {{
-    flex: 0 0 100%;
-    font-size: 0.97rem;
-    font-weight: 500;
-    color: #1a2e4a;
-    line-height: 1.35;
-    margin: 0;
-  }}
-  .quarto-title-meta-heading.pdivc-last-updated {{
-    color: #b07d1f;
-  }}
-  .quarto-title-meta-contents.pdivc-last-updated,
-  .quarto-title-meta-contents.pdivc-last-updated p {{
-    color: #a8721c;
-    font-weight: 700;
-    font-size: 1.02rem;
+    margin-bottom: 0.9rem;
   }}
 
-  /* Showcase das Capas Lado a Lado */
-  .pdivc-covers-container {{
+  /* Seção 1: pills de metadados */
+  .pdivc-pills-row {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 0.8rem;
+  }}
+  .pdivc-pill {{
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    background: #ffffff;
+    border: 1px solid #e2d9c8;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    min-width: 150px;
+  }}
+  .pdivc-pill-label {{
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8a7f70;
+  }}
+  .pdivc-pill-value {{
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #1a2e4a;
+    line-height: 1.3;
+  }}
+  .pdivc-pill-updated {{
+    background: #fff8ea;
+    border-color: #ecd49a;
+  }}
+  .pdivc-pill-updated .pdivc-pill-label {{ color: #a8721c; }}
+  .pdivc-pill-updated .pdivc-pill-value {{ color: #8a5c10; }}
+
+  /* Seção 2: ações rápidas */
+  .pdivc-actions-row {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }}
+  .pdivc-action {{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }}
+  .pdivc-action:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.14);
+  }}
+  .pdivc-action-navy   {{ background: #1a2e4a; color: #fff; }}
+  .pdivc-action-gold   {{ background: #c8963c; color: #fff; }}
+  .pdivc-action-outline {{ background: #fff; color: #1a2e4a; border: 1px solid #d8d0c0; }}
+  .pdivc-action-icon {{ font-size: 1rem; line-height: 1; }}
+
+  /* Seção 3: capas */
+  .pdivc-covers-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1.75rem;
-    margin: 2.2rem 0 3rem 0;
-    padding: 1.2rem;
-    background: linear-gradient(145deg, #f8f6f0 0%, #ede8dc 100%);
-    border: 1px solid #dcd4c2;
-    border-radius: 14px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.4rem;
   }}
   .pdivc-cover-card {{
     display: flex;
@@ -217,97 +284,151 @@ class IndexBuilder:
     align-items: center;
     text-align: center;
     background: #ffffff;
-    padding: 1rem;
+    padding: 0.9rem;
     border-radius: 10px;
     border: 1px solid rgba(0,0,0,0.06);
-    box-shadow: 0 6px 18px rgba(26,22,18,0.08);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 4px 14px rgba(26,22,18,0.07);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
   }}
   .pdivc-cover-card:hover {{
     transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(26,22,18,0.14);
+    box-shadow: 0 10px 24px rgba(26,22,18,0.13);
   }}
   .pdivc-cover-card img {{
     width: 100%;
-    max-height: 480px;
+    max-height: 420px;
     object-fit: contain;
     border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   }}
   .pdivc-cover-label {{
-    margin-top: 0.85rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.76rem;
+    margin-top: 0.75rem;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #1a2e4a;
     font-weight: 600;
   }}
+
+  @media (max-width: 640px) {{
+    .pdivc-panel {{ padding: 1.3rem 1.1rem 1.5rem; }}
+    .pdivc-pill {{ min-width: 130px; flex: 1 1 auto; }}
+    .pdivc-action {{ flex: 1 1 auto; justify-content: center; }}
+  }}
 </style>
 '''
 
-    COVERS_MARKER = '<!-- pdivc-dual-covers -->'
+    # ------------------------------------------------------------------
+    # Construção das partes do painel
+    # ------------------------------------------------------------------
 
-    def _generate_covers_html(self) -> str:
-        """Gera o HTML do container de duas capas lado a lado."""
-        return f'''{self.COVERS_MARKER}
-<div class="pdivc-covers-container">
-  <div class="pdivc-cover-card">
-    <img src="girassol_capa.png" alt="Capa Principal">
-    <div class="pdivc-cover-label">Capa Principal</div>
-  </div>
-  <div class="pdivc-cover-card">
-    <img src="girassol_contracapa.png" alt="Contracapa">
-    <div class="pdivc-cover-label">Contracapa</div>
-  </div>
+    def _extract_meta_fields(self, content: str, region_start: int, region_end: int) -> List[Tuple[str, str]]:
+        """Extrai pares (rótulo, valor) do bloco de metadados nativo do Quarto,
+        descartando qualquer campo relacionado a data (será substituído pelo
+        pill de 'Última Atualização')."""
+        headings = self._find_class_divs(content, region_start, region_end, 'quarto-title-meta-heading')
+        contents = self._find_class_divs(content, region_start, region_end, 'quarto-title-meta-contents')
+
+        fields: List[Tuple[str, str]] = []
+        for h, c in zip(headings, contents):
+            heading_text = self._div_text(content, *h)
+            content_text = self._div_text(content, *c)
+            if not content_text or self.DATE_HEADING_RE.search(heading_text):
+                continue
+            fields.append((heading_text, content_text))
+        return fields
+
+    @staticmethod
+    def _build_pills_html(fields: List[Tuple[str, str]], updated_str: str) -> str:
+        pills = ''
+        for label, value in fields:
+            pills += f'''
+      <div class="pdivc-pill">
+        <span class="pdivc-pill-label">{label}</span>
+        <span class="pdivc-pill-value">{value}</span>
+      </div>'''
+        pills += f'''
+      <div class="pdivc-pill pdivc-pill-updated">
+        <span class="pdivc-pill-label">Última Atualização</span>
+        <span class="pdivc-pill-value">{updated_str}</span>
+      </div>'''
+        return pills
+
+    @staticmethod
+    def _build_actions_html(combo_key: str, has_pdf: bool, pdf_relative: Optional[str]) -> str:
+        simuladores_url = f"https://fzampirolli.github.io/pdi-vc/simuladores/{combo_key}/index.html"
+        eps_url = f"https://fzampirolli.github.io/pdi-vc/eps/{combo_key}/index.html"
+
+        actions = f'''
+      <a class="pdivc-action pdivc-action-navy" href="{simuladores_url}" target="_blank" rel="noopener">
+        <span class="pdivc-action-icon">🕹️</span><span>Simuladores Interativos</span>
+      </a>
+      <a class="pdivc-action pdivc-action-gold" href="{eps_url}" target="_blank" rel="noopener">
+        <span class="pdivc-action-icon">📝</span><span>Exercícios de Programação</span>
+      </a>'''
+
+        if has_pdf and pdf_relative:
+            actions += f'''
+      <a class="pdivc-action pdivc-action-outline" href="{pdf_relative}">
+        <span class="pdivc-action-icon">📄</span><span>Baixar PDF</span>
+      </a>'''
+        else:
+            actions += '''
+      <span class="pdivc-action pdivc-action-outline" style="opacity:0.55; cursor:not-allowed;">
+        <span class="pdivc-action-icon">📄</span><span>PDF em breve</span>
+      </span>'''
+
+        return actions
+
+    @staticmethod
+    def _build_covers_html() -> str:
+        return '''
+      <div class="pdivc-covers-grid">
+        <div class="pdivc-cover-card">
+          <img src="girassol_capa.png" alt="Capa Principal do livro">
+          <div class="pdivc-cover-label">Capa Principal</div>
+        </div>
+        <div class="pdivc-cover-card">
+          <img src="girassol_contracapa.png" alt="Contracapa do livro">
+          <div class="pdivc-cover-label">Contracapa</div>
+        </div>
+      </div>'''
+
+    def _build_panel_html(self, pills_html: str, actions_html: str, covers_html: str) -> str:
+        return f'''{self.PANEL_MARKER}
+<div class="pdivc-panel">
+  <div class="pdivc-panel-accent"></div>
+  <section class="pdivc-panel-section">
+    <div class="pdivc-panel-caption">Sobre esta edição</div>
+    <div class="pdivc-pills-row">{pills_html}
+    </div>
+  </section>
+  <section class="pdivc-panel-section">
+    <div class="pdivc-panel-caption">Acesso rápido</div>
+    <div class="pdivc-actions-row">{actions_html}
+    </div>
+  </section>
+  <section class="pdivc-panel-section pdivc-panel-section-last">
+    <div class="pdivc-panel-caption">Capas do livro</div>{covers_html}
+  </section>
 </div>
 '''
 
-    def _inject_covers_grid(self, content: str) -> str:
-        """Injeta a exibição lado a lado substituindo a tag nativa de cover do Quarto ou após os metadados."""
-        if self.COVERS_MARKER in content:
+    def _ensure_fonts(self, content: str) -> str:
+        if self.FONTS_MARKER in content or '</head>' not in content:
             return content
+        return content.replace('</head>', self.FONTS_LINK_HTML + '</head>', 1)
 
-        covers_html = self._generate_covers_html()
-
-        # 1. Se o Quarto gerou a imagem de capa nativa (<p class="quarto-cover-image"> ou <img>), substitui ela
-        native_cover_pattern = re.compile(
-            r'(?:<p[^>]*>\s*)?<img[^>]*class="[^"]*quarto-cover-image[^"]*"[^>]*>(?:\s*</p>)?',
-            flags=re.IGNORECASE
-        )
-        if native_cover_pattern.search(content):
-            return native_cover_pattern.sub(covers_html, content, count=1)
-
-        # 2. Caso contrário, injeta logo após o container quarto-title-meta
-        m = self.META_CONTAINER_RE.search(content)
-        if m:
-            end_pos = self._find_matching_div_end(content, m.start())
-            if end_pos != -1:
-                return content[:end_pos] + '\n' + covers_html + '\n' + content[end_pos:]
-
-        # 3. Fallback: injeta logo após <header id="title-block-header">
-        if '</header>' in content:
-            return content.replace('</header>', '</header>\n' + covers_html, 1)
-
-        return content
-
-    def _ensure_meta_style(self, content: str) -> str:
-        """Injeta o CSS dos metadados e capas uma única vez, logo antes de </head>."""
-        if self.META_STYLE_MARKER in content:
+    def _ensure_panel_style(self, content: str) -> str:
+        if self.PANEL_STYLE_MARKER in content:
             return content
         if '</head>' in content:
-            return content.replace('</head>', self.META_STYLE_CSS + '</head>', 1)
-        return self.META_STYLE_CSS + content
+            return content.replace('</head>', self.PANEL_STYLE_CSS + '</head>', 1)
+        return self.PANEL_STYLE_CSS + content
 
     def inject_last_updated_in_subversions(self, versions: List[Dict], updated_str: str) -> None:
-        """Organiza metadados e injeta capas nas subversões (ex: py.pt/index.html)."""
-        badge_html = (
-            '<div class="quarto-title-meta-heading pdivc-last-updated">Última Atualização</div>\n'
-            '<div class="quarto-title-meta-contents pdivc-last-updated">\n'
-            f'  <p class="date">{updated_str}</p>\n'
-            '</div>'
-        )
-
+        """Substitui o bloco nativo de metadados do Quarto por um painel único
+        (metadados + acesso rápido + capas) em cada index.html de versão."""
         for v in versions:
             index_file: Path = v['index_path']
             if not index_file.exists():
@@ -315,38 +436,44 @@ class IndexBuilder:
 
             content = index_file.read_text(encoding='utf-8')
 
-            # 1. Trata metadados
+            if self.PANEL_MARKER in content:
+                print(f'  → Painel já presente, pulando: {index_file}')
+                continue
+
+            # Remove qualquer capa nativa do Quarto, já que teremos nossa própria
+            content = self.NATIVE_COVER_RE.sub('', content)
+
             m = self.META_CONTAINER_RE.search(content)
+            fields: List[Tuple[str, str]] = []
+            replace_start: Optional[int] = None
+            replace_end: Optional[int] = None
+
             if m:
                 container_start = m.start()
                 container_end = self._find_matching_div_end(content, container_start)
                 if container_end != -1:
                     insert_at = m.end()
                     inner_region_end = container_end - len('</div>')
+                    fields = self._extract_meta_fields(content, insert_at, inner_region_end)
+                    replace_start, replace_end = container_start, container_end
 
-                    headings = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-heading')
-                    contents = self._find_class_divs(content, insert_at, inner_region_end, 'quarto-title-meta-contents')
+            pills_html = self._build_pills_html(fields, updated_str)
+            actions_html = self._build_actions_html(v['key'], v['has_pdf'], v['pdf_relative'])
+            covers_html = self._build_covers_html()
+            panel_html = self._build_panel_html(pills_html, actions_html, covers_html)
 
-                    remove_spans: List[Tuple[int, int]] = []
-                    for h, c in zip(headings, contents):
-                        heading_text = self._div_text(content, *h)
-                        if self.DATE_HEADING_RE.search(heading_text):
-                            remove_spans.append(h)
-                            remove_spans.append(c)
+            if replace_start is not None and replace_end is not None:
+                content = content[:replace_start] + panel_html + content[replace_end:]
+            elif '</header>' in content:
+                content = content.replace('</header>', '</header>\n' + panel_html, 1)
+            else:
+                content = panel_html + content
 
-                    for s, e in sorted(remove_spans, key=lambda span: span[0], reverse=True):
-                        content = content[:s] + content[e:]
-
-                    content = content[:insert_at] + '\n' + badge_html + '\n' + content[insert_at:]
-
-            # 2. Injeta grid de duas capas lado a lado
-            content = self._inject_covers_grid(content)
-
-            # 3. Injeta estilos CSS
-            content = self._ensure_meta_style(content)
+            content = self._ensure_fonts(content)
+            content = self._ensure_panel_style(content)
 
             index_file.write_text(content, encoding='utf-8')
-            print(f'  ✓ Metadados e Capas lado a lado organizados em: {index_file}')
+            print(f'  ✓ Painel unificado (metadados + links + capas) organizado em: {index_file}')
 
     def generate_html(self, versions: List[Dict], updated: str) -> str:
         """Gera o HTML principal com design editorial refinado."""
@@ -811,7 +938,7 @@ class IndexBuilder:
         now = datetime.now()
         updated = f"{now.day} de {MESES_PT[now.month]} de {now.year} às {now.strftime('%H:%M')}"
 
-        # 1. Injeta carimbo e capas lado a lado em cada versão (ex: py.pt/index.html)
+        # 1. Injeta o painel unificado (metadados + acesso rápido + capas) em cada versão
         self.inject_last_updated_in_subversions(versions, updated)
 
         # 2. Gera o portal principal gen/book/index.html

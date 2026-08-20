@@ -107,16 +107,26 @@ pdi-vc/
 ├── runs/                         ← 📊 MODELOS — saídas e pesos de treinamento do YOLO
 │   └── detect/                   ← matrizes de confusão, curvas F1/PR e pesos (best.pt)
 │
+├── utils/                        ← 🛠️ UTILITÁRIOS — scripts auxiliares de manutenção e checagem
+│   ├── check-correspondencia.sh  ← checagem de integridade e correspondências
+│   ├── find_label_mismatches.sh  ← validação de labels e inconsistências
+│   ├── limpar.sh                 ← limpeza de temporários e artefatos
+│   ├── mermaid2png.sh            ← conversão de diagramas Mermaid para PNG
+│   ├── netshow_morph_candidato.py← visualização/inspeção de redes e morfologia
+│   ├── rename_dirs.sh            ← renomeação em lote de diretórios
+│   ├── run.sh                    ← rotinas de execução auxiliar
+│   └── trocar.sh                 ← substituição em lote de termos/padrões
+│
 ├── dev.py                        ← CLI principal de desenvolvimento
 ├── ep_tools.py                   ← utilitários para manipulação e extração dos EPs
 ├── gerar_livro.py                ← script de geração em lote do livro
 ├── gerar_notebooks_alunos.py     ← script que limpa e gera a pasta dos alunos
+├── setup.sh                      ← 🛠️ script único de configuração do ambiente (TinyTeX + venv)
+├── requirements.txt              ← dependências Python do projeto
 ├── run.sh / limpar.sh            ← scripts Bash para automação e limpeza de build
 ├── Makefile                      ← atalhos de comandos rápidos
-├── references.bib                ← base de dados bibliográfica BibTeX
-└── requirements.txt              ← dependências Python do projeto
+└── references.bib                ← base de dados bibliográfica BibTeX
 ```
-
 
 ## 🌐 Documentação e Artefatos Gerados (`docs/`)
 
@@ -405,33 +415,59 @@ git push origin master
 
 ## Dependências
 
+A forma recomendada de preparar o ambiente (TinyTeX + ambiente virtual Python) é rodar o script único:
+
 ```bash
+chmod +x setup.sh
+./setup.sh              # instala o esquema completo do TeX Live (recomendado, alguns GB)
+# ou
+./setup.sh --minimal    # instala apenas os pacotes LaTeX especificamente necessários
+```
+
+O `setup.sh` cuida de:
+1. Configurar o repositório do TinyTeX e atualizar o `tlmgr`;
+2. Instalar os pacotes LaTeX necessários para `quarto render --to pdf` (idioma `pt`, engine `lualatex`, classe `book`);
+3. Criar o `.venv` e instalar as dependências Python fixadas em `requirements.txt`.
+
+Depois de rodar o script, ative o ambiente virtual:
+
+```bash
+source .venv/bin/activate
+```
+
+### Instalação manual (caso prefira não usar o `setup.sh`)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 pip install playwright
 playwright install chromium   # para screenshots de simuladores
+```
 
+```bash
 # Sistema
 # quarto   — https://quarto.org/docs/get-started/
 # TinyTeX  — instalado automaticamente pelo Quarto (quarto install tinytex)
 ```
 
-Pacotes LaTeX adicionais (instalar no TinyTeX):
-```bash
-~/Library/TinyTeX/bin/universal-darwin/tlmgr install emoji twemoji-colr luatexbase
-```
-
----
-
-## Licença
-
-© 2026 Francisco de Assis Zampirolli — UFABC.
-Creative Commons BY-NC-SA 4.0.
-
+Pacotes LaTeX adicionais necessários no TinyTeX (Linux):
 
 ```bash
-~/.TinyTeX/bin/x86_64-linux/tlmgr install hyphen-portuguese babel-portuguese
-~/.TinyTeX/bin/x86_64-linux/tlmgr install \
+TLMGR=~/.TinyTeX/bin/x86_64-linux/tlmgr
+
+$TLMGR option repository https://tlnet.yihui.org/
+$TLMGR update --self
+
+$TLMGR install \
+  luatexbase \
+  ctablestack \
+  babel-portuges \
+  hyphen-portuguese \
+  selnolig \
   fvextra \
+  emoji \
+  twemoji-colr \
   upquote \
   xcolor \
   framed \
@@ -457,8 +493,18 @@ Creative Commons BY-NC-SA 4.0.
   environ \
   trimspaces \
   titling \
-  etoolbox \
-  emoji \ 
-  hyphen-portuguese \
-  babel-portuguese
+  etoolbox
+
+$TLMGR update --all
 ```
+
+> ⚠️ **Nota:** o nome correto do pacote de suporte ao Português no `babel` é **`babel-portuges`** (sem o "e" final) — `babel-portuguese` não existe no CTAN e causa erro de instalação. Em macOS, substitua `~/.TinyTeX/bin/x86_64-linux/` por `~/Library/TinyTeX/bin/universal-darwin/`.
+
+Se `quarto render --to pdf` ainda falhar com `LaTeX Error: File 'X.sty' not found`, identifique o pacote pelo nome do arquivo faltante e instale com `$TLMGR install <pacote>`, ou simplesmente rode `./setup.sh` (sem `--minimal`) para instalar o esquema completo e evitar esse ciclo.
+
+---
+
+## Licença
+
+© 2026 Francisco de Assis Zampirolli — UFABC.
+Creative Commons BY-NC-SA 4.0.

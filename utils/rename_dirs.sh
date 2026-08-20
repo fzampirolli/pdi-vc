@@ -8,13 +8,13 @@
 set -e
 
 hide() {
-    # cap0* exceto cap09
+    # cap0* exceto cap01
     for d in all/cap0*/; do
         [ -d "$d" ] || continue
 
         base=$(basename "$d")
 
-        if [ "$base" != "cap09" ]; then
+        if [ "$base" != "cap01" ]; then
             mv "$d" "all/_$base"
         fi
     done
