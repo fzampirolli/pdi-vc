@@ -319,6 +319,109 @@ make clean-gen      # apaga só gen/ e docs/
 
 ---
 
+## ⚙️ Execução real de código em C++ (cap01)
+
+Diferente de uma tradução decorativa, o combo `cpp` já **compila e executa de verdade**. Uma célula Python elegível do notebook-fonte vira, no notebook gerado, várias células que fazem exatamente o que o EP01_01 já demonstra manualmente com as 6 linguagens (`all/cap01/cap01.EPs.ipynb`, células `role: common`): `%%writefile` grava o código-fonte, uma célula de *shell magic* compila e roda (`!g++ arquivo.cpp -o arquivo && ./arquivo`), e — quando a célula original chama `mm.show()` — uma célula final exibe o PNG gerado (`IPython.display.Image`). Não existe kernel C++ no Quarto; tudo roda através do kernel Python via `!comando`, o mesmo mecanismo que já valida os EPs em 6 linguagens.
+
+**Como uma célula vira C++:**
+
+1. **Elegibilidade** (`pipeline/notebook_processor.py::_is_eligible_for_foreign_expansion`) — calculada sempre sobre o **código Python original**, nunca sobre a saída do LLM. Uma célula só é candidata se não usar `cv2.*`/`matplotlib` diretamente, não montar `HTML("""...""")` (simulador interativo — não faz sentido em C++ e travaria esperando `stdin`), e só chamar funções `mm.*` da lista com equivalente em C++.
+2. **Tradução** (`pipeline/translators.py::LLMCodeTranslator`) — o LLM recebe uma *cheat-sheet* da API real de `morph.hpp`, com regra explícita de nunca inventar função fora da lista.
+3. **Validação por compilação** (`pipeline/exec_validate.py::compile_check`) — a tradução só é aceita e cacheada se **compilar de verdade** (`g++` num diretório temporário). Nenhuma tradução quebrada é publicada; falhas nunca são cacheadas (tentam de novo no próximo build, caso um ajuste de prompt/biblioteca resolva).
+4. **Fallback seguro**: célula inelegível ou que não compilou vira uma única célula de referência — o Python original, com `#| eval: false` (nunca executada) e um comentário deixando claro que é conceitual, não a fonte da figura ao lado.
+
+**`morph/cpp/morph.hpp`** é a porta mínima da `morph.py` pra C++ — só as 7 funções usadas no cap01: `read` (com download por URL via `fork`/`execlp`, sem shell), `gray`, `randomImage`, `show`, `write`, `threshold` (com Otsu quando o limiar é omitido), `drawImg`. Usa `stb_image`/`stb_image_write` vendorizadas (`morph/cpp/THIRD_PARTY_LICENSES.md`) — sem depender de OpenCV, então `g++ arquivo.cpp -o arquivo` compila sem `apt install` adicional.
+
+**Escopo atual (v0):** só cap01, só essas 7 funções. **Limitação estrutural conhecida:** cada célula compila como programa C++ isolado (mesmo modelo do EP01_01) — uma célula que reusa uma variável definida numa célula Python anterior (ex.: `img`) não enxerga esse estado e cai em referência não-executada.
+
+```bash
+# Gerar o capítulo 1 em C++ (PT), HTML apenas
+python dev.py --once --langs cpp --locales pt --render html
+
+# Build completo (todas as combinações já em uso: py/cpp × pt/en, HTML+PDF)
+./utils/rebuild.sh py,cpp pt,en
+```
+
+Pra estender esse mecanismo — outro capítulo, ou outra linguagem além de `cpp` — a peça que falta pra cada nova linguagem é o equivalente a `morph.hpp` (um `morph.<ext>` com as mesmas funções) mais registrar seu comando de compilar em `morph/testsuite.py::compile_run_table` (fonte única, já usada pelos EPs em 6 linguagens) e em `pipeline/exec_validate.py`.
+
+### ✏️ Editando o conteúdo gerado (código, texto e imagens)
+
+`all/capXX/capXX.ipynb` é a única fonte editável em Python/Português. Tudo em
+`gen/<combo>/` (C++, inglês, etc.) é gerado por LLM a cada build e
+**reescrito do zero** — editar esses arquivos direto não sobrevive ao
+próximo `dev.py`. Ainda assim é possível corrigir um erro pontual (um C++
+traduzido errado, um trecho de texto mal traduzido) sem esperar o LLM
+acertar sozinho:
+
+**Código e texto:**
+
+```bash
+# 1. Gerar (ou já ter gerado) o combo com o erro
+python dev.py --once --langs cpp --locales en
+
+# 2. Abrir gen/cpp.en/cap01/cap01.cpp.en.ipynb (Jupyter/VS Code) e corrigir
+#    a célula errada direto no notebook. Salvar.
+
+# 3. Promover a correção pro cache — não gera nem builda nada, só grava
+#    a edição na mesma chave de cache da célula original
+python dev.py --promote-edits --langs cpp --locales en
+
+# 4. Rebuildar normalmente — a correção volta sem chamar o LLM de novo
+python dev.py --once --langs cpp --locales en --render html
+```
+
+Só células que passaram por tradução real (marcadas internamente com
+`metadata.pdi.ck`) podem ser promovidas — células `role: common`, EPs
+vazios e referências Python não-traduzidas não têm o que promover. Rodar
+`--promote-edits` sem ter editado nada é seguro (não faz nada, só relata
+"nenhuma edição encontrada"). **Limitação:** se a célula-fonte em `all/`
+mudar depois de uma promoção, a correção antiga fica órfã no cache (não
+suja nada, só some silenciosamente na próxima tradução daquela célula).
+
+**Imagens** (ex.: uma figura com texto em português que precisa de versão
+em inglês): adicionar um arquivo com sufixo de locale ao lado do original,
+na mesma pasta `all/capXX/imagens/` — sem mudar nada no notebook-fonte:
+
+```
+all/cap04/imagens/fig-04-algoritmo.png       ← padrão (usado por pt e por
+                                                qualquer locale sem override)
+all/cap04/imagens/fig-04-algoritmo.en.png    ← usado só quando --locales en
+```
+
+Vale tanto pra figuras estáticas quanto pros PNGs de simuladores
+interativos gerados por Playwright (que sempre partem do notebook em
+Português) — nos dois casos o override é pego automaticamente no próximo
+build daquele locale. Depois de atualizar pra essa versão do pipeline pela
+primeira vez, rode `make clean-gen` uma vez (symlinks antigos de pasta
+inteira em `gen/` não são convertidos automaticamente pro novo formato por
+arquivo).
+
+**Célula manual travada num (ou vários) combo(s) específico(s):** pra
+escrever à mão o conteúdo de uma célula só pra determinados combos, sem
+passar pelo LLM neles, comece a célula com uma linha só com o marcador
+`#[token]#`, onde `token` é uma lista de partes separadas por ponto — cada
+parte é uma chave de `LANGUAGES` (`py`, `cpp`, ...) ou de `LOCALES` (`pt`,
+`en`, ...). Dentro do mesmo eixo várias partes combinam em **OU**; entre os
+dois eixos (linguagem × idioma) combina em **E**:
+
+```python
+#[cpp.pt]#
+// Só aparece em cpp.pt — linguagem=cpp E idioma=pt.
+
+#[py.pt.cpp]#
+# Aparece em py.pt e em cpp.pt (qualquer linguagem em {py, cpp}), mas
+# some em py.en/cpp.en — linguagem ∈ {py, cpp} E idioma ∈ {pt}.
+```
+
+A linha do marcador é sempre removida do resultado (em qualquer combo). Um
+único token filtra só por aquele eixo (`#[cpp]#` só linguagem, `#[pt]#` só
+idioma); a ordem das partes não importa. Nenhuma célula em `all/` usa isso
+hoje (o mecanismo existe no pipeline,
+`pipeline/notebook_processor.py::_filter_by_language_marker`, mas ainda
+não foi usado em conteúdo real).
+
+---
+
 ## 🌐 Adicionar Nova Linguagem de Programação
 
 **1.** Edite o arquivo `pipeline/config.py` e adicione a nova linguagem dentro do dicionário literal `LANGUAGES`:

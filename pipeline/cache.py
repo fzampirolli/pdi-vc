@@ -39,7 +39,7 @@ class TranslationCache:
         if self._dirty:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(
-                json.dumps(self._data, ensure_ascii=False, indent=2),
+                json.dumps(self._data, ensure_ascii=False, indent=2, sort_keys=True),
                 encoding='utf-8'
             )
             self._dirty = False
@@ -47,19 +47,32 @@ class TranslationCache:
     # ── Operações ─────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _key(source: str, kind: str, src_lang: str, tgt_lang: str) -> str:
+    def key_for(source: str, kind: str, src_lang: str, tgt_lang: str) -> str:
         """Chave determinística: hash(conteúdo + parâmetros)."""
         raw = f'{kind}|{src_lang}→{tgt_lang}|{source}'
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
     def get(self, source: str, kind: str, src_lang: str, tgt_lang: str) -> Optional[str]:
-        return self._data.get(self._key(source, kind, src_lang, tgt_lang))
+        return self._data.get(self.key_for(source, kind, src_lang, tgt_lang))
 
     def set(self, source: str, kind: str, src_lang: str, tgt_lang: str, result: str):
-        k = self._key(source, kind, src_lang, tgt_lang)
+        k = self.key_for(source, kind, src_lang, tgt_lang)
         if self._data.get(k) != result:
             self._data[k] = result
             self._dirty = True
+
+    # ── Acesso direto por chave (usado pela promoção de edições manuais) ──────
+
+    def get_raw(self, key: str) -> Optional[str]:
+        return self._data.get(key)
+
+    def set_raw(self, key: str, value: str) -> bool:
+        """Grava `value` na chave `key` já calculada. Retorna True se mudou algo."""
+        if self._data.get(key) != value:
+            self._data[key] = value
+            self._dirty = True
+            return True
+        return False
 
     def stats(self) -> dict:
         return {'entries': len(self._data), 'path': str(self.path)}

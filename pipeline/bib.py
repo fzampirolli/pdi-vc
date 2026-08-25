@@ -77,14 +77,26 @@ def format_ref_abnt(key: str, bib: dict) -> str:
     return ref
 
 
+_CROSSREF_PREFIX_RE = r'(?!(?:fig|tbl|eq)-)'
+
+
 def resolve_citations(src: str, bib: dict, used: set) -> str:
-    """Substitui @key e [@key] por citações ABNT e coleta chaves usadas."""
-    for m in re.finditer(r'@([A-Za-z0-9_:.-]+)', src):
+    """
+    Substitui @key e [@key] por citações ABNT e coleta chaves usadas.
+
+    Exclui @fig-x / @tbl-x / @eq-x: são cross-refs Quarto (figuras, tabelas,
+    equações), não citações bibliográficas — resolvidas à parte por
+    _process_cross_refs(). Sem essa exclusão, esta função "resolve" o
+    cross-ref primeiro (já que a chave não está em `bib`, cite_direct só
+    descarta o "@"), deixando @fig-x virar "fig-x" solto no texto antes de
+    _process_cross_refs ter a chance de rodar.
+    """
+    for m in re.finditer(r'@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)', src):
         if m.group(1) in bib:
             used.add(m.group(1))
-    src = re.sub(r'\[@([A-Za-z0-9_:.-]+)\]',
+    src = re.sub(r'\[@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)\]',
                  lambda m: cite_indirect(m.group(1), bib), src)
-    src = re.sub(r'(?<!\[)@([A-Za-z0-9_:.-]+)',
+    src = re.sub(r'(?<!\[)@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)',
                  lambda m: cite_direct(m.group(1), bib), src)
     return src
 

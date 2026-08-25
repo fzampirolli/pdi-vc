@@ -154,6 +154,18 @@ mkdir -p docs
 cp -rL gen/book/. docs/
 touch docs/.nojekyll
 
+# Rede de segurança: impede recrawl de conteúdo retirado de circulação
+# (ex.: apendice_f, cujo resultado já está no artigo em revisão duplo-cego).
+# NOTA: por ser um projeto no GitHub Pages (fzampirolli.github.io/pdi-vc/),
+# este arquivo não é servido na raiz do domínio, então motores de busca que
+# só respeitam robots.txt de raiz (ex. Google) podem ignorá-lo. Mantido
+# como camada extra; a proteção real é o conteúdo nunca ser gerado.
+cat > docs/robots.txt <<'EOF'
+User-agent: *
+Disallow: */apendice_f*
+Disallow: */apendice-f*
+EOF
+
 # Copiar as duas versões de EP para docs/eps/
 #
 #   docs/eps/<versao>/          → HTML completo Quarto (MathJax perfeito, link para aluno)

@@ -66,7 +66,7 @@ from playwright.sync_api import sync_playwright
 
 from .config import (
     Combo, UI_STRINGS, LOCALES, LANGUAGES,
-    BASE_LANG, BASE_LOCALE,
+    BASE_LANG, BASE_LOCALE, parse_combo,
 )
 
 DIR_GEN = Path('gen')
@@ -78,16 +78,21 @@ DIR_GEN = Path('gen')
 def _index_qmd(combo: Combo) -> str:
     lang_label   = LANGUAGES[combo.lang].label
     locale_label = LOCALES[combo.locale].label
-    welcome      = UI_STRINGS[combo.locale]['welcome'].format(lang_label=lang_label)
-    part1        = UI_STRINGS[combo.locale]['part_1']
-    part2        = UI_STRINGS[combo.locale]['part_2']
-    refs_title   = UI_STRINGS[combo.locale]['references_title']
+    strings      = UI_STRINGS[combo.locale]
+    welcome      = strings['welcome'].format(lang_label=lang_label)
+    title_short  = strings['title_short']
+    org_title    = strings['org_title']
+    part1        = strings['part_1']
+    part1_desc   = strings['part_1_desc']
+    part2        = strings['part_2']
+    part2_desc   = strings['part_2_desc']
+    refs_title   = strings['references_title']
     return (
-        f'## PDI e VC — {lang_label} {{.unnumbered}}\n\n'
+        f'## {title_short} — {lang_label} {{.unnumbered}}\n\n'
         f'{welcome}\n\n'
-        f'### {UI_STRINGS[combo.locale].get("org_title","Organização")} {{.unnumbered}}\n\n'
-        f'- **{part1}** — Representação, histogramas, filtragem, morfologia\n'
-        f'- **{part2}** — Segmentação, descritores, detecção, aprendizado profundo\n\n'
+        f'### {org_title} {{.unnumbered}}\n\n'
+        f'- **{part1}** — {part1_desc}\n'
+        f'- **{part2}** — {part2_desc}\n\n'
         '---\n'
     )
 
@@ -108,16 +113,38 @@ def _get_emoji_font() -> str:
 # ── Fonte de emoji dependente do SO ──────────────────────────────────────────
 EMOJI_FONT = _get_emoji_font()
 
+
+def _locale_asset(base_path: Path, locale: str) -> Path:
+    """
+    Resolve um asset de includes/ (capa, contracapa, ...) com override por
+    locale: se existir <nome>.<locale><ext> ao lado do arquivo padrão, usa
+    esse; senão usa o padrão. Mesma convenção de all/capXX/imagens/ (ver
+    _symlink_imagens_locale_aware) — nunca precisa mudar onde o arquivo é
+    referenciado, só adicionar o arquivo com sufixo.
+    """
+    if locale == BASE_LOCALE:
+        return base_path
+    localized = base_path.parent / f'{base_path.stem}.{locale}{base_path.suffix}'
+    return localized if localized.exists() else base_path
+
 def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
     """
     Lê um .qmd de includes/<filename>, aplicando substituição i18n.
-    Retorna None se o arquivo não existir (quem chama decide o fallback).
+    Se existir uma versão traduzida includes/<nome>_<locale><ext> para o
+    locale do combo (ex.: prefacio_en.qmd), ela é usada no lugar do arquivo
+    em Português. Retorna None se nenhum dos dois existir (quem chama decide
+    o fallback).
     """
     path = Path('includes') / filename
+    if combo.locale != BASE_LOCALE:
+        stem, ext = os.path.splitext(filename)
+        localized = Path('includes') / f'{stem}_{combo.locale}{ext}'
+        if localized.exists():
+            path = localized
     if not path.exists():
         return None
     content = path.read_text(encoding='utf-8')
-    print(f'  ✓ {filename} lido de {path}')
+    print(f'  ✓ {path.name} lido de {path}')
     lang_label = LANGUAGES[combo.lang].label
     content = content.replace('{{lang_label}}', lang_label)
     locale_label = LOCALES[combo.locale].label
@@ -296,12 +323,13 @@ class QuartoBuilder:
         _process_attachments(combo, nb_root, qdir, all_root)
 
         self._symlink(qdir / 'references.bib', self.root / 'references.bib')
-        self._merge_includes_dir(qdir)
+        self._merge_includes_dir(qdir, combo)
 
         self._ensure_preamble_files()
 
         # ── Gera capa.tex para o PDF (include-before-body) ───────────────────
-        cover_abs = (self.root / 'includes' / 'girassol_capa.png').resolve()
+        cover_abs = _locale_asset(self.root / 'includes' / 'girassol_capa.png',
+                                  combo.locale).resolve()
         self._write_cover_tex(qdir, cover_abs)
 
         yml = self._quarto_yml(combo, nb_root, apendice_files=apendice_files)
@@ -324,11 +352,21 @@ class QuartoBuilder:
 
     @staticmethod
     def _symlink(link: Path, target: Path):
-        if link.exists() or link.is_symlink():
+        # `link` normalmente é symlink ou arquivo comum, mas pode virar um
+        # DIRETÓRIO REAL: se uma célula executada (ex.: fig-01-natureza)
+        # roda com cwd == link.parent e faz os.makedirs("imagens")+escreve
+        # nele, o que era pra ser um symlink apontando pra all/capXX/imagens
+        # passa a ser um diretório de verdade com conteúdo. `.unlink()`
+        # só serve pra arquivo/symlink e quebra com IsADirectoryError nesse
+        # caso — como gen/ é sempre saída descartável, é seguro remover e
+        # recriar o symlink do zero.
+        if link.is_symlink() or link.is_file():
             link.unlink()
+        elif link.is_dir():
+            shutil.rmtree(link)
         link.symlink_to(target.resolve())
 
-    def _merge_includes_dir(self, qdir: Path):
+    def _merge_includes_dir(self, qdir: Path, combo: Combo):
         """
         Monta qdir/includes/ como um diretório REAL (não um único symlink),
         contendo symlinks por arquivo vindos de duas origens:
@@ -356,6 +394,12 @@ class QuartoBuilder:
 
         Em caso de nome de arquivo duplicado nas duas origens, o de
         all/apendices/imagens/ tem prioridade (mais específico).
+
+        Arquivos com sufixo de locale (ex.: girassol_capa.en.png, mesma
+        convenção de all/capXX/imagens/) sobrepõem o arquivo padrão sob o
+        NOME BASE — quem referencia `includes/girassol_capa.png` (o YAML
+        do livro, o .tex da capa) nunca precisa saber que existe um
+        override; ver _symlink_imagens_locale_aware.
         """
         dest = qdir / 'includes'
         dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
@@ -363,7 +407,9 @@ class QuartoBuilder:
         root_includes = self.root / 'includes'
         if root_includes.exists():
             for f in root_includes.iterdir():
-                self._symlink(dest / f.name, f)
+                if f.is_dir():
+                    self._symlink(dest / f.name, f)
+            self._symlink_imagens_locale_aware(root_includes, dest, combo.locale)
 
         apendices_imagens = self.root / 'all' / 'apendices' / 'imagens'
         if apendices_imagens.exists():
@@ -371,6 +417,7 @@ class QuartoBuilder:
                 self._symlink(dest / f.name, f)  # sobrescreve em conflito de nome
 
     def _symlink_caps(self, combo: Combo, qdir: Path, nb_root: Path):
+        morph_cpp_dir = self.root / 'morph' / 'cpp'
         for cap in self.CAPS_PART1 + self.CAPS_PART2:
             cap_dir = nb_root / cap
             if cap_dir.exists():
@@ -381,7 +428,54 @@ class QuartoBuilder:
                 all_imagens = self.root / 'all' / cap / 'imagens'
                 gen_imagens = nb_root / cap / 'imagens'
                 if all_imagens.exists() and not gen_imagens.exists():
-                    gen_imagens.symlink_to(all_imagens.resolve())
+                    gen_imagens.mkdir(parents=True, exist_ok=True)
+                    self._symlink_imagens_locale_aware(
+                        all_imagens, gen_imagens, combo.locale
+                    )
+
+                # combos cpp: os headers de morph.hpp (+ stb vendorizadas)
+                # precisam estar ao lado do .cpp gerado pra `!g++` achar via
+                # #include "morph.hpp" sem precisar de -I na célula.
+                if combo.lang == 'cpp' and morph_cpp_dir.exists():
+                    for f in morph_cpp_dir.glob('*.h*'):
+                        self._symlink(dest / f.name, f)
+
+    @classmethod
+    def _symlink_imagens_locale_aware(cls, all_imagens: Path, gen_imagens: Path,
+                                       locale: str):
+        """
+        Symlinka cada arquivo de `all_imagens` individualmente (não a pasta
+        inteira) pra permitir override por locale: uma imagem com texto
+        embutido em português (ex.: fig-04-algoritmo.png) pode ter uma
+        variante fig-04-algoritmo.en.png ao lado, na MESMA pasta — se
+        existir, é usada no lugar da padrão pra esse locale, sem que o
+        markdown/notebook-fonte precise referenciar um nome diferente.
+
+        `Path.stem`/`Path.suffix` só removem a última extensão, então
+        'fig-04-algoritmo.en.png' → stem 'fig-04-algoritmo.en' → nome-base
+        'fig-04-algoritmo.png'. Nunca toca em all/capXX/imagens/ — só cria
+        symlinks na pasta de saída (por combo, já isolada em gen/<combo>/).
+        """
+        suffix = f'.{locale}'
+        overrides: dict[str, Path] = {}
+        plain: dict[str, Path] = {}
+        for f in all_imagens.iterdir():
+            if not f.is_file():
+                continue
+            if locale != BASE_LOCALE and f.stem.endswith(suffix):
+                base_name = f.stem[:-len(suffix)] + f.suffix
+                overrides[base_name] = f
+            else:
+                plain[f.name] = f
+
+        for name, f in plain.items():
+            cls._symlink(gen_imagens / name, overrides.get(name, f))
+        # Override sem arquivo padrão correspondente (nome-base nunca
+        # existe sozinho) — symlinka também com o próprio nome, caso algo
+        # referencie o sufixo diretamente.
+        for base_name, f in overrides.items():
+            if base_name not in plain:
+                cls._symlink(gen_imagens / f.name, f)
 
     def _write_apendice_entries(self, qdir: Path, combo: Combo, nb_root: Path) -> list[str]:
         """
@@ -806,6 +900,7 @@ pre {
 
         apendice_files = apendice_files or []
 
+        book_title = UI_STRINGS[combo.locale]['title']
         subtitle = (UI_STRINGS[combo.locale]['book_subtitle']
                     .format(lang_label=lang_label))
 
@@ -820,12 +915,24 @@ pre {
         bib_path     = (self.root / 'references.bib').resolve()
         csl_path     = (self.root / 'includes' / 'abnt.csl').resolve()
         emoji_filter = (self.root / 'includes' / 'emoji-filter.lua').resolve()
-        cover_abs    = (self.root / 'includes' / 'girassol_capa.png').resolve()
+        # cover-image (abaixo) referencia includes/girassol_capa.png por nome
+        # fixo — o override por locale (girassol_capa.<locale>.png) já é
+        # resolvido no symlink de qdir/includes/ (ver _merge_includes_dir).
 
         if not csl_path.exists():
             self._create_default_csl(csl_path)
 
         custom_filename = f"livro.{combo.file_key}"
+
+        # Combos não-base chegam com outputs/execution_count limpos
+        # (NotebookProcessor._clean_cell) — sem `enabled: true` explícito, o
+        # engine ipynb do Quarto trata "outputs já presentes (mesmo vazios)"
+        # como "já executado" e só exibe o código-fonte, sem rodar nada
+        # (confirmado: só `quarto render --execute` força a execução; sem a
+        # flag, nenhuma figura é gerada para combos não-base). O combo base
+        # (py.pt) mantém os outputs originais do autor — não force reexecução
+        # aqui para não mudar esse comportamento já validado.
+        execute_enabled = '' if combo.is_base() else '  enabled: true\n'
 
         # NOTA: A capa do PDF é gerada via capa.tex (include-before-body).
         # NÃO use \AtBeginDocument no include-in-header para isso — o Quarto/Pandoc
@@ -842,7 +949,7 @@ project:
 lang: {quarto_lang}
 
 book:
-  title: "Processamento Digital de Imagens e Visão Computacional"
+  title: "{book_title}"
   cover-image: "includes/girassol_capa.png"
   subtitle: "{subtitle}"
   author:
@@ -1044,7 +1151,7 @@ format:
       - file: fvextra.tex
 
 execute:
-  freeze: false
+{execute_enabled}  freeze: false
   cache: false
   echo: true      # ← GARANTE que o código-fonte das células SERÁ renderizado no PDF
   warning: false  # ← Oculta avisos do compilador/Python no PDF
@@ -1746,7 +1853,11 @@ def _fix_tex_cover(qdir: Path):
     # INSERÇÃO DE HIPERLINKS CLICÁVEIS NOS SIMULADORES DO PDF
     # ═════════════════════════════════════════════════════════════
     combo_name = qdir.name
-    
+    _combo = parse_combo(combo_name)
+    _cover_title = UI_STRINGS[_combo.locale]['title']
+    _cover_subtitle = (UI_STRINGS[_combo.locale]['pdf_subtitle']
+                       .format(lang_label=LANGUAGES[_combo.lang].label))
+
 
     def _replace_sim_with_link(match):
         full_fig_env = match.group(0)
@@ -2035,9 +2146,9 @@ def _fix_tex_cover(qdir: Path):
 \thispagestyle{{empty}}
 \vspace*{{3cm}}
 \begin{{center}}
-{{\Huge\bfseries\color{{darkblue}} Processamento Digital de Imagens e Visão Computacional\par}}
+{{\Huge\bfseries\color{{darkblue}} {_cover_title}\par}}
 \vspace{{1.2cm}}
-{{\Large Livro interativo com Python\par}}
+{{\Large {_cover_subtitle}\par}}
 \vspace{{3cm}}
 {{\Large Francisco de Assis Zampirolli\par}}
 \vfill
@@ -2099,7 +2210,9 @@ def _fix_tex_cover(qdir: Path):
 
     # ── Contracapa ───────────────────────────────────────────────
     project_root = qdir.parent.parent.parent
-    back_cover_abs = (project_root / 'includes' / 'girassol_contracapa.png').resolve()
+    back_cover_abs = _locale_asset(
+        project_root / 'includes' / 'girassol_contracapa.png', _combo.locale
+    ).resolve()
 
     if back_cover_abs.exists():
         back_cover_block = rf"""
@@ -2238,6 +2351,11 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
       combo_name = qdir.name
       parts = combo_name.split('.')
       file_key = f'{parts[1]}.{parts[0]}'
+
+      # Informa o locale ao kernel Python que executa os notebooks (lido por
+      # morph/config.py via PDI_VC_LOCALE) para que mensagens como
+      # "Ambiente pronto" saiam no idioma do combo sendo renderizado.
+      os.environ['PDI_VC_LOCALE'] = parts[1]
 
       env = os.environ.copy()
       tinytex_path = _get_quarto_latex_path()

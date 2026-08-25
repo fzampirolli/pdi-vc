@@ -2109,7 +2109,15 @@ def run_batch(bib_path: str, out_dir: str,
             reset_section_numbering()
         
         cap_name = nb_path.parent.name
-        out_cap = out_root / cap_name
+        # Path inclui "{target_lang}.pt" (mesma convenção lang.locale do
+        # pipeline Quarto em pipeline/config.py:Combo.key) porque este
+        # script sempre mantém o texto em Português — não faz tradução de
+        # idioma humano, só filtra células por linguagem de programação
+        # (target_lang). Sem esse prefixo, gerar notebooks pra linguagens
+        # diferentes (ex.: --lang cpp) sobrescreveria o mesmo
+        # "notebooks_alunos/cap01/cap01_aluno.ipynb" de sempre, e o badge
+        # do Colab no notebook-fonte ficaria ambíguo sobre qual versão abre.
+        out_cap = out_root / f"{target_lang}.pt" / cap_name
         aluno_name = nb_path.stem + "_aluno.ipynb"
         out_nb = out_cap / aluno_name
         print(f"[{cap_name}] {nb_path}")
@@ -2134,12 +2142,12 @@ def run_batch(bib_path: str, out_dir: str,
         "Notebooks dos capítulos com referências bibliográficas, "
         "figuras, tabelas e equações renderizadas para Jupyter/Colab.\n\n"
         "## Estrutura\n"
-        "`capXX/capXX_aluno.ipynb` — notebook do capítulo XX\n"
-        "`apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X\n"
-        "`capXX/images/` — imagens do capítulo\n\n"
+        f"`{target_lang}.pt/capXX/capXX_aluno.ipynb` — notebook do capítulo XX\n"
+        f"`{target_lang}.pt/apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X\n"
+        f"`{target_lang}.pt/capXX/images/` — imagens do capítulo\n\n"
         "## Como usar\n"
         "```bash\n"
-        "jupyter lab cap01/cap01_aluno.ipynb\n"
+        f"jupyter lab {target_lang}.pt/cap01/cap01_aluno.ipynb\n"
         "```\n\n"
         "## Características\n"
         "- Referências bibliográficas formatadas (ABNT)\n"

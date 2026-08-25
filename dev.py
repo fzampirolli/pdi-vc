@@ -19,6 +19,10 @@ Uso:
   # Dry-run (sem API — placeholders)
   python dev.py --dry-run
 
+  # Promover edições manuais feitas em gen/*.ipynb pro cache de tradução
+  # (ver README § Editando o conteúdo gerado) — não gera nem builda nada
+  python dev.py --promote-edits --langs cpp --locales en
+
 Atalhos de teclado durante o watch:
   r  → rebuild tudo agora
   q  → sair
@@ -26,6 +30,7 @@ Atalhos de teclado durante o watch:
 
 import argparse
 import os
+import re
 import sys
 import time
 import hashlib
@@ -91,20 +96,100 @@ def find_sources(paths: list[str] | None = None) -> list[Path]:
     return sorted(DIR_ALL.glob('cap*/cap*.ipynb'))
 
 
-def build_notebook(nb_path: Path, combo: Combo,
-                   processor: NotebookProcessor) -> Path:
+def _gen_notebook_path(nb_path: Path, combo: Combo) -> Path:
     cap_dir  = nb_path.parent.name
     stem     = nb_path.stem
     out_name = f'{stem}.{combo.key}.ipynb'
-    out_dir  = DIR_GEN / combo.key / cap_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / out_name
+    return DIR_GEN / combo.key / cap_dir / out_name
+
+
+def build_notebook(nb_path: Path, combo: Combo,
+                   processor: NotebookProcessor) -> Path:
+    out_path = _gen_notebook_path(nb_path, combo)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     nb_out = processor.process(str(nb_path), combo)
     with open(out_path, 'w', encoding='utf-8') as f:
         nbformat.write(nb_out, f)
 
     return out_path
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Promoção de edições manuais (gen/*.ipynb → cache)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_WRITEFILE_HEAD_RE = re.compile(r'^%%writefile\s+\S+\n')
+
+
+def _cell_text(cell) -> str:
+    src = cell.get('source', '')
+    return ''.join(src) if isinstance(src, list) else src
+
+
+def promote_edits(sources: list[Path], combos: list[Combo],
+                  processor: NotebookProcessor, cache: TranslationCache) -> None:
+    """
+    Cada célula traduzida por LLM carrega em metadata.pdi.ck a chave de
+    cache que a gerou (ver notebook_processor.py::_tag_cache_key). Se o
+    professor editar essa célula direto no notebook gerado (gen/<combo>/)
+    e salvar, o conteúdo em disco passa a diferir do que o pipeline geraria
+    — esta função detecta a diferença e grava a edição na mesma chave, pra
+    que o próximo build reproduza a correção sem chamar o LLM de novo.
+
+    Comparar direto contra `cache.get_raw(ck)` não funciona pra células de
+    TEXTO: em combos não-base, `NotebookProcessor.process()` roda
+    `postprocess_markdown()` (citações, figuras, cross-refs) DEPOIS de
+    pegar o valor do cache, então o texto em disco nunca é igual ao valor
+    cru cacheado, mesmo sem edição nenhuma — isso gerava falso-positivo em
+    toda célula de texto. Por isso a comparação é contra uma regeneração
+    de referência via `processor.process()` (mesmo caminho de um build
+    normal, sem custo de API — todo cache hit), não contra o cache cru.
+    Só entra em cache o texto de fato editado, já no formato final
+    (pós-processado) — e por `postprocess_markdown` consumir os padrões
+    que dispara (`@key`, `:::{#fig-...}:::`, `\\printbibliography`),
+    reaplicá-lo em cima de um texto já processado é inofensivo, então essa
+    é uma chave de cache válida pro próximo build.
+
+    Não gera nem builda nada; só promove o que já está em disco.
+    """
+    promoted = 0
+    for combo in combos:
+        for nb_path in sources:
+            gen_path = _gen_notebook_path(nb_path, combo)
+            if not gen_path.exists():
+                continue
+            with open(gen_path, encoding='utf-8') as f:
+                disk_nb = nbformat.read(f, as_version=4)
+            ref_nb = processor.process(str(nb_path), combo)
+
+            if len(disk_nb.cells) != len(ref_nb.cells):
+                print(f'  ⚠ {gen_path}: número de células mudou desde a última '
+                      f'geração (fonte em all/ foi editada?) — rode o build '
+                      f'normal de novo antes de promover.')
+                continue
+
+            for i, (disk_cell, ref_cell) in enumerate(zip(disk_nb.cells, ref_nb.cells)):
+                ck = ref_cell.get('metadata', {}).get('pdi', {}).get('ck')
+                if not ck:
+                    continue
+                disk_src = _cell_text(disk_cell)
+                if disk_src == _cell_text(ref_cell):
+                    continue  # nada editado nesta célula
+
+                # Célula %%writefile (expansão pra linguagem estrangeira):
+                # o valor cacheado é só o corpo do arquivo, sem esse header.
+                m = _WRITEFILE_HEAD_RE.match(disk_src)
+                editable = disk_src[m.end():] if m else disk_src
+                if cache.set_raw(ck, editable):
+                    promoted += 1
+                    print(f'  ✏ promovido: {gen_path.relative_to(DIR_GEN)} célula {i}')
+    cache.save()
+    if promoted:
+        print(f'\n✅ {promoted} célula(s) promovida(s) pro cache. '
+              f'Rode o build normal de novo pra conferir.')
+    else:
+        print('\nNenhuma edição nova encontrada (nada promovido).')
 
 
 def run_build(sources: list[Path], combos: list[Combo],
@@ -198,6 +283,9 @@ def main():
                         help='Renderizar Quarto após build (padrão: apenas gera notebooks)')
     parser.add_argument('--once', action='store_true',
                         help='Build único, sem entrar no loop de watch')
+    parser.add_argument('--promote-edits', action='store_true',
+                        help='Grava no cache as edições manuais feitas em gen/*.ipynb '
+                             '(não gera nem builda nada — ver README § Editando o conteúdo gerado)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Sem chamadas à API — usa placeholders')
     parser.add_argument('--interval', type=float, default=2.0,
@@ -229,6 +317,10 @@ def main():
     sources = find_sources(args.sources or None)
     if not sources:
         sys.exit(f'Nenhum notebook encontrado em {DIR_ALL}/')
+
+    if args.promote_edits:
+        promote_edits(sources, combos, processor, cache)
+        return
 
     mode = '(dry-run)' if args.dry_run else '(API Anthropic)'
     print(f'📚 Fontes : {len(sources)} notebooks')

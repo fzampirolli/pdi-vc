@@ -36,9 +36,9 @@ all-formats:
 build:
 	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html
 	$(MAKE) index
-	$(MAKE) eps
-	$(MAKE) moodle
-	$(MAKE) sims
+	$(MAKE) eps-all
+	$(MAKE) moodle-all
+	$(MAKE) sims-all
 
 .PHONY: build-index
 build-index:
@@ -149,7 +149,7 @@ moodle:
 
 .PHONY: moodle-all
 moodle-all:
-	@for locale in $(LOCALES); do \
+	@for locale in $$(echo "$(LOCALES)" | tr ',' ' '); do \
 		python ep_tools.py limpar \
 			gen/book/eps/py.$$locale \
 			gen/book/eps/py.$${locale}_moodle \

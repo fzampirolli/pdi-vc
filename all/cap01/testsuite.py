@@ -15,24 +15,6 @@ GITHUB_BASE     = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/a
 LOCAL_CASES_DIR = "casos"
 
 
-def compile_run_table(name: str) -> dict:
-    """
-    Comando de compilar (quando houver) e rodar cada linguagem suportada,
-    para o nome-base `name` (ex.: "EP01_01"). Fonte única, usada por
-    TestSuite._linguagens() e pelo pipeline de build (que não pode
-    reimportar TestSuite sem puxar toda a lógica de download/comparação).
-    """
-    n = name
-    return {
-        ".py":   ("Python",   ["python3", f"{n}.py"],                    None),
-        ".java": ("Java",     ["java", n],              ["javac", f"{n}.java"]),
-        ".c":    ("C",        [f"./{n}"],                ["gcc",  f"{n}.c",   "-o", n, "-lm"]),
-        ".cpp":  ("C++",      [f"./{n}"],                ["g++",  f"{n}.cpp", "-o", n]),
-        ".js":   ("Node.js",  ["node", f"{n}.js"],                        None),
-        ".r":    ("R",        ["Rscript", "--slave", f"{n}.r"],            None),
-    }
-
-
 class TestSuite:
     """Baixa casos de teste do GitHub e valida soluções locais."""
 
@@ -193,7 +175,15 @@ class TestSuite:
         return casos
 
     def _linguagens(self):
-        return compile_run_table(self.base_norm)
+        n = self.base_norm
+        return {
+            ".py":   ("Python",   ["python3", f"{n}.py"],                    None),
+            ".java": ("Java",     ["java", n],              ["javac", f"{n}.java"]),
+            ".c":    ("C",        [f"./{n}"],                ["gcc",  f"{n}.c",   "-o", n, "-lm"]),
+            ".cpp":  ("C++",      [f"./{n}"],                ["g++",  f"{n}.cpp", "-o", n]),
+            ".js":   ("Node.js",  ["node", f"{n}.js"],                        None),
+            ".r":    ("R",        ["Rscript", "--slave", f"{n}.r"],            None),
+        }
 
     def _alvos(self):
         linguagens = self._linguagens()
