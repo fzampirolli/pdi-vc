@@ -49,7 +49,7 @@ try:
 except ImportError:
     raise ImportError("pip install nbformat")
 
-from .config import BASE_LANG, LANGUAGES, LOCALES, Combo
+from .config import BASE_LANG, BASE_LOCALE, LANGUAGES, LOCALES, Combo
 from .translators import TranslatorFactory
 from .bib import resolve_citations, resolve_bibliography
 
@@ -513,7 +513,17 @@ class NotebookProcessor:
                     translated = postprocess_markdown(translated, self._bib, used_keys)
                 _set_source(cell, translated)
 
-            # common → sem alteração
+            elif role == 'common' and cell.cell_type == 'code' and combo.locale != BASE_LOCALE:
+                # 'common' mantém o código idêntico entre combos de LINGUAGEM
+                # (nunca vira cpp/java/c) — mas os comentários ainda precisam
+                # seguir o locale, senão sobra Português em EPs.ipynb de
+                # qualquer combo não-pt (mesmo lang == BASE_LANG).
+                comment_tr = self._factory.code_translator(BASE_LANG, combo.locale)
+                translated = comment_tr.translate(src)
+                self._tag_cache_key(cell, src, comment_tr)
+                _set_source(cell, translated)
+
+            # common (locale == pt) → sem alteração
 
             _clean_cell(cell, is_base=combo.is_base())
 

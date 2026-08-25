@@ -14,6 +14,145 @@ NC     = '\033[0m'
 GITHUB_BASE     = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all"
 LOCAL_CASES_DIR = "casos"
 
+# Idioma das mensagens impressas por este módulo — mesmo mecanismo do
+# morph/config.py: lido de PDI_VC_LOCALE (definido pelo pipeline de build
+# por combo), com "pt" como padrão fora do pipeline (Colab, uso avulso).
+LOCALE = os.environ.get("PDI_VC_LOCALE", "pt")
+
+_MESSAGES = {
+    "pt": {
+        "given_directly":    "📋 {n} caso(s) fornecido(s) diretamente",
+        "testing_inline":    "\n🔍 Testando Python (inline)",
+        "cases_exist":       "✔️ {nome_caso} já existe em {dir}/",
+        "trying_url":        "📥 Tentando: {url}",
+        "downloaded_ok":     "   ✅ Baixado com sucesso",
+        "download_failed":   "❌ Não foi possível baixar {nome_caso}",
+        "cases_loaded":      "📋 {n} caso(s) carregado(s) de {caminho}",
+        "file_not_found":    "💥 Arquivo {arq} não encontrado.",
+        "testing_lang_file": "\n🔍 Testando {linguagem}: {arquivo}",
+        "file_too_short":    "⚠️ {arquivo}: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.",
+        "file_read_error":   "⚠️ Não foi possível ler {arquivo}: {erro}. Testes ignorados.",
+        "compile_error":     "💥 Erro de compilação:",
+        "runtime_error":     "💥 {nome}: Erro durante a execução",
+        "case_ok":           "✔️ {nome}: OK",
+        "case_failed":       "❌ {nome}: FALHOU",
+        "input_label":       "   📥 Entrada:\n{entrada}",
+        "expected_label":    "   🎯 Esperado:\n{esperado}",
+        "obtained_label":    "   📤 Obtido:\n{obtido}",
+        "timeout":           "⏱️ {nome}: Tempo limite excedido (5s)",
+        "result_summary":    "\n📊 Resultado: {acertos}/{total} ({pct:.1f}%)",
+        "all_passed":        "🎉 Parabéns! Todos os testes passaram.",
+        "cli_usage":         "Uso: python3 testsuite.py EP01_02[.ext]",
+        "invalid_name":      "Nome inválido: '{ep}'. Use EP01_02 ou EP1_2.",
+    },
+    "en": {
+        "given_directly":    "📋 {n} case(s) provided directly",
+        "testing_inline":    "\n🔍 Testing Python (inline)",
+        "cases_exist":       "✔️ {nome_caso} already exists in {dir}/",
+        "trying_url":        "📥 Trying: {url}",
+        "downloaded_ok":     "   ✅ Downloaded successfully",
+        "download_failed":   "❌ Could not download {nome_caso}",
+        "cases_loaded":      "📋 {n} case(s) loaded from {caminho}",
+        "file_not_found":    "💥 File {arq} not found.",
+        "testing_lang_file": "\n🔍 Testing {linguagem}: {arquivo}",
+        "file_too_short":    "⚠️ {arquivo}: Empty file (fewer than 3 lines). Tests skipped.",
+        "file_read_error":   "⚠️ Could not read {arquivo}: {erro}. Tests skipped.",
+        "compile_error":     "💥 Compilation error:",
+        "runtime_error":     "💥 {nome}: Error during execution",
+        "case_ok":           "✔️ {nome}: OK",
+        "case_failed":       "❌ {nome}: FAILED",
+        "input_label":       "   📥 Input:\n{entrada}",
+        "expected_label":    "   🎯 Expected:\n{esperado}",
+        "obtained_label":    "   📤 Output:\n{obtido}",
+        "timeout":           "⏱️ {nome}: Timeout exceeded (5s)",
+        "result_summary":    "\n📊 Result: {acertos}/{total} ({pct:.1f}%)",
+        "all_passed":        "🎉 Congratulations! All tests passed.",
+        "cli_usage":         "Usage: python3 testsuite.py EP01_02[.ext]",
+        "invalid_name":      "Invalid name: '{ep}'. Use EP01_02 or EP1_2.",
+    },
+    "fr": {
+        "given_directly":    "📋 {n} cas fourni(s) directement",
+        "testing_inline":    "\n🔍 Test de Python (en ligne)",
+        "cases_exist":       "✔️ {nome_caso} existe déjà dans {dir}/",
+        "trying_url":        "📥 Tentative : {url}",
+        "downloaded_ok":     "   ✅ Téléchargement réussi",
+        "download_failed":   "❌ Impossible de télécharger {nome_caso}",
+        "cases_loaded":      "📋 {n} cas chargé(s) depuis {caminho}",
+        "file_not_found":    "💥 Fichier {arq} introuvable.",
+        "testing_lang_file": "\n🔍 Test de {linguagem} : {arquivo}",
+        "file_too_short":    "⚠️ {arquivo} : fichier vide (moins de 3 lignes). Tests ignorés.",
+        "file_read_error":   "⚠️ Impossible de lire {arquivo} : {erro}. Tests ignorés.",
+        "compile_error":     "💥 Erreur de compilation :",
+        "runtime_error":     "💥 {nome} : erreur pendant l'exécution",
+        "case_ok":           "✔️ {nome} : OK",
+        "case_failed":       "❌ {nome} : ÉCHEC",
+        "input_label":       "   📥 Entrée :\n{entrada}",
+        "expected_label":    "   🎯 Attendu :\n{esperado}",
+        "obtained_label":    "   📤 Obtenu :\n{obtido}",
+        "timeout":           "⏱️ {nome} : délai dépassé (5 s)",
+        "result_summary":    "\n📊 Résultat : {acertos}/{total} ({pct:.1f} %)",
+        "all_passed":        "🎉 Félicitations ! Tous les tests ont réussi.",
+        "cli_usage":         "Utilisation : python3 testsuite.py EP01_02[.ext]",
+        "invalid_name":      "Nom invalide : '{ep}'. Utilisez EP01_02 ou EP1_2.",
+    },
+    "es": {
+        "given_directly":    "📋 {n} caso(s) proporcionado(s) directamente",
+        "testing_inline":    "\n🔍 Probando Python (en línea)",
+        "cases_exist":       "✔️ {nome_caso} ya existe en {dir}/",
+        "trying_url":        "📥 Intentando: {url}",
+        "downloaded_ok":     "   ✅ Descargado con éxito",
+        "download_failed":   "❌ No fue posible descargar {nome_caso}",
+        "cases_loaded":      "📋 {n} caso(s) cargado(s) de {caminho}",
+        "file_not_found":    "💥 Archivo {arq} no encontrado.",
+        "testing_lang_file": "\n🔍 Probando {linguagem}: {arquivo}",
+        "file_too_short":    "⚠️ {arquivo}: archivo vacío (menos de 3 líneas). Pruebas omitidas.",
+        "file_read_error":   "⚠️ No fue posible leer {arquivo}: {erro}. Pruebas omitidas.",
+        "compile_error":     "💥 Error de compilación:",
+        "runtime_error":     "💥 {nome}: Error durante la ejecución",
+        "case_ok":           "✔️ {nome}: OK",
+        "case_failed":       "❌ {nome}: FALLÓ",
+        "input_label":       "   📥 Entrada:\n{entrada}",
+        "expected_label":    "   🎯 Esperado:\n{esperado}",
+        "obtained_label":    "   📤 Obtenido:\n{obtido}",
+        "timeout":           "⏱️ {nome}: Tiempo límite excedido (5s)",
+        "result_summary":    "\n📊 Resultado: {acertos}/{total} ({pct:.1f}%)",
+        "all_passed":        "🎉 ¡Felicidades! Todas las pruebas pasaron.",
+        "cli_usage":         "Uso: python3 testsuite.py EP01_02[.ext]",
+        "invalid_name":      "Nombre inválido: '{ep}'. Use EP01_02 o EP1_2.",
+    },
+    "it": {
+        "given_directly":    "📋 {n} caso/i fornito/i direttamente",
+        "testing_inline":    "\n🔍 Test di Python (inline)",
+        "cases_exist":       "✔️ {nome_caso} esiste già in {dir}/",
+        "trying_url":        "📥 Tentativo: {url}",
+        "downloaded_ok":     "   ✅ Scaricato con successo",
+        "download_failed":   "❌ Impossibile scaricare {nome_caso}",
+        "cases_loaded":      "📋 {n} caso/i caricato/i da {caminho}",
+        "file_not_found":    "💥 File {arq} non trovato.",
+        "testing_lang_file": "\n🔍 Test di {linguagem}: {arquivo}",
+        "file_too_short":    "⚠️ {arquivo}: file vuoto (meno di 3 righe). Test saltati.",
+        "file_read_error":   "⚠️ Impossibile leggere {arquivo}: {erro}. Test saltati.",
+        "compile_error":     "💥 Errore di compilazione:",
+        "runtime_error":     "💥 {nome}: Errore durante l'esecuzione",
+        "case_ok":           "✔️ {nome}: OK",
+        "case_failed":       "❌ {nome}: FALLITO",
+        "input_label":       "   📥 Input:\n{entrada}",
+        "expected_label":    "   🎯 Atteso:\n{esperado}",
+        "obtained_label":    "   📤 Ottenuto:\n{obtido}",
+        "timeout":           "⏱️ {nome}: Timeout superato (5s)",
+        "result_summary":    "\n📊 Risultato: {acertos}/{total} ({pct:.1f}%)",
+        "all_passed":        "🎉 Complimenti! Tutti i test sono stati superati.",
+        "cli_usage":         "Uso: python3 testsuite.py EP01_02[.ext]",
+        "invalid_name":      "Nome non valido: '{ep}'. Usa EP01_02 o EP1_2.",
+    },
+}
+
+
+def _msg(key, **kwargs):
+    table = _MESSAGES.get(LOCALE, _MESSAGES["pt"])
+    template = table.get(key, _MESSAGES["pt"][key])
+    return template.format(**kwargs)
+
 
 def compile_run_table(name: str) -> dict:
     """
@@ -48,7 +187,7 @@ class TestSuite:
         self.ext        = ext.lower() if ext else None
         self.base_norm, self.cap_str, self.ex_str = self._normalizar(base)
         if not self.base_norm:
-            raise ValueError(f"Nome inválido: '{ep}'. Use EP01_02 ou EP1_2.")
+            raise ValueError(_msg("invalid_name", ep=ep))
 
     # ------------------------------------------------------------------ #
     #  API pública                                                         #
@@ -82,7 +221,7 @@ class TestSuite:
 
         if casos_dict:
             casos = [(nome, v["input"], v["output"]) for nome, v in casos_dict.items()]
-            self._p(f"📋 {len(casos)} caso(s) fornecido(s) diretamente")
+            self._p(_msg("given_directly", n=len(casos)))
         else:
             nome_caso = f"{self.base_norm}.cases"
             caminho_casos = os.path.join(LOCAL_CASES_DIR, nome_caso)
@@ -94,7 +233,7 @@ class TestSuite:
                 self._flush()
                 return
 
-        self._p("\n🔍 Testando Python (inline)")
+        self._p(_msg("testing_inline"))
 
         with tempfile.TemporaryDirectory() as tmp:
             nome = f"{self.base_norm}.py"
@@ -141,7 +280,7 @@ class TestSuite:
     def _baixar(self, nome_caso, caminho_local):
         os.makedirs(LOCAL_CASES_DIR, exist_ok=True)
         if os.path.exists(caminho_local):
-            self._p(f"✔️ {nome_caso} já existe em {LOCAL_CASES_DIR}/")
+            self._p(_msg("cases_exist", nome_caso=nome_caso, dir=LOCAL_CASES_DIR))
             return True
         cap_int = int(self.cap_str)
         ex_int  = int(self.ex_str)
@@ -149,14 +288,14 @@ class TestSuite:
             f"{GITHUB_BASE}/cap{self.cap_str}/casos/{nome_caso}",
             f"{GITHUB_BASE}/cap{self.cap_str}/cap{cap_int}/EP{cap_int}_{ex_int}.cases",
         ]:
-            self._p(f"📥 Tentando: {url}")
+            self._p(_msg("trying_url", url=url))
             try:
                 urllib.request.urlretrieve(url, caminho_local)
-                self._p("   ✅ Baixado com sucesso")
+                self._p(_msg("downloaded_ok"))
                 return True
             except Exception:
                 pass
-        self._p(f"❌ Não foi possível baixar {nome_caso}")
+        self._p(_msg("download_failed", nome_caso=nome_caso))
         return False
 
     def _carregar(self, caminho):
@@ -189,7 +328,7 @@ class TestSuite:
             opcoes_limpas = [op[1:-1] if len(op) >= 2 and op[0] == op[-1] and op[0] in "\"'" else op
                              for op in saida_opcoes]
             casos.append((nome, "\n".join(entrada), "\n<OU>\n".join(opcoes_limpas)))
-        self._p(f"📋 {len(casos)} caso(s) carregado(s) de {caminho}")
+        self._p(_msg("cases_loaded", n=len(casos), caminho=caminho))
         return casos
 
     def _linguagens(self):
@@ -201,7 +340,7 @@ class TestSuite:
             for candidato in [f"{self.base_norm}{self.ext}"]:
                 if os.path.exists(candidato):
                     return [(candidato, self.ext)]
-            self._p(f"💥 Arquivo {self.base_norm}{self.ext} não encontrado.")
+            self._p(_msg("file_not_found", arq=f"{self.base_norm}{self.ext}"))
             return []
         return [(f"{self.base_norm}{ext}", ext)
                 for ext in linguagens if os.path.exists(f"{self.base_norm}{ext}")]
@@ -231,17 +370,17 @@ class TestSuite:
 
     def _testar(self, lang_info, arquivo, casos):
         linguagem, comando, compilar = lang_info
-        self._p(f"\n🔍 Testando {linguagem}: {arquivo}")
+        self._p(_msg("testing_lang_file", linguagem=linguagem, arquivo=arquivo))
 
         # ⬇️ NOVO: verifica se o arquivo tem pelo menos 3 linhas
         try:
             with open(arquivo, 'r', encoding='utf-8') as f:
                 num_linhas = sum(1 for _ in f)
             if num_linhas < 3:
-                self._p(f"{YELLOW}⚠️ {arquivo}: Arquivo sem conteúdo (menos de 3 linhas). Testes ignorados.{NC}")
+                self._p(f"{YELLOW}{_msg('file_too_short', arquivo=arquivo)}{NC}")
                 return
         except Exception as e:
-            self._p(f"{YELLOW}⚠️ Não foi possível ler {arquivo}: {e}. Testes ignorados.{NC}")
+            self._p(f"{YELLOW}{_msg('file_read_error', arquivo=arquivo, erro=e)}{NC}")
             return
         # ⬆️ fim da verificação
 
@@ -249,39 +388,39 @@ class TestSuite:
             try:
                 subprocess.run(compilar, check=True, capture_output=True)
             except subprocess.CalledProcessError as e:
-                self._p(f"{RED}💥 Erro de compilação:{NC}")
+                self._p(f"{RED}{_msg('compile_error')}{NC}")
                 if e.stderr: self._p(e.stderr.decode())
                 return
-            
+
         acertos = 0
         for nome, entrada, gabarito_raw in casos:
             try:
                 proc = subprocess.run(comando, input=entrada, capture_output=True, text=True, timeout=5)
 
                 if proc.returncode != 0:
-                    self._p(f"{RED}💥 {nome}: Erro durante a execução{NC}")
+                    self._p(f"{RED}{_msg('runtime_error', nome=nome)}{NC}")
                     if proc.stderr.strip():
                         self._p(proc.stderr.strip())
                     continue
 
                 saida = proc.stdout.strip()
                 if self._comparar(saida, gabarito_raw):
-                    self._p(f"{GREEN}✔️ {nome}: OK{NC}")
+                    self._p(f"{GREEN}{_msg('case_ok', nome=nome)}{NC}")
                     acertos += 1
                 else:
-                    self._p(f"{RED}❌ {nome}: FALHOU{NC}")
-                    self._p(f"   📥 Entrada:\n{entrada}")
-                    self._p(f"   🎯 Esperado:\n{gabarito_raw.split('<OU>')[0].strip()}")
-                    self._p(f"   📤 Obtido:\n{saida}")
+                    self._p(f"{RED}{_msg('case_failed', nome=nome)}{NC}")
+                    self._p(_msg("input_label", entrada=entrada))
+                    self._p(_msg("expected_label", esperado=gabarito_raw.split('<OU>')[0].strip()))
+                    self._p(_msg("obtained_label", obtido=saida))
             except subprocess.TimeoutExpired:
-                self._p(f"{RED}⏱️ {nome}: Tempo limite excedido (5s){NC}")
+                self._p(f"{RED}{_msg('timeout', nome=nome)}{NC}")
             except Exception:
-                self._p(f"{RED}💥 {nome}: Erro durante a execução{NC}")
+                self._p(f"{RED}{_msg('runtime_error', nome=nome)}{NC}")
                 self._p(traceback.format_exc())
         pct = acertos / len(casos) * 100 if casos else 0
-        self._p(f"\n📊 Resultado: {acertos}/{len(casos)} ({pct:.1f}%)")
+        self._p(_msg("result_summary", acertos=acertos, total=len(casos), pct=pct))
         if acertos == len(casos):
-            self._p(f"{GREEN}🎉 Parabéns! Todos os testes passaram.{NC}")
+            self._p(f"{GREEN}{_msg('all_passed')}{NC}")
 
 
 # ------------------------------------------------------------------ #
@@ -289,6 +428,6 @@ class TestSuite:
 # ------------------------------------------------------------------ #
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python3 testsuite.py EP01_02[.ext]")
+        print(_msg("cli_usage"))
         sys.exit(1)
     TestSuite(sys.argv[1]).run()
