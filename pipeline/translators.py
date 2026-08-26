@@ -201,7 +201,9 @@ class LLMCodeTranslator(Translator):
         # idioma errado.
         return f'{self._tgt_lang}.{self._tgt_locale}'
 
-    def translate(self, source: str, output_image_path: Optional[str] = None, **_) -> str:
+    def translate(self, source: str, output_image_path: Optional[str] = None,
+                  external_vars: Optional[list[str]] = None,
+                  persisted_vars: Optional[list[str]] = None, **_) -> str:
         """
         `output_image_path`: quando a célula original chama mm.show(...), o
         chamador (NotebookProcessor) já sabe o nome do PNG (derivado do
@@ -209,6 +211,18 @@ class LLMCodeTranslator(Translator):
         ANTES da checagem de compilação (senão MM_OUT não está definido e
         toda célula com mm::show() reprovaria na validação por um motivo
         que não tem nada a ver com a tradução em si).
+
+        `external_vars`/`persisted_vars`: nomes de variáveis `mm::Image`
+        que atravessam células (ver
+        `notebook_processor._detect_cross_cell_mm_vars`) — só avisam o LLM
+        pra não redeclarar/renomear; a persistência real (mm::write/
+        mm::read em state/) é injetada mecanicamente DEPOIS deste método
+        retornar, em `notebook_processor._expand_foreign_code_cell`, e por
+        isso propositalmente NÃO entram na chave de cache (mesma escolha
+        já feita pra `output_image_path`) — o grafo de dependência entre
+        células pode mudar sem o texto desta célula mudar, e recalcular a
+        injeção a cada build (barata, mecânica) é mais seguro que arriscar
+        uma dica de prompt desatualizada presa num cache hit.
         """
         if not source.strip():
             return source
@@ -270,6 +284,31 @@ class LLMCodeTranslator(Translator):
                   (e.g. mm::randomImage(4, 6, 255)), in the same parameter
                   order as the signatures above.
             """).strip()
+            if external_vars:
+                mm_cheatsheet += '\n\n' + (
+                    'Still write a COMPLETE, self-contained program exactly '
+                    'as usual — all necessary #include lines, and your own '
+                    '`int main() { ... }` wrapping all the logic below, '
+                    'exactly like every other translation. The only '
+                    'difference: the variables below will be assigned a '
+                    'valid value by a line inserted automatically as the '
+                    'VERY FIRST statement inside your `int main() {` — as if '
+                    'they were already initialized right there. Do NOT '
+                    'declare or initialize them yourself, do NOT call '
+                    'mm::read/mm::gray/etc. to obtain them, just reference '
+                    'them directly in your logic as already-valid variables:\n'
+                    + '\n'.join(f'  - {v} (mm::Image)' for v in sorted(external_vars))
+                )
+            if persisted_vars:
+                mm_cheatsheet += '\n\n' + (
+                    'The variables below must still hold their final, '
+                    'fully-computed value at the end of your `main()` (a '
+                    'line will be appended automatically, after all your '
+                    'code, to persist them) — do not rename them, reassign '
+                    'them to something else, or let them go out of scope '
+                    'before the end of `main()`:\n'
+                    + '\n'.join(f'  - {v} (mm::Image)' for v in sorted(persisted_vars))
+                )
             system = textwrap.dedent(f"""
                 You are an expert programming language converter.
                 Convert Python code to {lang_label}, following these rules:
@@ -320,8 +359,23 @@ class LLMCodeTranslator(Translator):
             # devolve o Python original, que o chamador (NotebookProcessor)
             # reconhece como "tradução indisponível" por comparação de
             # igualdade, sem precisar de um segundo canal de erro.
-            from .exec_validate import compile_check
-            ok, err = compile_check('cpp', result)
+            #
+            # `external_vars`: o código gerado genuinamente NÃO declara essas
+            # variáveis em lugar nenhum (o prompt pede pra tratá-las como já
+            # disponíveis) — sem um stub aqui, este compile_check reprovaria
+            # por "não declarado" uma tradução correta. O stub existe só pra
+            # esta checagem; nunca é cacheado nem chega ao chamador (a
+            # injeção REAL, com o caminho de state/ de verdade, acontece
+            # depois, em NotebookProcessor._expand_foreign_code_cell, com seu
+            # próprio compile_check independente sobre o código já mutado).
+            from .exec_validate import compile_check, inject_stub_declares
+            check_target = result
+            if external_vars:
+                check_target = inject_stub_declares(result, external_vars)
+                if check_target is None:
+                    print('  ⚠ Não achei int main() pra stubar external_vars; mantendo código original.')
+                    return source
+            ok, err = compile_check('cpp', check_target)
             if not ok:
                 print(f'  ⚠ Compilação C++ falhou; mantendo código original.\n{err[:800]}')
                 return source

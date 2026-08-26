@@ -27,4 +27,4 @@ echo ""
 ./utils/limpar.sh
 make build LANGS="$LANGS" LOCALES="$LOCALES"
 make html  LANGS="$LANGS" LOCALES="$LOCALES"
-make pdf   LANGS="$LANGS" LOCALES="$LOCALES"
+#make pdf   LANGS="$LANGS" LOCALES="$LOCALES"

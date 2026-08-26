@@ -123,11 +123,11 @@ epub:
 
 # ── Extração de EPs ───────────────────────────────────────────────────────────
 
-BASE_URL ?= https://fzampirolli.github.io/pdi-vc/eps/py.$(LOCALES)
+BASE_URL ?= https://fzampirolli.github.io/pdi-vc/eps/$(LANGS).$(LOCALES)
 
 .PHONY: eps
 eps:
-	python ep_tools.py extrair --input gen/book/$(LOCALES:%=py.%) 2>/dev/null || \
+	python ep_tools.py extrair --input gen/book/$(LOCALES:%=$(LANGS).%) 2>/dev/null || \
 	python ep_tools.py extrair --input gen/book
 
 .PHONY: eps-all
@@ -143,24 +143,24 @@ eps-dry:
 .PHONY: moodle
 moodle:
 	python ep_tools.py limpar \
-		gen/book/eps/py.$(LOCALES) \
-		gen/book/eps/py.$(LOCALES)_moodle \
+		gen/book/eps/$(LANGS).$(LOCALES) \
+		gen/book/eps/$(LANGS).$(LOCALES)_moodle \
 		--base-url "$(BASE_URL)"
 
 .PHONY: moodle-all
 moodle-all:
 	@for locale in $$(echo "$(LOCALES)" | tr ',' ' '); do \
 		python ep_tools.py limpar \
-			gen/book/eps/py.$$locale \
-			gen/book/eps/py.$${locale}_moodle \
-			--base-url "https://fzampirolli.github.io/pdi-vc/eps/py.$$locale"; \
+			gen/book/eps/$(LANGS).$$locale \
+			gen/book/eps/$(LANGS).$${locale}_moodle \
+			--base-url "https://fzampirolli.github.io/pdi-vc/eps/$(LANGS).$$locale"; \
 	done
 
 # ── Extração de Simuladores ──────────────────────────────────────────────────
 
 .PHONY: sims
 sims:
-	python sim_tools.py extrair --input gen/book/py.$(LOCALES)
+	python sim_tools.py extrair --input gen/book/$(LANGS).$(LOCALES)
 
 .PHONY: sims-all
 sims-all:
