@@ -27,6 +27,7 @@ import re
 import textwrap
 import tokenize
 from abc import ABC, abstractmethod
+from html.parser import HTMLParser
 from typing import Optional
 
 from .cache import TranslationCache
@@ -416,6 +417,13 @@ def _extract_comment_spans(source: str) -> list[tuple[int, int, str]]:
     try:
         for tok in tokenize.generate_tokens(io.StringIO(source).readline):
             if tok.type == tokenize.COMMENT:
+                # `#| label: fig-...` é o identificador de cross-reference
+                # Quarto — nunca pode mudar por locale (usado por @fig-...
+                # no texto, e pelo pareamento de nome de arquivo em
+                # _symlink_imagens_locale_aware/_screenshot_png_path). Só
+                # `#| fig-cap: "..."` (a legenda) deve mesmo ser traduzida.
+                if re.match(r'#\|\s*label\s*:', tok.string):
+                    continue
                 spans.append((_offset(*tok.start), _offset(*tok.end), tok.string))
     except (tokenize.TokenError, IndentationError, SyntaxError):
         pass
@@ -462,21 +470,291 @@ def _extract_comment_spans(source: str) -> list[tuple[int, int, str]]:
     return spans
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Extração de texto SEGURO de simuladores interativos (HTML/JS embutidos)
+#
+# Um simulador é uma célula `IPython.display.HTML("""...""")` — a string
+# inteira contém HTML+CSS+JS (ids referenciados por getElementById, atributos
+# de estilo, lógica de interação). Mandar esse blob inteiro pro LLM seria
+# arriscado (pode alterar ids, aspas, template literals). Em vez disso,
+# igual à extração de comentários acima, localizamos só os pedaços de texto
+# realmente seguros de traduzir — por regras mecânicas fixas, nunca por
+# decisão do LLM — e devolvemos spans (start, end, texto) no MESMO formato
+# de `_extract_comment_spans`, prontos pra fatiamento.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HTML_CALL_QUOTE_RE = re.compile(r'''^[rRbBfFuU]{0,2}('''
+                                  + "'''" + r'''|"""|'|")''')
+
+_HAS_PROSE_RE = re.compile(r'[A-Za-zÀ-ÖØ-öø-ÿ]{2,}')
+
+
+def _looks_translatable(text: Optional[str]) -> bool:
+    return bool(text) and bool(_HAS_PROSE_RE.search(text)) and len(text) <= 400
+
+
+_WIDGET_ATTR_RE = re.compile(
+    r'\b(?:title|placeholder|aria-label|alt)\s*=\s*"([^"]*)"'
+    r'''|\b(?:title|placeholder|aria-label|alt)\s*=\s*'([^']*)' '''
+)
+
+_WIDGET_SCRIPT_BLOCK_RE = re.compile(r'<script\b[^>]*>.*?</script>',
+                                      re.IGNORECASE | re.DOTALL)
+
+_WIDGET_TEXTCONTENT_RE = re.compile(
+    r'''\.textContent\s*=\s*"([^"\\]*)"|\.textContent\s*=\s*'([^'\\]*)' '''
+)
+
+_WIDGET_FILLTEXT_RE = re.compile(
+    r'''\bfillText\(\s*"([^"\\]*)"|\bfillText\(\s*'([^'\\]*)' '''
+)
+
+
+class _WidgetHTMLTextExtractor(HTMLParser):
+    """
+    Extrai nós de texto de um fragmento HTML (fora de <script>/<style>),
+    com offset de CARACTERE absoluto dentro do texto original — mesma
+    técnica de line_starts usada em `_extract_comment_spans`.
+    """
+
+    def __init__(self, source: str):
+        super().__init__(convert_charrefs=False)
+        self._source = source
+        line_starts = [0]
+        for line in source.splitlines(keepends=True):
+            line_starts.append(line_starts[-1] + len(line))
+        self._line_starts = line_starts
+        self._skip = 0
+        self.spans: list[tuple[int, int, str]] = []
+
+    def _offset(self, line: int, col: int) -> int:
+        return self._line_starts[line - 1] + col
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in ('script', 'style'):
+            self._skip += 1
+
+    def handle_endtag(self, tag):
+        if tag.lower() in ('script', 'style') and self._skip > 0:
+            self._skip -= 1
+
+    def handle_data(self, data):
+        if self._skip or not _looks_translatable(data):
+            return
+        line, col = self.getpos()
+        start = self._offset(line, col)
+        end = start + len(data)
+        # Defesa: se o offset calculado não reproduzir o texto exato (ex.:
+        # entidade HTML no meio confundindo a contagem), descarta o span em
+        # vez de arriscar uma posição errada.
+        if self._source[start:end] != data:
+            return
+        self.spans.append((start, end, data))
+
+
+def _extract_widget_text_spans(html_js_text: str) -> list[tuple[int, int, str]]:
+    """
+    Localiza, dentro do HTML/JS de um simulador, só o texto seguro de
+    traduzir: nós de texto HTML, atributos title/placeholder/aria-label/alt,
+    e dois padrões JS bem restritos (`.textContent = "..."` e
+    `fillText("...", ...)`) — sempre string literal PURA (nunca
+    concatenação nem template literal, que ficam de fora por construção).
+    Nunca toca em `id=`, atributos de estilo, nomes de função/variável ou
+    qualquer outra lógica JS.
+    """
+    spans: list[tuple[int, int, str]] = []
+
+    parser = _WidgetHTMLTextExtractor(html_js_text)
+    try:
+        parser.feed(html_js_text)
+        parser.close()
+    except Exception:
+        pass
+    spans.extend(parser.spans)
+
+    for m in _WIDGET_ATTR_RE.finditer(html_js_text):
+        group_idx = 1 if m.group(1) is not None else 2
+        value = m.group(group_idx)
+        if not _looks_translatable(value):
+            continue
+        spans.append((m.start(group_idx), m.end(group_idx), value))
+
+    script_ranges = [m.span() for m in _WIDGET_SCRIPT_BLOCK_RE.finditer(html_js_text)]
+    for pattern in (_WIDGET_TEXTCONTENT_RE, _WIDGET_FILLTEXT_RE):
+        for m in pattern.finditer(html_js_text):
+            if not any(s <= m.start() < e for s, e in script_ranges):
+                continue
+            group_idx = 1 if m.group(1) is not None else 2
+            value = m.group(group_idx)
+            if not _looks_translatable(value):
+                continue
+            spans.append((m.start(group_idx), m.end(group_idx), value))
+
+    # Remove sobreposições (mantém o primeiro span de cada região; na
+    # prática as três fontes acima não deveriam colidir, mas é uma rede de
+    # segurança barata contra um regex pegar algo já coberto pelo parser).
+    spans.sort(key=lambda s: s[0])
+    dedup: list[tuple[int, int, str]] = []
+    last_end = -1
+    for s, e, t in spans:
+        if s < last_end:
+            continue
+        dedup.append((s, e, t))
+        last_end = e
+    return dedup
+
+
+def _extract_widget_spans(source: str) -> list[tuple[int, int, str]]:
+    """
+    Localiza chamadas HTML(...) com uma string triplamente-citada
+    (simuladores interativos embutidos em células de código) no
+    código-fonte Python `source` e devolve, pra
+    cada uma, os spans de texto seguro de traduzir de dentro delas (ver
+    `_extract_widget_text_spans`) — offsets já convertidos pra posição
+    absoluta em `source`, no mesmo formato de `_extract_comment_spans`.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+
+    line_starts = [0]
+    for line in source.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+
+    def _offset(row: int, col: int) -> int:
+        return line_starts[row - 1] + col
+
+    spans: list[tuple[int, int, str]] = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == 'HTML' and len(node.args) == 1
+                and not node.keywords):
+            continue
+        arg = node.args[0]
+        if not (isinstance(arg, ast.Constant) and isinstance(arg.value, str)):
+            continue
+        arg_start = _offset(arg.lineno, arg.col_offset)
+        arg_end = _offset(arg.end_lineno, arg.end_col_offset)
+        arg_text = source[arg_start:arg_end]
+        m = _HTML_CALL_QUOTE_RE.match(arg_text)
+        if not m:
+            continue
+        quote = m.group(1)
+        inner_start = arg_start + m.end()
+        inner_end = arg_end - len(quote)
+        if inner_end <= inner_start:
+            continue
+        inner_text = source[inner_start:inner_end]
+        for local_start, local_end, text in _extract_widget_text_spans(inner_text):
+            spans.append((inner_start + local_start, inner_start + local_end, text))
+
+    spans.sort(key=lambda s: s[0])
+    return spans
+
+
+_ID_ATTR_RE = re.compile(r'''\bid\s*=\s*"([^"]*)"|\bid\s*=\s*'([^']*)' ''')
+
+
+def _widget_structure_fingerprint(text: str) -> tuple:
+    """
+    "Impressão digital" estrutural de um trecho com simuladores: conjunto
+    de todos os `id="..."` (usados por getElementById — não podem mudar)
+    e contagem de `<script>`/`</script>`. Comparar essa impressão antes e
+    depois da tradução é a rede de segurança final contra qualquer bug de
+    offset na extração — se divergir, a tradução é descartada.
+    """
+    ids = tuple(sorted((m.group(1) or m.group(2)) for m in _ID_ATTR_RE.finditer(text)))
+    n_open = len(re.findall(r'<script\b', text, re.IGNORECASE))
+    n_close = len(re.findall(r'</script>', text, re.IGNORECASE))
+    return (ids, n_open, n_close)
+
+
+def _translate_snippets_batch(spans: list[tuple[int, int, str]], system: str,
+                               label: str) -> Optional[dict]:
+    """
+    Traduz uma lista de (start, end, texto) em lote via LLM (uma chamada,
+    JSON array in/out, ordem preservada) — mesma mecânica de retry contra
+    eco/cache do DeepSeek de `_call_llm_retrying_if_unchanged`, adaptada
+    pra lote (o "eco" aqui é a lista inteira igual à original).
+    Devolve {(start, end): texto_traduzido}, ou None se a chamada falhar
+    (loga aviso) — o chamador decide o fallback (manter o span original).
+    """
+    originals = [text for (_, _, text) in spans]
+    user = json.dumps(originals, ensure_ascii=False)
+
+    def _ask(prompt_user: str) -> list:
+        raw = _call_llm(system, prompt_user)
+        raw = re.sub(r'^```\w*\n?', '', raw.strip())
+        raw = re.sub(r'\n?```$', '', raw.strip())
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list) or len(parsed) != len(spans):
+            raise ValueError('resposta com formato ou contagem inesperados')
+        return parsed
+
+    try:
+        translations = _ask(user)
+        attempt = 0
+        while translations == originals and attempt < 2:
+            attempt += 1
+            nonce = f'[req {random.randint(100000, 999999)}] '
+            translations = _ask(nonce + user)
+    except Exception as exc:
+        print(f'  ⚠ Tradução de {label} falhou ({exc}); mantendo trechos originais.')
+        return None
+
+    return {
+        (start, end): (new_text if isinstance(new_text, str) and new_text.strip() else original)
+        for (start, end, original), new_text in zip(spans, translations)
+    }
+
+
+_WIDGET_SYSTEM_TEMPLATE = """
+You translate short, ISOLATED user-interface text fragments from
+Portuguese to {locale_label}. They were mechanically extracted from an
+interactive HTML/JavaScript widget embedded in a textbook — you do NOT see
+the surrounding code and must not try to reconstruct or reference it.
+You receive a JSON array of raw fragments. Each one is one of:
+  - a plain text fragment (originally between HTML tags)
+  - the value of an HTML attribute (title/placeholder/aria-label/alt)
+  - a short label assigned via JavaScript (.textContent) or drawn on a
+    <canvas> (fillText)
+Rules:
+1. Return a JSON array with EXACTLY the same number of items, in the same
+   order — one translated fragment per input item.
+2. Translate ONLY the fragment's own text. It has no surrounding quotes —
+   return bare translated text, nothing added, nothing wrapped.
+3. Preserve emoji, numbers, units, punctuation, HTML entities (e.g.
+   &nbsp;) and any code-like token exactly as they are.
+4. If a fragment is not natural-language prose (e.g. just a symbol,
+   formula, or code token), return it unchanged.
+5. Keep translations short — these are UI labels/tooltips, not prose.
+6. Return ONLY the JSON array — no explanation, no markdown fence.
+""".strip()
+
+
 class LLMCommentTranslator(Translator):
     """
     py → py: a LINGUAGEM não muda, só o locale dos comentários/docstrings.
 
     Ao contrário do LLMCodeTranslator, NÃO manda o código inteiro pro LLM
     reescrever. Extrai apenas os spans de comentário/docstring via
-    tokenize/ast, traduz só esses trechos (uma chamada por célula, em lote
-    via JSON) e recola nas posições exatas do texto original. O restante do
-    arquivo nunca passa pelo modelo — a lógica não pode mudar por
-    construção, não por obediência do prompt.
+    tokenize/ast — e, se a célula contiver um simulador interativo
+    (chamada HTML(...) com string triplamente-citada), também os spans de
+    texto seguro de dentro dele (ver `_extract_widget_spans`) — traduz
+    cada grupo em lote (uma chamada
+    por grupo, via JSON) e recola tudo nas posições exatas do texto
+    original. O restante do arquivo (incluindo `id`s, atributos de estilo e
+    toda a lógica JS dos simuladores) nunca passa pelo modelo — a lógica
+    não pode mudar por construção, não por obediência do prompt.
 
     Rede de segurança: se o resultado reconstruído não for Python
-    sintaticamente válido, ou se a resposta do LLM vier com formato/
-    contagem inesperados, descarta a tradução e devolve o código-fonte
-    original sem alteração (loga aviso).
+    sintaticamente válido, se a estrutura do(s) simulador(es) mudar (ids/
+    contagem de `<script>` — ver `_widget_structure_fingerprint`), ou se a
+    resposta do LLM vier com formato/contagem inesperados, descarta a
+    tradução (do grupo afetado, ou da célula inteira no caso da checagem
+    estrutural) e devolve o código-fonte original sem alteração (loga
+    aviso).
     """
     kind = 'code'
     src_key = 'py'
@@ -498,8 +776,9 @@ class LLMCommentTranslator(Translator):
         if cached is not None:
             return cached
 
-        spans = _extract_comment_spans(source)
-        if not spans:
+        comment_spans = _extract_comment_spans(source)
+        widget_spans = _extract_widget_spans(source)
+        if not comment_spans and not widget_spans:
             return source
 
         if self.dry_run:
@@ -508,67 +787,59 @@ class LLMCommentTranslator(Translator):
         locale_obj = LOCALES.get(self._locale)
         locale_label = locale_obj.label if locale_obj else self._locale
 
-        originals = [text for (_, _, text) in spans]
+        translated: dict = {}
 
-        system = textwrap.dedent(f"""
-            You translate pieces of Python source code from Portuguese to
-            {locale_label}. You receive a JSON array of raw snippets, each
-            one of:
-              - a full `#`-comment (with the `#` included)
-              - a full docstring literal (including its exact quote characters)
-              - a string literal passed to `print(...)` or to the
-                `title=`/`titles=` argument of `mm.show(...)` — this is
-                text shown to the student when the cell runs, including its
-                exact quote characters and, if present, the leading `f`
-            Rules:
-            1. Return a JSON array with EXACTLY the same number of items,
-               in the same order — one translated snippet per input item.
-            2. Preserve the wrapper characters exactly: keep the leading
-               `#` for comments, and the exact quote characters
-               (\"\"\" or ''' or \" or ', with leading `f` if present) for
-               docstrings and print/title strings.
-            3. For an f-string snippet, translate ONLY the literal text
-               outside `{{...}}`. Copy every `{{...}}` expression verbatim,
-               character-for-character, in the exact same position — never
-               translate, reformat, or drop what's inside the braces.
-            4. Translate ONLY natural-language prose. Leave shebang lines
-               (`#!...`), encoding cookies (`# -*- coding: ... -*-`),
-               lint/type directives (`# noqa`, `# type: ignore`) and
-               commented-out code UNCHANGED.
-            5. Preserve inline code, LaTeX and punctuation as-is.
-            6. Return ONLY the JSON array — no explanation, no markdown fence.
-        """).strip()
-        user = json.dumps(originals, ensure_ascii=False)
+        if comment_spans:
+            system = textwrap.dedent(f"""
+                You translate pieces of Python source code from Portuguese to
+                {locale_label}. You receive a JSON array of raw snippets, each
+                one of:
+                  - a full `#`-comment (with the `#` included)
+                  - a full docstring literal (including its exact quote characters)
+                  - a string literal passed to `print(...)` or to the
+                    `title=`/`titles=` argument of `mm.show(...)` — this is
+                    text shown to the student when the cell runs, including its
+                    exact quote characters and, if present, the leading `f`
+                Rules:
+                1. Return a JSON array with EXACTLY the same number of items,
+                   in the same order — one translated snippet per input item.
+                2. Preserve the wrapper characters exactly: keep the leading
+                   `#` for comments, and the exact quote characters
+                   (\"\"\" or ''' or \" or ', with leading `f` if present) for
+                   docstrings and print/title strings.
+                3. For an f-string snippet, translate ONLY the literal text
+                   outside `{{...}}`. Copy every `{{...}}` expression verbatim,
+                   character-for-character, in the exact same position — never
+                   translate, reformat, or drop what's inside the braces.
+                4. Translate ONLY natural-language prose. Leave shebang lines
+                   (`#!...`), encoding cookies (`# -*- coding: ... -*-`),
+                   lint/type directives (`# noqa`, `# type: ignore`) and
+                   commented-out code UNCHANGED.
+                5. Preserve inline code, LaTeX and punctuation as-is.
+                6. Return ONLY the JSON array — no explanation, no markdown fence.
+            """).strip()
+            batch = _translate_snippets_batch(comment_spans, system, 'comentários')
+            if batch:
+                translated.update(batch)
 
-        def _ask(prompt_user: str) -> list:
-            raw = _call_llm(system, prompt_user)
-            raw = re.sub(r'^```\w*\n?', '', raw.strip())
-            raw = re.sub(r'\n?```$', '', raw.strip())
-            parsed = json.loads(raw)
-            if not isinstance(parsed, list) or len(parsed) != len(spans):
-                raise ValueError('resposta com formato ou contagem inesperados')
-            return parsed
+        if widget_spans:
+            system = _WIDGET_SYSTEM_TEMPLATE.format(locale_label=locale_label)
+            batch = _translate_snippets_batch(widget_spans, system, 'texto de simulador')
+            if batch:
+                translated.update(batch)
 
-        try:
-            translations = _ask(user)
-            attempt = 0
-            # Mesmo cache de contexto do DeepSeek de _call_llm_retrying_if_unchanged
-            # (ver docstring lá) — aqui o "eco" é a lista inteira igual à
-            # original em vez de uma string igual.
-            while translations == originals and attempt < 2:
-                attempt += 1
-                nonce = f'[req {random.randint(100000, 999999)}] '
-                translations = _ask(nonce + user)
-        except Exception as exc:
-            print(f'  ⚠ Tradução de comentários falhou ({exc}); mantendo código original.')
+        if not translated:
+            # Nenhum dos dois lotes rendeu tradução aproveitável — nada a
+            # fazer, mas ainda cacheia pra não tentar de novo em toda build.
             self.cache.set(source, self.kind, self.src_key, self.tgt_key, source)
             return source
 
+        all_spans = sorted(comment_spans + widget_spans, key=lambda s: s[0])
         out = []
         cursor = 0
-        for (start, end, original), new_text in zip(spans, translations):
+        for (start, end, original) in all_spans:
             out.append(source[cursor:start])
-            out.append(new_text if isinstance(new_text, str) and new_text.strip() else original)
+            out.append(translated.get((start, end), original))
             cursor = end
         out.append(source[cursor:])
         result = ''.join(out)
@@ -589,6 +860,14 @@ class LLMCommentTranslator(Translator):
             except SyntaxError as exc:
                 print(f'  ⚠ Código traduzido ficou sintaticamente inválido ({exc}); mantendo original.')
                 result = source
+
+        # Rede de segurança específica de simulador: ids (getElementById) e
+        # contagem de <script> têm que ser idênticos antes/depois. Como o
+        # splice é fatiamento puro, isso só falharia por bug de offset na
+        # extração — mas descarta a célula inteira nesse caso, não arrisca.
+        if widget_spans and _widget_structure_fingerprint(source) != _widget_structure_fingerprint(result):
+            print('  ⚠ Tradução de simulador alterou estrutura (ids/<script>); mantendo original.')
+            result = source
 
         self.cache.set(source, self.kind, self.src_key, self.tgt_key, result)
         return result

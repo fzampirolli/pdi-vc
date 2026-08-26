@@ -188,6 +188,45 @@ HTML("""...""")
 ```
 
 **Evite usar a tag `<svg>` diretamente no HTML do simulador.** O *script* de *screenshot* dá um tratamento especial a blocos que já têm um `<svg>` pronto no código, o que pode gerar um PNG em branco se o seu gráfico for desenhado via JavaScript. Para gráficos e desenhos, prefira montar tudo com `<div>`s estilizados (como no simulador do EP07_05, que pode ser usado como modelo) em vez de manipular um elemento `<svg>` — assim o PNG sai correto sem ajustes extras.
+
+#### Tradução do texto dos simuladores (en/fr/...)
+
+A célula `HTML("""...""")` de um simulador é uma única *string* Python — o
+tradutor de código normal (que só mexe em comentários, docstrings e
+`print`/`title=`) nunca a toca, e mandar o bloco inteiro (HTML+CSS+JS, às
+vezes >40KB) pro LLM reescrever seria arriscado: ele pode alterar `id`s
+usados por `getElementById`, aspas ou *template literals*, quebrando o
+simulador sem erro nenhum no build. Por isso o pipeline usa **extração
+mecânica de spans seguros** (nunca uma reescrita livre) — mesmo princípio
+do tradutor de comentários, aplicado ao conteúdo do simulador:
+
+- **Traduzido automaticamente**: texto entre tags HTML, os atributos
+  `title=`/`placeholder=`/`aria-label=`/`alt=`, e — dentro de
+  `<script>` — só `elemento.textContent = "texto literal"` e
+  `ctx.fillText("texto literal", x, y)`, sempre que o argumento for uma
+  *string* literal pura (aspas simples ou duplas).
+- **Nunca tocado, por construção**: `id="..."`, atributos de estilo,
+  nomes de função/variável, qualquer lógica JS, e qualquer *string*
+  montada por concatenação (`"a" + b`) ou *template literal*
+  (`` `${x}` ``) — se o rótulo dinâmico do seu simulador precisa mudar
+  conforme o idioma, monte-o com `.textContent = "texto fixo"` seguido de
+  concatenação da parte variável em linha separada, em vez de uma
+  *template literal* só, senão ele fica de fora da tradução.
+  Comentários HTML (`<!-- ... -->`) e comentários JS (`// ...`) também
+  ficam de fora — não são visíveis ao aluno.
+- **Rede de segurança**: depois de colar a tradução de volta, o pipeline
+  compara um "fingerprint" estrutural (conjunto de `id`s + contagem de
+  `<script>`/`</script>`) antes/depois. Se divergir — ou se a chamada ao
+  LLM falhar/vier em formato inesperado — a tradução é descartada e a
+  célula volta pro texto original em Português, sem quebrar o build.
+
+Implementação em `pipeline/translators.py`: `_extract_widget_spans` (localiza
+as chamadas `HTML(...)`), `_extract_widget_text_spans` (extrai os spans de
+dentro) e `LLMCommentTranslator.translate` (traduz em lote e faz a
+validação). Nenhuma ação extra é necessária de quem escreve o simulador —
+só vale ter em mente os dois pontos acima ao escrever o JavaScript, se
+quiser que um rótulo dinâmico seja traduzido também.
+
 ---
 
 ### Convenções de *labels* Quarto

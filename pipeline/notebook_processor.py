@@ -523,6 +523,18 @@ class NotebookProcessor:
                 self._tag_cache_key(cell, src, comment_tr)
                 _set_source(cell, translated)
 
+            elif role == 'common' and cell.cell_type == 'markdown' and combo.locale != BASE_LOCALE:
+                # Mesma lógica acima, mas pro texto: 'common' compartilha a
+                # prosa entre combos de linguagem, porém ela ainda precisa
+                # seguir o locale (ex.: instruções "como rodar Java/C++/R no
+                # Colab" em cap01.EPs.ipynb), senão sobra Português em
+                # qualquer combo não-pt.
+                translated = text_tr.translate(src)
+                self._tag_cache_key(cell, src, text_tr)
+                if not combo.is_base():
+                    translated = postprocess_markdown(translated, self._bib, used_keys)
+                _set_source(cell, translated)
+
             # common (locale == pt) → sem alteração
 
             _clean_cell(cell, is_base=combo.is_base())

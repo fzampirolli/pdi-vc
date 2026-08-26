@@ -423,8 +423,19 @@ class QuartoBuilder:
             if cap_dir.exists():
                 dest = qdir / cap
                 dest.mkdir(parents=True, exist_ok=True)  # diretório real, não symlink
-                for f in cap_dir.iterdir():
-                    self._symlink(dest / f.name, f)      # symlinks apenas dos arquivos
+
+                # Precisa rodar ANTES do loop de symlink abaixo: numa build
+                # do zero, nb_root/cap/imagens ainda não existe nesse ponto
+                # — se populada depois, cap_dir.iterdir() já passou por ela
+                # e nunca mais volta a checar, então qdir/cap/imagens fica
+                # sem symlink nenhum (nem diretório) até uma célula
+                # executada pelo Quarto criar um diretório real ali com
+                # os.makedirs("imagens") na hora de salvar uma figura solta
+                # — aí "imagens/" vira um diretório órfão contendo só essa
+                # figura, sem nada de all/capXX/imagens (todas as outras
+                # imagens do capítulo, simuladores inclusive, "somem" do
+                # PDF). Ver também o comentário em `_symlink` sobre esse
+                # mesmo cenário.
                 all_imagens = self.root / 'all' / cap / 'imagens'
                 gen_imagens = nb_root / cap / 'imagens'
                 if all_imagens.exists() and not gen_imagens.exists():
@@ -432,6 +443,9 @@ class QuartoBuilder:
                     self._symlink_imagens_locale_aware(
                         all_imagens, gen_imagens, combo.locale
                     )
+
+                for f in cap_dir.iterdir():
+                    self._symlink(dest / f.name, f)      # symlinks apenas dos arquivos
 
                 # combos cpp: os headers de morph.hpp (+ stb vendorizadas)
                 # precisam estar ao lado do .cpp gerado pra `!g++` achar via
@@ -1289,8 +1303,50 @@ def extract_html(cell_source):
         # Fallback: extração manual
         return NotImplemented
     
+def _screenshot_png_path(all_root: Path, cap: str, label: str, locale: str) -> Path:
+    """
+    Caminho de ESCRITA do screenshot de um simulador pra um locale — mesma
+    convenção de override já usada por `_symlink_imagens_locale_aware` pra
+    imagens manuais: `{label}.png` é a versão canônica (pt), `{label}.
+    {locale}.png` é a variante localizada, lado a lado em
+    all/capXX/imagens/. Necessário porque, com a tradução de texto dos
+    simuladores (ver LLMCommentTranslator em translators.py), o HTML de
+    cada locale é diferente — screenshots não podem mais compartilhar um
+    único arquivo `{label}.png` pra todos os locales sem sobrescrever o PDF
+    de um idioma com a imagem de outro.
+    """
+    img_dir = all_root / cap / 'imagens'
+    if locale == BASE_LOCALE:
+        return img_dir / f'{label}.png'
+    return img_dir / f'{label}.{locale}.png'
+
+
+def _resolve_screenshot_png(all_root: Path, cap: str, label: str, locale: str) -> Path:
+    """
+    Caminho de LEITURA do screenshot de um simulador pra um locale: usa a
+    variante localizada `{label}.{locale}.png` se ela já existir; senão cai
+    pro canônico `{label}.png` (pt) — mesmo fallback de
+    `_symlink_imagens_locale_aware`, aplicado ao PDF (que referencia
+    all/capXX/imagens/ diretamente, sem passar pela farm de symlinks usada
+    no HTML).
+    """
+    localized = _screenshot_png_path(all_root, cap, label, locale)
+    if locale != BASE_LOCALE and localized.exists():
+        return localized
+    return all_root / cap / 'imagens' / f'{label}.png'
+
+
 def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
-    """Lê notebooks ORIGINAIS de all/ para gerar screenshots."""
+    """
+    Lê os notebooks JÁ TRADUZIDOS do combo sendo buildado (symlinks em
+    `qdir/capXX/` apontando pra `gen/<combo>/capXX/`) — não mais os
+    originais de `all/`, senão o screenshot de um simulador ficaria sempre
+    em Português mesmo num PDF en/fr. Salva em `all/capXX/imagens/`, com
+    sufixo de locale (ver `_screenshot_png_path`) pra não sobrescrever a
+    versão de outro idioma.
+    """
+    combo_name = qdir.name
+    locale = combo_name.split('.')[-1]
     from playwright.sync_api import sync_playwright
 
     for cap_link in qdir.iterdir():
@@ -1300,7 +1356,7 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
         img_dir = all_root / cap / 'imagens'
         img_dir.mkdir(parents=True, exist_ok=True)
 
-        for nb_path in (all_root / cap).glob('*.ipynb'):
+        for nb_path in cap_link.glob('*.ipynb'):
             nb = nbformat.read(nb_path, as_version=4)
             for cell in nb.cells:
                 if cell.cell_type != 'code':
@@ -1320,7 +1376,7 @@ def _screenshot_html_cells(qdir: Path, all_root: Path, scale: float = 1.0):
                 if not label:
                     continue
 
-                png_path = img_dir / f'{label}.png'
+                png_path = _screenshot_png_path(all_root, cap, label, locale)
                 if png_path.exists():
                     print(f'  ✓ Screenshot já existe: {png_path.name}')
                     continue
@@ -1532,6 +1588,7 @@ def _verify_and_fix_screenshots(qdir: Path, all_root: Path = Path('all')):
 def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
 
     nb_root = qdir.parent.parent / qdir.name
+    locale = qdir.name.split('.')[-1]
     import re
 
     HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
@@ -1560,7 +1617,7 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
             if not m_label or not cap_guess:
                 continue
             label = m_label.group(1)
-            png_abs = all_root / cap_guess / 'imagens' / f'{label}.png'
+            png_abs = _resolve_screenshot_png(all_root, cap_guess, label, locale)
             if not png_abs.exists():
                 needs_execution = True
                 break
@@ -1606,12 +1663,15 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                     cap = part
                     break
 
-            png_rel = f'imagens/{label}.png'
-            png_abs = all_root / cap / png_rel if cap else None
+            # png_abs: qual arquivo LER (localizado, com fallback pro
+            # canônico pt) — png_target: onde ESCREVER se precisar gerar um
+            # novo (sempre o slot do locale atual, nunca sobrescreve o pt).
+            png_abs = _resolve_screenshot_png(all_root, cap, label, locale) if cap else None
+            png_target = _screenshot_png_path(all_root, cap, label, locale) if cap else None
             png_exists = png_abs and png_abs.exists()
 
             # ── Geração automática se ainda não existir ──────────────────
-            if not png_exists and executed_nb is not None and png_abs is not None:
+            if not png_exists and executed_nb is not None and png_target is not None:
                 try:
                     exec_cell = executed_nb.cells[idx]
                     html_out = None
@@ -1621,9 +1681,10 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                             if html_out:
                                 break
                     if html_out:
-                        ok = _capture_html_output_as_png(html_out, png_abs)
+                        ok = _capture_html_output_as_png(html_out, png_target)
                         if ok:
-                            print(f'  ✓ PNG gerado automaticamente: {label}')
+                            print(f'  ✓ PNG gerado automaticamente: {png_target.name}')
+                            png_abs = png_target
                             png_exists = True
                         else:
                             print(f'  ⚠ Falha ao gerar PNG: {label}')
@@ -1631,6 +1692,14 @@ def _patch_html_cells_for_pdf(qdir: Path, all_root: Path = Path('all')):
                         print(f'  ⚠ Sem output HTML para gerar PNG: {label}')
                 except Exception as e:
                     print(f'  ⚠ Erro gerando PNG de {label}: {e}')
+
+            # A referência no markdown usa sempre o nome-base (sem sufixo de
+            # locale) — dentro de gen/<combo>/capXX/imagens/ esse nome já é
+            # um symlink pro arquivo certo (localizado, se existir; senão o
+            # canônico pt), via `_symlink_imagens_locale_aware`. Referenciar
+            # o nome com sufixo aqui quebraria: esse arquivo só existe em
+            # all/capXX/imagens/ (fonte), não dentro da árvore do combo.
+            png_rel = f'imagens/{label}.png'
 
             if png_exists:
                 new_cells.append(nbformat.v4.new_markdown_cell(

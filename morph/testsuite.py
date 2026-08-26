@@ -154,6 +154,18 @@ def _msg(key, **kwargs):
     return template.format(**kwargs)
 
 
+# Palavra "Caso" nos arquivos .cases (ex.: "Caso 1", "Caso3_SemPadding") é
+# fixa em Português — os arquivos de casos de teste não são duplicados por
+# locale. Localiza só essa palavra-prefixo na hora de exibir o nome do caso
+# (ex.: "Caso 1" -> "Case 1"), sem tocar no resto do identificador.
+_CASE_WORD = {"pt": "Caso", "en": "Case", "fr": "Cas", "es": "Caso", "it": "Caso"}
+
+
+def _localize_case_name(nome: str) -> str:
+    word = _CASE_WORD.get(LOCALE, "Caso")
+    return re.sub(r'^Caso', word, nome, count=1, flags=re.IGNORECASE)
+
+
 def compile_run_table(name: str) -> dict:
     """
     Comando de compilar (quando houver) e rodar cada linguagem suportada,
@@ -327,7 +339,7 @@ class TestSuite:
                 saida_opcoes.append("\n".join(saida_atual))
             opcoes_limpas = [op[1:-1] if len(op) >= 2 and op[0] == op[-1] and op[0] in "\"'" else op
                              for op in saida_opcoes]
-            casos.append((nome, "\n".join(entrada), "\n<OU>\n".join(opcoes_limpas)))
+            casos.append((_localize_case_name(nome), "\n".join(entrada), "\n<OU>\n".join(opcoes_limpas)))
         self._p(_msg("cases_loaded", n=len(casos), caminho=caminho))
         return casos
 
