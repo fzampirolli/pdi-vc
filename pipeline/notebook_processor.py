@@ -151,6 +151,7 @@ _PLT_RE   = re.compile(r'\bplt\.')
 _MM_CALL_RE = re.compile(r'\bmm\.(\w+)\s*\(')
 _MM_SHOW_RE = re.compile(r'\bmm\.show\s*\(')
 _LABEL_RE   = re.compile(r'^#\|\s*label:\s*(\S+)', re.MULTILINE)
+_FIG_OPTION_RE = re.compile(r'^#\|\s*(label|fig-cap):', re.MULTILINE)
 # Mesmo padrão usado em quarto_builder.py (HTML_TRIPLE_RE) pra achar células
 # que montam HTML/JS embutido (simuladores interativos via IPython.display.HTML).
 _HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
@@ -280,6 +281,26 @@ def _cell_base_name(src: str, ctx: dict) -> str:
         return re.sub(r'[^A-Za-z0-9_]', '_', m.group(1))
     ctx['counter'] = ctx.get('counter', 0) + 1
     return f'mm_out_{ctx["counter"]}'
+
+
+def _figure_option_lines(src: str) -> list:
+    """
+    Extrai as linhas `#| label: ...` / `#| fig-cap: ...` do topo de `src`
+    (célula Python original) — são as únicas opções `#|` que precisam
+    migrar pra célula sintética que de fato produz a saída de imagem
+    (`display(Image(...))`), pois é nela que o Quarto procura a
+    numeração/legenda/cross-ref da figura. Sem isso, `@fig-xx` no texto
+    fica sem resolver (`?fig-xx` literal), mesmo com a figura aparecendo
+    normalmente — achado ao validar o build cpp de ponta a ponta.
+    """
+    lines = src.split('\n')
+    opts = []
+    for line in lines:
+        if not line.startswith('#|'):
+            break
+        if _FIG_OPTION_RE.match(line):
+            opts.append(line)
+    return opts
 
 
 def _clean_cell(cell, is_base: bool = False):
@@ -657,10 +678,12 @@ class NotebookProcessor:
 
         out = [write_cell, run_cell]
         if needs_glue:
-            glue_cell = new_code_cell(
-                'from IPython.display import Image, display\n'
-                f'display(Image(filename="{png_name}"))'
-            )
+            fig_opts = _figure_option_lines(src)
+            glue_lines = fig_opts + [
+                'from IPython.display import Image, display',
+                f'display(Image(filename="{png_name}"))',
+            ]
+            glue_cell = new_code_cell('\n'.join(glue_lines))
             out.append(glue_cell)
 
         for c in out:
