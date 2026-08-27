@@ -454,14 +454,34 @@ def _string_literal_spans(node, _offset, source: str) -> list[tuple[int, int, st
     literal (ex.: variável, expressão) — nesse caso não há o que traduzir.
     """
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        pass
-    elif isinstance(node, ast.JoinedStr):
-        pass
-    else:
-        return []
-    start = _offset(node.lineno, node.col_offset)
-    end = _offset(node.end_lineno, node.end_col_offset)
-    return [(start, end, source[start:end])]
+        start = _offset(node.lineno, node.col_offset)
+        end = _offset(node.end_lineno, node.end_col_offset)
+        return [(start, end, source[start:end])]
+
+    if isinstance(node, ast.JoinedStr):
+        # NÃO devolver a f-string inteira: se o LLM recebe `f"{nome:<18}"` ele
+        # "traduz" o nome da variável (nome→nom, dados→données) e o código
+        # quebra com NameError em tempo de execução — sem falhar o ast.parse,
+        # então a rede de segurança de sintaxe não pega. Extrai só os pedaços
+        # LITERAIS (ast.Constant entre os `{...}`); os FormattedValue nunca vão
+        # pro LLM. Posições internas de f-string são confiáveis no Python 3.12
+        # (PEP 701).
+        out: list[tuple[int, int, str]] = []
+        for part in node.values:
+            if not (isinstance(part, ast.Constant) and isinstance(part.value, str)):
+                continue
+            if not part.value.strip():
+                continue
+            try:
+                start = _offset(part.lineno, part.col_offset)
+                end = _offset(part.end_lineno, part.end_col_offset)
+            except Exception:
+                continue
+            if 0 <= start < end <= len(source):
+                out.append((start, end, source[start:end]))
+        return out
+
+    return []
 
 
 def _extract_comment_spans(source: str) -> list[tuple[int, int, str]]:
@@ -936,6 +956,24 @@ class LLMCommentTranslator(Translator):
             cursor = end
         out.append(source[cursor:])
         result = ''.join(out)
+
+        # Guard de `#| fig-cap:`: algumas traduções (sobretudo fr) trocam as
+        # aspas "..." do valor por guillemets « … » e/ou adicionam um espaço
+        # antes do `:` da chave. Sem aspas, um `:` dentro da legenda (comum em
+        # fr: "Crédit : ...") quebra o parser YAML do Quarto
+        # ("mapping values are not allowed here"). Renormaliza a linha.
+        def _fix_fig_cap(line: str) -> str:
+            m = re.match(r'^(\s*#\|\s*fig-cap)\s*:\s*(.*?)\s*$', line)
+            if not m:
+                return line
+            val = m.group(2)
+            if val[:1] == '«' and val[-1:] == '»':
+                val = val[1:-1].strip()
+            if not (val[:1] == '"' and val[-1:] == '"'):
+                val = '"' + val.replace('"', "'") + '"'
+            return f'{m.group(1)}: {val}'
+        if '#| fig-cap' in result:
+            result = '\n'.join(_fix_fig_cap(ln) for ln in result.split('\n'))
 
         # Só valida sintaxe se o original já era Python "puro" — células
         # com magics do Jupyter (`!pip install`, `%matplotlib inline`)
