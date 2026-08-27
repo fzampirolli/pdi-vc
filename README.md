@@ -50,7 +50,7 @@ EP01_01 — Descrição do problema
 
 O notebook-fonte em `all/capXX/capXX.ipynb` é **canônico**: Python puro, Português puro.
 O pipeline gera automaticamente versões em outras linguagens (C++, Java…) e idiomas (Inglês, Francês…)
-via API Anthropic. As traduções ficam em cache (`.cache/`) e só são rechamadas quando o conteúdo muda.
+via API do DeepSeek (`deepseek-chat`; `DEEPSEEK_API_KEY`). As traduções ficam em cache (`.cache/translations.json`) e só são rechamadas quando o conteúdo muda — traduções para C++ que **não compilam** nunca são cacheadas (re-tentam a cada build).
 
 ### Estrutura do projeto
 
