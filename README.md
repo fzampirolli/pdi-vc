@@ -4,10 +4,10 @@
 > Escreva **uma vez** em formato Quarto (Markdown+Python). O pipeline traduz o resto.
 
 🚧 **Em construção!**
-Este material está sendo preparado e aplicado em 3 turmas de PDI na UFABC (até o Capítulo 6 no momento).
+Os 9 capítulos estão ativos no build e foram aplicados em turmas de PDI na UFABC. O livro é publicado em 6 combos: **Python** × **pt/en/fr** (livro completo) e **C++** × **pt/en/fr** (por ora só o Capítulo 1 — ver "Execução real de código em C++").
 
 [![Livro Online](https://img.shields.io/badge/Livro-Online-blue?logo=github)](https://fzampirolli.github.io/pdi-vc)
-[![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/cap01/cap01_aluno.ipynb)
+[![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/py.pt/cap01/cap01_aluno.ipynb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20784606.svg)](https://doi.org/10.5281/zenodo.20784606)
 [![Licença](https://img.shields.io/badge/Licença-CC--BY--NC--SA--4.0-green)](LICENSE)
 
@@ -21,12 +21,12 @@ Este material está sendo preparado e aplicado em 3 turmas de PDI na UFABC (até
 |---------|------|
 | **HTML** | [fzampirolli.github.io/pdi-vc](https://fzampirolli.github.io/pdi-vc/) — navegação interativa, simuladores |
 | **PDF** | Disponível na página HTML (botão *Download PDF*) — para impressão e leitura offline |
-| **Notebooks Jupyter/Colab** | Pasta `notebooks_alunos/capXX/` — prontos para execução, sem dependências do Quarto |
+| **Notebooks Jupyter/Colab** | Uma árvore por combo em `notebooks_alunos/<combo>/capXX/` — `<combo>` ∈ {`py.pt`, `py.en`, `py.fr`, `cpp.pt`, `cpp.en`, `cpp.fr`}. Prontos para execução, sem dependências do Quarto (C++: só `cap01`). |
 
 ### Como usar os notebooks
 
 1. Acesse [Google Colab](https://colab.research.google.com/) ou instale o [Jupyter](https://jupyter.org/)
-2. Faça upload do notebook `capXX_aluno.ipynb` ou abra diretamente pelo GitHub
+2. Abra o notebook `notebooks_alunos/<combo>/capXX/capXX_aluno.ipynb` — pelo botão **Executar Colab** no início de cada capítulo (aponta para o combo correspondente) ou direto pelo GitHub
 3. Execute as células com **Shift+Enter** ou pelo botão ▶️
 4. Os notebooks de EPs (`capXX.EPs_aluno.ipynb`) contêm os exercícios práticos com validação automática via `TestSuite`
 
@@ -134,17 +134,21 @@ A pasta `docs/` funciona como a raiz para o *deploy* estático (como GitHub Page
 
 ```text
 docs/
-├── index.html                 # Página inicial da documentação/livro web
+├── index.html                 # Portal — cards para cada combo
 ├── capa_girassol1.png         # Asset visual da capa do livro
 │
 ├── eps/                       # Exercícios Práticos (EPs) extraídos individualmente
-│   ├── py.pt/                 # EPs do Cap 1 ao 9 em formato HTML autônomo
-│   └── py.pt_moodle/          # EPs formatados especificamente para importação no Moodle
+│   ├── <combo>/               # EPs em HTML autônomo (um por combo publicado)
+│   └── <combo>_moodle/        # EPs formatados para importação no Moodle
 │
-└── py.pt/                     # Estrutura completa do livro renderizado
-    ├── book-latex/            # Arquivos fontes, PDFs e figuras geradas via LaTeX
-    ├── cap01/ até cap09/      # Capítulos convertidos em HTML com seus respectivos outputs/gráficos
-    └── site_libs/             # Bibliotecas estáticas de suporte (Bootstrap, Quarto Search, etc.)
+├── simuladores/<combo>/       # Galeria de simuladores interativos por combo
+│
+└── <combo>/                   # Livro renderizado — <combo> ∈ {py.pt, py.en,
+    │                          #   py.fr, cpp.pt, cpp.en, cpp.fr}
+    ├── book-latex/            # Fontes .tex, PDFs e figuras geradas via LaTeX
+    ├── livro.<locale>.<lang>.pdf   # PDF do combo
+    ├── cap01/ … cap09/        # Capítulos em HTML (cpp: só cap01)
+    └── site_libs/             # Bibliotecas estáticas (Bootstrap, Quarto Search…)
 ```
 
 ### Metadados das células
@@ -287,8 +291,8 @@ make build-all  # HTML + PDF
 # Padrão: Python × Português
 python dev.py --once --langs py --locales pt --render pdf
 
-# Múltiplas versões
-python dev.py --once --langs py,cpp --locales pt,en --render html
+# Múltiplas versões (os 6 combos em produção)
+python dev.py --once --langs py,cpp --locales pt,en,fr --render html
 
 # Sem chamar API (modo seco para revisar estrutura)
 python dev.py --once --dry-run
@@ -338,9 +342,15 @@ Os arquivos `.cases` utilizados pelo `TestSuite` nos *notebooks* são **diretame
 ### Notebooks para alunos
 
 ```bash
-# Gera notebooks_alunos/ com referências ABNT resolvidas
-python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
+# Uma árvore por combo em notebooks_alunos/<lang>.<locale>/, com
+# referências ABNT resolvidas. Para (lang,locale) != (py,pt) lê o
+# capítulo já traduzido de gen/<lang>.<locale>/ (rode `make build` antes).
+python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos            # py.pt
+python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos --lang py  --locale fr
+python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos --lang cpp --locale en
 ```
+
+`make publish` já gera todas as árvores (`LANGS` × `LOCALES`).
 
 ### Publicação
 
@@ -377,9 +387,14 @@ Diferente de uma tradução decorativa, o combo `cpp` já **compila e executa de
 # Gerar o capítulo 1 em C++ (PT), HTML apenas
 python dev.py --once --langs cpp --locales pt --render html
 
-# Build completo (todas as combinações já em uso: py/cpp × pt/en, HTML+PDF)
-./utils/rebuild.sh py,cpp pt,en
+# Build completo dos 6 combos em produção: py × pt,en,fr (9 caps) e
+# cpp × pt,en,fr (só cap01), HTML+PDF
+./utils/rebuild.sh py,cpp pt,en,fr
 ```
+
+> Os capítulos 02–09 em C++ ainda não foram portados (usam `cv2`/`skimage`
+> sem equivalente na `morph.hpp`); o build restringe automaticamente os
+> combos `cpp` ao `cap01` (`dev.py::run_build` + `_chapter_blocks`).
 
 Pra estender esse mecanismo — outro capítulo, ou outra linguagem além de `cpp` — a peça que falta pra cada nova linguagem é o equivalente a `morph.hpp` (um `morph.<ext>` com as mesmas funções) mais registrar seu comando de compilar em `morph/testsuite.py::compile_run_table` (fonte única, já usada pelos EPs em 6 linguagens) e em `pipeline/exec_validate.py`.
 
