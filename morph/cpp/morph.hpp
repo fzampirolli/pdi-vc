@@ -1,10 +1,16 @@
-// morph.hpp — v0
+// morph.hpp — v0.2
 //
-// Equivalente C++ mínimo da morph.py: só as 7 funções que o cap01 usa
-// (read, gray, randomImage, show, write, threshold, drawImg). Header-only,
-// pensado pra compilar com um `g++ arquivo.cpp -o arquivo` simples, sem
-// dependência de OpenCV — usa stb_image/stb_image_write (vendorizadas ao
-// lado, ver THIRD_PARTY_LICENSES.md) pra ler/escrever PNG/JPEG.
+// Equivalente C++ didático da morph.py. Header-only, pensado pra compilar
+// com um `g++ arquivo.cpp -o arquivo` simples: o núcleo (read, gray,
+// randomImage, show, write, threshold, drawImg) não depende de OpenCV —
+// usa stb_image/stb_image_write (vendorizadas ao lado, ver
+// THIRD_PARTY_LICENSES.md) pra ler/escrever PNG/JPEG.
+//
+// Morfologia (dil/dil0/dil1, ero/ero0/ero1) segue a convenção de nomes da
+// morph.py: sufixo 0 = didática planar, sufixo 1 = didática com pesos, sem
+// sufixo = clássica. O caminho clássico usa cv::Mat SOMENTE quando compilado
+// com -DMM_USE_OPENCV; sem o macro (padrão, inclusive Moodle/VPL) mm::dil()
+// delega a mm::dil1() e nada de OpenCV é exigido.
 //
 // Cada célula `%%writefile ....cpp` é seu próprio processo isolado — por
 // isso `show()` exige um `out_path` explícito (sem o contador global que a
@@ -26,7 +32,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -39,6 +48,14 @@
 
 #include <sys/wait.h>
 #include <unistd.h>
+
+// Backend OpenCV é OPT-IN: compile com `-DMM_USE_OPENCV $(pkg-config --cflags
+// --libs opencv4)` para que mm::dil()/mm::ero()/SE::disk() usem cv::Mat. Sem
+// o macro (padrão — `g++ arquivo.cpp -o arquivo`, inclusive no Moodle/VPL),
+// mm::dil() cai em mm::dil1() e nenhuma dependência de sistema é exigida.
+#ifdef MM_USE_OPENCV
+#include <opencv2/opencv.hpp>
+#endif
 
 namespace mm {
 
@@ -57,6 +74,44 @@ struct Image {
     unsigned char at(int y, int x, int c = 0) const {
         return data[(size_t)(y * w + x) * channels + c];
     }
+};
+
+// ── Elemento estruturante ─────────────────────────────────────────────────
+//
+// Espelha o papel do numpy array em mm._viz da morph.py:
+//   * ops planares  (dil0/ero0): `at(by,bx) != 0`  → posição pertence ao SE
+//   * ops com pesos (dil1/ero1): valor = peso aditivo/subtrativo; `NP_NONE`
+//     marca "fora do SE" (equivalente ao ±inf que a morph.py testa em ero1).
+struct SE {
+    static constexpr int NP_NONE = INT_MIN;
+
+    int h = 3, w = 3;
+    std::vector<int> vals = std::vector<int>(9, 0);  // padrão: 3x3 plano, peso 0
+
+    int at(int by, int bx) const { return vals[(size_t)by * w + bx]; }
+
+    // np.flip nos dois eixos — dilatação usa o SE refletido (dil0/dil1).
+    SE reflected() const {
+        SE s; s.h = h; s.w = w; s.vals.resize(vals.size());
+        for (int by = 0; by < h; ++by)
+            for (int bx = 0; bx < w; ++bx)
+                s.vals[(size_t)by * w + bx] = vals[(size_t)(h - 1 - by) * w + (w - 1 - bx)];
+        return s;
+    }
+
+    static SE box(int n = 3) {           // np.ones((n,n)) — default de dil0/ero0
+        SE s; s.h = s.w = n; s.vals.assign((size_t)n * n, 1); return s;
+    }
+    static SE zeros(int n = 3) {         // np.zeros((n,n)) — default de dil1/ero1/dil/ero
+        SE s; s.h = s.w = n; s.vals.assign((size_t)n * n, 0); return s;
+    }
+    static SE cross(int n = 3) {
+        SE s; s.h = s.w = n; s.vals.assign((size_t)n * n, 0);
+        int c = n / 2;
+        for (int i = 0; i < n; ++i) { s.vals[(size_t)i * n + c] = 1; s.vals[(size_t)c * n + i] = 1; }
+        return s;
+    }
+    static SE disk(int n = 3);           // elipse — definição depende de MM_USE_OPENCV
 };
 
 // ── download sem shell (execlp direto, sem risco de injeção via URL) ───────
@@ -201,6 +256,174 @@ inline Image threshold(const Image& img, std::optional<int> limiar = std::nullop
         out.data[i] = (src.data[i] > T) ? 255 : 0;
     return out;
 }
+
+// ── EROSÃO / DILATAÇÃO ───────────────────────────────────────────────────
+//
+// Convenção idêntica à morph.py:
+//   mm::dil     encapsula a clássica (cv::dilate quando MM_USE_OPENCV;
+//               senão delega a dil1 — mesmo papel do `except` no Python)
+//   mm::dil0    didática, kernel PLANAR, seguindo a teoria (reflete o SE,
+//               máximo de f sobre as posições marcadas)
+//   mm::dil1    didática, kernel NÃO-PLANAR, máximo de f[viz] + peso
+// (ero/ero0/ero1: análogo com mínimo; erosão não reflete o SE.)
+// Operam sobre imagem em tons de cinza (channels == 1).
+
+inline void _require_gray(const Image& f, const char* fn) {
+    if (f.channels != 1)
+        throw std::runtime_error(std::string("mm::") + fn +
+            ": espera imagem em tons de cinza (channels==1); use mm::gray() antes");
+}
+
+// Réplica de mm._viz: offset centrado, truncando p/ zero como o int() do
+// Python (casts para int fazem o mesmo). Chama cb(vy, vx, peso) por vizinho
+// válido (dentro dos limites).
+template <class F>
+inline void _viz(const Image& f, const SE& B, int y, int x, F&& cb) {
+    double oh = -B.h / 2.0 + 0.5;
+    double ow = -B.w / 2.0 + 0.5;
+    for (int by = 0; by < B.h; ++by)
+        for (int bx = 0; bx < B.w; ++bx) {
+            int vy = (int)(y + by + oh);
+            int vx = (int)(x + bx + ow);
+            if (vy >= 0 && vy < f.h && vx >= 0 && vx < f.w)
+                cb(vy, vx, B.at(by, bx));
+        }
+}
+
+inline Image dil0(const Image& f, SE Bc = SE::box(3)) {
+    _require_gray(f, "dil0");
+    SE B = Bc.reflected();
+    Image g(f.h, f.w, 1);
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            int mx = 0;
+            _viz(f, B, y, x, [&](int vy, int vx, int bv) {
+                if (bv != 0 && (int)f.at(vy, vx) > mx) mx = f.at(vy, vx);
+            });
+            g.at(y, x) = (unsigned char)mx;
+        }
+    return g;
+}
+
+inline Image dil1(const Image& f, SE b = SE::zeros(3)) {
+    _require_gray(f, "dil1");
+    SE B = b.reflected();
+    Image g(f.h, f.w, 1);
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            int mx = 0;
+            _viz(f, B, y, x, [&](int vy, int vx, int bv) {
+                if (bv == SE::NP_NONE) return;
+                int val = (int)f.at(vy, vx) + bv;
+                if (val > mx) mx = std::min(255, val);
+            });
+            g.at(y, x) = (unsigned char)mx;
+        }
+    return g;
+}
+
+inline Image ero0(const Image& f, SE Bc = SE::box(3)) {
+    _require_gray(f, "ero0");
+    Image g(f.h, f.w, 1);
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            int mn = 255;
+            _viz(f, Bc, y, x, [&](int vy, int vx, int bv) {
+                if (bv != 0 && (int)f.at(vy, vx) < mn) mn = f.at(vy, vx);
+            });
+            g.at(y, x) = (unsigned char)mn;
+        }
+    return g;
+}
+
+inline Image ero1(const Image& f, SE b = SE::zeros(3)) {
+    _require_gray(f, "ero1");
+    Image g(f.h, f.w, 1);
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            int mn = 255;
+            _viz(f, b, y, x, [&](int vy, int vx, int bv) {
+                if (bv == SE::NP_NONE) return;
+                int val = (int)f.at(vy, vx) - bv;
+                if (val < mn) mn = std::max(0, val);
+            });
+            g.at(y, x) = (unsigned char)mn;
+        }
+    return g;
+}
+
+#ifdef MM_USE_OPENCV
+inline cv::Mat _to_mat(const Image& f) {
+    return cv::Mat(f.h, f.w, CV_8UC1,
+                    const_cast<unsigned char*>(f.data.data())).clone();
+}
+inline Image _from_mat(const cv::Mat& m) {
+    Image out(m.rows, m.cols, 1);
+    for (int y = 0; y < m.rows; ++y)
+        std::memcpy(&out.at(y, 0), m.ptr(y), (size_t)m.cols);
+    return out;
+}
+// cv::dilate/erode contam elementos > 0 do kernel; "fora do SE" (NP_NONE)
+// vira 0, qualquer outro peso vira 1 (o backend clássico é planar).
+inline cv::Mat _se_kernel(const SE& b) {
+    cv::Mat k(b.h, b.w, CV_8UC1);
+    for (int i = 0; i < b.h; ++i)
+        for (int j = 0; j < b.w; ++j)
+            k.at<unsigned char>(i, j) = (b.at(i, j) == SE::NP_NONE) ? 0 : 1;
+    return k;
+}
+#endif
+
+inline Image dil(const Image& f, SE Bc = SE::zeros(3)) {
+    _require_gray(f, "dil");
+#ifdef MM_USE_OPENCV
+    cv::Mat out;
+    cv::dilate(_to_mat(f), out, _se_kernel(Bc));
+    return _from_mat(out);
+#else
+    return dil1(f, Bc);
+#endif
+}
+
+inline Image ero(const Image& f, SE Bc = SE::zeros(3)) {
+    _require_gray(f, "ero");
+#ifdef MM_USE_OPENCV
+    cv::Mat out;
+    cv::erode(_to_mat(f), out, _se_kernel(Bc));
+    return _from_mat(out);
+#else
+    return ero1(f, Bc);
+#endif
+}
+
+#ifdef MM_USE_OPENCV
+inline SE SE::disk(int n) {
+    cv::Mat e = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(n, n));
+    SE s; s.h = n; s.w = n; s.vals.resize((size_t)n * n);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            s.vals[(size_t)i * n + j] = e.at<unsigned char>(i, j) ? 1 : 0;
+    return s;
+}
+#else
+// Réplica do algoritmo de cv::getStructuringElement(MORPH_ELLIPSE, (n,n))
+// (varredura por linha da elipse) para que os dois backends produzam o mesmo
+// SE — ex.: disk(3) é o "+" (cruz), não a caixa 3x3.
+inline SE SE::disk(int n) {
+    SE s; s.h = s.w = n; s.vals.assign((size_t)n * n, 0);
+    int r = n / 2, c = n / 2;
+    double inv_r2 = r ? 1.0 / ((double)r * r) : 0.0;
+    for (int i = 0; i < n; ++i) {
+        int dy = i - r;
+        if (std::abs(dy) > r) continue;
+        int dx = (int)(c * std::sqrt(((double)r * r - (double)dy * dy) * inv_r2) + 0.5);
+        int j1 = std::max(c - dx, 0);
+        int j2 = std::min(c + dx + 1, n);
+        for (int j = j1; j < j2; ++j) s.vals[(size_t)i * n + j] = 1;
+    }
+    return s;
+}
+#endif
 
 inline std::string drawImg(const Image& img) {
     unsigned char mx = 0, mn = 255;

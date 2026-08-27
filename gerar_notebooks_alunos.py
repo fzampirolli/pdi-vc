@@ -39,10 +39,12 @@ from pathlib import Path
 
 def filter_language_marker(source: str, target_lang: str) -> tuple[bool, str]:
     """
-    Procura #[lang]# (com ou sem heading/backticks) em qualquer linha.
-    Retorna (manter_celula, source_sem_marcador).
+    Procura #[lang]# em qualquer linha: puro (celulas de codigo), com
+    backticks, ou envolto em comentario HTML `<!-- #[lang]# -->` (celulas
+    markdown, para nao aparecer no TOC do Colab/Jupyter nem renderizar
+    visivel). Retorna (manter_celula, source_sem_marcador).
     """
-    pattern = re.compile(r'^[#\s`]*#\[\s*(\w+)\s*\]#`?\s*$', re.MULTILINE)
+    pattern = re.compile(r'^(?:<!--\s*)?[#\s`]*#\[\s*(\w+)\s*\]#`?\s*(?:-->)?\s*$', re.MULTILINE)
     m = pattern.search(source)
     if m:
         lang_found = m.group(1)
@@ -1783,16 +1785,21 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path,
     ref_markdown, key_to_num = build_reference_list(citations, bib,
                                                     intro_paragraph=intro_resolved)
 
+    # --- Filtro por marcador de linguagem (markdown e código) ---
+    # `keep=False` precisa remover a célula de fato (não só pular o resto do
+    # processamento dela), senão o marcador #[lang]# some (ou fica preso lá em
+    # cima) mas a célula sobrevive inteira no notebook exportado.
+    filtered_cells = []
     for cell in notebook.get("cells", []):
-        if cell.get("cell_type") == "markdown":
+        if cell.get("cell_type") in ("markdown", "code"):
             src = source_to_str(cell.get("source", []))
-            
-            # --- Filtro por marcador de linguagem ---
             keep, src = filter_language_marker(src, target_lang)
             if not keep:
                 continue
             cell["source"] = str_to_source(src)  # já sem o marcador
-            
+        filtered_cells.append(cell)
+    notebook["cells"] = filtered_cells
+
     # Remove atributo 'scoped' inválido no EPUB gerado pelo pandas
     for cell in notebook.get("cells", []):
         for output in cell.get("outputs", []):

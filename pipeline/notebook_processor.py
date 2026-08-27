@@ -388,7 +388,7 @@ class NotebookProcessor:
     # idioma. Sem marcador reconhecido, a célula passa normal em todo combo.
     _MARKER_TOKEN_RE = re.compile(r'#\[\s*([\w.]+)\s*\]#')
     _MARKER_LINE_RE = re.compile(
-        r'^[#\s`]*#\[\s*[\w.]+\s*\]#`?\s*$', re.MULTILINE
+        r'^(?:<!--\s*)?[#\s`]*#\[\s*[\w.]+\s*\]#`?\s*(?:-->)?\s*$', re.MULTILINE
     )
 
     def _filter_by_language_marker(self, cell, combo: Combo) -> bool:

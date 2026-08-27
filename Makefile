@@ -149,11 +149,18 @@ moodle:
 
 .PHONY: moodle-all
 moodle-all:
-	@for locale in $$(echo "$(LOCALES)" | tr ',' ' '); do \
-		python ep_tools.py limpar \
-			gen/book/eps/$(LANGS).$$locale \
-			gen/book/eps/$(LANGS).$${locale}_moodle \
-			--base-url "https://fzampirolli.github.io/pdi-vc/eps/$(LANGS).$$locale"; \
+	@for lang in $$(echo "$(LANGS)" | tr ',' ' '); do \
+		for locale in $$(echo "$(LOCALES)" | tr ',' ' '); do \
+			in_dir="gen/book/eps/$$lang.$$locale"; \
+			if [ ! -d "$$in_dir" ]; then \
+				echo "⏭  moodle-all: pulando $$in_dir (não existe)"; \
+				continue; \
+			fi; \
+			python ep_tools.py limpar \
+				"$$in_dir" \
+				"gen/book/eps/$$lang.$${locale}_moodle" \
+				--base-url "https://fzampirolli.github.io/pdi-vc/eps/$$lang.$$locale"; \
+		done; \
 	done
 
 # ── Extração de Simuladores ──────────────────────────────────────────────────
