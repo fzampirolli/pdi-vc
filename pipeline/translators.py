@@ -142,6 +142,25 @@ def _unmask_protected_tokens(text: str, tokens: list[str]) -> str:
 
     return _MASK_PLACEHOLDER_RE.sub(_repl, text)
 
+
+_MM_OUT_LINE_RE = re.compile(r'^#define MM_OUT "[^"]*"\n')
+
+
+def _apply_mm_out(code: str, path: Optional[str]) -> str:
+    """
+    Normaliza a linha `#define MM_OUT "<path>"` no topo do C++ traduzido.
+
+    MM_OUT é detalhe de deploy (onde o binário grava o PNG — hoje em tmp/),
+    não da tradução em si: NUNCA entra na chave nem no valor do cache. É
+    removida antes do `cache.set` e reaplicada (com o path atual) tanto no
+    cache-hit quanto no retorno da tradução nova. Assim mudar o diretório
+    de saída não invalida o cache de tradução.
+    """
+    code = _MM_OUT_LINE_RE.sub('', code, count=1)
+    if path:
+        code = f'#define MM_OUT "{path}"\n' + code
+    return code
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ABC base
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,6 +249,8 @@ class LLMCodeTranslator(Translator):
         # Cache hit?
         cached = self.cache.get(source, self.kind, self.src_key, self.tgt_key)
         if cached is not None:
+            if self._tgt_lang == 'cpp':
+                return _apply_mm_out(cached, output_image_path)
             return cached
 
         if self.dry_run:
@@ -261,6 +282,7 @@ class LLMCodeTranslator(Translator):
                                       std::vector<std::string> titles={}, int cols=3)
                   void      mm::write(const mm::Image&, std::string path)
                   mm::Image mm::threshold(const mm::Image&, std::optional<int> limiar=std::nullopt)  // Otsu if omitted
+                  int       mm::otsu(const mm::Image&)                  // Otsu threshold value T (same T mm::threshold uses)
                   std::string mm::drawImg(const mm::Image&)
 
                 Rules:
@@ -271,7 +293,20 @@ class LLMCodeTranslator(Translator):
                   #define MM_OUT "..." line will be prepended for you
                   automatically) — never invent a filename yourself.
                 - Do NOT use OpenCV. Do NOT #include anything beyond
-                  "morph.hpp" and the C++ standard library.
+                  "morph.hpp" and the C++ standard library. In particular,
+                  `T, bin = cv2.threshold(img, 0, 255, THRESH_BINARY+THRESH_OTSU)`
+                  maps to two lines:
+                    int T = mm::otsu(img);
+                    mm::Image bin = mm::threshold(img);   // same T, Otsu when the arg is omitted
+                  `mm::otsu` returns the computed threshold, so KEEP a
+                  `print(f'... T = {T_otsu}')` — translate it to
+                  `std::cout << "... T = " << T_otsu << "\\n";`.
+                  Do NOT change the mm::show(...) call to carry T: keep its
+                  titles exactly as the simple flat vector they already are
+                  (a plain "Binária (Otsu)" element is fine) — the signature
+                  is still mm::show(std::vector<mm::Image>{...}, MM_OUT,
+                  std::vector<std::string>{...}, cols); never drop MM_OUT,
+                  never spread the titles out as separate arguments.
                 - Do NOT invent mm:: functions beyond the list above — in
                   particular there is NO mm::zeros / mm::ones. NumPy array
                   creation and indexing map directly onto mm::Image, which
@@ -279,6 +314,11 @@ class LLMCodeTranslator(Translator):
                     np.zeros((h, w), dtype='uint8')   ->  mm::Image img(h, w);
                     np.ones((h, w), dtype='uint8')*255 -> mm::Image img(h, w); std::fill(img.data.begin(), img.data.end(), 255);
                     img[y, x] = v                     ->  img.at(y, x) = v;
+                    img[y, x, ch] / img[y, x][ch]     ->  img.at(y, x, ch)   (ch: 0=R,1=G,2=B)
+                    img.copy()                        ->  mm::Image c = img;  (mm::Image tem semântica de valor)
+                - `img.at(...)` devolve `unsigned char` — para IMPRIMIR o
+                  valor numérico, faça o cast: `std::cout << (int)img.at(y,x)`
+                  (sem o cast, o std::cout imprime o caractere, não o número).
                 - Python keyword arguments (e.g. maxValue=255) have no C++
                   equivalent here — pass the value positionally instead
                   (e.g. mm::randomImage(4, 6, 255)), in the same parameter
@@ -344,13 +384,10 @@ class LLMCodeTranslator(Translator):
         result = self._filter_lang_directives(result, self._tgt_lang)
 
         if self._tgt_lang == 'cpp':
-            if output_image_path is not None:
-                # Precisa entrar ANTES do compile_check: o prompt instrui o
-                # LLM a chamar mm::show(img, MM_OUT, ...) usando o token
-                # literal, então sem essa macro definida a validação
-                # reprovaria por "MM_OUT não declarado" — um motivo que não
-                # tem nada a ver com a qualidade da tradução em si.
-                result = f'#define MM_OUT "{output_image_path}"\n' + result
+            # `#define MM_OUT` entra só pro compile_check abaixo e no
+            # retorno — NUNCA no `result` que vai pro cache (ver
+            # _apply_mm_out). Assim trocar o diretório de saída do PNG
+            # (ex.: mover pra tmp/) não invalida o cache de tradução.
 
             # Rede de segurança: sem isso, uma tradução C++ quebrada seria
             # cacheada e só apareceria como erro no dia do render (ou nem
@@ -369,9 +406,9 @@ class LLMCodeTranslator(Translator):
             # depois, em NotebookProcessor._expand_foreign_code_cell, com seu
             # próprio compile_check independente sobre o código já mutado).
             from .exec_validate import compile_check, inject_stub_declares
-            check_target = result
+            check_target = _apply_mm_out(result, output_image_path)
             if external_vars:
-                check_target = inject_stub_declares(result, external_vars)
+                check_target = inject_stub_declares(check_target, external_vars)
                 if check_target is None:
                     print('  ⚠ Não achei int main() pra stubar external_vars; mantendo código original.')
                     return source
@@ -382,6 +419,8 @@ class LLMCodeTranslator(Translator):
 
         self.cache.set(source, self.kind, self.src_key, self.tgt_key, result)
 
+        if self._tgt_lang == 'cpp':
+            return _apply_mm_out(result, output_image_path)
         return result
 
     def _filter_lang_directives(self, code: str, target_lang: str) -> str:

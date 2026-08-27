@@ -33,6 +33,7 @@ Sintaxe Quarto suportada:
 import json
 import re
 import shutil
+import tempfile
 import argparse
 import glob
 from pathlib import Path
@@ -1739,10 +1740,16 @@ def copy_dataset_dir(nb_source_dir: Path, out_dir: Path, nomes_pasta=("dataset",
 # ---------------------------------------------------------------------------
 
 def process_notebook(nb_path: Path, bib: dict, out_path: Path,
-                     numbering: bool = True, target_lang: str = "py") -> list:
+                     numbering: bool = True, target_lang: str = "py",
+                     extra_citations: list = None) -> list:
     """
     Processa um notebook.
     numbering: se True, adiciona numeração automática às seções
+    extra_citations: chaves de citação a incluir na lista de referências do
+        capítulo além das encontradas no próprio notebook. Usado quando o
+        conteúdo vem de gen/<lang>.pt/ (onde o pipeline do livro já
+        substituiu `@chave` por texto ABNT), mas ainda se quer a lista de
+        referências ao fim do capítulo — extraída do fonte cru em all/.
     """
     notebook = json.loads(nb_path.read_text(encoding="utf-8"))
 
@@ -1759,6 +1766,9 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path,
     
     elem_map = build_element_map(notebook, nb_path)
     citations = extract_citations(notebook)
+    for k in (extra_citations or []):
+        if k not in citations:
+            citations.append(k)
     image_paths = extract_image_paths(notebook)
 
     # Log
@@ -2110,11 +2120,14 @@ def run_batch(bib_path: str, out_dir: str,
 
     print(f"Encontrados {len(notebooks)} notebooks:\n")
     total_imgs = 0
-    
+
+    # Notebooks intermediários (capítulo sem os EPs mesclados) para --lang != py.
+    _tmpdir = Path(tempfile.mkdtemp(prefix="alunos_batch_"))
+
     for nb_path in notebooks:
         if numbering:
             reset_section_numbering()
-        
+
         cap_name = nb_path.parent.name
         # Path inclui "{target_lang}.pt" (mesma convenção lang.locale do
         # pipeline Quarto em pipeline/config.py:Combo.key) porque este
@@ -2127,12 +2140,70 @@ def run_batch(bib_path: str, out_dir: str,
         out_cap = out_root / f"{target_lang}.pt" / cap_name
         aluno_name = nb_path.stem + "_aluno.ipynb"
         out_nb = out_cap / aluno_name
-        print(f"[{cap_name}] {nb_path}")
-        
+
+        # De onde LER o notebook.
+        #
+        # py: o fonte cru `all/<cap>/<file>.ipynb` — as células já estão em
+        # Python, só falta resolver refs/figuras/numeração.
+        #
+        # Outras linguagens: este script NÃO traduz código (não chama LLM).
+        # O fonte cru só tem gêmeos `#[cpp]#` manuais para umas poucas
+        # células — todo o resto ficaria em Python. Então lemos a saída já
+        # traduzida pelo pipeline do livro (`gerar_livro.py`), em
+        # `gen/<lang>.pt/<cap>/<stem>.<lang>.pt.ipynb`, onde os marcadores
+        # `#[lang]#` já foram filtrados e o código já é C++/Java/etc.
+        # `nb_path` (o fonte em all/) continua sendo a referência para nome
+        # de saída, cap_name e cópia de imagens/datasets.
+        read_nb_path = nb_path
+        if target_lang != "py":
+            gen_nb_path = (Path("gen") / f"{target_lang}.pt" / cap_name /
+                           f"{nb_path.stem}.{target_lang}.pt.ipynb")
+            if not gen_nb_path.exists():
+                print(f"[{cap_name}] ⚠ {gen_nb_path} não existe — rode "
+                      f"`make build LANGS={target_lang} LOCALES=pt` antes. "
+                      f"Pulando.")
+                print()
+                continue
+            read_nb_path = gen_nb_path
+
+            # O pipeline do livro mescla o notebook de EPs no fim do
+            # capítulo (uma célula markdown "---" isolada como separador,
+            # seguida das células dos EPs — ver
+            # NotebookProcessor._merge_ep_notebook). No fluxo do aluno os
+            # EPs viram um caderno à parte (capXX.EPs_aluno.ipynb), como no
+            # py. Então corta o capítulo no último separador "---" isolado.
+            if ".EPs." not in nb_path.name:
+                gnb = json.loads(gen_nb_path.read_text(encoding="utf-8"))
+                gcells = gnb.get("cells", [])
+                cut = next(
+                    (i for i in range(len(gcells) - 1, -1, -1)
+                     if gcells[i].get("cell_type") == "markdown"
+                     and "".join(gcells[i].get("source", [])).strip() == "---"),
+                    None,
+                )
+                if cut is not None:
+                    gnb["cells"] = gcells[:cut]
+                    read_nb_path = _tmpdir / f"{nb_path.stem}.{target_lang}.pt.ipynb"
+                    read_nb_path.write_text(
+                        json.dumps(gnb, ensure_ascii=False), encoding="utf-8")
+                    print(f"  ✂ EPs mesclados removidos do capítulo "
+                          f"(corte na célula {cut}) — caderno à parte em "
+                          f"{nb_path.stem}.EPs_aluno.ipynb")
+        print(f"[{cap_name}] {read_nb_path}")
+
+        # Quando o conteúdo vem de gen/ (não-py), o `@chave` já virou texto
+        # ABNT — extrai as chaves do fonte cru em all/ para ainda montar a
+        # lista "## Referências do Capítulo" ao fim.
+        extra_cites = None
+        if read_nb_path != nb_path:
+            extra_cites = extract_citations(
+                json.loads(nb_path.read_text(encoding="utf-8")))
+
         # Passa numbering=False para EPs independente do flag global
         nb_numbering = numbering and '.EPs.' not in nb_path.name
-        image_paths = process_notebook(nb_path, bib, out_nb,
-                                    numbering=nb_numbering, target_lang=target_lang)
+        image_paths = process_notebook(read_nb_path, bib, out_nb,
+                                    numbering=nb_numbering, target_lang=target_lang,
+                                    extra_citations=extra_cites)
 
         if image_paths:
             copy_images(nb_path.parent, out_cap, image_paths)
@@ -2141,7 +2212,9 @@ def run_batch(bib_path: str, out_dir: str,
         copy_dataset_dir(nb_path.parent, out_cap)  # <-- nova linha
 
         print()
-        
+
+    shutil.rmtree(_tmpdir, ignore_errors=True)
+
     # Gera README.md
     readme = out_root / "README.md"
     readme.write_text(

@@ -53,7 +53,8 @@ except ImportError:
 from .config import BASE_LANG, BASE_LOCALE, LANGUAGES, LOCALES, Combo
 from .translators import TranslatorFactory
 from .bib import resolve_citations, resolve_bibliography
-from .exec_validate import inject_consumer_reads, inject_producer_writes
+from .exec_validate import (inject_consumer_reads, inject_panel_writes,
+                            inject_producer_writes)
 
 from nbformat.v4 import new_markdown_cell, new_code_cell
 
@@ -87,6 +88,12 @@ def _set_source(cell, src: str):
 # receberia um comentário vazio pedindo pra "traduzir" e poderia alucinar
 # uma solução completa do zero. Por isso: reconhecer o placeholder e só
 # trocar a extensão/comentário, sem nunca chamar o LLM nesse caso.
+
+# Subpasta (relativa ao diretório do capítulo) para os artefatos de build
+# da trilha compilada: .cpp gerado, binário, PNG intermediário do MM_OUT e
+# state/ da passagem de mm::Image entre células. Mantém o diretório do
+# capítulo limpo (só .ipynb, imagens/, morph.hpp, EP*.cpp do aluno).
+TMP_DIR = 'tmp'
 
 _EP_PLACEHOLDER_COMMENT_PREFIX = {
     '.py': '#', '.java': '//', '.c': '//', '.cpp': '//', '.js': '//', '.r': '#',
@@ -145,8 +152,12 @@ def _ep_testsuite_call_name(src: str) -> Optional[str]:
 # precisa ser garantida por construção, não por o modelo ter obedecido o
 # prompt.
 
-_MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'drawImg'}
-_CV2_RE   = re.compile(r'\bcv2\.')
+_MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'otsu', 'drawImg'}
+_CV2_RE   = re.compile(r'\bcv2\.(\w+)')
+# Símbolos cv2 que a cheat-sheet de tradução sabe mapear pra morph.hpp
+# (cv2.threshold(..., THRESH_OTSU) -> mm::threshold + mm::otsu pro valor T).
+# Uma célula com cv2 SÓ desses continua elegível; qualquer outro cv2.* não.
+_CV2_WHITELIST = {'threshold', 'THRESH_BINARY', 'THRESH_BINARY_INV', 'THRESH_OTSU'}
 _PLT_RE   = re.compile(r'\bplt\.')
 _MM_CALL_RE = re.compile(r'\bmm\.(\w+)\s*\(')
 _MM_SHOW_RE = re.compile(r'\bmm\.show\s*\(')
@@ -158,14 +169,17 @@ _HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
 
 def _is_eligible_for_foreign_expansion(src: str) -> bool:
     """
-    True só se `src` não usa cv2/matplotlib diretamente, não monta HTML/JS
+    True só se `src` não usa matplotlib diretamente, não monta HTML/JS
     embutido (simuladores interativos — não fazem sentido em C++, e uma
     "tradução" que tente simular a interação via stdin pode travar esperando
-    entrada que nunca chega), e todo `mm.*` chamado está na lista de funções
-    com equivalente em morph.hpp. Fora disso, a célula fica como referência
-    Python não-executada (nunca tenta traduzir).
+    entrada que nunca chega), todo `cv2.*` usado está em _CV2_WHITELIST e
+    todo `mm.*` chamado está na lista de funções com equivalente em
+    morph.hpp. Fora disso, a célula fica como referência Python
+    não-executada (nunca tenta traduzir).
     """
-    if _CV2_RE.search(src) or _PLT_RE.search(src) or _HTML_TRIPLE_RE.search(src):
+    if _PLT_RE.search(src) or _HTML_TRIPLE_RE.search(src):
+        return False
+    if any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
         return False
     for m in _MM_CALL_RE.finditer(src):
         if m.group(1) not in _MM_WHITELIST:
@@ -301,6 +315,215 @@ def _figure_option_lines(src: str) -> list:
         if _FIG_OPTION_RE.match(line):
             opts.append(line)
     return opts
+
+
+# Ordem de kwargs de mm.show() propagados pra célula-glue (só os que
+# afetam layout/rotulagem — nada de estado).
+_MM_SHOW_GLUE_KWARGS = ('titles', 'title', 'cols', 'rows', 'axis', 'figsize', 'dpi')
+
+
+def _literal_namespace(src: str) -> dict:
+    """`{nome: valor}` das atribuições `nome = <literal>` de nível de módulo
+    em `src` — usado pra resolver títulos tipo `f"Binária (T={limiar})"`
+    (onde `limiar = 128` aparece na mesma célula) em string estática."""
+    ns: dict = {}
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return ns
+    for node in getattr(tree, 'body', []):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                and isinstance(node.targets[0], ast.Name):
+            try:
+                ns[node.targets[0].id] = ast.literal_eval(node.value)
+            except (ValueError, TypeError):
+                pass
+    return ns
+
+
+def _render_title(node: ast.AST, ns: dict, dynamic_ok: set) -> tuple:
+    """Renderiza um nó de título pra glue:
+      * `('lit', "texto")`  — literal / f-string totalmente resolvível
+        contra `ns` (constantes da própria célula);
+      * `('fstr', 'f"...{nome}..."')` — f-string em que TODA interpolação ou
+        resolve contra `ns` (substituída inline) ou está em `dynamic_ok`
+        (mantida como `{nome}`, a ser calculada no preâmbulo da glue).
+    Levanta quando sobra interpolação que não é nenhum dos dois."""
+    try:
+        return ('lit', str(ast.literal_eval(node)))
+    except (ValueError, TypeError):
+        pass
+
+    def _eval(expr):
+        code = compile(ast.Expression(expr), '<title>', 'eval')
+        return eval(code, {'__builtins__': {}}, dict(ns))  # noqa: S307 — ns só tem literais
+
+    if not isinstance(node, ast.JoinedStr):
+        val = _eval(node)
+        if not isinstance(val, str):
+            raise TypeError('título não-string')
+        return ('lit', val)
+
+    def _esc(t: str) -> str:            # texto literal dentro de f"..."
+        return t.replace('\\', '\\\\').replace('"', '\\"') \
+                .replace('{', '{{').replace('}', '}}')
+
+    raw, esc, has_dyn = [], [], False
+    for v in node.values:
+        if isinstance(v, ast.Constant):
+            raw.append(str(v.value))
+            esc.append(_esc(str(v.value)))
+        elif isinstance(v, ast.FormattedValue):
+            name = v.value.id if isinstance(v.value, ast.Name) else None
+            if name is not None and name in dynamic_ok:
+                esc.append('{' + name + '}')
+                raw.append('')
+                has_dyn = True
+            else:
+                s = format(_eval(v.value))
+                raw.append(s)
+                esc.append(_esc(s))
+        else:
+            raise ValueError('f-string com parte inesperada')
+    if has_dyn:
+        return ('fstr', 'f"' + ''.join(esc) + '"')
+    return ('lit', ''.join(raw))
+
+
+def _otsu_from_cv2(tree: ast.AST, panel_names: list) -> list:
+    """Acha `T, _ = cv2.threshold(<img>, ..., ...THRESH_OTSU...)` em que
+    `<img>` é um dos painéis. Devolve [(T_name, panel_idx), ...] — a glue
+    recalcula esse T no kernel Python (via `mm.otsu`) a partir do PNG do
+    painel, já que o valor vive no processo C++ e não cruza pra cá."""
+    out = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Tuple)):
+            continue
+        val = node.value
+        if not (isinstance(val, ast.Call) and isinstance(val.func, ast.Attribute)
+                and val.func.attr == 'threshold'
+                and isinstance(val.func.value, ast.Name)
+                and val.func.value.id == 'cv2'):
+            continue
+        if 'THRESH_OTSU' not in ' '.join(ast.unparse(a) for a in val.args):
+            continue
+        tgt = node.targets[0].elts
+        img = val.args[0] if val.args else None
+        if (tgt and isinstance(tgt[0], ast.Name)
+                and isinstance(img, ast.Name) and img.id in panel_names):
+            out.append((tgt[0].id, panel_names.index(img.id)))
+    return out
+
+
+def _parse_mm_show_panels(src: str) -> Optional[dict]:
+    """
+    Se `src` chama `mm.show([v1, v2, ...], titles=[...], cols=, axis=, ...)`
+    com o 1º argumento uma LISTA DE NOMES SIMPLES, devolve
+    `{'names', 'titles', 'kwargs', 'otsu'}` — o suficiente pra reconstruir a
+    mesma figura na trilha C++ exibindo os painéis individualmente (com
+    título/eixo), já que o `mm::show` do C++ achata tudo num PNG sem texto.
+
+    `titles`: lista de `('lit'|'fstr', str)` (ver _render_title) ou None.
+    `otsu`: `[(T_name, panel_idx), ...]` — T's de Otsu que a glue recalcula
+    com `mm.otsu` a partir do PNG do painel (o valor vive no processo C++).
+
+    Devolve None quando não é a forma de lista, quando os elementos não são
+    nomes simples, quando um título é dinâmico de verdade, ou `src` não
+    parseia.
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return None
+    ns = _literal_namespace(src)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if not (isinstance(f, ast.Attribute) and f.attr == 'show'
+                and isinstance(f.value, ast.Name) and f.value.id == 'mm'):
+            continue
+        if not node.args or not isinstance(node.args[0], ast.List):
+            return None
+        elts = node.args[0].elts
+        if not elts or not all(isinstance(e, ast.Name) for e in elts):
+            return None
+        names = [e.id for e in elts]
+        otsu = _otsu_from_cv2(tree, names)
+        dynamic_ok = {t for t, _ in otsu}
+        kwargs = {kw.arg: ast.unparse(kw.value)
+                  for kw in node.keywords
+                  if kw.arg in _MM_SHOW_GLUE_KWARGS and kw.arg not in ('titles', 'title')}
+        titles = None
+        for kw in node.keywords:
+            if kw.arg not in ('titles', 'title'):
+                continue
+            elts_t = kw.value.elts if isinstance(kw.value, ast.List) else [kw.value]
+            try:
+                titles = [_render_title(e, ns, dynamic_ok) for e in elts_t]
+            except Exception:
+                return None
+        # se nenhum título usa um T de Otsu, não precisa do preâmbulo cv2
+        if titles is not None:
+            used = any(kind == 'fstr' for kind, _ in titles)
+            if not used:
+                otsu = []
+        return {'names': names, 'titles': titles, 'kwargs': kwargs, 'otsu': otsu}
+    return None
+
+
+def _parse_mm_show_figsize(src: str) -> Optional[str]:
+    """`figsize=<expr>` da chamada `mm.show(...)` em `src` (string), ou None.
+    Deixar a glue C++ usar o MESMO figsize da célula Python original — e
+    OMITIR quando o original omite — faz o morph.py dimensionar igual nas
+    duas trilhas."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return None
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == 'show'
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == 'mm'):
+            for kw in node.keywords:
+                if kw.arg == 'figsize':
+                    return ast.unparse(kw.value)
+            return None
+    return None
+
+
+def _panels_glue_lines(base: str, panels: dict) -> list:
+    """Reconstrói `mm.show([mm.read(painel_i)...], titles=[...], ...)` — uma
+    entrada por linha pra nada passar de ~90 colunas no PDF."""
+    n = len(panels['names'])
+    kw = panels['kwargs']            # já sem titles/title (ver _parse_mm_show_panels)
+    out = []
+    # Preâmbulo: o T de Otsu que aparece nos títulos é recalculado no kernel
+    # Python a partir do PNG em tons de cinza do painel — o valor vive no
+    # processo C++ e não cruza pra cá. `mm.otsu` espelha `mm::otsu` da
+    # morph.hpp; sobre os mesmos pixels dá o mesmo T. Ver _otsu_from_cv2.
+    if panels.get('otsu'):
+        for tname, pidx in panels['otsu']:
+            out.append(
+                f'{tname} = mm.otsu('
+                f'mm.read("{TMP_DIR}/{base}_{pidx}.png", grayscale=True))'
+            )
+    out += ['mm.show(', '    [']
+    for i in range(n):
+        out.append(f'        mm.read("{TMP_DIR}/{base}_{i}.png"),')
+    out.append('    ],')
+    if panels['titles'] is not None:
+        out.append('    titles=[')
+        for kind, text in panels['titles']:
+            out.append(f'        {text if kind == "fstr" else repr(text)},')
+        out.append('    ],')
+    for k in _MM_SHOW_GLUE_KWARGS:
+        if k in kw:
+            out.append(f'    {k}={kw[k]},')
+    out.append(')')
+    return out
 
 
 def _clean_cell(cell, is_base: bool = False):
@@ -608,7 +831,17 @@ class NotebookProcessor:
         ext = LANGUAGES[combo.lang].extension
         base = _cell_base_name(src, ctx)
         needs_glue = bool(_MM_SHOW_RE.search(src))
-        png_name = f'{base}.png'
+        # `mm.show([v1, v2, ...], titles=[...])` — exibir os painéis
+        # individualmente na glue (com título/eixo) em vez do composto
+        # achatado do mm::show C++. None → composto único (comportamento
+        # padrão). Confirmado/descartado após a injeção compilar.
+        panels = _parse_mm_show_panels(src) if needs_glue else None
+        # Artefatos de build da trilha compilada (fonte gerada, binário,
+        # PNG intermediário do MM_OUT e state/ entre células) ficam em
+        # tmp/ para não poluir o diretório do capítulo. A pasta é criada
+        # na célula de configuração (os.makedirs("tmp/state")). Ver
+        # também inject_producer_writes/inject_consumer_reads.
+        png_name = f'{TMP_DIR}/{base}.png'
 
         cross = ctx.get('cross_cell_vars') or {
             'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {},
@@ -667,22 +900,65 @@ class NotebookProcessor:
                 return self._reference_only_cell(cell, src, combo)
             translated = mutated
 
-        write_cell = copy.deepcopy(cell)
-        _set_source(write_cell, f'%%writefile {base}{ext}\n{translated}')
+        if panels is not None:
+            # Injeção mecânica de um mm::write por painel (nunca pelo LLM),
+            # validada por compile_check próprio — como a de state/. Se não
+            # compilar (ex.: LLM renomeou uma variável da lista), cai pro
+            # composto único sem quebrar o build.
+            from .exec_validate import compile_check
+            panel_mut = inject_panel_writes(translated, panels['names'], base)
+            ok = panel_mut is not None
+            if ok:
+                ok, err = compile_check('cpp', panel_mut)
+                if not ok:
+                    print(f'  ⚠ Injeção de painéis não compilou; usando '
+                          f'composto único.\n{err[:400]}')
+            if ok:
+                translated = panel_mut
+            else:
+                panels = None
 
-        run_line = f'!g++ {base}{ext} -o {base} && ./{base}'
+        write_cell = copy.deepcopy(cell)
+        _set_source(write_cell, f'%%writefile {TMP_DIR}/{base}{ext}\n{translated}')
+
+        # `-I.` : com o .cpp em tmp/, o `#include "morph.hpp"` precisa do
+        # diretório do capítulo no include path. Binário e execução também
+        # em tmp/ (cwd continua o diretório do capítulo).
+        #
+        # Quebrado em várias linhas com `\` (continuação de shell, aceita
+        # pelo `!` do IPython) pra nenhuma linha passar de ~90 colunas e
+        # estourar a margem direita no PDF.
+        run_parts = [
+            f'!g++ -I. {TMP_DIR}/{base}{ext} -o {TMP_DIR}/{base}',
+            f'./{TMP_DIR}/{base}',
+        ]
         if needs_glue:
-            run_line += (f' && test -f "{png_name}" '
-                         f'|| echo "⚠ mm::show não gravou {png_name}"')
+            run_parts.append(f'test -f "{png_name}"')
+        run_line = ' \\\n  && '.join(run_parts)
+        if needs_glue:
+            run_line += f' \\\n  || echo "⚠ mm::show não gravou {png_name}"'
         run_cell = new_code_cell(run_line)
 
         out = [write_cell, run_cell]
         if needs_glue:
             fig_opts = _figure_option_lines(src)
-            glue_lines = fig_opts + [
-                'from IPython.display import Image, display',
-                f'display(Image(filename="{png_name}"))',
-            ]
+            if panels is not None:
+                # Painéis individuais (mm::write injetado acima) → reproduz
+                # a figura Python com títulos/eixos, em vez do composto
+                # achatado e sem texto do mm::show C++.
+                glue_lines = fig_opts + _panels_glue_lines(base, panels)
+            else:
+                # Composto único (imagem só, ou fallback de painéis). Usa o
+                # MESMO figsize da célula Python original — e OMITE quando o
+                # original omite — pra o morph.py dimensionar igual nas duas
+                # trilhas (senão a figura C++ sai com tamanho diferente da
+                # py). Substitui IPython.display.Image (que mostraria o PNG
+                # no tamanho nativo — o mm::show C++ compõe em escala 1:1
+                # pixel, morph.hpp).
+                fs = _parse_mm_show_figsize(src)
+                call = f'mm.show(mm.read("{png_name}")'
+                call += f', figsize={fs})' if fs else ')'
+                glue_lines = fig_opts + [call]
             glue_cell = new_code_cell('\n'.join(glue_lines))
             out.append(glue_cell)
 

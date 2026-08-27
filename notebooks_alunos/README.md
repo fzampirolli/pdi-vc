@@ -3,13 +3,13 @@
 Notebooks dos capítulos com referências bibliográficas, figuras, tabelas e equações renderizadas para Jupyter/Colab.
 
 ## Estrutura
-`py.pt/capXX/capXX_aluno.ipynb` — notebook do capítulo XX
-`py.pt/apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X
-`py.pt/capXX/images/` — imagens do capítulo
+`cpp.pt/capXX/capXX_aluno.ipynb` — notebook do capítulo XX
+`cpp.pt/apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X
+`cpp.pt/capXX/images/` — imagens do capítulo
 
 ## Como usar
 ```bash
-jupyter lab py.pt/cap01/cap01_aluno.ipynb
+jupyter lab cpp.pt/cap01/cap01_aluno.ipynb
 ```
 
 ## Características

@@ -92,6 +92,11 @@ _MAIN_SIG_RE = re.compile(r'int\s+main\s*\([^)]*\)\s*\{')
 STATE_IO_BEGIN = '// [pdi:state-io] auto-generated — do not edit by hand'
 STATE_IO_END = '// [pdi:state-io:end]'
 
+# Diretório dos PNGs de passagem de mm::Image entre células. Fica sob tmp/
+# (mesma pasta dos demais artefatos de build — ver
+# notebook_processor.TMP_DIR) pra não poluir o diretório do capítulo.
+STATE_DIR = 'tmp/state'
+
 
 def find_main_body_span(cpp_src: str):
     """
@@ -151,7 +156,7 @@ def inject_consumer_reads(cpp_src: str, records: list):
     for record in sorted(records, key=lambda r: r['var_name']):
         var = record['var_name']
         producer_idx = record['producer_idx']
-        lines.append(f'mm::Image {var} = mm::read("state/{var}_{producer_idx}.png");')
+        lines.append(f'mm::Image {var} = mm::read("{STATE_DIR}/{var}_{producer_idx}.png");')
     lines.append(STATE_IO_END)
     block = '\n' + '\n'.join(lines) + '\n'
 
@@ -174,9 +179,10 @@ def inject_producer_writes(cpp_src: str, var_names: list, producer_idx: int):
     body_start, body_end = span
     body = cpp_src[body_start:body_end]
 
-    lines = [STATE_IO_BEGIN, 'std::filesystem::create_directories("state");']
+    lines = [STATE_IO_BEGIN,
+             f'std::filesystem::create_directories("{STATE_DIR}");']
     for var in sorted(var_names):
-        lines.append(f'mm::write({var}, "state/{var}_{producer_idx}.png");')
+        lines.append(f'mm::write({var}, "{STATE_DIR}/{var}_{producer_idx}.png");')
     lines.append(STATE_IO_END)
     block = '\n' + '\n'.join(lines) + '\n'
 
@@ -188,13 +194,54 @@ def inject_producer_writes(cpp_src: str, var_names: list, producer_idx: int):
         new_body = body + block
 
     mutated = cpp_src[:body_start] + new_body + cpp_src[body_end:]
+    return _ensure_filesystem_include(mutated)
 
-    if not re.search(r'#include\s*<filesystem>', mutated):
-        includes = list(re.finditer(r'^#include\s*[<"][^">]+[>"]', mutated, re.MULTILINE))
-        insert_at = includes[-1].end() if includes else 0
-        mutated = mutated[:insert_at] + '\n#include <filesystem>' + mutated[insert_at:]
 
-    return mutated
+def _ensure_filesystem_include(cpp_src: str) -> str:
+    """Garante `#include <filesystem>` — mm::write nunca cria diretório
+    sozinho, e create_directories() precisa do header."""
+    if re.search(r'#include\s*<filesystem>', cpp_src):
+        return cpp_src
+    includes = list(re.finditer(r'^#include\s*[<"][^">]+[>"]', cpp_src, re.MULTILINE))
+    insert_at = includes[-1].end() if includes else 0
+    return cpp_src[:insert_at] + '\n#include <filesystem>' + cpp_src[insert_at:]
+
+
+PANEL_IO_BEGIN = '// [pdi:panel-io] auto-generated — do not edit by hand'
+PANEL_IO_END = '// [pdi:panel-io:end]'
+
+
+def inject_panel_writes(cpp_src: str, var_names: list, base: str):
+    """
+    Insere `mm::write(<var>, "tmp/<base>_<i>.png");` — uma por imagem, NA
+    ORDEM da lista (não ordenado) — antes do último `return` de `main`.
+
+    Serve pra célula-glue Python exibir os painéis individualmente com
+    títulos/eixos (mm.show([...], titles=[...], axis=...)); o
+    `mm::show(imgs, MM_OUT)` do C++ só compõe um grid achatado, sem texto.
+    Devolve None se `main` não for localizado.
+    """
+    span = find_main_body_span(cpp_src)
+    if span is None:
+        return None
+    body_start, body_end = span
+    body = cpp_src[body_start:body_end]
+
+    lines = [PANEL_IO_BEGIN, 'std::filesystem::create_directories("tmp");']
+    for i, var in enumerate(var_names):
+        lines.append(f'mm::write({var}, "tmp/{base}_{i}.png");')
+    lines.append(PANEL_IO_END)
+    block = '\n' + '\n'.join(lines) + '\n'
+
+    returns = list(re.finditer(r'\breturn\b[^;]*;', body))
+    if returns:
+        last = returns[-1]
+        new_body = body[:last.start()] + block + body[last.start():]
+    else:
+        new_body = body + block
+
+    mutated = cpp_src[:body_start] + new_body + cpp_src[body_end:]
+    return _ensure_filesystem_include(mutated)
 
 
 def inject_stub_declares(cpp_src: str, var_names: list):

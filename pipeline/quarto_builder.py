@@ -739,6 +739,23 @@ div.sourceCode pre code {
   color: #5a1a10 !important;
 }
 
+/* O <code> DENTRO do <pre> (saída de stream: <pre><code>...</code></pre>)
+   não pode reganhar caixa/borda/padding próprios — senão vira uma
+   "janela dentro da outra". Só o <pre> externo desenha a moldura,
+   idêntico ao que já se faz com div.sourceCode acima. */
+.cell-output pre code,
+[class^="cell-output"] pre code,
+[class*=" cell-output"] pre code {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-left-width: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-size: inherit !important;
+}
+
 /* ── display_data (imagens, HTML rico): sem caixa própria ─────── */
 .cell-output-display {
   background: transparent !important;

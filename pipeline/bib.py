@@ -24,7 +24,14 @@ def parse_bib(bib_path: str | Path) -> dict:
         for fm in re.finditer(
             r'(\w+)\s*=\s*[{"](.+?)[}"],?\s*(?=\w+\s*=|\Z)', body, re.DOTALL
         ):
-            fields[fm.group(1).lower()] = fm.group(2).strip().replace('\n', ' ')
+            val = fm.group(2).strip().replace('\n', ' ')
+            # No ÚLTIMO campo da entrada (sem vírgula final, seguido de "\n}"),
+            # o regex engole a chave de fechamento: year={2020} vira "2020}".
+            # Remove só "}" excedente (não fecha um "{" no próprio valor),
+            # preservando casos legítimos como {{ITU-R}} ou \url{...}.
+            while val.endswith('}') and val.count('}') > val.count('{'):
+                val = val[:-1].rstrip()
+            fields[fm.group(1).lower()] = val
         entries[key] = fields
     return entries
 
@@ -79,6 +86,13 @@ def format_ref_abnt(key: str, bib: dict) -> str:
 
 _CROSSREF_PREFIX_RE = r'(?!(?:fig|tbl|eq)-)'
 
+# Chave de citação Pandoc: começa e TERMINA em [A-Za-z0-9_]; ":.-" só valem
+# no meio. Sem a âncora final, "[A-Za-z0-9_:.-]+" é ganancioso e engole a
+# pontuação seguinte — em "@zampirolli2025morph." a chave capturada vira
+# "zampirolli2025morph." (com o ponto), não bate no `bib` e cite_direct só
+# descarta o "@", deixando "zampirolli2025morph" solto no texto.
+_CITE_KEY_RE = r'([A-Za-z0-9_](?:[A-Za-z0-9_:.-]*[A-Za-z0-9_])?)'
+
 
 def resolve_citations(src: str, bib: dict, used: set) -> str:
     """
@@ -91,12 +105,12 @@ def resolve_citations(src: str, bib: dict, used: set) -> str:
     descarta o "@"), deixando @fig-x virar "fig-x" solto no texto antes de
     _process_cross_refs ter a chance de rodar.
     """
-    for m in re.finditer(r'@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)', src):
+    for m in re.finditer(r'@' + _CROSSREF_PREFIX_RE + _CITE_KEY_RE, src):
         if m.group(1) in bib:
             used.add(m.group(1))
-    src = re.sub(r'\[@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)\]',
+    src = re.sub(r'\[@' + _CROSSREF_PREFIX_RE + _CITE_KEY_RE + r'\]',
                  lambda m: cite_indirect(m.group(1), bib), src)
-    src = re.sub(r'(?<!\[)@' + _CROSSREF_PREFIX_RE + r'([A-Za-z0-9_:.-]+)',
+    src = re.sub(r'(?<!\[)@' + _CROSSREF_PREFIX_RE + _CITE_KEY_RE,
                  lambda m: cite_direct(m.group(1), bib), src)
     return src
 

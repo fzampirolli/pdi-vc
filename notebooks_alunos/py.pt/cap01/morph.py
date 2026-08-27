@@ -8,7 +8,8 @@ version 1.1.5 - remoção de import global cv2, numpy, matplotlib, skimage, scip
 version 1.1.6 - inclusão de métodos para Aprendizado de Máquina (k-NN, readTrain, readTest)
 version 1.1.7 - lazy loading de sklearn (neighbors, preprocessing, metrics) e skimage.feature
 version 1.1.8 - showNet e showTrainCurves para mostrar arquitetura de rede pytorch
-Last update: Jul 2026
+version 1.1.9 - mm.otsu(img): expõe só o limiar T de Otsu (espelha mm::otsu da morph.hpp)
+Last update: Aug 2026
 """
 
 # Convenção de nomes:
@@ -18,7 +19,7 @@ Last update: Jul 2026
 
 # Imports lazy adicionais (mesmo padrão de _get_cv2/_get_np/_get_skmeasure do cabeçalho).
 
-__version__ = "1.1.8"
+__version__ = "1.1.9"
 
 from typing import Optional
 import sys
@@ -488,6 +489,16 @@ class mm:
         valor_limiar = 0 if limiar is None else limiar
         _, th = cv2.threshold(img, valor_limiar, 255, flags)
         return th
+
+    @staticmethod
+    def otsu(img):
+        """Limiar de Otsu (só o valor T), o mesmo que `mm.threshold(img)` usa
+        internamente quando o limiar é omitido. Útil quando o T precisa
+        aparecer num título/log sem recorrer a `cv2.threshold(...)[0]`.
+        Espelha `mm::otsu` da morph.hpp."""
+        cv2 = mm._get_cv2()
+        T, _ = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return int(T)
 
     # ── HISTOGRAMA / EQUALIZAÇÃO ─────────────────────────────────────────────
 
