@@ -2107,7 +2107,8 @@ def run_batch_epub(bib_path: str, out_dir: str):
 # ---------------------------------------------------------------------------
 
 def run_batch(bib_path: str, out_dir: str,
-              numbering: bool = True, target_lang: str = "py"):
+              numbering: bool = True, target_lang: str = "py",
+              locale: str = "pt"):
     bib = parse_bib(bib_path)
     out_root = Path(out_dir)
     EXCLUDE = ("_dist", "_executado", "_fixed")
@@ -2137,7 +2138,7 @@ def run_batch(bib_path: str, out_dir: str,
         # diferentes (ex.: --lang cpp) sobrescreveria o mesmo
         # "notebooks_alunos/cap01/cap01_aluno.ipynb" de sempre, e o badge
         # do Colab no notebook-fonte ficaria ambíguo sobre qual versão abre.
-        out_cap = out_root / f"{target_lang}.pt" / cap_name
+        out_cap = out_root / f"{target_lang}.{locale}" / cap_name
         aluno_name = nb_path.stem + "_aluno.ipynb"
         out_nb = out_cap / aluno_name
 
@@ -2155,12 +2156,13 @@ def run_batch(bib_path: str, out_dir: str,
         # `nb_path` (o fonte em all/) continua sendo a referência para nome
         # de saída, cap_name e cópia de imagens/datasets.
         read_nb_path = nb_path
-        if target_lang != "py":
-            gen_nb_path = (Path("gen") / f"{target_lang}.pt" / cap_name /
-                           f"{nb_path.stem}.{target_lang}.pt.ipynb")
+        combo_key = f"{target_lang}.{locale}"
+        if combo_key != "py.pt":
+            gen_nb_path = (Path("gen") / combo_key / cap_name /
+                           f"{nb_path.stem}.{combo_key}.ipynb")
             if not gen_nb_path.exists():
                 print(f"[{cap_name}] ⚠ {gen_nb_path} não existe — rode "
-                      f"`make build LANGS={target_lang} LOCALES=pt` antes. "
+                      f"`make build LANGS={target_lang} LOCALES={locale}` antes. "
                       f"Pulando.")
                 print()
                 continue
@@ -2183,7 +2185,7 @@ def run_batch(bib_path: str, out_dir: str,
                 )
                 if cut is not None:
                     gnb["cells"] = gcells[:cut]
-                    read_nb_path = _tmpdir / f"{nb_path.stem}.{target_lang}.pt.ipynb"
+                    read_nb_path = _tmpdir / f"{nb_path.stem}.{combo_key}.ipynb"
                     read_nb_path.write_text(
                         json.dumps(gnb, ensure_ascii=False), encoding="utf-8")
                     print(f"  ✂ EPs mesclados removidos do capítulo "
@@ -2215,19 +2217,26 @@ def run_batch(bib_path: str, out_dir: str,
 
     shutil.rmtree(_tmpdir, ignore_errors=True)
 
-    # Gera README.md
+    # Gera README.md — combo-neutro (várias árvores <lang>.<locale>/ podem
+    # coexistir; cada chamada regenera este arquivo).
+    combos_presentes = sorted(
+        d.name for d in out_root.iterdir()
+        if d.is_dir() and re.fullmatch(r'[a-z]+\.[a-z]{2}', d.name)
+    )
     readme = out_root / "README.md"
     readme.write_text(
         "# Notebooks para Alunos\n\n"
         "Notebooks dos capítulos com referências bibliográficas, "
         "figuras, tabelas e equações renderizadas para Jupyter/Colab.\n\n"
         "## Estrutura\n"
-        f"`{target_lang}.pt/capXX/capXX_aluno.ipynb` — notebook do capítulo XX\n"
-        f"`{target_lang}.pt/apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X\n"
-        f"`{target_lang}.pt/capXX/images/` — imagens do capítulo\n\n"
+        "Uma árvore por combo `<linguagem>.<idioma>/` "
+        f"(presentes: {', '.join(combos_presentes) or 'nenhum'}):\n\n"
+        "`<combo>/capXX/capXX_aluno.ipynb` — notebook do capítulo XX\n"
+        "`<combo>/capXX/capXX.EPs_aluno.ipynb` — exercícios do capítulo XX\n"
+        "`<combo>/capXX/imagens/` — imagens do capítulo\n\n"
         "## Como usar\n"
         "```bash\n"
-        f"jupyter lab {target_lang}.pt/cap01/cap01_aluno.ipynb\n"
+        f"jupyter lab {target_lang}.{locale}/cap01/cap01_aluno.ipynb\n"
         "```\n\n"
         "## Características\n"
         "- Referências bibliográficas formatadas (ABNT)\n"
@@ -2265,6 +2274,8 @@ def main():
                         help="Nao adiciona numeracao automatica de secoes")
     parser.add_argument("notebook", nargs="?",
                         help="Caminho para o .ipynb (modo unico)")
+    parser.add_argument("--locale", default="pt",
+                        help="Locale do conteúdo (pt, en, fr) — lê de gen/<lang>.<locale>/")
     parser.add_argument("--lang", default="py",
                     help="Linguagem alvo para filtro #[lang]# (padrão: py)")
 
@@ -2278,7 +2289,7 @@ def main():
     if args.epub:
         run_batch_epub(args.bib, args.out_dir)
     elif args.batch:
-        run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang)
+        run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang, locale=args.locale)
     else:
         if not args.notebook:
             parser.error("Informe o notebook ou use --batch ou --epub")

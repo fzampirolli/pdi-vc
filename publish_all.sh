@@ -88,8 +88,16 @@ fi
 # Passo 2b: Gerar notebooks para alunos
 # ===================================================================
 echo ""
-echo "[2b/6] Gerando notebooks para alunos..."
-python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos
+echo "[2b/6] Gerando notebooks para alunos (uma árvore por combo)..."
+IFS=',' read -ra _AL_LANGS  <<< "$LANGS"
+IFS=',' read -ra _AL_LOCALES <<< "$LOCALES"
+for lang in "${_AL_LANGS[@]}"; do
+  for locale in "${_AL_LOCALES[@]}"; do
+    echo "      → ${lang}.${locale}"
+    python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos \
+      --lang "$lang" --locale "$locale"
+  done
+done
 echo "      ✓ notebooks_alunos/"
 
 # ===================================================================

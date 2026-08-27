@@ -83,18 +83,18 @@ def _set_source(cell, src: str):
 # Badge "Executar no Colab" da 1ª célula markdown: no fonte o alvo está
 # hardcoded (ora `notebooks_alunos/py.pt/capXX/...`, ora sem prefixo de
 # combo `notebooks_alunos/capXX/...`, às vezes apontando pro capítulo
-# errado). Os cadernos de aluno só existem em `<lang>.pt` (não há en/fr),
-# então o alvo correto por combo é sempre
-# `notebooks_alunos/<combo.lang>.pt/<cap_name>/<stem>_aluno.ipynb`.
+# errado). O alvo correto é o caderno de aluno DO PRÓPRIO COMBO:
+# `notebooks_alunos/<combo.key>/<cap_name>/<stem>_aluno.ipynb`
+# (combo.key = `<lang>.<locale>`, ex.: `py.fr`, `cpp.en`).
 _COLAB_BADGE_RE = re.compile(
     r'(https://colab\.research\.google\.com/github/fzampirolli/pdi-vc/blob/master/)'
     r'notebooks_alunos/[^)\s]+?_aluno\.ipynb'
 )
 
 
-def _fix_colab_badge(src: str, cap_name: str, is_eps: bool, lang: str) -> str:
+def _fix_colab_badge(src: str, cap_name: str, is_eps: bool, combo_key: str) -> str:
     stem = f'{cap_name}.EPs' if is_eps else cap_name
-    target = (f'\\1notebooks_alunos/{lang}.pt/{cap_name}/{stem}_aluno.ipynb')
+    target = (f'\\1notebooks_alunos/{combo_key}/{cap_name}/{stem}_aluno.ipynb')
     return _COLAB_BADGE_RE.sub(target, src)
 
 
@@ -1022,7 +1022,7 @@ class NotebookProcessor:
             # combo (sempre <lang>.pt; não há en/fr de aluno).
             if (cell.cell_type == 'markdown'
                     and 'colab.research.google.com/github' in src):
-                src = _fix_colab_badge(src, _cap_name, _is_eps, combo.lang)
+                src = _fix_colab_badge(src, _cap_name, _is_eps, combo.key)
                 _set_source(cell, src)
 
             # ── Filtrar células base_only

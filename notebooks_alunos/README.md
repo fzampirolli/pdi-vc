@@ -3,9 +3,11 @@
 Notebooks dos capítulos com referências bibliográficas, figuras, tabelas e equações renderizadas para Jupyter/Colab.
 
 ## Estrutura
-`py.pt/capXX/capXX_aluno.ipynb` — notebook do capítulo XX
-`py.pt/apendice_X/apendice_X_aluno.ipynb` — notebook do apêndice X
-`py.pt/capXX/images/` — imagens do capítulo
+Uma árvore por combo `<linguagem>.<idioma>/` (presentes: cpp.en, cpp.fr, cpp.pt, py.en, py.fr, py.pt):
+
+`<combo>/capXX/capXX_aluno.ipynb` — notebook do capítulo XX
+`<combo>/capXX/capXX.EPs_aluno.ipynb` — exercícios do capítulo XX
+`<combo>/capXX/imagens/` — imagens do capítulo
 
 ## Como usar
 ```bash
