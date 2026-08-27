@@ -566,11 +566,33 @@ class IndexBuilder:
                '#[{combo}]#.'),
     }
 
+    # Nota extra só para os combos C++: a portabilidade ainda é parcial —
+    # apenas o cap01 passou pela validação de ponta a ponta (as células de
+    # código C++ compilam e executam de verdade via g++). Prependida à dica
+    # genérica, no idioma da própria versão.
+    CPP_VALIDATION_NOTE: Dict[str, str] = {
+        'pt': ('⚙️ C++: por enquanto só o Capítulo 1 foi validado — nele as '
+               'células de código C++ compilam e executam de verdade (g++). '
+               'Os demais capítulos ainda não foram portados para C++.\n\n'),
+        'en': ('⚙️ C++: for now only Chapter 1 has been validated — there its '
+               'C++ code cells really compile and run (g++). The remaining '
+               'chapters have not been ported to C++ yet.\n\n'),
+        'fr': ('⚙️ C++ : pour l\'instant seul le chapitre 1 a été validé — ses '
+               'cellules de code C++ compilent et s\'exécutent réellement (g++). '
+               'Les autres chapitres n\'ont pas encore été portés en C++.\n\n'),
+    }
+
     def _build_validation_hint(self, v: Dict) -> str:
         template = self.VALIDATION_HINT_TEMPLATES.get(
             v['locale_key'], self.VALIDATION_HINT_TEMPLATES['en']
         )
-        return template.format(combo=v['key'], locale=v['locale_key'], lang=v['lang_key'])
+        hint = template.format(combo=v['key'], locale=v['locale_key'], lang=v['lang_key'])
+        if v['lang_key'] == 'cpp':
+            note = self.CPP_VALIDATION_NOTE.get(
+                v['locale_key'], self.CPP_VALIDATION_NOTE['en']
+            )
+            hint = note + hint
+        return hint
 
     # Textos fixos do PORTAL (gen/book/index.html) — não confundir com
     # VALIDATION_HINT_TEMPLATES, que é por card/combo. O toggle PT/EN no
