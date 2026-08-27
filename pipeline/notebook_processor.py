@@ -80,6 +80,24 @@ def _set_source(cell, src: str):
     cell['source'] = src
 
 
+# Badge "Executar no Colab" da 1ª célula markdown: no fonte o alvo está
+# hardcoded (ora `notebooks_alunos/py.pt/capXX/...`, ora sem prefixo de
+# combo `notebooks_alunos/capXX/...`, às vezes apontando pro capítulo
+# errado). Os cadernos de aluno só existem em `<lang>.pt` (não há en/fr),
+# então o alvo correto por combo é sempre
+# `notebooks_alunos/<combo.lang>.pt/<cap_name>/<stem>_aluno.ipynb`.
+_COLAB_BADGE_RE = re.compile(
+    r'(https://colab\.research\.google\.com/github/fzampirolli/pdi-vc/blob/master/)'
+    r'notebooks_alunos/[^)\s]+?_aluno\.ipynb'
+)
+
+
+def _fix_colab_badge(src: str, cap_name: str, is_eps: bool, lang: str) -> str:
+    stem = f'{cap_name}.EPs' if is_eps else cap_name
+    target = (f'\\1notebooks_alunos/{lang}.pt/{cap_name}/{stem}_aluno.ipynb')
+    return _COLAB_BADGE_RE.sub(target, src)
+
+
 # ── Placeholder vazio de EP (%%writefile EPxx_yy.py + "# sua solução") ──────
 #
 # _merge_ep_notebook() mescla incondicionalmente o notebook de EPs em
@@ -973,6 +991,9 @@ class NotebookProcessor:
         with open(nb_path, encoding='utf-8') as f:
             nb = nbformat.read(f, as_version=4)
 
+        _cap_name = Path(nb_path).parent.name          # ex.: 'cap01'
+        _is_eps = '.EPs.' in Path(nb_path).name
+
         code_tr = self._factory.code_translator(combo.lang, combo.locale)
         text_tr = self._factory.text_translator(combo.locale)
 
@@ -996,7 +1017,14 @@ class NotebookProcessor:
                 continue
 
             src = _get_source(cell)  # ← adicionar esta linha
-            
+
+            # ── Badge "Executar no Colab" → aponta pro caderno de aluno do
+            # combo (sempre <lang>.pt; não há en/fr de aluno).
+            if (cell.cell_type == 'markdown'
+                    and 'colab.research.google.com/github' in src):
+                src = _fix_colab_badge(src, _cap_name, _is_eps, combo.lang)
+                _set_source(cell, src)
+
             # ── Filtrar células base_only
             if role == 'base_only' and not combo.is_base():
                 continue
