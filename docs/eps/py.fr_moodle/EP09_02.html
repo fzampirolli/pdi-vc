@@ -1,0 +1,359 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_02 🟢 Pooling manuel (Maximum et moyenne)</h2>
+<p>Entre les blocs convolutifs, l’architecture typique d’un CNN intercale des couches de <strong><em>pooling</em></strong>, qui réduisent la résolution spatiale de la carte de caractéristiques sans introduire de nouveaux paramètres entraînables — contrairement à la convolution, le <em>pooling</em> n’a pas de poids : il résume simplement chaque fenêtre de l’entrée à une seule valeur, par un maximum ou par une moyenne, exactement comme formalisé dans la section “<em>Pooling</em>”.</p>
+<p>Vous êtes chargé d’implémenter cette opération à partir d’une fenêtre glissante carrée, sans chevauchement partiel sur les bords (uniquement des fenêtres complètes), en supportant les deux types les plus courants : <code>max</code> (préserve la valeur la plus saillante, typiquement utilisée pour retenir les bords et les textures fortes) et <code>avg</code> (lisse la région, préservant l’information d’intensité moyenne).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Entrée :</strong> Lire les dimensions <em>H</em> × <em>W</em> de la carte de caractéristiques d’entrée et ses <em>H</em> × <em>W</em> valeurs réelles.</li>
+<li><strong>Fenêtre :</strong> Lire les entiers <em>k</em> (taille de la fenêtre carrée <em>k</em> × <em>k</em>) et <em>s</em> (<em>stride</em>).</li>
+<li><strong>Type :</strong> Lire une <em>chaîne</em> de caractères, <code>max</code> ou <code>avg</code>, indiquant le type de <em>pooling</em>.</li>
+<li><strong>Sans remplissage :</strong> Cette opération <strong>n’utilise pas</strong> de <em>padding</em> ; les fenêtres qui dépasseraient le bord de l’entrée sont ignorées.</li>
+<li><strong>Calcul :</strong> Pour chaque position de sortie (<em>i</em>,<em>j</em>), calculer le maximum ou la moyenne des <em>k</em> × <em>k</em> valeurs de la fenêtre correspondante, commençant à (<em>i</em> · <em>s</em>,\, <em>j</em> · <em>s</em>).</li>
+<li><strong>Dimensions de sortie :</strong> <em>O</em>_<em>h</em> = \lfloor (<em>H</em> - <em>k</em>)/<em>s</em> \rfloor + 1 et <em>O</em>_<em>w</em> = \lfloor (<em>W</em> - <em>k</em>)/<em>s</em> \rfloor + 1.</li>
+<li><strong>Sortie :</strong> Imprimer <em>O</em>_<em>h</em> et <em>O</em>_<em>w</em> sur la première ligne, suivis de <em>O</em>_<em>h</em> lignes avec <em>O</em>_<em>w</em> valeurs réelles chacune, formatées avec 4 décimales.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong>Fenêtre carrée :</strong> <em>k</em> × <em>k</em>, sans support pour les fenêtres rectangulaires dans cette version.</li>
+<li><strong>Sans <em>padding</em> :</strong> seules les fenêtres entièrement contenues dans l’entrée sont considérées — les dimensions “restantes” sont simplement ignorées.</li>
+<li><strong><code>avg</code> utilise une division réelle :</strong> la moyenne est toujours somme/<em>k</em>^2, même lorsque le résultat a de nombreuses décimales — arrondissez uniquement lors du formatage final, conformément à la directive générale du chapitre.</li>
+<li><strong>Formatage :</strong> toutes les valeurs de sortie avec exactement 4 décimales.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans l’architecture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> maximum</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Préserve l’activation la plus forte de la fenêtre ; courant après les couches convolutives pour retenir les bords et les textures saillantes</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> moyen</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Lisse la région, préservant l’intensité moyenne ; courant dans les couches finales (<em>global average pooling</em>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Absence de paramètres</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Différencie le <em>pooling</em> de la convolution : réduit la résolution spatiale sans coût supplémentaire d’entraînement</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Réduction de résolution</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contribue à l’invariance aux petites translations et à la réduction du coût computationnel des couches suivantes</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Méthodes de <code>morph.py</code> qui peuvent aider</h4>
+<p>Le <code>morph.py</code> n’implémente pas le <em>pooling</em> avec sous-échantillonnage directement, mais deux familles d’opérations montrent la même idée sous un autre angle, utile pour vérifier votre intuition :</p>
+<ul>
+<li><code>mm.dil(f, Bc)</code> / <code>mm.dil0(f, B)</code> — dilatation morphologique : remplace chaque pixel par le <strong>maximum</strong> de son voisinage défini par l’élément structurant <em>B</em> (ex. : <code>mm.sebox(n)</code> pour une fenêtre (2<em>n</em>+1)×(2<em>n</em>+1)). Conceptuellement, c’est un “<em>max-pooling</em> sans sous-échantillonnage” (produit une image de même taille, au lieu d’une image réduite).</li>
+<li><code>mm.blur(f, N)</code> — lissage par moyenne dans une fenêtre <em>N</em> × <em>N</em>, analogue au <em>avg-pooling</em>, également sans réduction de résolution.</li>
+<li><code>mm.readImg(h, w, dtype='float')</code> — utile pour lire la carte d’entrée en virgule flottante.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entiers <em>H</em> et <em>W</em>.</li>
+<li><em>H</em> lignes suivantes : <em>W</em> valeurs réelles chacune.</li>
+<li>Ligne suivante : Entiers <em>k</em> et <em>s</em>.</li>
+<li>Ligne suivante : <code>max</code> ou <code>avg</code>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Ligne 1 : Entiers <em>O</em>_<em>h</em> et <em>O</em>_<em>w</em>.</li>
+<li><em>O</em>_<em>h</em> lignes suivantes : <em>O</em>_<em>w</em> valeurs réelles chacune, avec 4 décimales.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+max</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+6.0000 4.0000<br/>
+4.0000 5.0000</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> maximum, fenêtre 2×2, <em>stride</em> 2.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+1 3 2 4<br/>
+5 6 1 2<br/>
+2 1 0 3<br/>
+4 2 5 1<br/>
+2 2<br/>
+avg</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+3.7500 2.2500<br/>
+2.2500 2.2500</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em> moyen sur les mêmes fenêtres.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="60" data-quarto-private-1='{"key":"pdi","value":{"ck":"c88442264cf0d79112b0df4a5c7f663d"}}' id="cell-fig-09-sim-ep0902">
+</div>
+</div><div id="sim-ep0902" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulateur : Pooling manuel</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 sans padding, fenêtres complètes</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Entrée 4×4 fixe — ajustez la taille de la fenêtre (k), le stride (s) et le type, exactement les paramètres que l'EP09_02 lit en entrée, et voyez comment ils modifient la taille et les valeurs de la sortie.</p>
+<div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:6px;">
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Fenêtre (k)</div>
+<div id="ep0902_k_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Stride (s)</div>
+<div id="ep0902_s_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Type</div>
+<div style="display:flex;gap:8px;">
+<button id="ep0902_max" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #f0ad4e;background:#fff3cd;color:#7a5c00;font-weight:bold;font-size:11px;">max</button>
+<button id="ep0902_avg" style="cursor:pointer;padding:6px 14px;border-radius:20px;border:1px solid #ddd;background:#f3f4f6;color:#555;font-weight:bold;font-size:11px;">avg</button>
+</div>
+</div>
+</div>
+<div id="ep0902_formula" style="text-align:center;font-family:monospace;font-size:11px;color:#8a6d3b;background:#fcf5e6;border:1px solid #f0e2bf;border-radius:8px;padding:6px 10px;margin:10px auto 16px;max-width:520px;"></div>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Position de sortie (i,j)</label>
+<span id="ep0902_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(0,0)</span>
+</div>
+<input id="ep0902_sl" max="3" min="0" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:flex-start;">
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Entrée X (4×4)</div>
+<div id="ep0902_grid" style="display:grid;grid-template-columns:repeat(4,44px);gap:3px;"></div>
+<div style="display:flex;gap:10px;justify-content:center;margin-top:8px;font-size:9px;color:#888;">
+<span><span style="display:inline-block;width:9px;height:9px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:2px;vertical-align:middle;"></span> hors de la fenêtre</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#fff3cd;border:2px solid #f0ad4e;border-radius:2px;vertical-align:middle;"></span> fenêtre actuelle</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#eee;border:1px dashed #bbb;border-radius:2px;vertical-align:middle;"></span> écarté (reste)</span>
+</div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Sortie Y (pooling)</div>
+<div id="ep0902_out" style="display:grid;gap:3px;"></div>
+</div>
+</div>
+<div style="margin-top:14px;text-align:center;">
+<button id="ep0902_reset" style="font-family:sans-serif;font-size:11px;color:#5e5a4a;background:#f3efe6;border:1px solid #e0d7c4;border-radius:20px;padding:4px 14px;cursor:pointer;">↺ réinitialiser l'exploration</button>
+</div>
+<div id="ep0902_debug" style="margin-top:16px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<p style="font-size:10px;color:#999;margin-top:10px;text-align:center;">💡 Chaque position du curseur révèle une cellule de la matrice de sortie. Les cellules grises en pointillés sur l'entrée sont des « restes » qu'aucune fenêtre n'atteint — notez que cela se produit lorsque (H−k) n'est pas un multiple de s. Changer k, s ou le type réinitialise l'exploration.</p>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var H = 4, W = 4;
+    var X = [[1,3,2,4],[5,6,1,2],[2,1,0,3],[4,2,5,1]];
+
+    var state = { k: 2, s: 2, tipo: 'max' };
+    var visited = {};
+
+    var slEl = root.querySelector('#ep0902_sl');
+    var vlEl = root.querySelector('#ep0902_vl');
+    var gridEl = root.querySelector('#ep0902_grid');
+    var outEl = root.querySelector('#ep0902_out');
+    var dbg = root.querySelector('#ep0902_debug');
+    var formulaEl = root.querySelector('#ep0902_formula');
+    var resetBtn = root.querySelector('#ep0902_reset');
+    var kBtnsEl = root.querySelector('#ep0902_k_btns');
+    var sBtnsEl = root.querySelector('#ep0902_s_btns');
+    var btnMax = root.querySelector('#ep0902_max');
+    var btnAvg = root.querySelector('#ep0902_avg');
+
+    function btnStyle(active){
+      return 'font-family:monospace;font-size:12px;font-weight:bold;width:34px;height:30px;border-radius:8px;cursor:pointer;' +
+        (active ? 'background:#2980b9;color:white;border:1px solid #2471a3;' : 'background:#f3f4f6;color:#555;border:1px solid #ddd;');
+    }
+
+    function buildButtons(container, values, current, onPick){
+      container.innerHTML = '';
+      values.forEach(function(val){
+        var b = document.createElement('button');
+        b.textContent = val;
+        b.style.cssText = btnStyle(val === current);
+        b.addEventListener('click', function(){ onPick(val); });
+        container.appendChild(b);
+      });
+    }
+
+    function estiloTipoBotoes(){
+      btnMax.style.background = state.tipo==='max' ? '#fff3cd' : '#f3f4f6';
+      btnMax.style.borderColor = state.tipo==='max' ? '#f0ad4e' : '#ddd';
+      btnMax.style.color = state.tipo==='max' ? '#7a5c00' : '#555';
+      btnAvg.style.background = state.tipo==='avg' ? '#fff3cd' : '#f3f4f6';
+      btnAvg.style.borderColor = state.tipo==='avg' ? '#f0ad4e' : '#ddd';
+      btnAvg.style.color = state.tipo==='avg' ? '#7a5c00' : '#555';
+    }
+
+    function computeAll(k, s, tipo){
+      var Oh = Math.floor((H - k)/s) + 1;
+      var Ow = Math.floor((W - k)/s) + 1;
+      var vals = [];
+      for(var i=0; i<Oh; i++){
+        vals.push([]);
+        for(var j=0; j<Ow; j++){
+          var janela = [];
+          for(var r=i*s; r<i*s+k; r++) for(var c=j*s; c<j*s+k; c++) janela.push(X[r][c]);
+          var resultado = tipo === 'max'
+            ? Math.max.apply(null, janela)
+            : janela.reduce(function(a,b){return a+b;},0)/janela.length;
+          vals[i].push({ janela: janela, resultado: resultado });
+        }
+      }
+      return { Oh: Oh, Ow: Ow, vals: vals };
+    }
+
+    var model = null;
+
+    function rebuildModel(resetPosition){
+      model = computeAll(state.k, state.s, state.tipo);
+      outEl.style.gridTemplateColumns = 'repeat(' + model.Ow + ', 48px)';
+      var maxPos = model.Oh*model.Ow - 1;
+      slEl.max = maxPos;
+      if(resetPosition){ slEl.value = 0; visited = {}; }
+      else if(parseInt(slEl.value) > maxPos){ slEl.value = maxPos; }
+      formulaEl.textContent = 'O_h = ⌊(' + H + ' − ' + state.k + ')/' + state.s + '⌋ + 1 = ' + model.Oh +
+        '    O_w = ⌊(' + W + ' − ' + state.k + ')/' + state.s + '⌋ + 1 = ' + model.Ow;
+      estiloTipoBotoes();
+      render();
+    }
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i = Math.floor(pos/model.Ow), j = pos % model.Ow;
+      var key = i+','+j;
+      visited[key] = true;
+      vlEl.textContent = '('+i+','+j+')';
+
+      var winRowStart = i*state.s, winColStart = j*state.s;
+      var alcancavel = []; // marca quais células de X são alcançadas por ALGUMA janela válida
+      for(var r=0;r<H;r++){ alcancavel.push(new Array(W).fill(false)); }
+      for(var oi=0; oi<model.Oh; oi++){
+        for(var oj=0; oj<model.Ow; oj++){
+          for(var r=oi*state.s; r<oi*state.s+state.k; r++)
+            for(var c=oj*state.s; c<oj*state.s+state.k; c++)
+              alcancavel[r][c] = true;
+        }
+      }
+
+      gridEl.innerHTML = '';
+      for(var r=0; r<H; r++){
+        for(var c=0; c<W; c++){
+          var dentroJanela = (r>=winRowStart && r<winRowStart+state.k && c>=winColStart && c<winColStart+state.k);
+          var d = document.createElement('div');
+          var base = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:13px;';
+          if(dentroJanela){
+            base += 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;';
+          } else if(!alcancavel[r][c]){
+            base += 'background:#eee;border:1px dashed #bbb;color:#999;';
+          } else {
+            base += 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;';
+          }
+          d.style.cssText = base;
+          d.textContent = X[r][c];
+          gridEl.appendChild(d);
+        }
+      }
+
+      var cur = model.vals[i][j];
+
+      outEl.innerHTML = '';
+      for(var oi2=0; oi2<model.Oh; oi2++){
+        for(var oj2=0; oj2<model.Ow; oj2++){
+          var isCurrent = (oi2===i && oj2===j);
+          var wasVisited = !!visited[oi2+','+oj2];
+          var od = document.createElement('div');
+          var style = 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:11px;font-weight:bold;';
+          if(isCurrent){
+            style += 'background:#fff3cd;border:2px solid #f0ad4e;color:#7a5c00;';
+          } else if(wasVisited){
+            style += 'background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;';
+          } else {
+            style += 'background:#f3f4f6;border:1px dashed #ccc;color:#bbb;';
+          }
+          od.style.cssText = style;
+          od.textContent = wasVisited ? model.vals[oi2][oj2].resultado.toFixed(2) : '?';
+          outEl.appendChild(od);
+        }
+      }
+
+      var totalVisitadas = Object.keys(visited).length;
+      var totalPos = model.Oh*model.Ow;
+      dbg.textContent = 'janela=['+cur.janela.join(', ')+']  |  tipo='+state.tipo+'  →  resultado='+cur.resultado.toFixed(4)+'   ['+totalVisitadas+'/'+totalPos+' posições exploradas]';
+    }
+
+    function setK(val){
+      state.k = val;
+      buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+      buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+      rebuildModel(true);
+    }
+    function setS(val){
+      state.s = val;
+      buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+      buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+      rebuildModel(true);
+    }
+    buildButtons(kBtnsEl, [1,2,3,4], state.k, setK);
+    buildButtons(sBtnsEl, [1,2,3], state.s, setS);
+
+    btnMax.addEventListener('click', function(){ state.tipo='max'; rebuildModel(true); });
+    btnAvg.addEventListener('click', function(){ state.tipo='avg'; rebuildModel(true); });
+
+    resetBtn.addEventListener('click', function(){
+      visited = {};
+      slEl.value = 0;
+      render();
+    });
+    slEl.addEventListener('input', render);
+
+    rebuildModel(true);
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0902');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

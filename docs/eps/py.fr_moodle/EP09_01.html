@@ -1,0 +1,381 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_01 🟢 Convolution 2D Manuelle ( Forward d’une Couche Apprise)</h2>
+<p>PyTorch, présenté dans ce chapitre, exécute <code>nn.Conv2d(x)</code> en un seul appel — mais derrière cela se cache simplement la corrélation croisée entre un <em>kernel</em> (déjà entraîné) et un voisinage de l’entrée, suivie de la somme d’un biais et d’une activation, exactement comme formalisé dans la Section « Couche Convolutionnelle ». La différence essentielle par rapport à la convolution de <em>kernels</em> fixes du Chapitre 3 est qu’ici, les valeurs du <em>kernel</em> et du biais <strong>sont déjà prêtes</strong> (comme si elles avaient été apprises par descente de gradient), et il vous revient de reproduire manuellement la passe directe (<em>forward pass</em>) que le <em>framework</em> exécute en interne.</p>
+<p>Avant d’entraîner une véritable CNN, vous êtes chargé d’implémenter cette passe directe à partir de zéro, pour une seule couche convolutionnelle avec un seul canal d’entrée et un seul filtre de sortie, incluant la prise en charge d’un <em>padding</em> et d’un <em>stride</em> arbitraires.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’Implémentation</h4>
+<ol type="1">
+<li><p><strong>Entrée :</strong> Lire les dimensions <em>H</em> × <em>W</em> de la carte de caractéristiques d’entrée, puis ses <em>H</em> × <em>W</em> valeurs réelles.</p></li>
+<li><p><strong><em>Kernel</em> et biais :</strong> Lire les dimensions <em>k</em>_<em>h</em> × <em>k</em>_<em>w</em> du <em>kernel</em> (déjà entraîné), ses valeurs réelles, et le biais <em>b</em> (réel, scalaire).</p></li>
+<li><p><strong>Hyperparamètres :</strong> Lire le <em>padding</em> <em>p</em> (entier, nombre de zéros ajoutés à chaque bord) et le <em>stride</em> <em>s</em> (entier, pas de glissement).</p></li>
+<li><p><strong>Remplissage :</strong> Ajouter <em>p</em> zéros sur chacune des quatre bordures de la carte d’entrée avant la corrélation.</p></li>
+<li><p><strong>Corrélation croisée :</strong> Pour chaque position de sortie (<em>i</em>, <em>j</em>), calculer <em>z</em>(<em>i</em>,<em>j</em>) = <em>b</em> + ∑_u=0^k_<em>h</em>-1 ∑_v=0^k_<em>w</em>-1 <em>K</em>(<em>u</em>,<em>v</em>) · <em>X</em>_pad(<em>i</em> · <em>s</em> + <em>u</em>,\; <em>j</em> · <em>s</em> + <em>v</em>), en parcourant l’entrée <strong>sans</strong> inverser le <em>kernel</em> (convention des <em>frameworks</em> d’apprentissage profond, différente de la convolution mathématique classique).</p></li>
+<li><p><strong>Activation :</strong> Appliquer ReLU à chaque valeur : <em>a</em>(<em>i</em>,<em>j</em>) = \max(0, <em>z</em>(<em>i</em>,<em>j</em>)).</p></li>
+<li><p><strong>Dimensions de sortie :</strong> <em>O</em>_<em>h</em> = \lfloor (<em>H</em> + 2<em>p</em> - <em>k</em>_<em>h</em>)/<em>s</em> \rfloor + 1 et <em>O</em>_<em>w</em> = \lfloor (<em>W</em> + 2<em>p</em> - <em>k</em>_<em>w</em>)/<em>s</em> \rfloor + 1.</p></li>
+<li><p><strong>Sortie :</strong> Imprimer <em>O</em>_<em>h</em> et <em>O</em>_<em>w</em> sur la première ligne, suivis de <em>O</em>_<em>h</em> lignes avec chacune <em>O</em>_<em>w</em> valeurs réelles (la carte de caractéristiques de sortie, déjà avec ReLU appliquée), formatées avec 4 décimales.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes Computationnelles</h4>
+<ul>
+<li><strong>Un canal d’entrée, un filtre de sortie :</strong> Il n’est pas nécessaire de gérer plusieurs canaux ou plusieurs filtres dans cette version simplifiée.</li>
+<li><strong>Sans inversion du <em>kernel</em> :</strong> Implémentez la corrélation croisée, et non la convolution mathématique classique avec <em>kernel</em> inversé — c’est l’opération que PyTorch (et la plupart des <em>frameworks</em>) appelle « convolution ».</li>
+<li><strong>Remplissage par zéros :</strong> Les <em>p</em> pixels ajoutés à chaque bord valent toujours 0.</li>
+<li><strong>Formatage :</strong> Toutes les valeurs de sortie doivent avoir exactement 4 décimales, même lorsque la valeur est entière (ex. : <code>2.0000</code>).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements Théoriques</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans la couche convolutionnelle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Kernel</em> <em>K</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Paramètres appris par descente de gradient, analogues aux coefficients d’un filtre fixe du Chapitre 3, mais ajustés par rétropropagation</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Biais <em>b</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Décalage appris, ajouté après la corrélation — permet au neurone de « s’activer » même avec une entrée nulle</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Padding</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contrôle la dimension spatiale de sortie et évite la perte d’information aux bords à chaque couche</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Stride</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contrôle le pas du déplacement ; des valeurs &gt; 1 réduisent la résolution spatiale, comme une forme de sous-échantillonnage intégrée à la convolution elle-même</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">ReLU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Introduit une non-linéarité après la combinaison linéaire, exactement comme dans la Section « Fonction d’Activation »</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Méthodes de <code>morph.py</code> pouvant aider</h4>
+<ul>
+<li><code>mm.readImg(h, w, dtype='float')</code> — lit directement une matrice <em>h</em> × <em>w</em> de valeurs réelles depuis l’entrée standard, évitant ainsi le <em>parsing</em> manuel de la carte de caractéristiques et du <em>kernel</em>.</li>
+<li><code>mm.correlacao0(f, kernel, bias)</code> — implémente la même somme de corrélation croisée + biais que vous allez calculer à la main, mais <strong>sans</strong> prise en charge du <em>padding</em> ou du <em>stride</em>, et convertit le résultat en <code>uint8</code> (tronque les valeurs négatives et décimales). Peut servir de référence conceptuelle ou pour vérifier le cas le plus simple (p=0, s=1), mais ne remplace pas votre implémentation complète — qui doit préserver le signe, les décimales, le <em>padding</em>, le <em>stride</em> et ReLU.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’Entrée et de Sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entiers <em>H</em> et <em>W</em>.</li>
+<li>Les <em>H</em> lignes suivantes : <em>W</em> valeurs réelles chacune (carte d’entrée).</li>
+<li>Ligne suivante : Entiers <em>k</em>_<em>h</em> et <em>k</em>_<em>w</em>.</li>
+<li>Les <em>k</em>_<em>h</em> lignes suivantes : <em>k</em>_<em>w</em> valeurs réelles chacune (<em>kernel</em>).</li>
+<li>Ligne suivante : Réel <em>b</em> (biais).</li>
+<li>Ligne suivante : Entiers <em>p</em> et <em>s</em>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Ligne 1 : Entiers <em>O</em>_<em>h</em> et <em>O</em>_<em>w</em>.</li>
+<li>Les <em>O</em>_<em>h</em> lignes suivantes : <em>O</em>_<em>w</em> valeurs réelles chacune, avec 4 décimales.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 0<br/>
+0 1 2<br/>
+1 0 1<br/>
+2 2<br/>
+1 1<br/>
+1 1<br/>
+-2<br/>
+0 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+2.0000 3.0000<br/>
+0.0000 2.0000</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Padding</em> 0, <em>stride</em> 1 : sortie 2×2 sans remplissage.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 0<br/>
+0 1 2<br/>
+1 0 1<br/>
+2 2<br/>
+1 0<br/>
+0 1<br/>
+0<br/>
+1 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2<br/>
+1.0000 0.0000<br/>
+1.0000 2.0000</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Padding</em> 1, <em>stride</em> 2 : entrée remplie de zéros avant la corrélation.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="57" data-quarto-private-1='{"key":"pdi","value":{"ck":"295cfdeffeb54c8486dd02e3cb6a22b8"}}' id="cell-fig-09-sim-ep0901">
+</div>
+</div><div id="sim-ep0901" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulateur : Convolution 2D manuelle</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟢 corrélation croisée + biais + ReLU</span>
+
+</div><div style="padding:20px;background:white;">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">Entrée fixe 4×4, noyau fixe 2×2 (surligné en bleu) — ajustez <em>padding</em> (p), <em>stride</em> (s) et biais (b), exactement les paramètres que l'EP09_01 demande en entrée, et voyez comment ils modifient la taille et les valeurs de la sortie.</p>
+<div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:6px;">
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Padding (p)</div>
+<div id="ep0901_pad_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Pas (s)</div>
+<div id="ep0901_stride_btns" style="display:flex;gap:4px;"></div>
+</div>
+<div>
+<div style="font-size:11px;font-weight:bold;color:#2980b9;margin-bottom:4px;text-align:center;">Biais (b)</div>
+<input id="ep0901_bias" step="0.5" style="width:70px;font-family:monospace;text-align:center;border:1px solid #ccc;border-radius:6px;padding:3px;" type="number" value="0.5"/>
+</div>
+</div>
+<div id="ep0901_formula" style="text-align:center;font-family:monospace;font-size:11px;color:#8a6d3b;background:#fcf5e6;border:1px solid #f0e2bf;border-radius:8px;padding:6px 10px;margin:10px auto 16px;max-width:520px;"></div>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Position de sortie (i,j)</label>
+<span id="ep0901_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">(0,0)</span>
+</div>
+<input id="ep0901_sl" max="8" min="0" step="1" style="width:100%;" type="range" value="0"/>
+</div>
+<div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:flex-start;">
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Entrée X rembourrée (avec padding)</div>
+<div id="ep0901_grid" style="display:grid;gap:3px;"></div>
+<div style="display:flex;gap:10px;justify-content:center;margin-top:8px;font-size:9px;color:#888;">
+<span><span style="display:inline-block;width:9px;height:9px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:2px;vertical-align:middle;"></span> original</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#f5f5f5;border:1px dashed #ccc;border-radius:2px;vertical-align:middle;"></span> padding (0)</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#fff3cd;border:2px solid #f0ad4e;border-radius:2px;vertical-align:middle;"></span> fenêtre actuelle</span>
+</div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Noyau K (2×2)</div>
+<div id="ep0901_kernel" style="display:grid;grid-template-columns:repeat(2,44px);gap:3px;"></div>
+</div>
+<div>
+<div style="font-size:11px;color:#777;text-align:center;margin-bottom:6px;">Sortie Y = ReLU(X⊛K + b)</div>
+<div id="ep0901_out" style="display:grid;gap:3px;"></div>
+</div>
+</div>
+<div style="margin-top:14px;text-align:center;">
+<button id="ep0901_reset" style="font-family:sans-serif;font-size:11px;color:#5e5a4a;background:#f3efe6;border:1px solid #e0d7c4;border-radius:20px;padding:4px 14px;cursor:pointer;">↺ réinitialiser l'exploration</button>
+</div>
+<div id="ep0901_debug" style="margin-top:16px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;text-align:center;"></div>
+<p style="font-size:10px;color:#999;margin-top:10px;text-align:center;">💡 Chaque position du curseur révèle une cellule de la matrice de sortie. Parcourez toutes les positions pour compléter la carte de sortie. Changer p, s ou b réinitialise l'exploration, car la carte de sortie change de taille et/ou de valeurs.</p>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var H = 4, W = 4, kh = 2, kw = 2;
+    var X = [[1,3,2,0],[0,1,4,1],[2,0,1,3],[1,2,0,1]];
+    var K = [[1,0],[0,-1]];
+
+    var state = { p: 0, s: 1, bias: 0.5 };
+    var visited = {};
+
+    var slEl = root.querySelector('#ep0901_sl');
+    var vlEl = root.querySelector('#ep0901_vl');
+    var gridEl = root.querySelector('#ep0901_grid');
+    var kernelEl = root.querySelector('#ep0901_kernel');
+    var outEl = root.querySelector('#ep0901_out');
+    var dbg = root.querySelector('#ep0901_debug');
+    var formulaEl = root.querySelector('#ep0901_formula');
+    var resetBtn = root.querySelector('#ep0901_reset');
+    var padBtnsEl = root.querySelector('#ep0901_pad_btns');
+    var strideBtnsEl = root.querySelector('#ep0901_stride_btns');
+    var biasInput = root.querySelector('#ep0901_bias');
+
+    kernelEl.innerHTML = '';
+    for(var u=0; u<kh; u++) for(var v=0; v<kw; v++){
+      var kd = document.createElement('div');
+      kd.style.cssText = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#bbdefb;border:1px solid #64b5f6;border-radius:6px;font-family:monospace;font-weight:bold;color:#0d47a1;';
+      kd.textContent = K[u][v];
+      kernelEl.appendChild(kd);
+    }
+
+    function btnStyle(active){
+      return 'font-family:monospace;font-size:12px;font-weight:bold;width:34px;height:30px;border-radius:8px;cursor:pointer;' +
+        (active ? 'background:#2980b9;color:white;border:1px solid #2471a3;' : 'background:#f3f4f6;color:#555;border:1px solid #ddd;');
+    }
+
+    function buildButtons(container, values, current, onPick){
+      container.innerHTML = '';
+      values.forEach(function(val){
+        var b = document.createElement('button');
+        b.textContent = val;
+        b.style.cssText = btnStyle(val === current);
+        b.addEventListener('click', function(){ onPick(val); });
+        container.appendChild(b);
+      });
+    }
+
+    function buildPadded(p){
+      var size = H + 2*p;
+      var Xp = [];
+      for(var r=0; r<size; r++){
+        var row = [];
+        for(var c=0; c<size; c++){
+          var origR = r-p, origC = c-p;
+          var isPad = !(origR>=0 && origR<H && origC>=0 && origC<W);
+          row.push({ val: isPad ? 0 : X[origR][origC], pad: isPad });
+        }
+        Xp.push(row);
+      }
+      return Xp;
+    }
+
+    function computeAll(p, s, bias){
+      var Xp = buildPadded(p);
+      var size = H + 2*p;
+      var Oh = Math.floor((size - kh)/s) + 1;
+      var Ow = Math.floor((size - kw)/s) + 1;
+      var vals = [];
+      for(var i=0; i<Oh; i++){
+        vals.push([]);
+        for(var j=0; j<Ow; j++){
+          var soma = 0;
+          for(var u=0; u<kh; u++) for(var v=0; v<kw; v++) soma += K[u][v]*Xp[i*s+u][j*s+v].val;
+          var z = soma + bias;
+          var a = Math.max(0, z);
+          vals[i].push({ soma: soma, z: z, a: a });
+        }
+      }
+      return { Xp: Xp, size: size, Oh: Oh, Ow: Ow, vals: vals };
+    }
+
+    var model = null;
+
+    function rebuildModel(resetPosition){
+      model = computeAll(state.p, state.s, state.bias);
+      gridEl.style.gridTemplateColumns = 'repeat(' + model.size + ', ' + Math.min(44, Math.floor(360/model.size)) + 'px)';
+      outEl.style.gridTemplateColumns = 'repeat(' + model.Ow + ', 44px)';
+      var maxPos = model.Oh*model.Ow - 1;
+      slEl.max = maxPos;
+      if(resetPosition){ slEl.value = 0; visited = {}; }
+      else if(parseInt(slEl.value) > maxPos){ slEl.value = maxPos; }
+      formulaEl.textContent = 'O_h = ⌊(' + H + ' + 2·' + state.p + ' − ' + kh + ')/' + state.s + '⌋ + 1 = ' + model.Oh +
+        '    O_w = ⌊(' + W + ' + 2·' + state.p + ' − ' + kw + ')/' + state.s + '⌋ + 1 = ' + model.Ow;
+      render();
+    }
+
+    function render(){
+      var pos = parseInt(slEl.value);
+      var i = Math.floor(pos/model.Ow), j = pos % model.Ow;
+      var key = i+','+j;
+      visited[key] = true;
+      vlEl.textContent = '('+i+','+j+')';
+
+      var winRowStart = i*state.s, winColStart = j*state.s;
+
+      gridEl.innerHTML = '';
+      var cellPx = Math.min(44, Math.floor(360/model.size));
+      for(var r=0; r<model.size; r++){
+        for(var c=0; c<model.size; c++){
+          var cell = model.Xp[r][c];
+          var dentroJanela = (r>=winRowStart && r<winRowStart+kh && c>=winColStart && c<winColStart+kw);
+          var d = document.createElement('div');
+          var base = 'width:'+cellPx+'px;height:'+cellPx+'px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-family:monospace;font-size:11px;';
+          if(dentroJanela){
+            base += 'background:#fff3cd;border:2px solid #f0ad4e;font-weight:bold;color:#7a5c00;';
+          } else if(cell.pad){
+            base += 'background:#f5f5f5;border:1px dashed #ccc;color:#bbb;';
+          } else {
+            base += 'background:#f3f4f6;border:1px solid #e5e7eb;color:#555;';
+          }
+          d.style.cssText = base;
+          d.textContent = cell.val;
+          gridEl.appendChild(d);
+        }
+      }
+
+      var cur = model.vals[i][j];
+
+      outEl.innerHTML = '';
+      for(var oi=0; oi<model.Oh; oi++){
+        for(var oj=0; oj<model.Ow; oj++){
+          var isCurrent = (oi===i && oj===j);
+          var wasVisited = !!visited[oi+','+oj];
+          var od = document.createElement('div');
+          var style = 'width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:monospace;font-size:11px;font-weight:bold;';
+          if(isCurrent){
+            style += 'background:#fff3cd;border:2px solid #f0ad4e;color:#7a5c00;';
+          } else if(wasVisited){
+            style += 'background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;';
+          } else {
+            style += 'background:#f3f4f6;border:1px dashed #ccc;color:#bbb;';
+          }
+          od.style.cssText = style;
+          od.textContent = wasVisited ? model.vals[oi][oj].a.toFixed(2) : '?';
+          outEl.appendChild(od);
+        }
+      }
+
+      var totalVisitadas = Object.keys(visited).length;
+      var totalPos = model.Oh*model.Ow;
+      dbg.textContent = 'janela em ('+i+','+j+'), topo-esquerda em X_pad('+winRowStart+','+winColStart+')  |  soma(X⊙K)='+cur.soma.toFixed(2)+'  +  viés='+state.bias.toFixed(2)+'  =  z='+cur.z.toFixed(2)+'  →  ReLU(z)='+cur.a.toFixed(4)+'   ['+totalVisitadas+'/'+totalPos+' posições exploradas]';
+    }
+
+    function setPadding(val){
+      state.p = val;
+      buildButtons(padBtnsEl, [0,1,2], state.p, setPadding);
+      buildButtons(strideBtnsEl, [1,2], state.s, setStride);
+      rebuildModel(true);
+    }
+    function setStride(val){
+      state.s = val;
+      buildButtons(padBtnsEl, [0,1,2], state.p, setPadding);
+      buildButtons(strideBtnsEl, [1,2], state.s, setStride);
+      rebuildModel(true);
+    }
+    buildButtons(padBtnsEl, [0,1,2], state.p, setPadding);
+    buildButtons(strideBtnsEl, [1,2], state.s, setStride);
+
+    biasInput.addEventListener('change', function(){
+      var v = parseFloat(biasInput.value);
+      state.bias = isNaN(v) ? 0 : v;
+      rebuildModel(true);
+    });
+
+    resetBtn.addEventListener('click', function(){
+      visited = {};
+      slEl.value = 0;
+      render();
+    });
+    slEl.addEventListener('input', render);
+
+    rebuildModel(true);
+  }
+  function tryInit(){
+    var root = document.getElementById('sim-ep0901');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

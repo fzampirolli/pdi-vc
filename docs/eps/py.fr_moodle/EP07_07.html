@@ -1,0 +1,482 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP07_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP07_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_07 ⚫ Classification réelle d’une mosaïque de textures via LBP + k-NN</h2>
+<p>Dans les exercices précédents, le descripteur LBP (<strong>EP07_04</strong>) et le classifieur k-NN multiclasse (<strong>EP07_06</strong>) ont été étudiés séparément, toujours à partir de données déjà fournies en entrée — voisinages 3×3 isolés ou histogrammes préalablement extraits. Dans cet exercice de clôture du chapitre, le programme devra <strong>lire une image réelle</strong>, au format <strong>PGM ASCII (P2)</strong>, calculer le descripteur LBP directement à partir des pixels, puis classer chaque région au moyen du k-NN, reproduisant ainsi, à échelle réduite, le flux complet d’un système de reconnaissance de textures. Cette approche anticipe également l’idée de <strong>classification par mosaïque de régions</strong>, liée à la segmentation sémantique étudiée dans un chapitre ultérieur.</p>
+<p>Le simulateur interactif de l’<strong>EP07_06</strong> n’utilisait que trois classes (<code>granular</code>, <code>listrada</code> et <code>manchada</code>) représentées par des points bidimensionnels fictifs. Dans cet exercice, une quatrième classe, <strong>xadrez</strong>, est ajoutée, et les points sont remplacés par des histogrammes LBP extraits d’une image réelle.</p>
+<p>L’image d’entrée est une <strong>mosaïque</strong> formée d’une grille <em>G</em>× <em>G</em> de blocs carrés de <em>S</em>× <em>S</em> pixels. Chaque bloc contient un échantillon de l’une des quatre classes de texture synthétique du chapitre : <strong>granular</strong>, <strong>listrada</strong>, <strong>manchada</strong> ou <strong>xadrez</strong> (motif en damier avec intensités alternées). Comme dans les autres exercices du livre, le chargement de l’image est réalisé par la fonction didactique <code>mm.readImg</code>.</p>
+<div>
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Astuce</span>Pourquoi une mosaïque unique, et non plusieurs images ?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>L’entrée regroupe les <em>G</em> × <em>G</em> échantillons de texture dans un seul fichier <strong>PGM</strong>, uniquement pour simplifier la lecture des données et éviter l’ouverture de plusieurs fichiers. Pour l’algorithme, cela ne modifie pas le traitement : chaque bloc est traité de manière indépendante, comme s’il s’agissait d’une image isolée. La seule exception est l’<strong>exclusion de la bordure</strong> (point 4 ci-dessous).</p>
+</div>
+</div>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><p><strong>Lecture des dimensions de l’image</strong></p>
+<p>Lire, via l’entrée standard, deux lignes contenant respectivement le nombre de lignes <em>L</em> et le nombre de colonnes <em>C</em> de la mosaïque (tous deux multiples de la taille de bloc <em>S</em>, avec L=<em>C</em>).</p></li>
+<li><p><strong>Chargement de l’image</strong></p>
+<p>Utiliser la fonction didactique</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a aria-hidden="true" href="#cb61-1" tabindex="-1"></a>f <span class="op">=</span> mm.readImg(L, C)</span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+<p>pour lire les <em>L</em> × <em>C</em> valeurs d’intensité (niveaux de gris, <code>uint8</code>) de la mosaïque.</p></li>
+<li><p><strong>Paramètres de la grille</strong></p>
+<p>Lire l’entier <em>G</em> (nombre de blocs par côté) et l’entier <em>S</em> (taille du côté de chaque bloc, en pixels), satisfaisant <em>L</em> = <em>C</em> = <em>G</em> × <em>S</em>.</p></li>
+<li><p><strong>Calcul du code LBP par pixel</strong></p>
+<p>Pour chaque pixel <strong>intérieur</strong> de l’image (c’est-à-dire ne se trouvant pas sur la bordure globale de <code>f</code> — ligne ou colonne 0 ou <em>L</em>-1/<em>C</em>-1), calculer le code LBP avec P=8 voisins et rayon R=1, en parcourant les voisins dans le sens <strong>horaire</strong> à partir du coin supérieur gauche, exactement comme dans l’EP07_04 : <code>[lin-1][col-1]</code>, <code>[lin-1][col]</code>, <code>[lin-1][col+1]</code>, <code>[lin][col+1]</code>, <code>[lin+1][col+1]</code>, <code>[lin+1][col]</code>, <code>[lin+1][col-1]</code>, <code>[lin][col-1]</code>.</p>
+<p>Les pixels sur la bordure globale de l’image <strong>n’ont pas</strong> de voisinage complet et doivent être <strong>ignorés</strong> (ils ne contribuent à aucun histogramme). Cela inclut les pixels de bordure qui tombent à l’intérieur d’un bloc (l’exclusion est toujours relative à la bordure de l’image entière, et non à celle de chaque bloc).</p></li>
+<li><p><strong>Histogramme LBP uniforme par bloc (10 compartiments)</strong></p>
+<p>Pour chaque bloc (<em>i</em>,<em>j</em>) de la grille (<em>i</em>,<em>j</em> = 0,…,<em>G</em>-1), accumuler, parmi ses pixels valides (point 4), un histogramme <em>H</em>^(<em>i</em>,<em>j</em>) de 10 compartiments :</p>
+<ul>
+<li>En considérant la séquence circulaire de bits <em>s</em>_0,…,<em>s</em>_7 du pixel (même règle de transitions que l’EP07_04) : si le nombre de transitions est \le 2 (motif <strong>uniforme</strong>), le pixel contribue au compartiment \operatornamepopcount(<em>s</em>_0,…,<em>s</em>_7) ∈ 0,…,8 (nombre de bits égaux à <code>1</code>) ;</li>
+<li>Sinon (motif <strong>non uniforme</strong>), le pixel contribue au compartiment 9.</li>
+</ul>
+<p>À la fin, normaliser l’histogramme de chaque bloc en le divisant par le nombre de pixels valides qu’il contient, obtenant \hat <em>H</em>^(<em>i</em>,<em>j</em>), avec ∑_b=0^9 \hat <em>H</em>^(<em>i</em>,<em>j</em>)[<em>b</em>] = 1.</p></li>
+<li><p><strong>Prototypes d’apprentissage</strong></p>
+<p>Lire l’entier Ncl (nombre de classes) suivi de Ncl noms de classes (ordre définissant la matrice de confusion et le départage des votes, comme dans l’EP07_06) ; ensuite, lire la <em>chaîne</em> <em>M</em> (métrique : <code>euclidiana</code> ou <code>manhattan</code>) et l’entier impair <em>k</em> ; enfin, lire l’entier <em>N</em> (nombre de prototypes) et, pour chacun, le nom de la classe suivi de 10 valeurs réelles (histogramme prototype déjà normalisé).</p></li>
+<li><p><strong>Classification k-NN de chaque bloc</strong></p>
+<p>Pour chaque bloc, calculer la distance de \hat <em>H</em>^(<em>i</em>,<em>j</em>) à chacun des <em>N</em> prototypes, en utilisant la métrique <em>M</em> (mêmes formules que l’EP07_06). Sélectionner les <em>k</em> prototypes les plus proches (départage des distances par l’ordre de lecture des prototypes) et classer selon la classe majoritaire (départage des votes par l’ordre des classes du point 6).</p></li>
+<li><p><strong>Étiquettes réelles et évaluation</strong></p>
+<p>Lire, sur une seule ligne, les <em>G</em> × <em>G</em> noms de classes <strong>réels</strong> de chaque bloc, dans l’ordre de lecture par ligne de la grille (bloc (0,0), (0,1), …, (0,<em>G</em>-1), (1,0), …). Construire la matrice de confusion Ncl × Ncl (ligne = classe réelle, colonne = classe prédite) et l’exactitude globale.</p></li>
+<li><p><strong>Sortie</strong></p>
+<p>Imprimer, pour chaque bloc (dans le même ordre de lecture que les étiquettes réelles du point 8), la classe prédite. Ensuite, imprimer la matrice de confusion (une ligne par classe réelle, dans l’ordre du point 6). Enfin, imprimer l’exactitude, arrondie à 4 décimales.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes informatiques</h4>
+<ul>
+<li><strong>Descripteur fixe :</strong> P=8, R=1 et 10 compartiments (selon le point 5) sont fixes dans cet exercice — ils ne sont pas lus depuis l’entrée.</li>
+<li><strong>Exclusion de bordure globale, non de bloc :</strong> un pixel à la limite entre deux blocs, mais à l’intérieur de l’image, est valide et contribue normalement à l’histogramme du bloc auquel il appartient.</li>
+<li><strong>Ordre de lecture comme critère de départage :</strong> tant le départage des distances (point 7) que celui des votes (point 7) suivent exactement les mêmes conventions que l’EP07_01 et l’EP07_06.</li>
+<li><strong>Prototypes en entrée, non appris :</strong> contrairement au Projet Pratique 2, les histogrammes d’apprentissage sont fournis directement en entrée ; le programme ne doit pas générer de textures synthétiques.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements théoriques</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Étape de l’exercice</th>
+<th style="padding:10px;border:1px solid #ddd;">Étape correspondante dans le chapitre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Lecture de l’image via <code>mm.readImg</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Acquisition de l’image dans le <em>pipeline</em> de reconnaissance de formes</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Code LBP par pixel (EP07_04)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>local_binary_pattern(image, P=8, R=1, method="uniform")</code></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Histogramme de 10 compartiments par bloc</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fonction <code>descritor_lbp</code> du Projet Pratique 2 (<code>bins=10</code>, <code>range=(0, P+2)</code>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Classification k-NN avec métrique sélectionnable (EP07_06)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>KNeighborsClassifier</code> entraîné sur <code>X_textura</code></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Matrice de confusion Ncl× Ncl et exactitude</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>confusion_matrix</code> et <code>accuracy_score</code> sur <code>yt_teste</code></td>
+</tr>
+</tbody>
+</table>
+<p>Cet exercice met en évidence, avec des pixels réels plutôt que des valeurs synthétiques, une limitation discutée dans la section finale du chapitre : des classes de texture visuellement distinctes pour un observateur humain — comme <strong>granular</strong> et <strong>manchada</strong> — peuvent produire des histogrammes LBP similaires lorsque le voisinage considéré est petit (R=1), car toutes deux présentent une fréquence élevée de motifs non uniformes à l’échelle d’un seul pixel. La classe <strong>xadrez</strong>, quant à elle, possédant des bordures régulières et répétitives, tend à être séparée plus facilement. On s’attend à ce que la matrice de confusion produite reflète exactement ce schéma de confusion partielle.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<pre><code>L
+C
+[matrice L x C de l’image]
+G S
+Ncl nom_classe_1 ... nom_classe_Ncl
+M k
+N
+nom_classe h0 h1 ... h9      (répétée N fois)
+etiquette(0,0) etiquette(0,1) ... etiquette(G-1,G-1)</code></pre>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li><em>G</em> × <em>G</em> lignes avec la classe prédite de chaque bloc, dans l’ordre de lecture de la grille.</li>
+<li>Ncl lignes avec la matrice de confusion (une ligne par classe réelle, valeurs séparées par des espaces).</li>
+<li>Dernière ligne : <code>Acuracia: &lt;valeur&gt;</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemple (vérification manuelle)</h4>
+<p>Pour vérifier l’implémentation du descripteur avant de la tester sur une mosaïque complète, considérons une image 6×6 <strong>homogène</strong>, avec tous les pixels d’intensité 100, traitée comme un seul bloc (G=1, S=6). Comme tout pixel intérieur a ses 8 voisins d’intensité égale à celle du centre (<em>g</em>_<em>p</em> \ge <em>g</em>_<em>c</em> dans tous les cas), tous les bits <em>s</em>_<em>p</em> valent <code>1</code>, le nombre de transitions est 0 (uniforme) et le compartiment est \operatornamepopcount(11111111)=8. L’histogramme de l’unique bloc est donc <code>0 0 0 0 0 0 0 0 1 0</code>.</p>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée (résumée)</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">6<br/>
+6<br/>
+[36 valeurs égales à 100]<br/>
+1 6<br/>
+2 uniforme outra<br/>
+euclidiana 1<br/>
+2<br/>
+uniforme 0 0 0 0 0 0 0 0 1 0<br/>
+outra 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1<br/>
+uniforme</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">uniforme<br/>
+1 0<br/>
+0 0<br/>
+Acuracia: 1.0000</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La distance du bloc au prototype <code>uniforme</code> est exactement 0 ; la classe <code>outra</code> n’apparaît pas dans l’étiquette réelle, c’est pourquoi sa ligne dans la matrice de confusion est nulle.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Fichiers de référence (.pgm)</h4>
+<p>Pour le débogage local, deux mosaïques de test au format ASCII P2 sont fournies (annexées à cette livraison ; lors de leur intégration au référentiel du chapitre, enregistrez-les dans <code>all/cap07/dados/EP07/</code>) :</p>
+<ul>
+<li>📥 <strong>Cas 1 — Mosaïque simple (<code>Caso1_Mosaico_Simples.pgm</code>)</strong> : grille 2×2 de blocs de 24×24 pixels, un échantillon de chacune des quatre classes, avec faible bruit — utile pour valider la lecture de l’image et la logique de classification dans un scénario contrôlé.</li>
+<li>📥 <strong>Cas 2 — Mosaïque mixte (<code>Caso2_Mosaico_Misto.pgm</code>)</strong> : grille 3×3 de blocs de 16×16 pixels, avec classes répétées et plus grande variabilité — scénario dans lequel la confusion entre <strong>granular</strong> et <strong>manchada</strong> discutée dans les Fondements théoriques tend à se manifester.</li>
+</ul>
+<p>La Figure 7.27 affiche les deux mosaïques, pour une inspection visuelle avant l’implémentation.</p>
+<div class="cell" data-execution_count="39" data-quarto-private-1='{"key":"pdi","value":{"ck":"f52e8d6f45608756ea612e85ee77aba4"}}' id="cell-fig-07-ep07">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a aria-hidden="true" href="#cb63-1" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb63-2"><a aria-hidden="true" href="#cb63-2" tabindex="-1"></a><span class="im">import</span> urllib.request</span>
+<span id="cb63-3"><a aria-hidden="true" href="#cb63-3" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb63-4"><a aria-hidden="true" href="#cb63-4" tabindex="-1"></a></span>
+<span id="cb63-5"><a aria-hidden="true" href="#cb63-5" tabindex="-1"></a><span class="kw">def</span> garantir_e_baixar_arquivo(nome_arquivo):</span>
+<span id="cb63-6"><a aria-hidden="true" href="#cb63-6" tabindex="-1"></a>    diretorio_local <span class="op">=</span> <span class="st">"dados/EP07"</span></span>
+<span id="cb63-7"><a aria-hidden="true" href="#cb63-7" tabindex="-1"></a>    caminho_local <span class="op">=</span> os.path.join(diretorio_local, nome_arquivo)</span>
+<span id="cb63-8"><a aria-hidden="true" href="#cb63-8" tabindex="-1"></a>    </span>
+<span id="cb63-9"><a aria-hidden="true" href="#cb63-9" tabindex="-1"></a>    <span class="co"># Créer le répertoire local s'il n'existe pas</span></span>
+<span id="cb63-10"><a aria-hidden="true" href="#cb63-10" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(diretorio_local):</span>
+<span id="cb63-11"><a aria-hidden="true" href="#cb63-11" tabindex="-1"></a>        os.makedirs(diretorio_local)</span>
+<span id="cb63-12"><a aria-hidden="true" href="#cb63-12" tabindex="-1"></a>        </span>
+<span id="cb63-13"><a aria-hidden="true" href="#cb63-13" tabindex="-1"></a>    <span class="co"># Si le fichier n'existe pas localement, le télécharger depuis le dépôt distant</span></span>
+<span id="cb63-14"><a aria-hidden="true" href="#cb63-14" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> os.path.exists(caminho_local):</span>
+<span id="cb63-15"><a aria-hidden="true" href="#cb63-15" tabindex="-1"></a>        url_base <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/"</span></span>
+<span id="cb63-16"><a aria-hidden="true" href="#cb63-16" tabindex="-1"></a>        url_base <span class="op">+=</span> <span class="st">"pdi-vc/master/all/cap07/dados/EP07"</span></span>
+<span id="cb63-17"><a aria-hidden="true" href="#cb63-17" tabindex="-1"></a>        url_arquivo <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>url_base<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>nome_arquivo<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb63-18"><a aria-hidden="true" href="#cb63-18" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Téléchargement </span><span class="sc">{</span>nome_arquivo<span class="sc">}</span><span class="ss"> depuis GitHub..."</span>)</span>
+<span id="cb63-19"><a aria-hidden="true" href="#cb63-19" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb63-20"><a aria-hidden="true" href="#cb63-20" tabindex="-1"></a>            urllib.request.urlretrieve(url_arquivo, caminho_local)</span>
+<span id="cb63-21"><a aria-hidden="true" href="#cb63-21" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb63-22"><a aria-hidden="true" href="#cb63-22" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">IOError</span>(<span class="ss">f"Erro ao baixar </span><span class="sc">{</span>nome_arquivo<span class="sc">}</span><span class="ss"> do GitHub. "</span>,</span>
+<span id="cb63-23"><a aria-hidden="true" href="#cb63-23" tabindex="-1"></a>                          <span class="st">"Verifique a conexão ou a URL. Detalhes: </span><span class="sc">{e}</span><span class="st">"</span>)</span>
+<span id="cb63-24"><a aria-hidden="true" href="#cb63-24" tabindex="-1"></a>            </span>
+<span id="cb63-25"><a aria-hidden="true" href="#cb63-25" tabindex="-1"></a>    <span class="cf">return</span> caminho_local</span>
+<span id="cb63-26"><a aria-hidden="true" href="#cb63-26" tabindex="-1"></a></span>
+<span id="cb63-27"><a aria-hidden="true" href="#cb63-27" tabindex="-1"></a><span class="kw">def</span> ler_pgm_p2(caminho):</span>
+<span id="cb63-28"><a aria-hidden="true" href="#cb63-28" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(caminho) <span class="im">as</span> f:</span>
+<span id="cb63-29"><a aria-hidden="true" href="#cb63-29" tabindex="-1"></a>        linhas <span class="op">=</span> [l <span class="cf">for</span> l <span class="kw">in</span> f.read().split() <span class="cf">if</span> l]</span>
+<span id="cb63-30"><a aria-hidden="true" href="#cb63-30" tabindex="-1"></a>    <span class="cf">assert</span> linhas[<span class="dv">0</span>] <span class="op">==</span> <span class="st">"P2"</span></span>
+<span id="cb63-31"><a aria-hidden="true" href="#cb63-31" tabindex="-1"></a>    C, L <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">1</span>]), <span class="bu">int</span>(linhas[<span class="dv">2</span>])</span>
+<span id="cb63-32"><a aria-hidden="true" href="#cb63-32" tabindex="-1"></a>    maxv <span class="op">=</span> <span class="bu">int</span>(linhas[<span class="dv">3</span>])</span>
+<span id="cb63-33"><a aria-hidden="true" href="#cb63-33" tabindex="-1"></a>    valores <span class="op">=</span> <span class="bu">list</span>(<span class="bu">map</span>(<span class="bu">int</span>, linhas[<span class="dv">4</span>:<span class="dv">4</span> <span class="op">+</span> L <span class="op">*</span> C]))</span>
+<span id="cb63-34"><a aria-hidden="true" href="#cb63-34" tabindex="-1"></a>    <span class="cf">return</span> np.array(valores, dtype<span class="op">=</span>np.uint8).reshape(L, C)</span>
+<span id="cb63-35"><a aria-hidden="true" href="#cb63-35" tabindex="-1"></a></span>
+<span id="cb63-36"><a aria-hidden="true" href="#cb63-36" tabindex="-1"></a><span class="co"># Garantit le téléchargement et obtient le chemin correct</span></span>
+<span id="cb63-37"><a aria-hidden="true" href="#cb63-37" tabindex="-1"></a>arq_caso1 <span class="op">=</span> garantir_e_baixar_arquivo(<span class="st">"Caso1_Mosaico_Simples.pgm"</span>)</span>
+<span id="cb63-38"><a aria-hidden="true" href="#cb63-38" tabindex="-1"></a>arq_caso2 <span class="op">=</span> garantir_e_baixar_arquivo(<span class="st">"Caso2_Mosaico_Misto.pgm"</span>)</span>
+<span id="cb63-39"><a aria-hidden="true" href="#cb63-39" tabindex="-1"></a></span>
+<span id="cb63-40"><a aria-hidden="true" href="#cb63-40" tabindex="-1"></a><span class="co"># Lit les matrices PGM</span></span>
+<span id="cb63-41"><a aria-hidden="true" href="#cb63-41" tabindex="-1"></a>caso1 <span class="op">=</span> ler_pgm_p2(arq_caso1)</span>
+<span id="cb63-42"><a aria-hidden="true" href="#cb63-42" tabindex="-1"></a>caso2 <span class="op">=</span> ler_pgm_p2(arq_caso2)</span>
+<span id="cb63-43"><a aria-hidden="true" href="#cb63-43" tabindex="-1"></a></span>
+<span id="cb63-44"><a aria-hidden="true" href="#cb63-44" tabindex="-1"></a>mm.show(</span>
+<span id="cb63-45"><a aria-hidden="true" href="#cb63-45" tabindex="-1"></a>    [caso1, caso2],</span>
+<span id="cb63-46"><a aria-hidden="true" href="#cb63-46" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb63-47"><a aria-hidden="true" href="#cb63-47" tabindex="-1"></a>        <span class="st">"Cas 1 : Mosaïque Simple</span><span class="ch">\n</span><span class="st">(blocs 2x2, 1 échantillon/classe)"</span>,</span>
+<span id="cb63-48"><a aria-hidden="true" href="#cb63-48" tabindex="-1"></a>        <span class="st">"Cas 2 : Mosaïque Mixte</span><span class="ch">\n</span><span class="st">(blocs 3x3, classes répétées)"</span>,</span>
+<span id="cb63-49"><a aria-hidden="true" href="#cb63-49" tabindex="-1"></a>    ],</span>
+<span id="cb63-50"><a aria-hidden="true" href="#cb63-50" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb63-51"><a aria-hidden="true" href="#cb63-51" tabindex="-1"></a>    figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>),</span>
+<span id="cb63-52"><a aria-hidden="true" href="#cb63-52" tabindex="-1"></a>)</span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Téléchargement Caso1_Mosaico_Simples.pgm depuis GitHub...
+Téléchargement Caso2_Mosaico_Misto.pgm depuis GitHub...</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div class="quarto-float quarto-figure quarto-figure-center" id="fig-07-ep07">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-07-ep07-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img class="figure-img" height="604" src="cap07.py.fr_files/figure-html/fig-07-ep07-output-2.png" width="1132"/>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-07-ep07-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 7.27: Mosaïques de référence (format PGM ASCII) utilisées dans l’EP07_07. Cas 1 : grille 2x2 avec un échantillon de chaque classe. Cas 2 : grille 3x3 avec classes répétées et plus grande variabilité.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-execution_count="40" data-quarto-private-1='{"key":"pdi","value":{"ck":"37d21c4aa80e482f3fce421572220cc7"}}' id="cell-fig-07-sim-ep0707">
+</div>
+</div><div id="sim-ep0707" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<style>
+  #sim-ep0707 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0707 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #ede6d8; background: #f3efe6; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0707 button:hover { background: #e8e0cf; }
+  #sim-ep0707 button.sim-ep0707_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim-ep0707_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #ede6d8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0707_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP07_07 : Classification de mosaïque via LBP + k-NN</span>
+<span class="sim-ep0707_pill">⚫ pipeline complet</span>
+
+</div><div style="padding:20px;background:white;overflow:auto">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
+Mosaïque 3x3 de blocs 12x12 (L=C=36). LBP (P=8,R=1) calculé pixel par pixel, avec exclusion de la bordure globale.      Ajustez k et la métrique et observez la classification de chaque bloc face à 8 prototypes (2 par classe).
+   
+   </p>
+<div style="background:#fff3cd;border:1px solid #ffe69c;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#7a5c00;">
+  ⚠️ Textures synthétiques générées par code, pas les fichiers .pgm réels de l'EP07_07. Utilisez ce simulateur pour comprendre le flux de l'algorithme, pas comme référence de difficulté entre les classes.
+</div>
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+<div style="flex:1;min-width:180px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">k (nombre de voisins)</label>
+<span id="ep0707_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">1</span>
+</div>
+<input id="ep0707_sl" max="5" min="1" step="2" style="width:100%;" type="range" value="1"/>
+</div>
+<div>
+<label style="font-size:12px;font-weight:bold;color:#2980b9;display:block;margin-bottom:6px;">Métrique</label>
+<select id="ep0707_metric" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;">
+<option value="euclidiana">euclidienne</option>
+<option value="manhattan">manhattan</option>
+</select>
+</div>
+</div>
+<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+<canvas id="ep0707_canvas" style="border-radius:8px;border:1px solid #ccc;"></canvas>
+<div id="ep0707_grid" style="flex:1;min-width:220px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+</div>
+<div id="ep0707_debug" style="margin-top:16px;background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:11px;color:#1565c0;white-space:pre-line;"></div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var S = 12, G = 3, L = G * S, SCALE = 5;   // bloco maior reduz o vazamento de borda; SCALE ajustado p/ manter o canvas ~180px
+    var classesOrder = ["granular", "listrada", "manchada", "xadrez"];
+    // Grade 3x3 com classes repetidas, análoga ao Caso 2 do enunciado
+    var layout = [
+      "granular", "listrada", "manchada",
+      "xadrez",   "granular", "manchada",
+      "listrada", "xadrez",   "granular"
+    ];
+
+    // --- Geração determinística de textura por pixel (didática, não os PGMs reais) ---
+    function h(a, b, phase){
+      var v = Math.sin((a + phase) * 12.9898 + (b + phase * 0.7) * 78.233 + phase * 3.1) * 43758.5453;
+      return v - Math.floor(v);
+    }
+    function texturePixel(cls, r, c, phase){
+      phase = phase || 0;
+      switch(cls){
+        case "granular": return h(r, c, phase) < 0.5 ? 220 : 30;
+        case "listrada": return ((c + Math.floor(phase * 2)) % 4) < 2 ? 220 : 30;
+        case "manchada": return h(Math.floor(r / 3), Math.floor(c / 3), phase) < 0.5 ? 200 : 60;
+        case "xadrez":   return ((Math.floor(r / 2) + Math.floor(c / 2)) % 2 === 0) ? 230 : 20;
+      }
+    }
+
+    function buildImage(){
+      var img = [];
+      for(var r = 0; r < L; r++){
+        var row = [];
+        for(var c = 0; c < L; c++){
+          var bi = Math.floor(r / S), bj = Math.floor(c / S);
+          row.push(texturePixel(layout[bi * G + bj], r, c, 0));
+        }
+        img.push(row);
+      }
+      return img;
+    }
+
+    // --- LBP: P=8, R=1, sentido horário, s_p = 1 se vizinho >= centro ---
+    function lbpBin(patch, r, c){
+      var center = patch[r][c];
+      var neigh = [
+        patch[r-1][c-1], patch[r-1][c], patch[r-1][c+1],
+        patch[r][c+1],
+        patch[r+1][c+1], patch[r+1][c], patch[r+1][c-1],
+        patch[r][c-1]
+      ];
+      var bits = neigh.map(function(v){ return v >= center ? 1 : 0; });
+      var trans = 0;
+      for(var i = 0; i < 8; i++){ if(bits[i] !== bits[(i+1) % 8]) trans++; }
+      if(trans <= 2) return bits.reduce(function(a,b){ return a+b; }, 0); // popcount 0..8
+      return 9; // não uniforme
+    }
+
+    // Histograma de um patch isolado (usado para gerar protótipos), excluindo apenas a borda do patch
+    function computeLBPHist(patch){
+      var n = patch.length, m = patch[0].length;
+      var hist = new Array(10).fill(0), count = 0;
+      for(var r = 1; r < n - 1; r++){
+        for(var c = 1; c < m - 1; c++){
+          hist[lbpBin(patch, r, c)]++;
+          count++;
+        }
+      }
+      for(var k = 0; k < 10; k++) hist[k] = count > 0 ? hist[k] / count : 0;
+      return hist;
+    }
+
+    // Histogramas por bloco da imagem completa, excluindo só a borda global (item 4/5 do enunciado)
+    function computeMosaicHistograms(img){
+      var hists = [], counts = [];
+      for(var i = 0; i < G*G; i++){ hists.push(new Array(10).fill(0)); counts.push(0); }
+      for(var r = 1; r < L - 1; r++){
+        for(var c = 1; c < L - 1; c++){
+          var bin = lbpBin(img, r, c);
+          var idx = Math.floor(r/S) * G + Math.floor(c/S);
+          hists[idx][bin]++;
+          counts[idx]++;
+        }
+      }
+      for(var b = 0; b < hists.length; b++){
+        for(var k = 0; k < 10; k++) hists[b][k] = counts[b] > 0 ? hists[b][k] / counts[b] : 0;
+      }
+      return hists;
+    }
+
+    // --- Protótipos: 2 por classe (N=8), ordem de leitura fixa (usada no desempate) ---
+    var prototypes = [];
+    classesOrder.forEach(function(cls){
+      [0, 5].forEach(function(phase){
+        var Sp = S + 2, patch = [];
+        for(var r = 0; r < Sp; r++){
+          var row = [];
+          for(var c = 0; c < Sp; c++) row.push(texturePixel(cls, r, c, phase));
+          patch.push(row);
+        }
+        prototypes.push({ classe: cls, hist: computeLBPHist(patch) });
+      });
+    });
+
+    function dist(u, v, metric){
+      var s = 0;
+      for(var i = 0; i < u.length; i++){
+        s += metric === "euclidiana" ? (u[i]-v[i])*(u[i]-v[i]) : Math.abs(u[i]-v[i]);
+      }
+      return metric === "euclidiana" ? Math.sqrt(s) : s;
+    }
+
+    // Desempate de distância: ordem de leitura dos protótipos. Desempate de votação: ordem das classes.
+    function classify(hist, k, metric){
+      var cand = prototypes.map(function(p, idx){ return { classe: p.classe, d: dist(hist, p.hist, metric), idx: idx }; });
+      cand.sort(function(a, b){ return a.d !== b.d ? a.d - b.d : a.idx - b.idx; });
+      var viz = cand.slice(0, k);
+      var votos = {};
+      viz.forEach(function(v){ votos[v.classe] = (votos[v.classe] || 0) + 1; });
+      var melhor = null, melhorN = -1;
+      classesOrder.forEach(function(c){
+        var n = votos[c] || 0;
+        if(n > melhorN){ melhorN = n; melhor = c; }
+      });
+      return melhor;
+    }
+
+    var canvas = root.querySelector('#ep0707_canvas');
+    canvas.width = L * SCALE; canvas.height = L * SCALE;
+    var ctx = canvas.getContext('2d');
+    var slK = root.querySelector('#ep0707_sl');
+    var vlK = root.querySelector('#ep0707_vl');
+    var selMetric = root.querySelector('#ep0707_metric');
+    var gridEl = root.querySelector('#ep0707_grid');
+    var dbg = root.querySelector('#ep0707_debug');
+
+    var img = buildImage();
+    var hists = computeMosaicHistograms(img);
+
+    function render(){
+      var k = parseInt(slK.value);
+      var metric = selMetric.value;
+      vlK.textContent = k;
+
+      var preds = [];
+      for(var idx = 0; idx < G*G; idx++) preds.push(classify(hists[idx], k, metric));
+
+      var confusion = classesOrder.map(function(){ return new Array(classesOrder.length).fill(0); });
+      var acertos = 0;
+      for(var i2 = 0; i2 < G*G; i2++){
+        var ri = classesOrder.indexOf(layout[i2]);
+        var pi = classesOrder.indexOf(preds[i2]);
+        confusion[ri][pi]++;
+        if(layout[i2] === preds[i2]) acertos++;
+      }
+      var acc = acertos / (G*G);
+
+      // Desenha a imagem real em tons de cinza
+      for(var r = 0; r < L; r++){
+        for(var c = 0; c < L; c++){
+          var v = img[r][c];
+          ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+          ctx.fillRect(c*SCALE, r*SCALE, SCALE, SCALE);
+        }
+      }
+      // Contorna cada bloco: verde = acerto, vermelho = erro
+      for(var idx3 = 0; idx3 < G*G; idx3++){
+        var bi = Math.floor(idx3 / G), bj = idx3 % G;
+        ctx.strokeStyle = (preds[idx3] === layout[idx3]) ? '#10b981' : '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bj*S*SCALE + 1, bi*S*SCALE + 1, S*SCALE - 2, S*SCALE - 2);
+      }
+
+      // Grade textual de apoio
+      gridEl.innerHTML = '';
+      for(var idx4 = 0; idx4 < G*G; idx4++){
+        var ok = preds[idx4] === layout[idx4];
+        var card = document.createElement('div');
+        card.style.cssText = 'border-radius:8px;padding:6px;text-align:center;font-size:10px;border:2px solid ' + (ok ? '#10b981' : '#f43f5e') + ';';
+        card.innerHTML = 'Real: ' + layout[idx4] + '<br><b style="color:' + (ok ? '#059669' : '#e11d48') + '">Pred: ' + preds[idx4] + (ok ? ' ✅' : ' ❌') + '</b>';
+        gridEl.appendChild(card);
+      }
+
+      // Saída no mesmo formato do programa (itens 7-9 do enunciado)
+      var linhas = [];
+      linhas.push('Classes preditas (ordem de leitura da grade):');
+      linhas.push(preds.join(' '));
+      linhas.push('');
+      linhas.push('Matriz de confusão (linhas=real, colunas=predita; ordem ' + classesOrder.join(',') + '):');
+      confusion.forEach(function(lin){ linhas.push(lin.join(' ')); });
+      linhas.push('');
+      linhas.push('Acuracia: ' + acc.toFixed(4));
+      dbg.textContent = linhas.join('\n');
+    }
+
+    slK.addEventListener('input', render);
+    selMetric.addEventListener('change', render);
+    render();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0707');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

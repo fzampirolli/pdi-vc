@@ -1,0 +1,525 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_11.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_11.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_11 🔴 Classification et Validation d’Objets avec Gabarit de Bounding Box</h2>
+<p>Dans cet exercice, l’objectif est de traiter une image en niveaux de gris contenant plusieurs objets géométriques, d’extraire leurs propriétés avec <code>mm.measure</code> et de valider les boîtes englobantes (<em>bounding boxes</em>) détectées par rapport à un gabarit réel (<em>Ground Truth</em> - GT) fourni en entrée, en utilisant la métrique IoU (<em>Intersection over Union</em>).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Lecture de l’image :</strong> Lire les dimensions <em>H</em> × <em>W</em> et la matrice <em>H</em> × <em>W</em> de pixels de l’image en niveaux de gris.</li>
+<li><strong><em>Pipeline</em> morphologique :</strong> Binariser l’image via la méthode d’Otsu (<code>mm.threshold</code>) et afficher le masque binarisé résultant à l’aide de <code>mm.drawImg</code>.</li>
+<li><strong>Lecture du gabarit réel (<em>Ground Truth</em>) :</strong></li>
+</ol>
+<ul>
+<li>Lire la quantité <em>G</em> de boîtes englobantes du gabarit.</li>
+<li>Si <em>G</em> &gt; 0, lire <em>G</em> lignes contenant chacune 5 valeurs : <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code>.</li>
+<li><strong>Conversion des coordonnées :</strong> Les coordonnées du gabarit sont normalisées dans la plage [0.0, 1.0]. Pour les convertir en pixels dans la grille de l’image :</li>
+</ul>
+<p><em>x</em>_\min = \lfloor xmin_norm × <em>W</em> \rfloor, \quad <em>y</em>_\min = \lfloor ymin_norm × <em>H</em> \rfloor</p>
+<p><em>w</em> = \lfloor xmax_norm × <em>W</em> \rfloor - <em>x</em>_\min, \quad <em>h</em> = \lfloor ymax_norm × <em>H</em> \rfloor - <em>y</em>_\min</p>
+<ol start="4" type="1">
+<li><strong>Extraction des métriques et calcul de l’IoU :</strong></li>
+</ol>
+<ul>
+<li>Extraire les propriétés des instances avec <code>mm.measure(img_bin, precision=0.02)</code>.</li>
+<li>Pour chaque <em>bounding box</em> détectée (<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>), calculer le chevauchement IoU par rapport aux boîtes du gabarit et définir <code>hits = 1</code> s’il existe une correspondance (<em>match</em>) avec IoU \ge 0.50, ou <code>hits = 0</code> dans le cas contraire.</li>
+</ul>
+<ol start="5" type="1">
+<li><strong>Sortie :</strong> Trier les instances par position <code>(bbox[0], bbox[1])</code> et imprimer le tableau CSV avec la colonne supplémentaire <code>hits</code>.
+<ul>
+<li>Pour le tri, utiliser <code>medidas.sort(key=lambda m: (m['bbox'][1], m['bbox'][0]))</code>, avec <code>medidas = mm.measure(img)</code>.</li>
+</ul></li>
+</ol>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements théoriques et conversion</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concept</th>
+<th style="padding:10px;border:1px solid #ddd;">Formule / Opération</th>
+<th style="padding:10px;border:1px solid #ddd;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>BBox détectée</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">(<em>x</em>, <em>y</em>, <em>w</em>, <em>h</em>) via <code>mm.measure</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Boîte englobante calculée sur la grille discrète en pixels entiers.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>BBox gabarit (GT)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">(<em>x</em>_\min, <em>y</em>_\min, <em>w</em>, <em>h</em>) convertis</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Boîte réelle fournie en entrée en coordonnées relatives [0.0, 1.0].</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>IoU (Intersection over Union)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU = \fracAire(<em>B</em>_DET \cap <em>B</em>_GT)Aire(<em>B</em>_DET \cup <em>B</em>_GT)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Évalue le taux de chevauchement des boîtes. Est considérée comme valide si IoU \ge 0.50.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Statut de validation (<code>hits</code>)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 si \max(IoU) \ge 0.50, sinon 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Indicateur binaire de succès du détecteur par rapport au gabarit.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li><strong>Ligne 1 :</strong> Entiers <em>H</em> et <em>W</em> (dimensions de la matrice).</li>
+<li><strong>Les <em>H</em> lignes suivantes :</strong> <em>W</em> entiers (0 à 255) représentant l’image en niveaux de gris.</li>
+<li><strong>Ligne <em>H</em> + 2 :</strong> Entier <em>G</em> (quantité de boîtes du gabarit véritable).</li>
+<li><strong>Les <em>G</em> lignes suivantes :</strong> 5 valeurs numériques par ligne : <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code> (où les coordonnées sont des valeurs flottantes entre 0.0 et 1.0).</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ol type="1">
+<li>Matrice binarisée affichée via <code>mm.drawImg(img_bin)</code>.</li>
+<li>En-tête CSV : <code>id,area,perimeter,cx,cy,x,y,w,h,circularity,solidity,vertices,hits</code></li>
+<li>Une ligne CSV par objet détecté contenant ses propriétés formatées et l’indicateur <code>hits</code> (1 ou 0).</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 20<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 180 0 0 0 0 0 0 0 0 180 180 180 0 0 0 0 0<br/>
+0 0 180 180 180 0 0 0 0 0 0 0 180 180 180 0 0 0 0 0<br/>
+0 0 0 180 0 0 0 0 0 0 0 0 180 180 180 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+2<br/>
+1 0.10 0.30 0.25 0.60<br/>
+2 0.60 0.30 0.75 0.60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 1 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0<br/>
+0 0 1 1 1 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0<br/>
+0 0 0 1 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0<br/>
+id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
+1 2.0 5.7 3.0 4.0 2 3 3 3 0.79 1.000 4 1<br/>
+2 4.0 8.0 13.0 4.0 12 3 3 3 0.79 1.000 4 1</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="50" data-quarto-private-1='{"key":"pdi","value":{"ck":"3951dfdc8214ea0065da1bc2fc5788d7"}}' id="cell-fig-08-sim-ep0811">
+</div>
+</div><div id="sim-ep0811" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🧮 Simulateur EP08_11 : Boîtes englobantes et comparaison IoU avec contrôles indépendants</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Validation BBox GT vs DET</span>
+<div style="padding:16px;background:#ffffff;">
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+<div style="flex:1.5;min-width:220px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">MODE D'AFFICHAGE</div>
+<div style="display:flex;gap:4px;background:#f1ead7;border:1px solid #e4dcc8;border-radius:11px;padding:3px;">
+<button id="ep0811_stage0" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:700;border:none;background:#26241d;color:#fbf7ee;cursor:pointer;border-radius:9px;white-space:nowrap;">1. Gris original</button>
+<button id="ep0811_stage1" style="flex:1;text-align:center;padding:6px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:#8a8371;cursor:pointer;border-radius:9px;white-space:nowrap;">2. Binarisée + superpositions</button>
+</div>
+</div>
+<div style="flex:1.5;min-width:240px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">AFFICHAGE DES BOÎTES ENGL OBANTES</div>
+<div style="display:flex;gap:6px;">
+<button id="ep0811_toggleGT" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #1d4ed8;background:#2563eb;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟦</span> BBox de référence (GT)</button>
+<button id="ep0811_toggleDET" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #047857;background:#059669;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟩</span> BBox détectée (DET)</button>
+</div>
+</div>
+<div>
+<button id="ep0811_btnRand" style="background:#26241d;color:#7ee7c6;border:none;padding:8px 14px;font-size:11px;font-weight:700;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:monospace;">🎲 Générer des scènes aléatoires</button>
+</div>
+</div>
+<div style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:10px;padding:8px 12px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center;">
+<span style="font-size:9.5px;font-weight:700;color:#8a8371;margin-right:4px;">LÉGENDE DES BBOX :</span>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#2563eb;border:1px dashed #93c5fd;"></span> <span>Référence réelle (GT)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#059669;border:1px solid #34d399;"></span> <span>Détection acceptée (IoU ≥ 0.5)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#dc2626;border:1px solid #f87171;"></span> <span>Détection rejetée (IoU &lt; 0.5)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#7c3aed;border:1px double #a78bfa;"></span> <span>Superposition des BBox</span></div>
+</div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;margin-bottom:14px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:8px;text-align:left;">VISUALISATION DE LA MATRICE DE PIXELS</div>
+<div id="ep0811_grid_container" style="overflow-x:auto;padding-bottom:4px;"></div>
+</div>
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">MESURES, CLASSIFICATION GÉOMÉTRIQUE ET COMPARAISON IOU AVEC LA RÉFÉRENCE</div>
+<div style="overflow-x:auto;">
+<table class="caption-top" style="width:100%;border-collapse:collapse;font-size:10.5px;font-family:monospace;margin-top:10px;">
+<thead>
+<tr class="header" style="background:#f1ead7;">
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">id</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">classe</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">aire</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">solidité</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">sommets</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">bbox dét (x,y,w,h)</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">bbox gt (x,y,w,h)</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">IoU</th>
+<th data-quarto-table-cell-role="th" style="text-align: center; padding: 6px 4px; border: 1px solid #e4dcc8; color: #26241d; font-weight: 700;">statut (IoU ≥ 0.5)</th>
+</tr>
+</thead>
+<tbody id="ep0811_tbody">
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim(root){
+    if (!root || root.dataset.ep0811Init) return;
+    root.dataset.ep0811Init = "1";
+
+    var H = 10, W = 20, stage = 0;
+    var showGT = true, showDET = true;
+    // matOrig/matBin: cena. medidasObjetos: 1 registro por objeto real (GT), casado com sua melhor DET.
+    // detBoxesAtuais: caixas "detectadas" simuladas (com ruído/deslocamento em relação ao objeto real).
+    var matOrig = [], matBin = [], medidasObjetos = [], detBoxesAtuais = [];
+
+    var elBtnRand = root.querySelector('#ep0811_btnRand');
+    var elToggleGT = root.querySelector('#ep0811_toggleGT');
+    var elToggleDET = root.querySelector('#ep0811_toggleDET');
+    var elGridContainer = root.querySelector('#ep0811_grid_container');
+    var elTbody = root.querySelector('#ep0811_tbody');
+
+    function cv2_findContours(mat) {
+      var visited = Array.from({length: H}, function(){ return Array(W).fill(false); });
+      var contours = [];
+      for (var r = 0; r < H; r++) {
+        for (var c = 0; c < W; c++) {
+          if (mat[r][c] === 1 && !visited[r][c]) {
+            var blobPixels = [], queue = [[r, c]];
+            visited[r][c] = true;
+            while (queue.length > 0) {
+              var curr = queue.shift(), cr = curr[0], cc = curr[1];
+              blobPixels.push([cr, cc]);
+              var dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+              for (var d = 0; d < dirs.length; d++) {
+                var nr = cr + dirs[d][0], nc = cc + dirs[d][1];
+                if (nr >= 0 && nr < H && nc >= 0 && nc < W) {
+                  if (mat[nr][nc] === 1 && !visited[nr][nc]) {
+                    visited[nr][nc] = true; queue.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            var borderPts = [];
+            blobPixels.forEach(function(p) {
+              var pr = p[0], pc = p[1];
+              if (pr === 0 || pr === H-1 || pc === 0 || pc === W-1 ||
+                  mat[pr-1][pc] === 0 || mat[pr+1][pc] === 0 ||
+                  mat[pr][pc-1] === 0 || mat[pr][pc+1] === 0) { borderPts.push([pc, pr]); }
+            });
+            var cx = 0, cy = 0;
+            borderPts.forEach(function(pt){ cx += pt[0]; cy += pt[1]; });
+            cx /= borderPts.length; cy /= borderPts.length;
+            borderPts.sort(function(a, b) { return Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx); });
+            contours.push({ pixels: blobPixels, contour: borderPts });
+          }
+        }
+      }
+      return contours;
+    }
+
+    function cv2_contourArea(contour) {
+      if (contour.length < 3) return 0.0;
+      var area = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        area += contour[i][0] * contour[j][1] - contour[j][0] * contour[i][1];
+      }
+      return Math.abs(area) / 2.0;
+    }
+
+    function cv2_arcLength(contour) {
+      if (contour.length < 2) return 0.0;
+      var per = 0.0;
+      for (var i = 0; i < contour.length; i++) {
+        var j = (i + 1) % contour.length;
+        per += Math.hypot(contour[j][0] - contour[i][0], contour[j][1] - contour[i][1]);
+      }
+      return per;
+    }
+
+    function cv2_boundingRect(blobPixels) {
+      var minX = W, maxX = 0, minY = H, maxY = 0;
+      blobPixels.forEach(function(p) {
+        var r = p[0], c = p[1];
+        if (c < minX) minX = c; if (c > maxX) maxX = c;
+        if (r < minY) minY = r; if (r > maxY) maxY = r;
+      });
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function cv2_convexHull(points) {
+      if (points.length <= 2) return points;
+      var pts = points.slice().sort(function(a,b){ return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]; });
+      function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+      var lower = [];
+      for (var i = 0; i < pts.length; i++) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+        lower.push(pts[i]);
+      }
+      var upper = [];
+      for (var i = pts.length - 1; i >= 0; i--) {
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+        upper.push(pts[i]);
+      }
+      upper.pop(); lower.pop();
+      return lower.concat(upper);
+    }
+
+    function cv2_approxPolyDP(contour, precision) {
+      if (contour.length <= 2) return contour;
+      var epsilon = precision * cv2_arcLength(contour);
+      function rdp(pts, eps) {
+        if (pts.length <= 2) return pts;
+        var dmax = 0, index = 0, end = pts.length - 1;
+        for (var i = 1; i < end; i++) {
+          var dx = pts[end][0] - pts[0][0], dy = pts[end][1] - pts[0][1];
+          var mag = Math.hypot(dx, dy);
+          var d = mag === 0 ? Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) :
+            Math.abs(dy * pts[i][0] - dx * pts[i][1] + pts[end][0] * pts[0][1] - pts[end][1] * pts[0][0]) / mag;
+          if (d > dmax) { index = i; dmax = d; }
+        }
+        if (dmax > eps) {
+          var r1 = rdp(pts.slice(0, index + 1), eps);
+          var r2 = rdp(pts.slice(index, end + 1), eps);
+          return r1.slice(0, r1.length - 1).concat(r2);
+        } else { return [pts[0], pts[end]]; }
+      }
+      return rdp(contour, epsilon);
+    }
+
+    function calculateIoU(boxA, boxB) {
+      var ax1 = boxA.x, ay1 = boxA.y, ax2 = boxA.x + boxA.w, ay2 = boxA.y + boxA.h;
+      var bx1 = boxB.x, by1 = boxB.y, bx2 = boxB.x + boxB.w, by2 = boxB.y + boxB.h;
+      var ix1 = Math.max(ax1, bx1), iy1 = Math.max(ay1, by1);
+      var ix2 = Math.min(ax2, bx2), iy2 = Math.min(ay2, by2);
+      var iw = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+      var inter = iw * ih;
+      var areaA = boxA.w * boxA.h, areaB = boxB.w * boxB.h;
+      var union = areaA + areaB - inter;
+      return union > 0 ? inter / union : 0.0;
+    }
+
+    // FIX: bbox extraída dos pixels reais do objeto (mat) é o GABARITO (GT) — é a posição
+    // verdadeira e exata do objeto na cena. As caixas em `detBoxes` (com deslocamento
+    // aleatório) representam a saída ruidosa de um detector, e são casadas ao GT mais
+    // próximo por IoU.
+    function measureOpenCV(mat, detBoxes) {
+      var blobs = cv2_findContours(mat);
+      var medidas = [];
+      blobs.forEach(function(item) {
+        var contour = item.contour, pixels = item.pixels;
+        var area = cv2_contourArea(contour);
+        if (area === 0) area = pixels.length;
+        var gtBbox = cv2_boundingRect(pixels);
+        var hull = cv2_convexHull(contour);
+        var hull_area = cv2_contourArea(hull);
+        if (hull_area === 0) hull_area = area;
+        var poly = cv2_approxPolyDP(contour, 0.02);
+        var solidity = hull_area > 0 ? area / hull_area : 0;
+        var classe = solidity < 0.85 ? "Cruz (Côncavo)" : "Retângulo (Convexo)";
+        var bestIoU = 0.0, matchedDET = { x: 0, y: 0, w: 0, h: 0 };
+
+        detBoxes.forEach(function(d) {
+          var iou = calculateIoU(gtBbox, d);
+          if (iou > bestIoU) { bestIoU = iou; matchedDET = d; }
+        });
+
+        medidas.push({
+          classe: classe, area: area, gtBox: gtBbox, detBox: matchedDET,
+          solidity: solidity, vertices: poly.length, iou: bestIoU, ok: bestIoU >= 0.50
+        });
+      });
+      medidas.sort(function(a, b) { return a.gtBox.x !== b.gtBox.x ? a.gtBox.x - b.gtBox.x : a.gtBox.y - b.gtBox.y; });
+      medidas.forEach(function(m, i) { m.id = i + 1; });
+      return medidas;
+    }
+
+    function gerarCenario() {
+      matOrig = Array.from({length: H}, function(){ return Array(W).fill(0); });
+      var armLen = Math.floor(Math.random() * 2) + 1, thick = 1;
+      var w1 = armLen * 2 + thick, h1 = armLen * 2 + thick;
+      var x1 = Math.floor(Math.random() * Math.max(1, 8 - w1)) + 1;
+      var y1 = Math.floor(Math.random() * Math.max(1, H - h1)) + 1;
+
+      for (var r = 0; r < h1; r++) {
+        for (var c = 0; c < w1; c++) {
+          if ((c >= armLen && c < armLen + thick) || (r >= armLen && r < armLen + thick)) { matOrig[y1 + r][x1 + c] = 180; }
+        }
+      }
+
+      var w2 = Math.floor(Math.random() * 3) + 3, h2 = Math.floor(Math.random() * 3) + 3;
+      var x2 = Math.floor(Math.random() * Math.max(1, W - 10 - w2)) + 10;
+      var y2 = Math.floor(Math.random() * Math.max(1, H - h2)) + 1;
+
+      for (var r = y2; r < y2 + h2; r++) {
+        for (var c = x2; c < x2 + w2; c++) { matOrig[r][c] = 180; }
+      }
+
+      // Estas caixas simulam a saída de um DETECTOR real: deslocadas/imprecisas em relação
+      // ao objeto verdadeiro (que será obtido depois via segmentação em matBin -> GT).
+      var shiftX1 = Math.random() > 0.5 ? 1 : 0, shiftY1 = Math.random() > 0.5 ? 1 : 0;
+      var shiftX2 = Math.random() > 0.6 ? -2 : 0;
+
+      detBoxesAtuais = [
+        { x: Math.max(0, x1 + shiftX1), y: Math.max(0, y1 + shiftY1), w: w1, h: h1 },
+        { x: Math.max(0, x2 + shiftX2), y: y2, w: w2 + (shiftX2 !== 0 ? 2 : 0), h: h2 }
+      ];
+
+      matBin = matOrig.map(function(row) { return row.map(function(v) { return v > 50 ? 1 : 0; }); });
+      medidasObjetos = measureOpenCV(matBin, detBoxesAtuais);
+      renderGrid();
+      renderTabela();
+    }
+
+    function inBox(r, c, box) { return r >= box.y && r < box.y + box.h && c >= box.x && c < box.x + box.w; }
+    function isBoxEdge(r, c, box) { if (!inBox(r, c, box)) return false; return r === box.y || r === box.y + box.h - 1 || c === box.x || c === box.x + box.w - 1; }
+
+    function renderGrid(){
+      elGridContainer.innerHTML = '';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:inline-grid;gap:1px;background:#e4dcc8;padding:1px;border-radius:6px;overflow:auto;max-width:100%;grid-template-columns:repeat(' + W + ', 22px);';
+      var currentMat = stage === 0 ? matOrig : matBin;
+
+      for (var r = 0; r < H; r++){
+        for (var c = 0; c < W; c++){
+          var v = currentMat[r][c], cell = document.createElement('div');
+          var isGT = false, isDetOK = false, isDetFail = false;
+
+          if (stage === 1) {
+            // FIX: GT agora vem de m.gtBox (bbox real extraída dos pixels do objeto)
+            if (showGT) { medidasObjetos.forEach(function(m) { if (isBoxEdge(r, c, m.gtBox)) isGT = true; }); }
+            // FIX: DET agora vem de m.detBox (bbox ruidosa casada por IoU)
+            if (showDET) {
+              medidasObjetos.forEach(function(m) {
+                if (isBoxEdge(r, c, m.detBox)) { if (m.ok) isDetOK = true; else isDetFail = true; }
+              });
+            }
+
+            if (isGT && isDetOK) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#7c3aed;color:#ffffff;border:2px double #a78bfa;box-sizing:border-box;';
+            } else if (isGT && isDetFail) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#c026d3;color:#ffffff;border:2px double #f472b6;box-sizing:border-box;';
+            } else if (isDetOK) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#059669;color:#ffffff;border:2px solid #34d399;box-sizing:border-box;';
+            } else if (isDetFail) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#dc2626;color:#ffffff;border:2px solid #f87171;box-sizing:border-box;';
+            } else if (isGT) {
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:#2563eb;color:#ffffff;border:2px dashed #93c5fd;box-sizing:border-box;';
+            } else {
+              var bgBin = v === 1 ? '#26241d' : '#ffffff', fgBin = v === 1 ? '#7ee7c6' : '#8a8371';
+              cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:' + bgBin + ';color:' + fgBin + ';border:none;';
+            }
+          } else {
+            var fgCinza = v > 100 ? '#ffffff' : '#374151';
+            cell.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:monospace;user-select:none;background:rgb(' + (255 - v) + ',' + (255 - v) + ',' + (255 - v) + ');color:' + fgCinza + ';border:none;';
+          }
+          cell.textContent = v;
+          grid.appendChild(cell);
+        }
+      }
+      elGridContainer.appendChild(grid);
+    }
+
+    function renderTabela(){
+      elTbody.innerHTML = '';
+      if (medidasObjetos.length === 0) {
+        elTbody.innerHTML = '<tr><td colspan="9" style="padding:12px;color:#8a8371;text-align:center;">Nenhum objeto detectado na cena.</td></tr>';
+        return;
+      }
+      medidasObjetos.forEach(function(m, i){
+        var tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#fafaf7';
+        // FIX: bboxDet vem de m.detBox (caixa ruidosa) e bboxGT vem de m.gtBox (caixa real)
+        var bboxDet = '(' + m.detBox.x + ',' + m.detBox.y + ',' + m.detBox.w + ',' + m.detBox.h + ')';
+        var bboxGT = '(' + m.gtBox.x + ',' + m.gtBox.y + ',' + m.gtBox.w + ',' + m.gtBox.h + ')';
+        var statusHtml = m.ok ? '<span style="color:#27ae60;font-weight:bold;">✔ True</span>' : '<span style="color:#e74c3c;font-weight:bold;">✖ False</span>';
+
+        tr.innerHTML = 
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.id + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;"><b>' + m.classe + '</b></td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.area.toFixed(1) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.solidity.toFixed(3) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.vertices + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + bboxDet + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + bboxGT + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + m.iou.toFixed(2) + '</td>' +
+          '<td style="padding:5px 4px;border:1px solid #e4dcc8;text-align:center;">' + statusHtml + '</td>';
+        elTbody.appendChild(tr);
+      });
+    }
+
+    elToggleGT.addEventListener('click', function(){
+      showGT = !showGT;
+      if (showGT) {
+        this.style.background = '#2563eb'; this.style.borderColor = '#1d4ed8'; this.style.color = '#ffffff';
+        this.querySelector('span').textContent = '🟦';
+      } else {
+        this.style.background = '#f1ead7'; this.style.borderColor = '#d4cebe'; this.style.color = '#5e5a4a';
+        this.querySelector('span').textContent = '⬜';
+      }
+      renderGrid();
+    });
+
+    elToggleDET.addEventListener('click', function(){
+      showDET = !showDET;
+      if (showDET) {
+        this.style.background = '#059669'; this.style.borderColor = '#047857'; this.style.color = '#ffffff';
+        this.querySelector('span').textContent = '🟩';
+      } else {
+        this.style.background = '#f1ead7'; this.style.borderColor = '#d4cebe'; this.style.color = '#5e5a4a';
+        this.querySelector('span').textContent = '⬜';
+      }
+      renderGrid();
+    });
+
+    elBtnRand.addEventListener('click', gerarCenario);
+
+    function setStage(s, btn){
+      [root.querySelector('#ep0811_stage0'), root.querySelector('#ep0811_stage1')].forEach(function(b){
+        b.style.background = 'transparent'; b.style.color = '#8a8371'; b.style.fontWeight = '600';
+      });
+      btn.style.background = '#26241d'; btn.style.color = '#fbf7ee'; btn.style.fontWeight = '700';
+      stage = s; renderGrid();
+    }
+
+    root.querySelector('#ep0811_stage0').addEventListener('click', function(){ setStage(0, this); });
+    root.querySelector('#ep0811_stage1').addEventListener('click', function(){ setStage(1, this); });
+
+    gerarCenario();
+  }
+
+  function tryInit(){
+    var root = document.getElementById('sim-ep0811');
+    if (root) initSim(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

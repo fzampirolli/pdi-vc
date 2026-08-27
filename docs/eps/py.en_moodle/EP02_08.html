@@ -1,0 +1,235 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP02_08.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP02_08.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP02_08 🔀 Shear Transformation</h2>
+<p>In this activity, you must implement the shear transformation on an image. Shear is an affine transformation that shifts each point in a fixed direction, by an amount proportional to its distance from a line parallel to that direction, resulting in a tilting effect.</p>
+<div>
+<li>Read two integers <strong>L</strong> and <strong>C</strong>, representing the matrix dimensions.</li>
+<li>Read two real values <strong>sh_<em>x</em></strong> (horizontal shear) and <strong>sh_<em>y</em></strong> (vertical shear).</li>
+<li>Read a <em>string</em> representing the interpolation <strong>method</strong> (<code>nearest</code> or <code>bilinear</code>).</li>
+<li>Read the integer values of the original matrix.</li>
+<li>Apply the transformation while maintaining the original image size (cropping anything that exceeds the boundaries).</li>
+<li>Print the resulting matrix with dimensions <em>L</em> × <em>C</em>.</li>
+<li>See Figure 2.19 for a simulation of this EP.</li>
+</div>
+<p>📌 <strong>Important</strong>:</p>
+<div>
+<li><strong>Inverse Mapping:</strong> For each pixel (<em>x</em>', <em>y</em>') of the destination image, compute the corresponding position in the source (<em>x</em>, <em>y</em>) using the inverse shear matrix.</li>
+<li><strong>Filling:</strong> Coordinates that result in positions outside the original matrix must be filled with <strong>0</strong>.</li>
+<li><strong>Coordinates:</strong> For the purposes of this implementation, consider <em>x</em> as the row index and <em>y</em> as the column index.</li>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Affine Distortion</h4>
+<p>Shear alters the image geometry by tilting its axes. The relationship between the original coordinates (<em>x</em>, <em>y</em>) and the transformed ones (<em>x</em>', <em>y</em>') is given by:</p>
+<p>\beginbmatrix <em>x</em>' \\ <em>y</em>' \\ 1 \endbmatrix = \beginbmatrix 1 &amp; sh_<em>x</em> &amp; 0 \\ sh_<em>y</em> &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 1 \endbmatrix \beginbmatrix <em>x</em> \\ <em>y</em> \\ 1 \endbmatrix</p>
+<p>This results in the following equations:</p>
+<ul>
+<li><em>x</em>' = <em>x</em> + sh_<em>x</em> · <em>y</em></li>
+<li><em>y</em>' = <em>y</em> + sh_<em>y</em> · <em>x</em></li>
+</ul>
+</div>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Task (VPL specification)</h4>
+<p><strong>Input:</strong></p>
+<p>The first line contains <code>L</code>.</p>
+<p>The second line contains <code>C</code>.</p>
+<p>The third line contains the factors <code>shx</code> and <code>shy</code>.</p>
+<p>The fourth line contains the method <code>interp</code> (<code>nearest</code> or <code>bilinear</code>).</p>
+<p>The following lines contain the elements of the <em>L</em> × <em>C</em> matrix.</p>
+<p><strong>Output:</strong></p>
+<p>The transformed matrix with the same dimensions <em>L</em> × <em>C</em>.</p>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+0.5 0.0<br/>
+nearest<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 20 30<br/>
+0 40 50<br/>
+0 0 70</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Horizontal shear: row <em>i</em> shifts by \lfloor <em>i</em> · 0.5 \rfloor pixels. Row 0→0px, row 1→0px, row 2→1px. Pixels shifted out are discarded, and empty positions are filled with 0.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0.0 1.0<br/>
+nearest<br/>
+10 20<br/>
+30 40</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 0<br/>
+30 20</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Vertical shear: column <em>j</em> shifts down by \lfloor <em>j</em> · 1.0 \rfloor pixels. Column 0→0px (unchanged), column 1→1px: 20 moves down to (1,1) and (0,1) becomes 0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="36" data-quarto-private-1='{"key":"pdi","value":{"ck":"250ba7dfd8c301adf0c0874f64fc4284"}}' id="cell-fig-02-sim-ep0208-cisalhamento">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sim-ep0208-cisalhamento-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 2.19: EP02_08 Simulator: 2D Shear Geometric Transformation (Horizontal and Vertical Shear)
+</figcaption>
+</div>
+</div><div id="sim-ep0208-cisalhamento" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">✂️ Simulator EP02_08: Shear 2D</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">x' = x + shx·y | y' = y + shy·x</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Adjust the horizontal (shx) and vertical (shy) shear coefficients to observe the angular deformation of the image via reverse coordinate mapping.</p>
+<!-- Painel de Controles de Cisalhamento (shx e shy) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;">
+<!-- Cisalhamento Horizontal shx -->
+<div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<label style="font-size:11px;font-weight:700;color:#b9770e;">shx (Horizontal → f(y))</label>
+<span id="sim_ep0208_vl_shx" style="font-family:monospace;font-size:12px;font-weight:700;color:#b9770e;">0.00</span>
+</div>
+<input id="sim_ep0208_sl_shx" max="1.0" min="-1.0" step="0.05" style="width:100%;cursor:pointer;" type="range" value="0"/>
+</div>
+<!-- Cisalhamento Vertical shy -->
+<div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<label style="font-size:11px;font-weight:700;color:#2980b9;">shy (Vertical ↓ f(x))</label>
+<span id="sim_ep0208_vl_shy" style="font-family:monospace;font-size:12px;font-weight:700;color:#2980b9;">0.00</span>
+</div>
+<input id="sim_ep0208_sl_shy" max="1.0" min="-1.0" step="0.05" style="width:100%;cursor:pointer;" type="range" value="0"/>
+</div>
+</div>
+<!-- Comparativo Lado a Lado: Original vs Cisalhada -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Original (4x4) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Original (4×4)</span>
+<div id="sim_ep0208_grid_orig" style="display:inline-grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0208_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 New Matrix</button>
+</div>
+<!-- Matriz Cisalhada -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Sheared (Nearest Neighbor)</span>
+<div id="sim_ep0208_grid_shear" style="display:inline-grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0208_btnReset" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:9px;white-space:nowrap;transition:all 0.15s ease;">↩ Reset (shx=0, shy=0)</button>
+</div>
+</div>
+<!-- Painel de Informação Explicativo -->
+<div id="sim_ep0208_info" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      shx = 0.00, shy = 0.00 → no angular deformation (original image)
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0208(root){
+    if (!root || root.dataset.simEp0208Init) return;
+    root.dataset.simEp0208Init = "1";
+
+    var slShx    = root.querySelector('#sim_ep0208_sl_shx');
+    var slShy    = root.querySelector('#sim_ep0208_sl_shy');
+    var vlShx    = root.querySelector('#sim_ep0208_vl_shx');
+    var vlShy    = root.querySelector('#sim_ep0208_vl_shy');
+    var gOrig    = root.querySelector('#sim_ep0208_grid_orig');
+    var gShear   = root.querySelector('#sim_ep0208_grid_shear');
+    var infoDiv  = root.querySelector('#sim_ep0208_info');
+
+    var btnNew   = root.querySelector('#sim_ep0208_btnNew');
+    var btnReset = root.querySelector('#sim_ep0208_btnReset');
+
+    var pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+
+    function getSourceCoords(xd, yd, shx, shy) {
+      var det = 1 - shx * shy;
+      if (Math.abs(det) < 1e-6) {
+        if (Math.abs(shx) > 0.5) {
+          return { xs: Math.round(xd - shx * yd), ys: Math.round(yd) };
+        } else {
+          return { xs: Math.round(xd), ys: Math.round(yd - shy * xd) };
+        }
+      }
+      var xs = (xd - shx * yd) / det;
+      var ys = (yd - shy * xd) / det;
+      return { xs: Math.round(xs), ys: Math.round(ys) };
+    }
+
+    function render() {
+      var shx = parseFloat(slShx.value) || 0;
+      var shy = parseFloat(slShy.value) || 0;
+
+      vlShx.textContent = shx.toFixed(2);
+      vlShy.textContent = shy.toFixed(2);
+
+      // Renderiza Grade Original (4x4)
+      gOrig.innerHTML = '';
+      for (var i = 0; i < 4; i++) {
+        for (var j = 0; j < 4; j++) {
+          var val = pixels[i * 4 + j];
+          var cellO = document.createElement('div');
+          var fgColorO = val > 128 ? '#000000' : '#ffffff';
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';box-sizing:border-box;';
+          cellO.textContent = val;
+          gOrig.appendChild(cellO);
+        }
+      }
+
+      // Renderiza Grade Cisalhada (4x4)
+      gShear.innerHTML = '';
+      for (var r = 0; r < 4; r++) {       // y destino
+        for (var c = 0; c < 4; c++) {   // x destino
+          var src = getSourceCoords(c, r, shx, shy);
+          var v = 0;
+
+          if (src.xs >= 0 && src.xs < 4 && src.ys >= 0 && src.ys < 4) {
+            v = pixels[src.ys * 4 + src.xs];
+          }
+
+          var cellS = document.createElement('div');
+          var fgColorS = v > 128 ? '#000000' : '#ffffff';
+          cellS.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgColorS + ';box-sizing:border-box;';
+          cellS.textContent = v;
+          gShear.appendChild(cellS);
+        }
+      }
+
+      var det = 1 - shx * shy;
+      infoDiv.innerHTML = 'shx = <b>' + shx.toFixed(2) + '</b>, shy = <b>' + shy.toFixed(2) + '</b> &nbsp;|&nbsp; <b>Matriz S: [[1, ' + shx.toFixed(2) + '], [' + shy.toFixed(2) + ', 1]]</b> (det = ' + det.toFixed(3) + ')';
+    }
+
+    slShx.addEventListener('input', render);
+    slShy.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slShx.value = '0';
+      slShy.value = '0';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0208(){
+    var root = document.getElementById('sim-ep0208-cisalhamento');
+    if (root) initSimEP0208(root); else setTimeout(tryInitSimEP0208, 200);
+  }
+  tryInitSimEP0208();
+})();
+
+</script>
+</div></div>

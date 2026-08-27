@@ -1,0 +1,222 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_03 🟡 Classification des Marques sur les Feuilles de Réponses (OMR)</h2>
+<p>Après la correction de la feuille et la segmentation des cadres de réponses, le MCTest estime, pour chaque bulle, un <strong>degré de remplissage</strong>, représenté par une valeur entre 0 et 100. À partir de ces valeurs, le système doit déterminer automatiquement l’alternative marquée, en identifiant également les questions blanches et les cas de marques multiples.</p>
+<p>Dans cet exercice, vous implémenterez cette étape de décision du <em>pipeline</em> OMR. La classification dépend d’un seuil de remplissage : de petites variations de cette valeur peuvent modifier le résultat de la lecture automatique.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’Implémentation</h4>
+<ol type="1">
+<li><strong>Paramètres :</strong> Lire les entiers <em>Q</em> (nombre de questions) et <em>K</em> (nombre d’alternatives par question, avec 2 \le <em>K</em> \le 26) ainsi que le seuil de remplissage Th (nombre réel entre 0 et 100).</li>
+<li><strong>Degrés de remplissage :</strong> Pour chacune des <em>Q</em> questions, lire les <em>K</em> valeurs réelles correspondant aux alternatives <code>A</code>, <code>B</code>, <code>C</code>, …, dans l’ordre de saisie.</li>
+<li><strong>Comptage des marques :</strong> Pour chaque question, compter combien d’alternatives ont un degré de remplissage <strong>strictement supérieur</strong> à Th.</li>
+<li><strong>Classification :</strong>
+<ul>
+<li>Si aucune alternative ne dépasse Th, classer la question comme <code>BRANCO</code>.</li>
+<li>Si exactement une alternative dépasse Th, imprimer la lettre correspondante (<code>A</code>, <code>B</code>, <code>C</code>, …).</li>
+<li>Si deux alternatives ou plus dépassent Th, classer la question comme <code>DUPLA_MARCACAO</code>.</li>
+</ul></li>
+<li><strong>Sortie par question :</strong> Imprimer, dans l’ordre de lecture, la classification de chaque question.</li>
+<li><strong>Totaux :</strong> À la fin, imprimer le nombre de questions <code>OK</code> (une seule marque), <code>BRANCO</code> et <code>DUPLA_MARCACAO</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes Computationnelles</h4>
+<ul>
+<li><strong>Comparaison stricte :</strong> seules les valeurs supérieures à Th sont considérées comme des marques valides ; les valeurs exactement égales au seuil ne doivent pas être comptabilisées.</li>
+<li><strong>Lettres des alternatives :</strong> l’indice 0 correspond à l’alternative <code>A</code>, l’indice 1 à l’alternative <code>B</code>, et ainsi de suite.</li>
+<li><strong>Marques multiples :</strong> dès que deux alternatives ou plus dépassent le seuil, la classification doit être <code>DUPLA_MARCACAO</code>, indépendamment de leurs degrés de remplissage respectifs.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement Théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Situation</th>
+<th style="padding:10px;border:1px solid #ddd;">Classification</th>
+<th style="padding:10px;border:1px solid #ddd;">Interprétation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Exactement une alternative au-dessus du seuil</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Lettre de l’alternative</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Réponse valide</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aucune alternative au-dessus du seuil</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>BRANCO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Question non répondue</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Deux alternatives ou plus au-dessus du seuil</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>DUPLA_MARCACAO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Réponse ambiguë</td>
+</tr>
+</tbody>
+</table>
+<p>Le seuil de remplissage contrôle la sensibilité de l’algorithme. Des valeurs très basses tendent à augmenter le nombre de <code>DUPLA_MARCACAO</code>, tandis que des valeurs très hautes peuvent augmenter la quantité de questions classées comme <code>BRANCO</code>.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’Entrée et de Sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>Q</em>.</li>
+<li>Ligne 2 : Entier <em>K</em>.</li>
+<li>Ligne 3 : Nombre réel Th.</li>
+<li>Les <em>Q</em> lignes suivantes : <em>K</em> nombres réels, correspondant aux degrés de remplissage des alternatives.</li>
+<li>Ligne 1 : Entiers <em>Q</em> et <em>K</em>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li><em>Q</em> lignes, chacune contenant la classification de la question respective.</li>
+<li>Ligne finale : <code>OK: x  BRANCO: y  DUPLA_MARCACAO: z</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+4<br/>
+50<br/>
+10 85 5 12<br/>
+20 15 18 22<br/>
+90 88 10 5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">B<br/>
+BRANCO<br/>
+DUPLA_MARCACAO<br/>
+OK: 1 BRANCO: 1 DUPLA_MARCACAO: 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dans la première question, seule <code>B</code> dépasse le seuil ; dans la deuxième, aucune alternative ne le dépasse ; dans la troisième, <code>A</code> et <code>B</code> dépassent le seuil.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+2<br/>
+50.0<br/>
+50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">BRANCO<br/>
+OK: 0 BRANCO: 1 DUPLA_MARCACAO: 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Les valeurs égales au seuil ne sont pas considérées comme des marques valides.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="37" data-quarto-private-1='{"key":"pdi","value":{"ck":"69aa453c2181897dbd2e4899a3c6e27c"}}' id="cell-fig-06-sim-ep0603">
+</div>
+</div><div id="sim-ep0603" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0603 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0603 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0603 button:hover { background: #e8dfcf; }
+  #sim-ep0603 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0603_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0603_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP06_03 : Classification des marques OMR</span>
+<span class="sim-ep0603_pill">4 alternatives</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0603_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Seuil de remplissage (Th) : <span id="sim-ep0603_vth" style="font-family:monospace; color:#26241d;">50</span>%
+      </label>
+</div>
+<input id="sim-ep0603_th" max="100" min="0" step="1" type="range" value="50"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajustez le degré de remplissage de chaque bulle (A–D) et le seuil pour observer la classification résultante.
+    </div>
+</div>
+<!-- Sliders das Bolhas (A-D) -->
+<div class="sim-ep0603_panel" style="margin-bottom:14px;">
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep03(root){
+    if (!root || root.dataset.sim06Ep03Init) return;
+    root.dataset.sim06Ep03Init = "1";
+
+    var letras = ['A', 'B', 'C', 'D'];
+    var valores = [10, 85, 5, 12];
+    var thEl  = root.querySelector('#sim-ep0603_th');
+    var vthEl = root.querySelector('#sim-ep0603_vth');
+    var box   = root.querySelector('#sim-ep0603_bubbles');
+    var dbg   = root.querySelector('#sim-ep0603_debug');
+
+    box.innerHTML = '';
+    var sliders = [];
+
+    letras.forEach(function(L, i){
+      var col = document.createElement('div');
+      col.style.cssText = 'text-align:center; background:#fafaf7; border:1px solid #e9e3d3; padding:10px; border-radius:8px;';
+      col.innerHTML = '<div style="font-weight:700; font-size:12px; color:#5e5a4a; margin-bottom:6px;">' + L + '</div>' +
+        '<input type="range" min="0" max="100" step="1" value="' + valores[i] + '" id="sim-ep0603_b' + i + '">' +
+        '<div id="sim-ep0603_v' + i + '" style="font-family:monospace; font-weight:700; font-size:11px; color:#26241d; margin-top:6px;">' + valores[i] + '%</div>';
+      box.appendChild(col);
+      sliders.push(col.querySelector('#sim-ep0603_b' + i));
+    });
+
+    function render(){
+      var th = parseFloat(thEl.value);
+      vthEl.textContent = th.toFixed(0);
+      var marcadas = [];
+
+      sliders.forEach(function(s, i){
+        var v = parseFloat(s.value);
+        root.querySelector('#sim-ep0603_v' + i).textContent = v.toFixed(0) + '%';
+        if (v > th) marcadas.push(letras[i]);
+      });
+
+      var resultado;
+      if (marcadas.length === 0) {
+        resultado = 'BRANCO';
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#8a8371';
+      } else if (marcadas.length === 1) {
+        resultado = 'RESPOSTA: ' + marcadas[0];
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        resultado = 'DUPLA_MARCACAO (' + marcadas.join(', ') + ')';
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'Classification de la question : ' + resultado;
+    }
+
+    sliders.forEach(function(s){ s.addEventListener('input', render); });
+    thEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep03(){
+    var root = document.getElementById('sim-ep0603');
+    if (root) initSim06Ep03(root); else setTimeout(tryInitSim06Ep03, 200);
+  }
+  tryInitSim06Ep03();
+})();
+
+</script>
+</div><div id="sim-ep0603_bubbles" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;"></div><div class="sim-ep0603_panel" id="sim-ep0603_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

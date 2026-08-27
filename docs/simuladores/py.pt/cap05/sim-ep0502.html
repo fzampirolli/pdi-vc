@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador EP05_02: Filtro Notch | PDI+VC</title>
+  <link rel="icon" type="image/x-icon" href="../../../favicon.ico"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 1em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-ab2cdd22c25375bcd44ac458b5cecc71.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink:      #1a1612;
+      --paper:    #faf7f2;
+      --cream:    #f0ebe0;
+      --gold:     #c8963c;
+      --gold-lt:  #e8c070;
+      --navy:     #1a2e4a;
+      --navy-lt:  #2a4a6a;
+      --muted:    #6b6058;
+      --border:   #d8d0c0;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(26,22,18,0.13);
+    }
+
+    body.sim-standalone {
+      font-family: 'Source Serif 4', Georgia, serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header do Frame ───────────────────────────────────────────── */
+    .sim-frame-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 1.2rem 2rem;
+      border-bottom: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+
+    .sim-frame-brand {
+      display: flex;
+      flex-direction: column;
+      max-width: 60%;
+    }
+
+    .sim-frame-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-lt);
+    }
+
+    .sim-frame-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-frame-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .sim-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .sim-btn-primary {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .sim-btn-primary:hover {
+      background: var(--gold-lt);
+    }
+
+    .sim-btn-outline {
+      border: 1px solid #4a6a8a;
+      color: #c8d8e8;
+    }
+
+    .sim-btn-outline:hover {
+      border-color: var(--gold-lt);
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .sim-btn-nav {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #3a5a7a;
+      color: #fff;
+    }
+
+    .sim-btn-nav:hover {
+      background: var(--navy-lt);
+      border-color: var(--gold-lt);
+    }
+
+    /* ── Container Principal do Simulador ────────────────────────────── */
+    .sim-main-wrapper {
+      flex: 1;
+      padding: 2.5rem 1.5rem;
+      max-width: 120ch;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .sim-card-frame {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Legenda Posicionada Abaixo do Simulador ─────────────────────── */
+    .sim-caption-below {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      background-color: var(--cream);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    .sim-caption-below strong {
+      color: var(--navy);
+    }
+
+    /* ── Footer do Frame (Consolidado) ───────────────────────────────── */
+    .sim-frame-footer {
+      background: var(--navy);
+      color: #7898b0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: auto;
+      border-top: 1px solid var(--navy-lt);
+      line-height: 1.6;
+    }
+
+    .sim-frame-footer strong {
+      color: #fff;
+    }
+
+    .sim-frame-footer a {
+      color: var(--gold-lt);
+      text-decoration: none;
+    }
+
+    .sim-frame-footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 820px) {
+      .sim-frame-brand {
+        max-width: 100%;
+      }
+      .sim-frame-header {
+        padding: 1rem;
+      }
+      .sim-main-wrapper {
+        padding: 1rem 0.5rem;
+      }
+      .sim-card-frame {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="sim-standalone">
+
+<!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
+<header class="sim-frame-header">
+  <div class="sim-frame-brand">
+    <span class="sim-frame-eyebrow">PDI+VC · Simulador Interativo</span>
+    <h1 class="sim-frame-title" title="Simulador EP05_02: Filtro Notch">Simulador EP05_02: Filtro Notch</h1>
+  </div>
+  <nav class="sim-frame-nav">
+    <a href="sim-ep0501.html" class="sim-btn sim-btn-nav">← sim-ep0501</a>
+    <a href="sim-ep0503.html" class="sim-btn sim-btn-nav">sim-ep0503 →</a>
+    <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
+    <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
+    <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
+  </nav>
+</header>
+
+<!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
+<main class="sim-main-wrapper">
+  <div class="sim-card-frame">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6" id="fig-05-sim-ep0502">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-05-sim-ep0502-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0502" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0502 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0502 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0502 button:hover { background: #e8dfcf; }
+  #sim-ep0502 input[type=range] { width: 100%; accent-color: #26241d; cursor: pointer; height: 4px; }
+  .sim-ep0502_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0502_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0502_grid_ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .sim-ep0502_cell { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP05_02: Filtro Notch</span>
+<span class="sim-ep0502_pill">Par Simétrico</span>
+</div>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0502_panel" style="margin-bottom:14px;">
+<div class="sim-ep0502_grid_ctrls">
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Δv</label>
+<span id="sim-ep0502_vl_dv" style="font-family:monospace; font-weight:700; color:#26241d;">1</span>
+</div>
+<input id="sim-ep0502_sl_dv" max="2" min="-2" step="1" type="range" value="1"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Δu</label>
+<span id="sim-ep0502_vl_du" style="font-family:monospace; font-weight:700; color:#26241d;">1</span>
+</div>
+<input id="sim-ep0502_sl_du" max="2" min="-2" step="1" type="range" value="1"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Raio (r)</label>
+<span id="sim-ep0502_vl_r" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0502_sl_r" max="2" min="0" step="1" type="range" value="0"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:10px; text-align:center;">
+      Mova Δv e Δu para escolher o pico — observe que o par simétrico também é filtrado.
+    </div>
+</div>
+<!-- Espectro 5x5 -->
+<div class="sim-ep0502_panel" style="text-align:center; margin-bottom:14px;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+      Espectro 5×5 (Vermelho = Removido pelo Filtro)
+    </div>
+<div id="sim-ep0502_grid" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px; justify-content:center;"></div>
+</div>
+<!-- Painel Informativo / Debug -->
+<div class="sim-ep0502_panel" id="sim-ep0502_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div>
+</div>
+</div>
+<script>
+(function(){
+  function initSim05Ep02(root){
+    if (!root || root.dataset.sim05Ep02Init) return;
+    root.dataset.sim05Ep02Init = "1";
+
+    var N = 5, cy = Math.floor(N / 2), cx = Math.floor(N / 2);
+    var mag = [];
+    for (var i = 0; i < N; i++){
+      var row = [];
+      for (var j = 0; j < N; j++){
+        row.push(i * 5 + j + 1);
+      }
+      mag.push(row);
+    }
+
+    var dv  = root.querySelector('#sim-ep0502_sl_dv');
+    var du  = root.querySelector('#sim-ep0502_sl_du');
+    var r   = root.querySelector('#sim-ep0502_sl_r');
+    var dvv = root.querySelector('#sim-ep0502_vl_dv');
+    var duv = root.querySelector('#sim-ep0502_vl_du');
+    var rv  = root.querySelector('#sim-ep0502_vl_r');
+
+    var grid = root.querySelector('#sim-ep0502_grid');
+    var dbg  = root.querySelector('#sim-ep0502_debug');
+
+    function cellStyle(kill){
+      if (kill) {
+        return 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+      } else {
+        return 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      }
+    }
+
+    function render(){
+      var DV = parseInt(dv.value, 10);
+      var DU = parseInt(du.value, 10);
+      var R  = parseInt(r.value, 10);
+
+      dvv.textContent = DV;
+      duv.textContent = DU;
+      rv.textContent  = R;
+
+      var p1 = [cy + DV, cx + DU];
+      var p2 = [cy - DV, cx - DU];
+
+      grid.innerHTML = '';
+      var removed = 0;
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var d1 = Math.sqrt((i - p1[0]) * (i - p1[0]) + (j - p1[1]) * (j - p1[1]));
+          var d2 = Math.sqrt((i - p2[0]) * (i - p2[0]) + (j - p2[1]) * (j - p2[1]));
+          var kill = (d1 <= R) || (d2 <= R);
+
+          if (kill) removed++;
+
+          var c = document.createElement('div');
+          c.className = 'sim-ep0502_cell';
+          c.style.cssText = cellStyle(kill);
+          c.textContent = kill ? 0 : mag[i][j];
+          grid.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'Centro = (' + cy + ', ' + cx + ')  |  Pico = (' + p1[0] + ', ' + p1[1] + ')  |  Simétrico = (' + p2[0] + ', ' + p2[1] + ')  |  Removidos: ' + removed;
+    }
+
+    [dv, du, r].forEach(function(el){
+      el.addEventListener('input', render);
+    });
+
+    render();
+  }
+
+  function tryInitSim05Ep02(){
+    var root = document.getElementById('sim-ep0502');
+    if (root) initSim05Ep02(root); else setTimeout(tryInitSim05Ep02, 200);
+  }
+  tryInitSim05Ep02();
+})();
+</script>
+</div>
+
+</figure>
+</div>
+    <div class="sim-caption-below">  <strong>Descrição:</strong> Figura 5.33: Simulador EP05_02: Filtro Notch</div>
+  </div>
+</main>
+
+<!-- RODAPÉ COMPLETO E ÚNICO -->
+<footer class="sim-frame-footer">
+  <p>
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
+    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
+  </p>
+</footer>
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  function initSim05FFT(root){
+    if (!root || root.dataset.initDone) return;
+    root.dataset.initDone = "1";
+
+    const C = root.querySelector('#sim05fft_Canvas');
+    const S = root.querySelector('#sim05fft_SpecCanvas');
+    const ctx = C.getContext('2d');
+    const sctx = S.getContext('2d');
+    const sim05fft_N = 512;
+    let sim05fft_nTerms = 1, sim05fft_showComp = true, sim05fft_showSum = true, sim05fft_targetType = 'square';
+
+    const sim05fft_PALETTE = ['#2980b9','#27ae60','#b9770e','#c0392b','#8e44ad','#16a085','#d35400','#2c3e50'];
+
+    function sim05fft_getTerms(type, n) {
+      const terms = [];
+      for (let k = 1; k <= n; k++) {
+        let freq, amp, phase = 0;
+        if (type === 'square') {
+          const m = 2*k - 1;
+          freq = m; amp = (4/Math.PI) * (1/m);
+        } else if (type === 'triangle') {
+          const m = 2*k - 1;
+          freq = m; amp = (8/Math.PI**2) * (1/m**2);
+          phase = -Math.PI/2;
+        } else {
+          freq = k; amp = (2/Math.PI) * (1/k);
+          phase = Math.PI;
+        }
+        terms.push({freq, amp, phase});
+      }
+      return terms;
+    }
+
+    function sim05fft_getTarget(type) {
+      const t = new Float32Array(sim05fft_N);
+      for (let i = 0; i < sim05fft_N; i++) {
+        const x = i / sim05fft_N;
+        if (type === 'square') t[i] = x < 0.5 ? 1 : -1;
+        else if (type === 'triangle') t[i] = x < 0.5 ? (4*x - 1) : (3 - 4*x);
+        else t[i] = 2*x - 1;
+      }
+      return t;
+    }
+
+    function sim05fft_evalTerms(terms) {
+      const sig = new Float32Array(sim05fft_N);
+      for (const {freq, amp, phase} of terms) {
+        for (let i = 0; i < sim05fft_N; i++) {
+          sig[i] += amp * Math.sin(2*Math.PI*freq*i/sim05fft_N + phase);
+        }
+      }
+      return sig;
+    }
+
+    function sim05fft_draw() {
+      const W = C.width, H = C.height;
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+
+      const terms = sim05fft_getTerms(sim05fft_targetType, sim05fft_nTerms);
+      const sum = sim05fft_evalTerms(terms);
+      const target = sim05fft_getTarget(sim05fft_targetType);
+      let rms = 0;
+      for (let i = 0; i < sim05fft_N; i++) rms += (sum[i]-target[i])**2;
+      rms = Math.sqrt(rms/sim05fft_N);
+
+      // Grid
+      ctx.strokeStyle = '#e4dcc8'; ctx.lineWidth = 0.5; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Componentes individuais
+      if (sim05fft_showComp) {
+        for (let k = 0; k < terms.length; k++) {
+          const {freq, amp, phase} = terms[k];
+          ctx.strokeStyle = sim05fft_PALETTE[k % sim05fft_PALETTE.length] + '55';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let i = 0; i < sim05fft_N; i++) {
+            const x = i * W / sim05fft_N;
+            const y = H/2 - amp * Math.sin(2*Math.PI*freq*i/sim05fft_N + phase) * H/3;
+            i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Sinal alvo
+      ctx.strokeStyle = '#8a8371'; ctx.lineWidth = 1.5; ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      for (let i = 0; i < sim05fft_N; i++) {
+        const x = i * W / sim05fft_N;
+        const y = H/2 - target[i] * H/3;
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+
+      // Soma
+      if (sim05fft_showSum) {
+        ctx.strokeStyle = '#26241d'; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let i = 0; i < sim05fft_N; i++) {
+          const x = i * W / sim05fft_N;
+          const y = H/2 - sum[i] * H/3;
+          i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+      }
+
+      // Espectro
+      const SW = S.width, SH = S.height;
+      sctx.clearRect(0, 0, SW, SH);
+      sctx.fillStyle = '#fafaf7'; sctx.fillRect(0,0,SW,SH);
+      const maxFreq = sim05fft_getTerms(sim05fft_targetType, 25)[24].freq;
+      for (let k = 0; k < terms.length; k++) {
+        const {freq, amp} = terms[k];
+        const x = freq/maxFreq * SW;
+        const h2 = amp / 2 * SH * 0.8;
+        sctx.fillStyle = sim05fft_PALETTE[k % sim05fft_PALETTE.length];
+        sctx.fillRect(x-2, SH-h2, 4, h2);
+      }
+      sctx.strokeStyle = '#e4dcc8'; sctx.lineWidth = 0.5;
+      sctx.strokeRect(0,0,SW,SH);
+      sctx.fillStyle = '#8a8371'; sctx.font = '9.5px monospace'; sctx.textAlign='left';
+      sctx.fillText('Espectro de Amplitude (frequência →)', 6, 14);
+
+      // Stats
+      root.querySelector('#sim05fft_nTerms').textContent = sim05fft_nTerms;
+      root.querySelector('#sim05fft_rms').textContent = rms.toFixed(3);
+
+      // Term list
+      const tl = root.querySelector('#sim05fft_termList');
+      tl.innerHTML = '';
+      for (let k = 0; k < Math.min(terms.length, 8); k++) {
+        const {freq, amp} = terms[k];
+        const d = document.createElement('span');
+        d.style.cssText = 'font-size:10px; display:flex; align-items:center; gap:4px; background:#fafaf7; border:1px solid #e9e3d3; padding:4px 8px; border-radius:6px;';
+        d.innerHTML = '<span style="width:10px;height:10px;border-radius:3px;background:' + sim05fft_PALETTE[k%sim05fft_PALETTE.length] + ';display:inline-block;"></span><span style="font-weight:700; color:#5e5a4a;">k=' + freq + ' A=' + amp.toFixed(2) + '</span>';
+        tl.appendChild(d);
+      }
+    }
+
+    window.sim05fft_setTarget = function(t) {
+      sim05fft_targetType = t;
+      ['sq','tr','sw'].forEach(id => {
+        const el = root.querySelector('#sim05fft_' + id);
+        if (el) el.classList.remove('sim05fft_active');
+      });
+      const map = {square:'sq', triangle:'tr', sawtooth:'sw'};
+      root.querySelector('#sim05fft_' + map[t]).classList.add('sim05fft_active');
+      root.querySelector('#sim05fft_target').textContent = {square:'quadrada',triangle:'triangular',sawtooth:'dente-serra'}[t];
+      sim05fft_draw();
+    };
+
+    window.sim05fft_toggleComp = function() {
+      sim05fft_showComp = !sim05fft_showComp;
+      root.querySelector('#sim05fft_chk_comp').classList.toggle('sim05fft_active', sim05fft_showComp);
+      sim05fft_draw();
+    };
+
+    window.sim05fft_toggleSum = function() {
+      sim05fft_showSum = !sim05fft_showSum;
+      root.querySelector('#sim05fft_chk_sum').classList.toggle('sim05fft_active', sim05fft_showSum);
+      sim05fft_draw();
+    };
+
+    root.querySelector('#sim05fft_slider').addEventListener('input', function(){
+      sim05fft_nTerms = +this.value;
+      root.querySelector('#sim05fft_slVal').textContent = sim05fft_nTerms;
+      sim05fft_draw();
+    });
+
+    sim05fft_draw();
+  }
+
+  function tryInitSim05FFT(){
+    var root = document.getElementById('sim-05-freq');
+    if (root) initSim05FFT(root); else setTimeout(tryInitSim05FFT, 200);
+  }
+  tryInitSim05FFT();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Exp2D(root){
+    if (!root || root.dataset.initDone) return;
+    root.dataset.initDone = "1";
+
+    const specC = root.querySelector('#sim-05-grade-2d_CanvasSpec');
+    const spaceC = root.querySelector('#sim-05-grade-2d_CanvasSpace');
+    const sctx = specC.getContext('2d');
+    const spctx = spaceC.getContext('2d');
+
+    let u = 10;
+    let v = 5;
+    const N = 220;
+
+    function updateMetrics() {
+      const r = Math.sqrt(u*u + v*v);
+      let angle = Math.atan2(v, u) * (180 / Math.PI);
+      if (angle < 0) angle += 360;
+
+      root.querySelector('#sim-05-grade-2d_valU').textContent = u;
+      root.querySelector('#sim-05-grade-2d_valV').textContent = v;
+      root.querySelector('#sim-05-grade-2d_valR').textContent = r.toFixed(2);
+      root.querySelector('#sim-05-grade-2d_valAng').textContent = angle.toFixed(1) + '°';
+
+      root.querySelector('#sim-05-grade-2d_sliderU').value = u;
+      root.querySelector('#sim-05-grade-2d_sliderV').value = v;
+      root.querySelector('#sim-05-grade-2d_slValU').textContent = u;
+      root.querySelector('#sim-05-grade-2d_slValV').textContent = v;
+    }
+
+    function render() {
+      updateMetrics();
+
+      // 1. Desenhar Espectro
+      sctx.fillStyle = '#fafaf7';
+      sctx.fillRect(0, 0, N, N);
+
+      sctx.strokeStyle = '#e4dcc8';
+      sctx.lineWidth = 1;
+      sctx.beginPath();
+      sctx.moveTo(N/2, 0); sctx.lineTo(N/2, N);
+      sctx.moveTo(0, N/2); sctx.lineTo(N, N/2);
+      sctx.stroke();
+
+      sctx.fillStyle = '#8a8371';
+      sctx.beginPath();
+      sctx.arc(N/2, N/2, 2.5, 0, 2*Math.PI);
+      sctx.fill();
+
+      let ptX = N/2 + u;
+      let ptY = N/2 - v;
+
+      sctx.strokeStyle = '#b9770e88';
+      sctx.lineWidth = 1.5;
+      sctx.beginPath();
+      sctx.moveTo(N/2, N/2);
+      sctx.lineTo(ptX, ptY);
+      sctx.stroke();
+
+      let symX = N/2 - u;
+      let symY = N/2 + v;
+      sctx.fillStyle = '#c0392b88';
+      sctx.beginPath();
+      sctx.arc(symX, symY, 4, 0, 2*Math.PI);
+      sctx.fill();
+
+      sctx.fillStyle = '#2980b9';
+      sctx.strokeStyle = '#ffffff';
+      sctx.lineWidth = 1.5;
+      sctx.beginPath();
+      sctx.arc(ptX, ptY, 5.5, 0, 2*Math.PI);
+      sctx.fill();
+      sctx.stroke();
+
+      // 2. Desenhar Onda Espacial 2D Resultante
+      const imgData = spctx.createImageData(N, N);
+      const data = imgData.data;
+      const freqScale = 2 * Math.PI / N;
+
+      for (let y = 0; y < N; y++) {
+        const ny = y - N/2;
+        for (let x = 0; x < N; x++) {
+          const nx = x - N/2;
+          const val = Math.cos(freqScale * (u * nx + v * (-ny)));
+          const intensity = Math.floor((val + 1) * 127.5);
+
+          const idx = (y * N + x) * 4;
+          data[idx]     = intensity;
+          data[idx + 1] = intensity;
+          data[idx + 2] = intensity;
+          data[idx + 3] = 255;
+        }
+      }
+      spctx.putImageData(imgData, 0, 0);
+    }
+
+    root.querySelector('#sim-05-grade-2d_sliderU').addEventListener('input', function() {
+      u = parseInt(this.value, 10);
+      render();
+    });
+
+    root.querySelector('#sim-05-grade-2d_sliderV').addEventListener('input', function() {
+      v = parseInt(this.value, 10);
+      render();
+    });
+
+    specC.addEventListener('mousedown', function(e) {
+      const rect = specC.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      let newU = Math.round(clickX - N/2);
+      let newV = Math.round(N/2 - clickY);
+
+      u = Math.max(-30, Math.min(30, newU));
+      v = Math.max(-30, Math.min(30, newV));
+
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSim05Exp2D(){
+    var root = document.getElementById('sim-05-grade-2d');
+    if (root) initSim05Exp2D(root); else setTimeout(tryInitSim05Exp2D, 200);
+  }
+  tryInitSim05Exp2D();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Filtros(root){
+    if (!root || root.dataset.initDone) return;
+    root.dataset.initDone = "1";
+
+    var SF = [
+      {key:'ideal', name:'Ideal',          desc:'Corte perfeito em D₀ — causa ringing',       color:'#c0392b', dash:null },
+      {key:'gauss', name:'Gaussiano',      desc:'Transição suave — sem ringing',                 color:'#27ae60', dash:[6,3]},
+      {key:'bw2',   name:'Butterworth n=2', desc:'Compromisso: suave com banda controlável',       color:'#2980b9', dash:[4,2]},
+      {key:'bw5',   name:'Butterworth n=5', desc:'Aproxima o ideal mantendo transição suave',    color:'#b9770e', dash:[2,2]},
+    ];
+
+    var sf_D0 = 30, sf_hp = false;
+    var sf_on = {ideal:true, gauss:true, bw2:true, bw5:true};
+
+    function sf_H(D, key, d0, hp){
+      var h;
+      if(key === 'ideal')      h = D <= d0 ? 1 : 0;
+      else if(key === 'gauss') h = Math.exp(-D*D/(2*d0*d0));
+      else if(key === 'bw2')   h = 1/(1+Math.pow(D/d0,4));
+      else                     h = 1/(1+Math.pow(D/d0,10));
+      return hp ? 1-h : h;
+    }
+
+    function sf_setup(id, h){
+      var c = root.querySelector('#' + id);
+      var w = c.parentElement.clientWidth - 24;
+      if(w < 100) w = 280;
+      c.width  = w;
+      c.height = h || 180;
+      return {c:c, ctx:c.getContext('2d'), w:c.width, h:c.height};
+    }
+
+    function sf_axes(ctx, w, h, pad, xmax, ymin, ymax, xlabel, ylabel){
+      var l=pad.l, r=pad.r, t=pad.t, b=pad.b;
+      ctx.clearRect(0,0,w,h);
+
+      ctx.strokeStyle='rgba(0,0,0,.06)'; ctx.lineWidth=0.5;
+      var nx=4, ny=4;
+      for(var i=0; i<=nx; i++){
+        var x = l + (w-l-r) * i / nx;
+        ctx.beginPath(); ctx.moveTo(x, t); ctx.lineTo(x, h-b); ctx.stroke();
+      }
+      for(var j=0; j<=ny; j++){
+        var y = t + (h-t-b) * j / ny;
+        ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(w-r, y); ctx.stroke();
+      }
+
+      ctx.strokeStyle='#e4dcc8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(l, t); ctx.lineTo(l, h-b); ctx.lineTo(w-r, h-b); ctx.stroke();
+
+      ctx.fillStyle='#8a8371'; ctx.font='10px monospace'; ctx.textAlign='center';
+      for(var i=0; i<=nx; i++){
+        var x = l + (w-l-r) * i / nx;
+        var val = Math.round(xmax * i / nx);
+        ctx.fillText(val, x, h-b+12);
+      }
+      ctx.textAlign='right';
+      for(var j=0; j<=ny; j++){
+        var y = t + (h-t-b) * j / ny;
+        var val = ymax - (ymax-ymin) * j / ny;
+        ctx.fillText(val.toFixed(2), l-4, y+3);
+      }
+
+      ctx.fillStyle='#5e5a4a'; ctx.font='10.5px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(xlabel, l+(w-l-r)/2, h-2);
+      ctx.save(); ctx.translate(11, t+(h-t-b)/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText(ylabel, 0, 0); ctx.restore();
+
+      var d0x = l + (sf_D0/xmax)*(w-l-r);
+      if(d0x > l && d0x < w-r){
+        ctx.strokeStyle='#b9770e'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(d0x, t); ctx.lineTo(d0x, h-b); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='#b9770e'; ctx.font='10px monospace'; ctx.textAlign='center';
+        ctx.fillText('D₀', d0x, t-2);
+      }
+
+      return {
+        toX: function(v){ return l + (v/xmax)*(w-l-r); },
+        toY: function(v){ return (h-b) - (v-ymin)/(ymax-ymin)*(h-t-b); }
+      };
+    }
+
+    function sf_line(ctx, pts, color, dash, fill){
+      if(!pts.length) return;
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.setLineDash(dash || []);
+      if(fill){
+        ctx.fillStyle = color.replace(')', ', 0.12)').replace('rgb', 'rgba');
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].baseY);
+        pts.forEach(function(p){ ctx.lineTo(p.x, p.y); });
+        ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].baseY);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.beginPath();
+      pts.forEach(function(p, i){ i===0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function sf_drawProfile(){
+      var s = sf_setup('sf_c1'); var ctx = s.ctx;
+      var pad = {l:36, r:12, t:16, b:22};
+      var ax = sf_axes(ctx, s.w, s.h, pad, 300, 0, 1, 'D(u,v)', 'H(D)');
+      SF.forEach(function(f){
+        if(!sf_on[f.key]) return;
+        var pts = [];
+        for(var d=0; d<=300; d+=2){
+          pts.push({x: ax.toX(d), y: ax.toY(sf_H(d, f.key, sf_D0, sf_hp)), baseY: ax.toY(0)});
+        }
+        sf_line(ctx, pts, f.color, f.dash, false);
+      });
+    }
+
+    function sf_drawSpectrum(){
+      var s = sf_setup('sf_c2'); var ctx = s.ctx;
+      var pad = {l:36, r:12, t:16, b:22};
+      var ax = sf_axes(ctx, s.w, s.h, pad, 300, 0, 1, 'D(u,v)', '|F·H|');
+      SF.forEach(function(f){
+        if(!sf_on[f.key]) return;
+        var pts = [];
+        for(var d=0; d<=300; d+=2){
+          var y = Math.max(0, Math.exp(-d*d/(2*80*80)) * sf_H(d, f.key, sf_D0, sf_hp));
+          pts.push({x: ax.toX(d), y: ax.toY(y), baseY: ax.toY(0)});
+        }
+        sf_line(ctx, pts, f.color, f.dash, true);
+      });
+    }
+
+    function sf_drawSignal(){
+      var s = sf_setup('sf_c3'); var ctx = s.ctx;
+      var pad = {l:36, r:12, t:16, b:22};
+      var N = 128;
+      var all = [];
+      SF.forEach(function(f){
+        if(!sf_on[f.key]) return;
+        for(var t=0; t<N; t++){
+          var v = 0;
+          for(var fr=1; fr<80; fr++) v += sf_H(fr, f.key, sf_D0, sf_hp) * Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/N);
+          all.push(v/7);
+        }
+      });
+      for(var t=0; t<N; t++){
+        var v = 0;
+        for(var fr=1; fr<60; fr++) v += Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/N);
+        all.push(v/7);
+      }
+      var ymin = Math.min.apply(null, all)*1.15, ymax = Math.max.apply(null, all)*1.15;
+      if(ymax - ymin < 0.1){ymin = -0.5; ymax = 0.5;}
+      var ax = sf_axes(ctx, s.w, s.h, pad, N, ymin, ymax, 'amostras', 'amp');
+
+      var orig = [];
+      for(var t=0; t<N; t++){
+        var v = 0;
+        for(var fr=1; fr<60; fr++) v += Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/N);
+        orig.push({x: ax.toX(t), y: ax.toY(v/7), baseY: ax.toY(0)});
+      }
+      ctx.globalAlpha = 0.4;
+      sf_line(ctx, orig, '#8a8371', [4,3], false);
+      ctx.globalAlpha = 1;
+
+      SF.forEach(function(f){
+        if(!sf_on[f.key]) return;
+        var pts = [];
+        for(var t=0; t<N; t++){
+          var v = 0;
+          for(var fr=1; fr<80; fr++) v += sf_H(fr, f.key, sf_D0, sf_hp) * Math.exp(-fr*fr/(2*45*45)) * Math.cos(2*Math.PI*fr*t/N);
+          pts.push({x: ax.toX(t), y: ax.toY(v/7), baseY: ax.toY(0)});
+        }
+        sf_line(ctx, pts, f.color, f.dash, false);
+      });
+    }
+
+    function sf_drawEnergy(){
+      var s = sf_setup('sf_c4'); var ctx = s.ctx;
+      var pad = {l:36, r:12, t:16, b:32};
+      var bands = [[0,20],[20,40],[40,60],[60,80],[80,100]];
+      var labels = ['0–20','20–40','40–60','60–80','80–100'];
+      var active = SF.filter(function(f){ return sf_on[f.key]; });
+      if(active.length === 0) return;
+
+      ctx.clearRect(0, 0, s.w, s.h);
+      ctx.strokeStyle = 'rgba(0,0,0,.06)'; ctx.lineWidth = 0.5;
+      for(var j=0; j<=4; j++){
+        var y = pad.t + (s.h-pad.t-pad.b) * j / 4;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(s.w-pad.r, y); ctx.stroke();
+      }
+      ctx.strokeStyle = '#e4dcc8'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, s.h-pad.b);
+      ctx.lineTo(s.w-pad.r, s.h-pad.b); ctx.stroke();
+
+      ctx.fillStyle = '#8a8371'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+      for(var j=0; j<=4; j++){
+        var y = pad.t + (s.h-pad.t-pad.b) * j / 4;
+        ctx.fillText((100 - j*25) + '%', pad.l-4, y+3);
+      }
+
+      var bw = (s.w - pad.l - pad.r) / bands.length;
+      var gw = bw * 0.12, fw = (bw - gw*(active.length+1)) / active.length;
+      if(fw < 2) fw = 2;
+
+      bands.forEach(function(band, bi){
+        var energy = function(key){
+          var e = 0, n = 0;
+          for(var d = band[0]; d < band[1]; d++){ e += Math.pow(sf_H(d, key, sf_D0, sf_hp), 2); n++; }
+          return n > 0 ? Math.round(e/n * 100) : 0;
+        };
+        var bx = pad.l + bi * bw;
+        active.forEach(function(f, fi){
+          var val = energy(f.key);
+          var x = bx + gw*(fi+1) + fw*fi;
+          var barH = (val/100) * (s.h - pad.t - pad.b);
+          var y = (s.h - pad.b) - barH;
+          ctx.fillStyle = f.color + 'bb';
+          ctx.fillRect(x, y, fw, barH);
+          ctx.strokeStyle = f.color; ctx.lineWidth = 0.5;
+          ctx.strokeRect(x, y, fw, barH);
+        });
+        ctx.fillStyle = '#8a8371'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(labels[bi], bx + bw/2, s.h - pad.b + 14);
+      });
+
+      ctx.fillStyle = '#5e5a4a'; ctx.font = '10.5px Inter,sans-serif'; ctx.textAlign = 'center';
+      ctx.save(); ctx.translate(11, pad.t + (s.h-pad.t-pad.b)/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText('energia (%)', 0, 0); ctx.restore();
+      ctx.fillText('banda de frequência', pad.l + (s.w-pad.l-pad.r)/2, s.h - 1);
+    }
+
+    function sf_buildLegend(){
+      var el = root.querySelector('#sf_legend');
+      el.innerHTML = '';
+      SF.forEach(function(f){
+        var d = document.createElement('div');
+        d.className = 'sf_leg_item' + (sf_on[f.key] ? '' : ' sf_off');
+        d.style.borderColor = sf_on[f.key] ? f.color : '#e9e3d3';
+        var swatchStyle = 'background:' + f.color;
+        if(f.dash){
+          var seg = f.dash[0], gap = f.dash[1];
+          swatchStyle = 'background:repeating-linear-gradient(90deg,' + f.color + ' 0 ' + seg + 'px,transparent ' + seg + 'px ' + (seg+gap) + 'px)';
+        }
+        d.innerHTML =
+          '<div class="sf_leg_swatch" style="' + swatchStyle + '"></div>' +
+          '<div><div class="sf_leg_name" style="color:' + f.color + '">' + f.name + '</div>' +
+          '<div class="sf_leg_desc">' + f.desc + '</div></div>';
+        d.addEventListener('click', function(){
+          sf_on[f.key] = !sf_on[f.key]; sf_buildLegend(); sf_draw();
+        });
+        el.appendChild(d);
+      });
+    }
+
+    function sf_stats(){
+      var el = root.querySelector('#sf_stats');
+      el.innerHTML = SF.filter(function(f){ return sf_on[f.key]; }).map(function(f){
+        var h50 = sf_H(sf_D0, f.key, sf_D0, sf_hp).toFixed(2);
+        var en = Math.round(function(){
+          var s = 0;
+          for(var i=0; i<200; i++) s += Math.pow(sf_H(i*0.5, f.key, sf_D0, sf_hp), 2);
+          return s/200;
+        }() * 100);
+        return '<div class="sf_pill" style="border-color:' + f.color + '55">' +
+          '<b style="color:' + f.color + '">' + f.name + '</b>' +
+          ' H(D₀)=<b>' + h50 + '</b> &middot; energia=<b>' + en + '%</b></div>';
+      }).join('');
+    }
+
+    function sf_draw(){
+      sf_drawProfile();
+      sf_drawSpectrum();
+      sf_drawSignal();
+      sf_drawEnergy();
+      sf_stats();
+    }
+
+    root.querySelector('#sf_d0').addEventListener('input', function(){
+      sf_D0 = +this.value;
+      root.querySelector('#sf_d0v').textContent = sf_D0;
+      sf_draw();
+    });
+
+    root.querySelectorAll('input[name="sf_ft"]').forEach(function(r){
+      r.addEventListener('change', function(e){
+        sf_hp = e.target.value === 'hp';
+        sf_draw();
+      });
+    });
+
+    sf_buildLegend();
+    sf_draw();
+    window.addEventListener('resize', sf_draw);
+  }
+
+  function tryInitSim05Filtros(){
+    var root = document.getElementById('sim-05-filtros');
+    if (root) initSim05Filtros(root); else setTimeout(tryInitSim05Filtros, 200);
+  }
+  tryInitSim05Filtros();
+})();
+</script>
+<script>
+(function(){
+  function initSim04Wavelet(root){
+    if (!root || root.dataset.initDone) return;
+    root.dataset.initDone = "1";
+
+    var wsim_N = 128;
+
+    function wsim_genImage(type){
+      var img = [];
+      for(var y=0; y<wsim_N; y++){
+        var row = [];
+        for(var x=0; x<wsim_N; x++){
+          var v = 0;
+          if(type==='gradient'){
+            v = 255*(0.5*x/wsim_N + 0.5*y/wsim_N);
+          } else if(type==='shapes'){
+            v = 40 + 30*Math.sin(x/30);
+            if(x>18&&x<58&&y>18&&y<58) v = 220;
+            var cx=95, cy=95, r=24;
+            if((x-cx)*(x-cx)+(y-cy)*(y-cy) < r*r) v = 195;
+            if(x>70&&x<74) v = 235;
+          } else if(type==='texture'){
+            var period=8;
+            v = ((Math.floor(x/period)+Math.floor(y/period))%2===0) ? 200 : 55;
+          } else {
+            v = 55 + 35*(x/wsim_N) + 15*Math.sin(y/12);
+            if(x>12&&x<50&&y>12&&y<50) v = 225;
+            var cx2=95, cy2=38, r2=17;
+            if((x-cx2)*(x-cx2)+(y-cy2)*(y-cy2) < r2*r2) v = 205;
+            if(y>82 && y<122){
+              var p=6;
+              v = ((Math.floor(x/p)+Math.floor(y/p))%2===0) ? 185 : 65;
+            }
+            if(Math.abs(x-y) < 2) v = 240;
+          }
+          row.push(Math.max(0,Math.min(255,v)));
+        }
+        img.push(row);
+      }
+      return img;
+    }
+
+    function wsim_dwt2(m){
+      var h = m.length, w = m[0].length;
+      var halfH = h / 2, halfW = w / 2;
+
+      var LL = [], LH = [], HL = [], HH = [];
+      for (var r = 0; r < halfH; r++) {
+        LL.push(new Array(halfW));
+        LH.push(new Array(halfW));
+        HL.push(new Array(halfW));
+        HH.push(new Array(halfW));
+      }
+
+      for(var r=0; r<halfH; r++){
+        for(var c=0; c<halfW; c++){
+          var a = m[2*r][2*c];
+          var b = m[2*r][2*c+1];
+          var g = m[2*r+1][2*c];
+          var d = m[2*r+1][2*c+1];
+
+          LL[r][c] = (a + b + g + d) / 2.0;
+          LH[r][c] = (a - b + g - d) / 2.0;
+          HL[r][c] = (a + b - g - d) / 2.0;
+          HH[r][c] = (a - b - g + d) / 2.0;
+        }
+      }
+      return {LL:LL, LH:LH, HL:HL, HH:HH};
+    }
+
+    function wsim_divCol(t){
+      t = Math.max(-1, Math.min(1, t));
+      if(t>=0) {
+        // Interpola de branco (255,255,255) até azul forte (41,128,185)
+        return [
+          Math.round(255 + t*(41 - 255)),
+          Math.round(255 + t*(128 - 255)),
+          Math.round(255 + t*(185 - 255))
+        ];
+      }
+      var s = -t;
+      // Interpola de branco (255,255,255) até vermelho forte (192,57,43)
+      return [
+        Math.round(255 + s*(192 - 255)),
+        Math.round(255 + s*(57 - 255)),
+        Math.round(255 + s*(43 - 255))
+      ];
+    }
+
+    function wsim_tileCanvas(mat, mode, gain){
+      var d = mat.length;
+      var cnv = document.createElement('canvas');
+      cnv.width = d; cnv.height = d;
+      var cctx = cnv.getContext('2d');
+      var idata = cctx.createImageData(d,d);
+      if(mode==='gray'){
+        var mn=Infinity, mx=-Infinity;
+        for(var r=0; r<d; r++) for(var c=0; c<d; c++){ var v=mat[r][c]; if(v<mn)mn=v; if(v>mx)mx=v; }
+        var range=(mx-mn)||1;
+        for(var r=0; r<d; r++) for(var c=0; c<d; c++){
+          var v=(mat[r][c]-mn)/range*255;
+          var idx=(r*d+c)*4;
+          idata.data[idx]=v; idata.data[idx+1]=v; idata.data[idx+2]=v; idata.data[idx+3]=255;
+        }
+      } else {
+        var maxAbs=0;
+        for(var r=0; r<d; r++) for(var c=0; c<d; c++){ var av=Math.abs(mat[r][c]); if(av>maxAbs) maxAbs=av; }
+        maxAbs = (maxAbs/gain) || 1;
+        for(var r=0; r<d; r++) for(var c=0; c<d; c++){
+          var t = mat[r][c]/maxAbs;
+          var rgb = wsim_divCol(t);
+          var idx=(r*d+c)*4;
+          idata.data[idx]=rgb[0]; idata.data[idx+1]=rgb[1]; idata.data[idx+2]=rgb[2]; idata.data[idx+3]=255;
+        }
+      }
+      cctx.putImageData(idata,0,0);
+      return cnv;
+    }
+
+    function wsim_energySum(mat){
+      var s=0;
+      for(var r=0; r<mat.length; r++) for(var c=0; c<mat[0].length; c++) s += mat[r][c]*mat[r][c];
+      return s;
+    }
+
+    var wsim_pattern='combined', wsim_level=2, wsim_gain=3;
+    var wsim_currentImg = wsim_genImage(wsim_pattern);
+
+    function wsim_setupSquare(id, cap){
+      var c = root.querySelector('#' + id);
+      var parentW = c.parentElement.clientWidth - 24;
+      var w = Math.min(parentW, cap || 360);
+      if(w<80) w = 240;
+      c.width = w; c.height = w;
+      return {c:c, ctx:c.getContext('2d'), size:w};
+    }
+
+    function wsim_drawOriginal(){
+      var s = wsim_setupSquare('wsim_orig', 360);
+      s.ctx.imageSmoothingEnabled = false;
+      var tile = wsim_tileCanvas(wsim_currentImg, 'gray', wsim_gain);
+      s.ctx.drawImage(tile, 0, 0, s.size, s.size);
+    }
+
+    function wsim_drawMosaic(){
+      var s = wsim_setupSquare('wsim_mosaic', 360);
+      var ctx = s.ctx, full = s.size, half = full/2;
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, full, full);
+
+      var c1 = wsim_dwt2(wsim_currentImg);
+
+      function place(mat, mode, x, y, w, h){
+        var tile = wsim_tileCanvas(mat, mode, wsim_gain);
+        ctx.drawImage(tile, x, y, w, h);
+      }
+
+      if(wsim_level===1){
+        place(c1.LL, 'gray', 0, 0, half, half);
+        place(c1.LH, 'div', half, 0, half, half);
+        place(c1.HL, 'div', 0, half, half, half);
+        place(c1.HH, 'div', half, half, half, half);
+      } else {
+        var c2 = wsim_dwt2(c1.LL);
+        var q = half/2;
+        place(c2.LL, 'gray', 0, 0, q, q);
+        place(c2.LH, 'div', q, 0, q, q);
+        place(c2.HL, 'div', 0, q, q, q);
+        place(c2.HH, 'div', q, q, q, q);
+
+        place(c1.LH, 'div', half, 0, half, half);
+        place(c1.HL, 'div', 0, half, half, half);
+        place(c1.HH, 'div', half, half, half, half);
+      }
+
+      ctx.strokeStyle = '#e4dcc8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(half,0); ctx.lineTo(half,full);
+      ctx.moveTo(0,half); ctx.lineTo(full,half);
+      ctx.stroke();
+      if(wsim_level===2){
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(half/2,0); ctx.lineTo(half/2,half);
+        ctx.moveTo(0,half/2); ctx.lineTo(half,half/2);
+        ctx.stroke();
+      }
+
+      ctx.font = '700 10.5px monospace';
+      function lbl(t,x,y){
+        ctx.fillStyle = '#26241d';
+        ctx.fillText(t, x+5, y+14);
+      }
+      if(wsim_level===1){
+        lbl('LL', 0,0); lbl('LH', half,0); lbl('HL',0,half); lbl('HH', half,half);
+      } else {
+        lbl('LL₂', 0,0); lbl('LH₂', half/2,0); lbl('HL₂',0,half/2); lbl('HH₂', half/2, half/2);
+        lbl('LH₁', half,0); lbl('HL₁',0,half); lbl('HH₁', half,half);
+      }
+    }
+
+    function wsim_drawEnergy(){
+      var s = root.querySelector('#wsim_energy');
+      var w = s.parentElement.clientWidth - 24;
+      if(w<100) w = 280;
+      s.width = w; s.height = 160;
+      var ctx = s.getContext('2d');
+      ctx.clearRect(0,0,w,s.height);
+
+      var c1 = wsim_dwt2(wsim_currentImg);
+      var total = wsim_energySum(wsim_currentImg);
+      var bars, labels;
+      if(wsim_level===1){
+        bars = [wsim_energySum(c1.LL), wsim_energySum(c1.LH), wsim_energySum(c1.HL), wsim_energySum(c1.HH)];
+        labels = ['LL','LH','HL','HH'];
+      } else {
+        var c2 = wsim_dwt2(c1.LL);
+        bars = [wsim_energySum(c2.LL), wsim_energySum(c2.LH), wsim_energySum(c2.HL), wsim_energySum(c2.HH),
+                wsim_energySum(c1.LH), wsim_energySum(c1.HL), wsim_energySum(c1.HH)];
+        labels = ['LL₂','LH₂','HL₂','HH₂','LH₁','HL₁','HH₁'];
+      }
+      var pcts = bars.map(function(b){ return b/total*100; });
+
+      var pad = {l:34, r:10, t:12, b:24};
+      var plotH = s.height - pad.t - pad.b;
+      var plotW = w - pad.l - pad.r;
+
+      ctx.strokeStyle = 'rgba(0,0,0,.06)'; ctx.lineWidth=0.5;
+      for(var j=0;j<=4;j++){
+        var y = pad.t + plotH*j/4;
+        ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
+      }
+      ctx.strokeStyle = '#e4dcc8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,s.height-pad.b); ctx.lineTo(w-pad.r,s.height-pad.b); ctx.stroke();
+
+      ctx.fillStyle = '#8a8371'; ctx.font='9.5px monospace'; ctx.textAlign='right';
+      for(var j=0;j<=4;j++){
+        var y = pad.t + plotH*j/4;
+        ctx.fillText(Math.round(100 - j*25) + '%', pad.l-4, y+3);
+      }
+
+      var bw = plotW/pcts.length;
+      var barW = bw*0.6;
+      ctx.textAlign='center';
+      pcts.forEach(function(p, i){
+        var x = pad.l + i*bw + (bw-barW)/2;
+        var barH = (p/100)*plotH;
+        var y = (s.height-pad.b) - barH;
+        var isLL = labels[i].indexOf('LL') === 0;
+        ctx.fillStyle = isLL ? '#2980b9' : '#c0392b';
+        ctx.fillRect(x,y,barW,barH);
+        ctx.strokeStyle = isLL ? '#1b4f72' : '#78281f';
+        ctx.lineWidth=0.5;
+        ctx.strokeRect(x,y,barW,barH);
+        if(barH>16){
+          ctx.fillStyle='#ffffff'; ctx.font='bold 9.5px monospace';
+          ctx.fillText(Math.round(p) + '%', x+barW/2, y+13);
+        }
+        ctx.fillStyle='#8a8371'; ctx.font='10px monospace';
+        ctx.fillText(labels[i], x+barW/2, s.height-pad.b+14);
+      });
+    }
+
+    function wsim_redraw(){
+      wsim_currentImg = wsim_genImage(wsim_pattern);
+      wsim_drawOriginal();
+      wsim_drawMosaic();
+      wsim_drawEnergy();
+    }
+
+    root.querySelector('#wsim_pattern').addEventListener('change', function(e){
+      wsim_pattern = e.target.value; wsim_redraw();
+    });
+    root.querySelectorAll('input[name="wsim_lv"]').forEach(function(r){
+      r.addEventListener('change', function(e){ wsim_level = +e.target.value; wsim_drawMosaic(); wsim_drawEnergy(); });
+    });
+    root.querySelector('#wsim_gain').addEventListener('input', function(e){
+      wsim_gain = +e.target.value;
+      root.querySelector('#wsim_gainv').textContent = wsim_gain.toFixed(1);
+      wsim_drawMosaic();
+    });
+
+    wsim_redraw();
+    window.addEventListener('resize', wsim_redraw);
+  }
+
+  function tryInitSim04Wavelet(){
+    var root = document.getElementById('sim-05-wavelet');
+    if (root) initSim04Wavelet(root); else setTimeout(tryInitSim04Wavelet, 200);
+  }
+  tryInitSim04Wavelet();
+})();
+</script>
+<script>
+(function(){
+  function initSim04DCT(root){
+    if (!root || root.dataset.initDone) return;
+    root.dataset.initDone = "1";
+
+    const dct_block = [
+      [52,55,61,66,70,61,64,73],
+      [63,59,55,90,109,85,69,72],
+      [62,59,68,113,144,104,66,73],
+      [63,58,71,122,154,106,70,69],
+      [67,61,68,104,126,88,68,70],
+      [79,65,60,70,77,68,58,75],
+      [85,71,64,59,55,61,65,83],
+      [87,79,69,68,65,76,78,94]
+    ];
+
+    const Q_luma = [
+      [16,11,10,16,24,40,51,61],[12,12,14,19,26,58,60,55],
+      [14,13,16,24,40,57,69,56],[14,17,22,29,51,87,80,62],
+      [18,22,37,56,68,109,103,77],[24,35,55,64,81,104,113,92],
+      [49,64,78,87,103,121,120,101],[72,92,95,98,112,100,103,99]
+    ];
+
+    function dct1d(x) {
+      const N = x.length, c = new Array(N).fill(0);
+      for (let k = 0; k < N; k++) {
+        let sum = 0;
+        for (let n = 0; n < N; n++) sum += x[n] * Math.cos(Math.PI*(2*n+1)*k/(2*N));
+        const alpha = k===0 ? Math.sqrt(1/N) : Math.sqrt(2/N);
+        c[k] = alpha * sum;
+      }
+      return c;
+    }
+
+    function idct1d(c) {
+      const N = c.length, x = new Array(N).fill(0);
+      for (let n = 0; n < N; n++) {
+        let sum = 0;
+        for (let k = 0; k < N; k++) {
+          const alpha = k===0 ? Math.sqrt(1/N) : Math.sqrt(2/N);
+          sum += alpha * c[k] * Math.cos(Math.PI*(2*n+1)*k/(2*N));
+        }
+        x[n] = sum;
+      }
+      return x;
+    }
+
+    function dct2d(blk) {
+      const N=8, rows=blk.map(r=>dct1d(r));
+      const cols=[];
+      for(let j=0;j<N;j++){const col=rows.map(r=>r[j]);cols.push(dct1d(col));}
+      const out=Array.from({length:N},()=>new Array(N));
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) out[i][j]=cols[j][i];
+      return out;
+    }
+
+    function idct2d(C) {
+      const N=8, cols=[];
+      for(let j=0;j<N;j++){const col=C.map(r=>r[j]);cols.push(idct1d(col));}
+      const rows=Array.from({length:N},()=>new Array(N));
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) rows[i][j]=cols[j][i];
+      return rows.map(r=>idct1d(r));
+    }
+
+    function getQ(quality) {
+      const s = quality<50 ? 5000/quality : 200-2*quality;
+      return Q_luma.map(row=>row.map(v=>Math.max(1,Math.min(255,Math.round(v*s/100)))));
+    }
+
+    function drawPixels(canvas, data, minV, maxV) {
+      const ctx = canvas.getContext('2d');
+      const sz = canvas.width/8;
+      for(let i=0;i<8;i++) for(let j=0;j<8;j++){
+        const v = (data[i][j]-minV)/(maxV-minV);
+        const g = Math.round(v*255);
+        ctx.fillStyle='rgb('+g+','+g+','+g+')';
+        ctx.fillRect(j*sz,i*sz,sz,sz);
+        ctx.strokeStyle='#e4dcc8'; ctx.lineWidth=0.5;
+        ctx.strokeRect(j*sz,i*sz,sz,sz);
+        ctx.fillStyle=g>128?'#26241d':'#fafaf7';
+        ctx.font='bold ' + Math.round(sz*0.28) + 'px monospace';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        const val = data[i][j];
+        ctx.fillText(Math.abs(val)>999?'…':String(Math.round(val)), j*sz+sz/2, i*sz+sz/2);
+      }
+    }
+
+    function drawHeatmap(canvas, data) {
+      const ctx = canvas.getContext('2d');
+      const sz = canvas.width/8;
+      const flat=data.flat(); const mn=Math.min(...flat), mx=Math.max(...flat);
+      for(let i=0;i<8;i++) for(let j=0;j<8;j++){
+        const v=(data[i][j]-mn)/(mx-mn||1);
+        const r=Math.round(v*220+35), gb=Math.round((1-v)*180+30);
+        ctx.fillStyle='rgb('+r+','+gb+','+gb+')';
+        ctx.fillRect(j*sz,i*sz,sz,sz);
+        ctx.strokeStyle='#e4dcc8'; ctx.lineWidth=0.5;
+        ctx.strokeRect(j*sz,i*sz,sz,sz);
+        ctx.fillStyle='#ffffff'; ctx.font='bold ' + Math.round(sz*0.22) + 'px monospace';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        const val = data[i][j];
+        ctx.fillText(Math.abs(val)>999?'…':String(Math.round(val)), j*sz+sz/2, i*sz+sz/2);
+      }
+    }
+
+    function update(quality) {
+      const Q = getQ(quality);
+      const centered = dct_block.map(r=>r.map(v=>v-128));
+      const C = dct2d(centered);
+      const Cq = C.map((r,i)=>r.map((v,j)=>Math.round(v/Q[i][j])));
+      const Cdq = Cq.map((r,i)=>r.map((v,j)=>v*Q[i][j]));
+      const rec = idct2d(Cdq).map(r=>r.map(v=>Math.max(0,Math.min(255,Math.round(v+128)))));
+
+      const Clog = C.map(r=>r.map(v=>Math.log1p(Math.abs(v))*(v>=0?1:-1)));
+      const Cqlog = Cq.map(r=>r.map(v=>v));
+
+      let nz=0, mse=0;
+      for(let i=0;i<8;i++) for(let j=0;j<8;j++){
+        if(Cq[i][j]!==0) nz++;
+        mse+=(dct_block[i][j]-rec[i][j])**2;
+      }
+      mse/=64;
+
+      drawPixels(root.querySelector('#sim04_dct_cvOrig'), dct_block, 0, 255);
+      drawHeatmap(root.querySelector('#sim04_dct_cvDCT'), Clog);
+      drawHeatmap(root.querySelector('#sim04_dct_cvQuant'), Cqlog);
+      drawPixels(root.querySelector('#sim04_dct_cvRec'), rec, 0, 255);
+
+      root.querySelector('#sim04_dct_qual').textContent = quality;
+      root.querySelector('#sim04_dct_nonzero').textContent = nz;
+      root.querySelector('#sim04_dct_zeros').textContent = (64-nz);
+      root.querySelector('#sim04_dct_mse').textContent = mse.toFixed(1);
+    }
+
+    window.dct_setQ = function(q){
+      root.querySelector('#sim04_dct_slider').value = q;
+      root.querySelector('#sim04_dct_slVal').textContent = q;
+      update(q);
+    };
+
+    root.querySelector('#sim04_dct_slider').addEventListener('input', function(){
+      root.querySelector('#sim04_dct_slVal').textContent = this.value;
+      update(+this.value);
+    });
+
+    root.querySelectorAll('[data-q]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        dct_setQ(parseInt(this.getAttribute('data-q'), 10));
+      });
+    });
+
+    update(50);
+  }
+
+  function tryInitSim04DCT(){
+    var root = document.getElementById('sim-05-dct');
+    if (root) initSim04DCT(root); else setTimeout(tryInitSim04DCT, 200);
+  }
+  tryInitSim04DCT();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Ep01(root){
+    if (!root || root.dataset.sim05Ep01Init) return;
+    root.dataset.sim05Ep01Init = "1";
+
+    var N = 5, cy = Math.floor(N / 2), cx = Math.floor(N / 2);
+    var mag = [];
+    for (var i = 0; i < N; i++){
+      var row = [];
+      for (var j = 0; j < N; j++){
+        row.push(10 * (i + 1) + j + 1);
+      }
+      mag.push(row);
+    }
+
+    var d0el = root.querySelector('#sim-ep0501_sl_d0');
+    var d0v  = root.querySelector('#sim-ep0501_vl_d0');
+    var go   = root.querySelector('#sim-ep0501_grid_orig');
+    var gn   = root.querySelector('#sim-ep0501_grid_new');
+    var dbg  = root.querySelector('#sim-ep0501_debug');
+
+    function cellStyle(active){
+      if (active) {
+        return 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      } else {
+        return 'background:#fafaf7; color:#8a8371; border:1px solid #e4dcc8;';
+      }
+    }
+
+    function render(){
+      var D0 = parseInt(d0el.value, 10);
+      d0v.textContent = D0;
+      go.innerHTML = '';
+      gn.innerHTML = '';
+      var kept = 0;
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var d = Math.sqrt((i - cy) * (i - cy) + (j - cx) * (j - cx));
+          var keep = d <= D0;
+          if (keep) kept++;
+
+          var co = document.createElement('div');
+          co.className = 'sim-ep0501_cell';
+          co.style.cssText = cellStyle(true);
+          co.textContent = mag[i][j];
+          go.appendChild(co);
+
+          var cn = document.createElement('div');
+          cn.className = 'sim-ep0501_cell';
+          cn.style.cssText = cellStyle(keep);
+          cn.textContent = keep ? mag[i][j] : 0;
+          gn.appendChild(cn);
+        }
+      }
+
+      dbg.textContent = 'Centro = (' + cy + ', ' + cx + ')  |  D₀ = ' + D0 + '  |  Coeficientes mantidos: ' + kept + ' / ' + (N * N);
+    }
+
+    d0el.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep01(){
+    var root = document.getElementById('sim-ep0501');
+    if (root) initSim05Ep01(root); else setTimeout(tryInitSim05Ep01, 200);
+  }
+  tryInitSim05Ep01();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Ep02(root){
+    if (!root || root.dataset.sim05Ep02Init) return;
+    root.dataset.sim05Ep02Init = "1";
+
+    var N = 5, cy = Math.floor(N / 2), cx = Math.floor(N / 2);
+    var mag = [];
+    for (var i = 0; i < N; i++){
+      var row = [];
+      for (var j = 0; j < N; j++){
+        row.push(i * 5 + j + 1);
+      }
+      mag.push(row);
+    }
+
+    var dv  = root.querySelector('#sim-ep0502_sl_dv');
+    var du  = root.querySelector('#sim-ep0502_sl_du');
+    var r   = root.querySelector('#sim-ep0502_sl_r');
+    var dvv = root.querySelector('#sim-ep0502_vl_dv');
+    var duv = root.querySelector('#sim-ep0502_vl_du');
+    var rv  = root.querySelector('#sim-ep0502_vl_r');
+
+    var grid = root.querySelector('#sim-ep0502_grid');
+    var dbg  = root.querySelector('#sim-ep0502_debug');
+
+    function cellStyle(kill){
+      if (kill) {
+        return 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+      } else {
+        return 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      }
+    }
+
+    function render(){
+      var DV = parseInt(dv.value, 10);
+      var DU = parseInt(du.value, 10);
+      var R  = parseInt(r.value, 10);
+
+      dvv.textContent = DV;
+      duv.textContent = DU;
+      rv.textContent  = R;
+
+      var p1 = [cy + DV, cx + DU];
+      var p2 = [cy - DV, cx - DU];
+
+      grid.innerHTML = '';
+      var removed = 0;
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var d1 = Math.sqrt((i - p1[0]) * (i - p1[0]) + (j - p1[1]) * (j - p1[1]));
+          var d2 = Math.sqrt((i - p2[0]) * (i - p2[0]) + (j - p2[1]) * (j - p2[1]));
+          var kill = (d1 <= R) || (d2 <= R);
+
+          if (kill) removed++;
+
+          var c = document.createElement('div');
+          c.className = 'sim-ep0502_cell';
+          c.style.cssText = cellStyle(kill);
+          c.textContent = kill ? 0 : mag[i][j];
+          grid.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'Centro = (' + cy + ', ' + cx + ')  |  Pico = (' + p1[0] + ', ' + p1[1] + ')  |  Simétrico = (' + p2[0] + ', ' + p2[1] + ')  |  Removidos: ' + removed;
+    }
+
+    [dv, du, r].forEach(function(el){
+      el.addEventListener('input', render);
+    });
+
+    render();
+  }
+
+  function tryInitSim05Ep02(){
+    var root = document.getElementById('sim-ep0502');
+    if (root) initSim05Ep02(root); else setTimeout(tryInitSim05Ep02, 200);
+  }
+  tryInitSim05Ep02();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Ep03(root){
+    if (!root || root.dataset.sim05Ep03Init) return;
+    root.dataset.sim05Ep03Init = "1";
+
+    var C = [[50, 10, -5, 0], [8, -3, 2, 1], [0, 1, 0, 0], [2, 0, 0, -1]];
+    var Qbase = [[2, 5, 7, 8], [4, 7, 8, 11], [6, 8, 11, 12], [9, 11, 12, 14]];
+
+    var s   = root.querySelector('#sim-ep0503_sl_s');
+    var sv  = root.querySelector('#sim-ep0503_vl_s');
+    var gc  = root.querySelector('#sim-ep0503_grid_c');
+    var gr  = root.querySelector('#sim-ep0503_grid_r');
+    var dbg = root.querySelector('#sim-ep0503_debug');
+
+    function cell(v, faded){
+      var c = document.createElement('div');
+      c.className = 'sim-ep0503_cell';
+      if (faded) {
+        c.style.cssText = 'background:#fafaf7; color:#8a8371; border:1px solid #e4dcc8;';
+      } else {
+        c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      }
+      c.textContent = v;
+      return c;
+    }
+
+    function render(){
+      var scale = parseFloat(s.value);
+      sv.innerHTML = scale.toFixed(2) + '&times;';
+      gc.innerHTML = '';
+      gr.innerHTML = '';
+      var zeros = 0, total = 16;
+
+      for (var i = 0; i < 4; i++){
+        for (var j = 0; j < 4; j++){
+          gc.appendChild(cell(C[i][j], false));
+          var Q = Qbase[i][j] * scale;
+          var q = Math.round(C[i][j] / Q);
+          var rec = Math.round(q * Q);
+          if (rec === 0) zeros++;
+          gr.appendChild(cell(rec, rec === 0));
+        }
+      }
+
+      dbg.textContent = 'Zeros: ' + zeros + ' / ' + total + '  |  Quanto maior a escala de Q, mais zeros — maior compressão, menor qualidade.';
+    }
+
+    s.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep03(){
+    var root = document.getElementById('sim-ep0503');
+    if (root) initSim05Ep03(root); else setTimeout(tryInitSim05Ep03, 200);
+  }
+  tryInitSim05Ep03();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Ep04(root){
+    if (!root || root.dataset.sim05Ep04Init) return;
+    root.dataset.sim05Ep04Init = "1";
+
+    var f = [[1, 2], [3, 4]];
+    var gf  = root.querySelector('#sim-ep0504_grid_f');
+    var gF  = root.querySelector('#sim-ep0504_grid_F');
+    var dbg = root.querySelector('#sim-ep0504_debug');
+
+    function render(){
+      gf.innerHTML = '';
+      gF.innerHTML = '';
+
+      for (var x = 0; x < 2; x++){
+        for (var y = 0; y < 2; y++){
+          (function(xx, yy){
+            var c = document.createElement('div');
+            c.className = 'sim-ep0504_cell';
+            c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7; cursor:pointer;';
+            c.textContent = f[xx][yy];
+            c.addEventListener('click', function(e){
+              if (e.shiftKey){ f[xx][yy]--; } else { f[xx][yy]++; }
+              render();
+            });
+            gf.appendChild(c);
+          })(x, y);
+        }
+      }
+
+      var M = 2, N = 2;
+      for (var u = 0; u < M; u++){
+        for (var v = 0; v < N; v++){
+          var re = 0, im = 0;
+          for (var x = 0; x < M; x++){
+            for (var y = 0; y < N; y++){
+              var theta = 2 * Math.PI * (u * x / M + v * y / N);
+              re += f[x][y] * Math.cos(theta);
+              im -= f[x][y] * Math.sin(theta);
+            }
+          }
+          var mag = Math.round(Math.sqrt(re * re + im * im));
+          var c = document.createElement('div');
+          c.className = 'sim-ep0504_cell';
+          c.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          c.textContent = mag;
+          gF.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'F(0,0) = soma de todos os pixels = ' + (f[0][0] + f[0][1] + f[1][0] + f[1][1]) + ' (componente DC)';
+    }
+
+    render();
+  }
+
+  function tryInitSim05Ep04(){
+    var root = document.getElementById('sim-ep0504');
+    if (root) initSim05Ep04(root); else setTimeout(tryInitSim05Ep04, 200);
+  }
+  tryInitSim05Ep04();
+})();
+</script>
+<script>
+(function(){
+  function initSim05Ep05(root){
+    if (!root || root.dataset.sim05Ep05Init) return;
+    root.dataset.sim05Ep05Init = "1";
+
+    var N = 4;
+    var f = [[120, 130, 125, 128], [115, 140, 135, 122], [118, 150, 160, 130], [110, 120, 145, 138]];
+    var Qbase = [[4, 6, 8, 10], [6, 8, 10, 12], [8, 10, 12, 16], [10, 12, 16, 20]];
+
+    var s   = root.querySelector('#sim-ep0505_sl_s');
+    var sv  = root.querySelector('#sim-ep0505_vl_s');
+    var go  = root.querySelector('#sim-ep0505_grid_o');
+    var gr  = root.querySelector('#sim-ep0505_grid_r');
+    var dbg = root.querySelector('#sim-ep0505_debug');
+
+    function alpha(k){ return k === 0 ? Math.sqrt(1 / N) : Math.sqrt(2 / N); }
+
+    function dct2(g){
+      var C = [];
+      for (var u = 0; u < N; u++){ C.push(new Array(N).fill(0)); }
+      for (var u = 0; u < N; u++){
+        for (var v = 0; v < N; v++){
+          var sum = 0;
+          for (var x = 0; x < N; x++){
+            for (var y = 0; y < N; y++){
+              sum += g[x][y] * Math.cos(Math.PI * (2 * x + 1) * u / (2 * N)) * Math.cos(Math.PI * (2 * y + 1) * v / (2 * N));
+            }
+          }
+          C[u][v] = alpha(u) * alpha(v) * sum;
+        }
+      }
+      return C;
+    }
+
+    function idct2(C){
+      var g = [];
+      for (var x = 0; x < N; x++){ g.push(new Array(N).fill(0)); }
+      for (var x = 0; x < N; x++){
+        for (var y = 0; y < N; y++){
+          var sum = 0;
+          for (var u = 0; u < N; u++){
+            for (var v = 0; v < N; v++){
+              sum += alpha(u) * alpha(v) * C[u][v] * Math.cos(Math.PI * (2 * x + 1) * u / (2 * N)) * Math.cos(Math.PI * (2 * y + 1) * v / (2 * N));
+            }
+          }
+          g[x][y] = sum;
+        }
+      }
+      return g;
+    }
+
+    function cell(v){
+      var c = document.createElement('div');
+      c.className = 'sim-ep0505_cell';
+      c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      c.textContent = v;
+      return c;
+    }
+
+    function render(){
+      var scale = parseFloat(s.value);
+      sv.innerHTML = scale.toFixed(2) + '&times;';
+      go.innerHTML = '';
+      gr.innerHTML = '';
+
+      var g = [];
+      for (var x = 0; x < N; x++){
+        var row = [];
+        for (var y = 0; y < N; y++){
+          row.push(f[x][y] - 128);
+        }
+        g.push(row);
+      }
+
+      var C = dct2(g);
+      var Cq = [];
+      for (var u = 0; u < N; u++){
+        var row = [];
+        for (var v = 0; v < N; v++){
+          var Qv = Qbase[u][v] * scale;
+          var q = Math.round(C[u][v] / Qv);
+          row.push(q * Qv);
+        }
+        Cq.push(row);
+      }
+
+      var gr2 = idct2(Cq);
+      var diffSum = 0, n = 0;
+
+      for (var x = 0; x < N; x++){
+        for (var y = 0; y < N; y++){
+          go.appendChild(cell(f[x][y]));
+          var rec = Math.round(gr2[x][y] + 128);
+          rec = Math.max(0, Math.min(255, rec));
+          gr.appendChild(cell(rec));
+          diffSum += Math.abs(rec - f[x][y]);
+          n++;
+        }
+      }
+
+      dbg.textContent = 'Erro médio absoluto por pixel: ' + (diffSum / n).toFixed(2) + '  |  Quanto maior a escala de Q, maior o erro de reconstrução.';
+    }
+
+    s.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep05(){
+    var root = document.getElementById('sim-ep0505');
+    if (root) initSim05Ep05(root); else setTimeout(tryInitSim05Ep05, 200);
+  }
+  tryInitSim05Ep05();
+})();
+</script>
+</body>
+</html>

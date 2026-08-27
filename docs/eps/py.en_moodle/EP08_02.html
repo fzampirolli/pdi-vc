@@ -1,0 +1,210 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP08_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP08_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_02 🟢 Homography and RANSAC: Voting by Inliers</h2>
+<p>RANSAC, introduced in the section “Mathematical Modeling: Homography and RANSAC,” repeats a cycle of three steps — sampling a minimal set, estimating a candidate model, and counting how many correspondences are consistent with it (the <strong><em>inliers</em></strong>) — keeping at the end the most voted model. The model estimation step from 4 points (step 2) involves linear algebra that is beyond the scope of this assignment; here, you are directly given a set of <strong>already candidate</strong> homographies — as if each one had been estimated from a different random sample — and you are tasked with reproducing exactly the algorithm’s decisive step: <strong>apply each model to all correspondences and count its <em>inliers</em></strong>, choosing the winner.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Correspondences:</strong> Read the integer <em>N</em> and then <em>N</em> lines with four real numbers each, <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>' — a point from image A and its (possibly incorrect) corresponding point in image B, exactly as produced by the matching step of EP08_01.</li>
+<li><strong>Candidate models:</strong> Read the integer <em>K</em> (number of candidate homographies) and the real number \varepsilon (reprojection error threshold). Then, read <em>K</em> lines, each with nine real numbers <em>h</em>_11\ <em>h</em>_12\ <em>h</em>_13\ <em>h</em>_21\ <em>h</em>_22\ <em>h</em>_23\ <em>h</em>_31\ <em>h</em>_32\ <em>h</em>_33 — the elements of the candidate matrix <em>H</em>, in row-major reading order.</li>
+<li><strong>Reprojection:</strong> For each correspondence (<em>x</em>,<em>y</em>,<em>x</em>',<em>y</em>') and each candidate model <em>H</em>_<em>k</em>, compute the projected point \beginbmatrix \hat <em>x</em> \\ \hat <em>y</em> \\ \hat <em>w</em> \endbmatrix = <em>H</em>_<em>k</em> \beginbmatrix <em>x</em> \\ <em>y</em> \\ 1 \endbmatrix,
+\qquad
+(\hat <em>x</em> / \hat <em>w</em>,\ \hat <em>y</em> / \hat <em>w</em>)\ is the projected point.</li>
+<li><strong>Reprojection error:</strong> <em>e</em> = √((\hat <em>x</em>/\hat <em>w</em> - <em>x</em>')^2 + (\hat <em>y</em> /\hat <em>w</em> - <em>y</em>')^2).</li>
+<li><strong>Inlier counting:</strong> A correspondence is an <em>inlier</em> of model <em>H</em>_<em>k</em> if <em>e</em> \le \varepsilon.</li>
+<li><strong>Best model selection:</strong> The winning model is the one with the largest number of <em>inliers</em>; in case of a tie, choose the one with the <strong>smallest index</strong> <em>k</em> (the first one encountered during the RANSAC iterative cycle).</li>
+<li><strong>Output:</strong> For each model <em>k</em> from 0 to <em>K</em>-1, in reading order, print <code>Modelo k: I inliers</code>. Finally, print <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Inclusive comparison:</strong> a reprojection error <strong>exactly equal</strong> to \varepsilon counts as an <em>inlier</em> (<em>e</em> \le \varepsilon).</li>
+<li><strong>No estimation of <em>H</em>:</strong> the matrices are already provided ready-made — there is no need (nor expectation) to solve any linear system.</li>
+<li><strong>Tie resolved by the smallest index</strong>, reflecting the natural behavior of an iterative algorithm that traverses models in order and only replaces the best found so far when a new model <strong>strictly surpasses</strong> it.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Element</th>
+<th style="padding:10px;border:1px solid #ddd;">Role in RANSAC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Minimal sample (4 pairs)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sufficient to determine the 8 degrees of freedom of a homography</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Candidate model <em>H</em>_<em>k</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Estimated from a minimal sample; can be good or bad, depending on whether the sample contained <em>outliers</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reprojection error</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Measures how well the model “predicts” each observed correspondence</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Inlier</em> vs. <em>outlier</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Correspondences consistent with the winning model (<em>inliers</em>) vs. the remaining ones, typically incorrect matches from the <em>matching</em> step</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Final refinement</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">In practice, after selecting the best model, RANSAC recomputes it using <strong>only</strong> its <em>inliers</em> — a step not required in this assignment</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>N</em>.</li>
+<li>Next <em>N</em> lines: four real numbers <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>'.</li>
+<li>Next line: Integer <em>K</em> and real number \varepsilon.</li>
+<li>Next <em>K</em> lines: nine real numbers (elements of <em>H</em>_<em>k</em>, row-major).</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li><em>K</em> lines in the format <code>Modelo k: I inliers</code>.</li>
+<li>Last line: <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+0 0 0 0<br/>
+1 1 2 2<br/>
+2 0 4 0<br/>
+0 2 0 4<br/>
+5 5 1 1<br/>
+2 0.5<br/>
+2 0 0 0 2 0 0 0 1<br/>
+1 0 0 0 1 0 0 0 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modelo 0: 4 inliers<br/>
+Modelo 1: 1 inliers<br/>
+Melhor modelo: 0 com 4 inliers</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Model 0 (scale ×2) correctly explains 4 of the 5 correspondences; the 5th, (5,5)\to(1,1), is an <em>outlier</em> that neither model explains well.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="23" data-quarto-private-1='{"key":"pdi","value":{"ck":"c52c88fdb7fd7650ccc856fb4fa698ab"}}' id="cell-fig-08-sim-ep0802">
+</div>
+</div><div id="sim-ep0802" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0802 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0802 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0802 button:hover { background: #e8dfcf; }
+  #sim-ep0802 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0802_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0802_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP08_02: RANSAC — Inlier Count</span>
+<span class="sim-ep0802_pill">Model: Scale ×2</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0808_panel sim-ep0802_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Threshold (ε): <span id="sim-ep0802_vl" style="font-family:monospace; color:#26241d;">0.50</span>
+</label>
+</div>
+<input id="sim-ep0802_sl" max="13" min="0" step="0.25" type="range" value="0.5"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      The candidate model maps (x,y) → to (2x,2y). Adjust the threshold ε and see which correspondences become inliers or outliers.
+    </div>
+</div>
+<!-- Cards de Pontos / Correspondências -->
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep02(root){
+    if (!root || root.dataset.sim08Ep02Init) return;
+    root.dataset.sim08Ep02Init = "1";
+
+    var pontos = [
+      {x:0, y:0, xp:0, yp:0},
+      {x:1, y:1, xp:2, yp:2},
+      {x:2, y:0, xp:4, yp:0},
+      {x:0, y:2, xp:0, yp:4},
+      {x:5, y:5, xp:1, yp:1}
+    ];
+
+    var slEl  = root.querySelector('#sim-ep0802_sl');
+    var vlEl  = root.querySelector('#sim-ep0802_vl');
+    var cards = root.querySelector('#sim-ep0802_cards');
+    var dbg   = root.querySelector('#sim-ep0802_debug');
+
+    function render(){
+      var eps = parseFloat(slEl.value);
+      vlEl.textContent = eps.toFixed(2);
+      cards.innerHTML = '';
+      var inliers = 0;
+
+      pontos.forEach(function(p){
+        var px = 2 * p.x, py = 2 * p.y;
+        var erro = Math.sqrt((px - p.xp) * (px - p.xp) + (py - p.yp) * (py - p.yp));
+        var dentro = erro <= eps;
+        if (dentro) inliers++;
+
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center; border-radius:10px; padding:10px 6px; font-size:11px; transition:all 0.15s ease;' +
+          (dentro 
+            ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' 
+            : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;');
+
+        div.innerHTML = '<div style="font-weight:700; margin-bottom:4px;">(' + p.x + ',' + p.y + ') &rarr; (' + p.xp + ',' + p.yp + ')</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px; font-size:10px;">erro = ' + erro.toFixed(2) + '</div>' +
+          '<div style="font-weight:700; font-size:10px;">' + (dentro ? 'INLIER' : 'outlier') + '</div>';
+
+        cards.appendChild(div);
+      });
+
+      if (inliers > 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'ε = ' + eps.toFixed(2) + '  |  inliers = ' + inliers + ' de ' + pontos.length;
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep02(){
+    var root = document.getElementById('sim-ep0802');
+    if (root) initSim08Ep02(root); else setTimeout(tryInitSim08Ep02, 200);
+  }
+  tryInitSim08Ep02();
+})();
+
+</script>
+</div><div id="sim-ep0802_cards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:8px; margin-bottom:14px;"></div><div class="sim-ep0802_panel" id="sim-ep0802_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

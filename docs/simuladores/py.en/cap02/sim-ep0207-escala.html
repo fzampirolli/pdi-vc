@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest Neighbor vs Bi... | PDI+VC</title>
+  <link rel="icon" type="image/x-icon" href="../../../favicon.ico"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+  <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet"/>
+  <link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" id="quarto-text-highlighting-styles" rel="stylesheet"/>
+  <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet"/>
+  <link append-hash="true" data-mode="light" href="../site_libs/bootstrap/bootstrap-ab2cdd22c25375bcd44ac458b5cecc71.min.css" id="quarto-bootstrap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="../custom.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink:      #1a1612;
+      --paper:    #faf7f2;
+      --cream:    #f0ebe0;
+      --gold:     #c8963c;
+      --gold-lt:  #e8c070;
+      --navy:     #1a2e4a;
+      --navy-lt:  #2a4a6a;
+      --muted:    #6b6058;
+      --border:   #d8d0c0;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(26,22,18,0.13);
+    }
+
+    body.sim-standalone {
+      font-family: 'Source Serif 4', Georgia, serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header do Frame ───────────────────────────────────────────── */
+    .sim-frame-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 1.2rem 2rem;
+      border-bottom: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+
+    .sim-frame-brand {
+      display: flex;
+      flex-direction: column;
+      max-width: 60%;
+    }
+
+    .sim-frame-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-lt);
+    }
+
+    .sim-frame-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-frame-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .sim-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .sim-btn-primary {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .sim-btn-primary:hover {
+      background: var(--gold-lt);
+    }
+
+    .sim-btn-outline {
+      border: 1px solid #4a6a8a;
+      color: #c8d8e8;
+    }
+
+    .sim-btn-outline:hover {
+      border-color: var(--gold-lt);
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .sim-btn-nav {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #3a5a7a;
+      color: #fff;
+    }
+
+    .sim-btn-nav:hover {
+      background: var(--navy-lt);
+      border-color: var(--gold-lt);
+    }
+
+    /* ── Container Principal do Simulador ────────────────────────────── */
+    .sim-main-wrapper {
+      flex: 1;
+      padding: 2.5rem 1.5rem;
+      max-width: 120ch;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .sim-card-frame {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Legenda Posicionada Abaixo do Simulador ─────────────────────── */
+    .sim-caption-below {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      background-color: var(--cream);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    .sim-caption-below strong {
+      color: var(--navy);
+    }
+
+    /* ── Footer do Frame (Consolidado) ───────────────────────────────── */
+    .sim-frame-footer {
+      background: var(--navy);
+      color: #7898b0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: auto;
+      border-top: 1px solid var(--navy-lt);
+      line-height: 1.6;
+    }
+
+    .sim-frame-footer strong {
+      color: #fff;
+    }
+
+    .sim-frame-footer a {
+      color: var(--gold-lt);
+      text-decoration: none;
+    }
+
+    .sim-frame-footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 820px) {
+      .sim-frame-brand {
+        max-width: 100%;
+      }
+      .sim-frame-header {
+        padding: 1rem;
+      }
+      .sim-main-wrapper {
+        padding: 1rem 0.5rem;
+      }
+      .sim-card-frame {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="sim-standalone">
+
+<!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
+<header class="sim-frame-header">
+  <div class="sim-frame-brand">
+    <span class="sim-frame-eyebrow">PDI+VC · Simulador Interativo</span>
+    <h1 class="sim-frame-title" title="EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest Neighbor vs Bilinear)">EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest Neighbor vs Bi...</h1>
+  </div>
+  <nav class="sim-frame-nav">
+    <a href="sim-ep0206-rotacao.html" class="sim-btn sim-btn-nav">← sim-ep0206-rotacao</a>
+    <a href="sim-ep0208-cisalhamento.html" class="sim-btn sim-btn-nav">sim-ep0208-cisalhamento →</a>
+    <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
+    <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
+    <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
+  </nav>
+</header>
+
+<!-- CONTEÚDO DO SIMULADOR ENQUADRADO -->
+<main class="sim-main-wrapper">
+  <div class="sim-card-frame">
+    <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="33" id="fig-02-sim-ep0207-escala">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sim-ep0207-escala-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="sim-ep0207-escala" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🔍 Simulator EP02_07: Resizing and Interpolation (sx = sy)</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Nearest vs Bilinear</span>
+</div>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Adjust the scale factor (s) to compare nearest-neighbor interpolation (discrete replica) with bilinear interpolation (weighted average of the 4 neighbors).</p>
+<!-- Controle do Fator de Escala -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<label style="font-size:11px;font-weight:700;color:#b9770e;">Scale Factor (sx = sy)</label>
+<span id="sim_ep0207_vl_fator" style="font-family:monospace;font-size:12px;font-weight:700;color:#b9770e;">1.0</span>
+</div>
+<input id="sim_ep0207_sl_fator" max="4" min="1" step="0.1" style="width:100%;cursor:pointer;" type="range" value="1"/>
+<div style="margin-top:6px;font-size:10px;color:#8a8371;text-align:center;font-family:monospace;">
+        Factor = 1.0 → Original Size (3×3)  |  Factor = 2.0 → 6×6  |  Factor = 4.0 → 12×12
+      </div>
+</div>
+<!-- Comparativo em 3 Colunas: Original vs Nearest vs Bilinear -->
+<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:start;margin-bottom:14px;">
+<!-- Original (3x3) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;flex:1;min-width:160px;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Original (3×3)</span>
+<div id="sim_ep0207_grid_orig" style="display:grid;grid-template-columns:repeat(3, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0207_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 New Matrix</button>
+</div>
+<!-- Nearest Neighbor -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;flex:2;min-width:200px;overflow-x:auto;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">🔲 Nearest Neighbor</span>
+<div id="sim_ep0207_grid_nearest" style="display:grid;gap:4px;justify-content:center;user-select:none;padding-bottom:4px;"></div>
+</div>
+<!-- Bilinear -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;flex:2;min-width:200px;overflow-x:auto;">
+<span style="font-size:10px;font-weight:700;color:#8e44ad;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">🌀 Bilinear Interpolation</span>
+<div id="sim_ep0207_grid_bilinear" style="display:grid;gap:4px;justify-content:center;user-select:none;padding-bottom:4px;"></div>
+<button id="sim_ep0207_btnReset" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:9px;white-space:nowrap;transition:all 0.15s ease;">↩ Reset (factor = 1.0)</button>
+</div>
+</div>
+<!-- Painel de Informação Explicativo -->
+<div id="sim_ep0207_info" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      Factor = 1.00 → size 3×3 (no change)
+    </div>
+</div>
+</div>
+<script>
+(function(){
+  function initSimEP0207(root){
+    if (!root || root.dataset.simEp0207Init) return;
+    root.dataset.simEp0207Init = "1";
+
+    var slFator      = root.querySelector('#sim_ep0207_sl_fator');
+    var vlFator      = root.querySelector('#sim_ep0207_vl_fator');
+    var gOrig        = root.querySelector('#sim_ep0207_grid_orig');
+    var gNearest     = root.querySelector('#sim_ep0207_grid_nearest');
+    var gBilinear    = root.querySelector('#sim_ep0207_grid_bilinear');
+    var infoDiv      = root.querySelector('#sim_ep0207_info');
+
+    var btnNew       = root.querySelector('#sim_ep0207_btnNew');
+    var btnReset     = root.querySelector('#sim_ep0207_btnReset');
+
+    var srcPixels    = Array(9).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+    var srcW = 3, srcH = 3;
+
+    function getBilinear(src, w, h, x, y) {
+      var x0 = Math.floor(x);
+      var y0 = Math.floor(y);
+      var x1 = Math.min(x0 + 1, w - 1);
+      var y1 = Math.min(y0 + 1, h - 1);
+      var tx = x - x0;
+      var ty = y - y0;
+
+      var v00 = src[y0 * w + x0];
+      var v10 = src[y0 * w + x1];
+      var v01 = src[y1 * w + x0];
+      var v11 = src[y1 * w + x1];
+
+      var top = v00 * (1 - tx) + v10 * tx;
+      var bottom = v01 * (1 - tx) + v11 * tx;
+      var val = top * (1 - ty) + bottom * ty;
+
+      return Math.round(Math.min(255, Math.max(0, val)));
+    }
+
+    function render() {
+      var f = parseFloat(slFator.value) || 1.0;
+      vlFator.textContent = f.toFixed(1);
+
+      var newW = Math.floor(srcW * f);
+      var newH = Math.floor(srcH * f);
+
+      infoDiv.innerHTML = 'Fator = <b>' + f.toFixed(2) + '</b> → novo tamanho: <b>' + newW + '×' + newH + '</b> pixels &nbsp;|&nbsp; <b>Nearest:</b> réplica do vizinho mais próximo &nbsp;|&nbsp; <b>Bilinear:</b> média ponderada dos 4 vizinhos';
+
+      // Grade Original (3x3)
+      gOrig.style.gridTemplateColumns = 'repeat(3, 42px)';
+      gOrig.innerHTML = '';
+      for (var i = 0; i < srcH; i++) {
+        for (var j = 0; j < srcW; j++) {
+          var val = srcPixels[i * srcW + j];
+          var cellO = document.createElement('div');
+          var fgColorO = val > 128 ? '#000000' : '#ffffff';
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';box-sizing:border-box;';
+          cellO.textContent = val;
+          gOrig.appendChild(cellO);
+        }
+      }
+
+      // Configuração das grades redimensionadas
+      gNearest.style.gridTemplateColumns = 'repeat(' + newW + ', 42px)';
+      gBilinear.style.gridTemplateColumns = 'repeat(' + newW + ', 42px)';
+      gNearest.innerHTML = '';
+      gBilinear.innerHTML = '';
+
+      for (var r = 0; r < newH; r++) {
+        for (var c = 0; c < newW; c++) {
+          var srcX_cont = c / f;
+          var srcY_cont = r / f;
+
+          // Nearest Neighbor
+          var nnX = Math.min(srcW - 1, Math.max(0, Math.round(srcX_cont)));
+          var nnY = Math.min(srcH - 1, Math.max(0, Math.round(srcY_cont)));
+          var valN = srcPixels[nnY * srcW + nnX];
+
+          // Bilinear
+          var valB = getBilinear(srcPixels, srcW, srcH, srcX_cont, srcY_cont);
+
+          // Célula Nearest
+          var cellN = document.createElement('div');
+          var fgN = valN > 128 ? '#000000' : '#ffffff';
+          cellN.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + valN + ',' + valN + ',' + valN + ');color:' + fgN + ';box-sizing:border-box;';
+          cellN.textContent = valN;
+          gNearest.appendChild(cellN);
+
+          // Célula Bilinear
+          var cellB = document.createElement('div');
+          var fgB = valB > 128 ? '#000000' : '#ffffff';
+          cellB.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + valB + ',' + valB + ',' + valB + ');color:' + fgB + ';box-sizing:border-box;';
+          cellB.textContent = valB;
+          gBilinear.appendChild(cellB);
+        }
+      }
+    }
+
+    slFator.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      srcPixels = Array(9).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slFator.value = '1';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0207(){
+    var root = document.getElementById('sim-ep0207-escala');
+    if (root) initSimEP0207(root); else setTimeout(tryInitSimEP0207, 200);
+  }
+  tryInitSimEP0207();
+})();
+</script>
+</div>
+</figure></div>
+    <div class="sim-caption-below">  <strong>Descrição:</strong> Figure 2.18: EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest Neighbor vs Bilinear)</div>
+  </div>
+</main>
+
+<!-- RODAPÉ COMPLETO E ÚNICO -->
+<footer class="sim-frame-footer">
+  <p>
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
+    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
+  </p>
+</footer>
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+<script>
+(function(){
+  function initSimEP0201(root){
+    if (!root || root.dataset.simEp0201Init) return;
+    root.dataset.simEp0201Init = "1";
+
+    var slAlpha = root.querySelector('#sim_ep0201_sl_alpha');
+    var slBeta  = root.querySelector('#sim_ep0201_sl_beta');
+
+    var vlAlpha = root.querySelector('#sim_ep0201_vl_alpha');
+    var vlBeta  = root.querySelector('#sim_ep0201_vl_beta');
+
+    var gridOrig = root.querySelector('#sim_ep0201_grid_orig');
+    var gridNew  = root.querySelector('#sim_ep0201_grid_new');
+    var debug    = root.querySelector('#sim_ep0201_debug');
+
+    var btnNew   = root.querySelector('#sim_ep0201_btnNew');
+    var btnReset = root.querySelector('#sim_ep0201_btnReset');
+
+    var pixels = [];
+    var count = 16;
+
+    function generate() {
+      pixels = Array.from({length: count}, function(){ return Math.floor(Math.random() * 256); });
+    }
+
+    function render() {
+      var a = parseFloat(slAlpha.value) || 0;
+      var b = parseInt(slBeta.value) || 0;
+
+      vlAlpha.textContent = a.toFixed(1);
+      vlBeta.textContent  = b;
+      debug.innerHTML = 'Fórmula aplicada: <b>clip( round(' + a.toFixed(1) + ' · p + (' + b + ')) )</b>';
+
+      gridOrig.innerHTML = '';
+      gridNew.innerHTML  = '';
+
+      pixels.forEach(function(p) {
+        // Célula Original
+        var cellO = document.createElement('div');
+        var fgColorO = p > 128 ? '#000000' : '#ffffff';
+        cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + fgColorO + ';';
+        cellO.textContent = p;
+        gridOrig.appendChild(cellO);
+
+        // Célula Transformada com Truncamento (clip)
+        var calc = Math.round(a * p + b);
+        var res = Math.max(0, Math.min(255, calc));
+        var fgColorN = res > 128 ? '#000000' : '#ffffff';
+
+        var cellN = document.createElement('div');
+        cellN.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + res + ',' + res + ',' + res + ');color:' + fgColorN + ';';
+        cellN.textContent = res;
+        gridNew.appendChild(cellN);
+      });
+    }
+
+    slAlpha.addEventListener('input', render);
+    slBeta.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      generate();
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slAlpha.value = 1;
+      slBeta.value  = 0;
+      render();
+    });
+
+    generate();
+    render();
+  }
+
+  function tryInitSimEP0201(){
+    var root = document.getElementById('sim-ep0201-brilho-contraste');
+    if (root) initSimEP0201(root); else setTimeout(tryInitSimEP0201, 200);
+  }
+  tryInitSimEP0201();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0202(root){
+    if (!root || root.dataset.simEp0202Init) return;
+    root.dataset.simEp0202Init = "1";
+
+    var slFator  = root.querySelector('#sim_ep0202_sl_fator');
+    var vlFator  = root.querySelector('#sim_ep0202_vl_fator');
+    var gridOrig = root.querySelector('#sim_ep0202_grid_orig');
+    var gridSub  = root.querySelector('#sim_ep0202_grid_sub');
+    var debugDiv = root.querySelector('#sim_ep0202_debug');
+
+    var btnNew   = root.querySelector('#sim_ep0202_btnNew');
+    var btnReset = root.querySelector('#sim_ep0202_btnReset');
+
+    var pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+
+    function render() {
+      var f = parseInt(slFator.value) || 1;
+      vlFator.textContent = f;
+
+      // Renderiza Grade Original (4x4)
+      gridOrig.innerHTML = '';
+      for (var i = 0; i < 16; i++) {
+        var val = pixels[i];
+        var cell = document.createElement('div');
+        var fgColorO = val > 128 ? '#000000' : '#ffffff';
+        cell.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';';
+        cell.textContent = val;
+        gridOrig.appendChild(cell);
+      }
+
+      // Calcula dimensões subamostradas
+      var newRows = Math.floor(4 / f);
+      var newCols = Math.floor(4 / f);
+
+      if (newRows === 0 || newCols === 0) {
+        gridSub.innerHTML = '<div style="padding:20px;color:#8a8371;font-size:11px;font-family:monospace;">Tamanho inválido</div>';
+        debugDiv.innerHTML = 'Fator f = ' + f + ' → resolução menor que 1×1';
+        return;
+      }
+
+      gridSub.style.gridTemplateColumns = 'repeat(' + newCols + ', 42px)';
+      gridSub.innerHTML = '';
+
+      for (var r = 0; r < newRows; r++) {
+        for (var c = 0; c < newCols; c++) {
+          var origRow = r * f;
+          var origCol = c * f;
+          var idx = origRow * 4 + origCol;
+          var v = pixels[idx];
+
+          var cellS = document.createElement('div');
+          var fgColorS = v > 128 ? '#000000' : '#ffffff';
+          cellS.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgColorS + ';';
+          cellS.textContent = v;
+          gridSub.appendChild(cellS);
+        }
+      }
+
+      debugDiv.innerHTML = 'Fator f = ' + f + ' → novo tamanho: <b>' + newRows + '×' + newCols + '</b> (amostra do canto superior esquerdo do bloco ' + f + '×' + f + ')';
+    }
+
+    slFator.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slFator.value = '1';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0202(){
+    var root = document.getElementById('sim-ep0202-subamostragem');
+    if (root) initSimEP0202(root); else setTimeout(tryInitSimEP0202, 200);
+  }
+  tryInitSimEP0202();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0203(root){
+    if (!root || root.dataset.simEp0203Init) return;
+    root.dataset.simEp0203Init = "1";
+
+    var slBits     = root.querySelector('#sim_ep0203_sl_bits');
+    var vlBits     = root.querySelector('#sim_ep0203_vl_bits');
+    var vlLevels   = root.querySelector('#sim_ep0203_vl_levels');
+    var vlMax      = root.querySelector('#sim_ep0203_vl_max');
+    var gridOrig   = root.querySelector('#sim_ep0203_grid_orig');
+    var gridQuant  = root.querySelector('#sim_ep0203_grid_quant');
+    var debugDiv   = root.querySelector('#sim_ep0203_debug');
+    var rangeLabel = root.querySelector('#sim_ep0203_range_label');
+
+    var btnNew   = root.querySelector('#sim_ep0203_btnNew');
+    var btnReset = root.querySelector('#sim_ep0203_btnReset');
+
+    var pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+
+    function quantize(p, bits) {
+      if (bits >= 8) return p;
+      var levels = Math.pow(2, bits);
+      var idx = Math.round(p * (levels - 1) / 255);
+      return Math.min(levels - 1, Math.max(0, idx));
+    }
+
+    function render() {
+      var bits = parseInt(slBits.value) || 8;
+      var levels = Math.pow(2, bits);
+      var maxVal = levels - 1;
+
+      vlBits.textContent = bits;
+      vlLevels.textContent = levels;
+      vlMax.textContent = maxVal;
+      rangeLabel.textContent = '0…' + maxVal;
+
+      gridOrig.innerHTML = '';
+      gridQuant.innerHTML = '';
+
+      for (var i = 0; i < 16; i++) {
+        var p = pixels[i];
+
+        // Célula Original (8 bits)
+        var cellO = document.createElement('div');
+        var fgColorO = p > 128 ? '#000000' : '#ffffff';
+        cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + fgColorO + ';';
+        cellO.textContent = p;
+        gridOrig.appendChild(cellO);
+
+        // Célula Quantizada
+        var nivel = quantize(p, bits);
+        var tom = Math.round(nivel * 255 / maxVal);
+        var fgColorQ = tom > 128 ? '#000000' : '#ffffff';
+
+        var cellQ = document.createElement('div');
+        cellQ.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + tom + ',' + tom + ',' + tom + ');color:' + fgColorQ + ';';
+        cellQ.textContent = nivel;
+        gridQuant.appendChild(cellQ);
+      }
+
+      debugDiv.innerHTML = 'Bits de saída = <b>' + bits + '</b> → <b>' + levels + '</b> níveis discretos (faixa exibida: 0…' + maxVal + ')';
+    }
+
+    slBits.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slBits.value = '8';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0203(){
+    var root = document.getElementById('sim-ep0203-quantizacao');
+    if (root) initSimEP0203(root); else setTimeout(tryInitSimEP0203, 200);
+  }
+  tryInitSimEP0203();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0204(root){
+    if (!root || root.dataset.simEp0204Init) return;
+    root.dataset.simEp0204Init = "1";
+
+    var ROWS = 5, COLS = 5;
+    var binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+
+    // Estado inicial: objeto centralizado no ponto (2, 2)
+    binary[2][2] = 1;
+
+    var gI = root.querySelector('#sim_ep0204_grid_input');
+    var gO = root.querySelector('#sim_ep0204_grid_output');
+    var infoDiv = root.querySelector('#sim_ep0204_info');
+
+    var btnClear   = root.querySelector('#sim_ep0204_btnClear');
+    var btnExample = root.querySelector('#sim_ep0204_btnExample');
+
+    function getMetric() {
+      var selected = root.querySelector('input[name="sim_ep0204_metric"]:checked');
+      return selected ? selected.value : 'chessboard';
+    }
+
+    function computeDT(bin, metric) {
+      var L = bin.length, C = bin[0].length;
+      var dt = Array.from({ length: L }, function(){ return Array(C).fill(0); });
+
+      for (var i = 0; i < L; i++) {
+        for (var j = 0; j < C; j++) {
+          if (bin[i][j] === 1) {
+            dt[i][j] = 0;
+            continue;
+          }
+          var minD = Infinity;
+          for (var oi = 0; oi < L; oi++) {
+            for (var oj = 0; oj < C; oj++) {
+              if (bin[oi][oj] !== 1) continue;
+              var dr = Math.abs(i - oi), dc = Math.abs(j - oj);
+              var d = 0;
+              if (metric === 'euclidean') d = Math.sqrt(dr * dr + dc * dc);
+              else if (metric === 'cityblock') d = dr + dc;
+              else d = Math.max(dr, dc);
+
+              if (d < minD) minD = d;
+            }
+          }
+          dt[i][j] = minD === Infinity ? -1 : minD;
+        }
+      }
+      return dt;
+    }
+
+    function cellColor(val, isObj, maxVal) {
+      if (isObj) return { bg: '#26241d', text: '#7ee7c6' };
+      if (val < 0) return { bg: '#fafaf7', text: '#8a8371' };
+      
+      var t = maxVal > 0 ? val / maxVal : 0;
+      var r = 255;
+      var g = Math.round(255 - t * 160);
+      var b = Math.round(255 - t * 180);
+      return {
+        bg: 'rgb(' + r + ',' + g + ',' + b + ')',
+        text: t > 0.55 ? '#78281f' : '#26241d'
+      };
+    }
+
+    function formatVal(val, metric) {
+      if (val === 0) return '0';
+      if (val < 0) return '—';
+      return metric === 'euclidean' ? val.toFixed(2) : String(val);
+    }
+
+    function render() {
+      var metric = getMetric();
+      var dt = computeDT(binary, metric);
+
+      var allVals = [];
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (dt[r][c] > 0) allVals.push(dt[r][c]);
+        }
+      }
+
+      var maxVal = allVals.length ? Math.max.apply(null, allVals) : 1;
+      var hasObj = binary.some(function(row){ return row.some(function(v){ return v === 1; }); });
+
+      // Renderiza Imagem Binária (Input)
+      gI.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gI.innerHTML = '';
+      for (var i = 0; i < ROWS; i++) {
+        for (var j = 0; j < COLS; j++) {
+          (function(rowIdx, colIdx){
+            var isObj = binary[rowIdx][colIdx] === 1;
+            var cell = document.createElement('div');
+            cell.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+            cell.style.background = isObj ? '#26241d' : '#ffffff';
+            cell.style.color = isObj ? '#7ee7c6' : '#8a8371';
+            cell.textContent = isObj ? '1' : '0';
+
+            cell.addEventListener('click', function() {
+              binary[rowIdx][colIdx] = binary[rowIdx][colIdx] === 1 ? 0 : 1;
+              render();
+            });
+
+            gI.appendChild(cell);
+          })(i, j);
+        }
+      }
+
+      // Renderiza Transformada de Distância (Output)
+      gO.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gO.innerHTML = '';
+      for (var r2 = 0; r2 < ROWS; r2++) {
+        for (var c2 = 0; c2 < COLS; c2++) {
+          var isObjOut = binary[r2][c2] === 1;
+          var colors = cellColor(dt[r2][c2], isObjOut, maxVal);
+          var cellO = document.createElement('div');
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+          cellO.style.background = hasObj ? colors.bg : '#fafaf7';
+          cellO.style.color = hasObj ? colors.text : '#8a8371';
+          cellO.textContent = hasObj ? formatVal(dt[r2][c2], metric) : '—';
+          gO.appendChild(cellO);
+        }
+      }
+
+      var metricLabel = {
+        euclidean: 'Euclidiana (L₂ - 2 decimais)',
+        cityblock: 'City-block (L₁ - inteiro)',
+        chessboard: 'Chessboard (L_∞ - inteiro)'
+      };
+
+      var objCount = binary.reduce(function(acc, row){
+        return acc + row.filter(function(v){ return v === 1; }).length;
+      }, 0);
+
+      infoDiv.innerHTML = 'Grade ' + ROWS + '×' + COLS + ' · <b>' + objCount + '</b> pixel(s) de objeto · Métrica: <b>' + metricLabel[metric] + '</b>';
+    }
+
+    var radios = root.querySelectorAll('input[name="sim_ep0204_metric"]');
+    radios.forEach(function(r) {
+      r.addEventListener('change', render);
+    });
+
+    btnClear.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      render();
+    });
+
+    btnExample.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      binary[2][2] = 1;
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0204(){
+    var root = document.getElementById('sim-ep0204-distancia');
+    if (root) initSimEP0204(root); else setTimeout(tryInitSimEP0204, 200);
+  }
+  tryInitSimEP0204();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0205(root){
+    if (!root || root.dataset.simEp0205Init) return;
+    root.dataset.simEp0205Init = "1";
+
+    var pixels = [142, 85, 210, 45, 99, 188, 32, 220, 15, 175, 90, 112, 204, 60, 130, 240];
+
+    var slTx      = root.querySelector('#sim_ep0205_sl_tx');
+    var slTy      = root.querySelector('#sim_ep0205_sl_ty');
+    var vlTx      = root.querySelector('#sim_ep0205_vl_tx');
+    var vlTy      = root.querySelector('#sim_ep0205_vl_ty');
+    var gridOrig  = root.querySelector('#sim_ep0205_grid_orig');
+    var gridTrans = root.querySelector('#sim_ep0205_grid_trans');
+    var debugDiv  = root.querySelector('#sim_ep0205_debug');
+    var btnNew    = root.querySelector('#sim_ep0205_btnNew');
+    var btnReset  = root.querySelector('#sim_ep0205_btnReset');
+
+    function render() {
+      var tx = parseInt(slTx.value) || 0;
+      var ty = parseInt(slTy.value) || 0;
+
+      vlTx.textContent = tx;
+      vlTy.textContent = ty;
+
+      // Grade Original (4x4)
+      gridOrig.innerHTML = '';
+      for (var k = 0; k < 16; k++) {
+        var val = pixels[k];
+        var cellO = document.createElement('div');
+        var fgColorO = val > 128 ? '#000000' : '#ffffff';
+        cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;box-sizing:border-box;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';';
+        cellO.textContent = val;
+        gridOrig.appendChild(cellO);
+      }
+
+      // Grade Transladada (4x4)
+      gridTrans.innerHTML = '';
+      for (var i = 0; i < 4; i++) {
+        for (var j = 0; j < 4; j++) {
+          var srcRow = i - ty;
+          var srcCol = j - tx;
+          var v = 0;
+
+          if (srcRow >= 0 && srcRow < 4 && srcCol >= 0 && srcCol < 4) {
+            v = pixels[srcRow * 4 + srcCol];
+          }
+
+          var cellT = document.createElement('div');
+          var fgColorT = v > 128 ? '#000000' : '#ffffff';
+          cellT.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;box-sizing:border-box;transition:all 0.15s ease;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgColorT + ';';
+          cellT.textContent = v;
+          gridTrans.appendChild(cellT);
+        }
+      }
+
+      var tySign = ty >= 0 ? ' − ' + ty : ' + ' + Math.abs(ty);
+      var txSign = tx >= 0 ? ' − ' + tx : ' + ' + Math.abs(tx);
+      debugDiv.innerHTML = 'tx = ' + tx + ' (colunas), ty = ' + ty + ' (linhas) &nbsp;|&nbsp; <b>Fórmula: p\'[i, j] = p[i' + tySign + ', j' + txSign + ']</b> (fora dos limites → 0)';
+    }
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slTx.value = '0';
+      slTy.value = '0';
+      render();
+    });
+
+    slTx.addEventListener('input', render);
+    slTy.addEventListener('input', render);
+
+    render();
+  }
+
+  function tryInitSimEP0205(){
+    var root = document.getElementById('sim-ep0205-translacao');
+    if (root) initSimEP0205(root); else setTimeout(tryInitSimEP0205, 200);
+  }
+  tryInitSimEP0205();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0206(root){
+    if (!root || root.dataset.simEp0206Init) return;
+    root.dataset.simEp0206Init = "1";
+
+    var canvas   = root.querySelector('#sim_ep0206_canvas');
+    var ctx      = canvas.getContext('2d');
+    var slAng    = root.querySelector('#sim_ep0206_sl_ang');
+    var vlAng    = root.querySelector('#sim_ep0206_vl_ang');
+    var infoDiv  = root.querySelector('#sim_ep0206_info');
+
+    var btn0     = root.querySelector('#sim_ep0206_btn_0');
+    var btn90    = root.querySelector('#sim_ep0206_btn_90');
+    var btn180   = root.querySelector('#sim_ep0206_btn_180');
+    var btn270   = root.querySelector('#sim_ep0206_btn_270');
+    var btnReset = root.querySelector('#sim_ep0206_btn_reset');
+
+    var w = 300, h = 300;
+    var cx = w / 2, cy = h / 2;
+
+    var size = 70;
+    var half = size / 2;
+
+    var squarePoints = [
+      { x: -half, y: -half },
+      { x:  half, y: -half },
+      { x:  half, y:  half },
+      { x: -half, y:  half }
+    ];
+
+    var markerRel = { x: half, y: -half };
+
+    function rotatePoint(px, py, angRad) {
+      var cos = Math.cos(angRad);
+      var sin = Math.sin(angRad);
+      return {
+        x: px * cos - py * sin,
+        y: px * sin + py * cos
+      };
+    }
+
+    function draw() {
+      var angDeg = parseInt(slAng.value) || 0;
+      vlAng.textContent = angDeg + "°";
+
+      var angRad = angDeg * Math.PI / 180;
+      var cosVal = Math.cos(angRad);
+      var sinVal = Math.sin(angRad);
+
+      infoDiv.innerHTML = 'θ = <b>' + angDeg + '°</b> → cos = ' + cosVal.toFixed(3) + ', sin = ' + sinVal.toFixed(3) + ' &nbsp;|&nbsp; <b>Matriz R(θ): [[' + cosVal.toFixed(3) + ', ' + (-sinVal).toFixed(3) + '], [' + sinVal.toFixed(3) + ', ' + cosVal.toFixed(3) + ']]</b>';
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.save();
+
+      // Linhas da grade suave
+      ctx.strokeStyle = "#e4dcc8";
+      ctx.lineWidth = 0.6;
+      for (var i = 0; i <= 4; i++) {
+        var pos = i * (w / 4);
+        ctx.beginPath();
+        ctx.moveTo(pos, 0); ctx.lineTo(pos, h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, pos); ctx.lineTo(w, pos);
+        ctx.stroke();
+      }
+
+      // Eixos Centrais
+      ctx.beginPath();
+      ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+      ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+      ctx.strokeStyle = "#8a8371";
+      ctx.lineWidth = 1.0;
+      ctx.stroke();
+
+      // Quadrado Rotacionado
+      var rotatedPoints = squarePoints.map(function(p){
+        return rotatePoint(p.x, p.y, angRad);
+      });
+
+      var canvasPoints = rotatedPoints.map(function(p){
+        return { x: cx + p.x, y: cy + p.y };
+      });
+
+      ctx.beginPath();
+      ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+      for (var k = 1; k < canvasPoints.length; k++) {
+        ctx.lineTo(canvasPoints[k].x, canvasPoints[k].y);
+      }
+      ctx.closePath();
+
+      ctx.fillStyle = "rgba(39, 174, 96, 0.65)";
+      ctx.fill();
+      ctx.strokeStyle = "#27ae60";
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      // Marcador de Orientação no Canto (Laranja)
+      var rotatedMarker = rotatePoint(markerRel.x, markerRel.y, angRad);
+      var mX = cx + rotatedMarker.x;
+      var mY = cy + rotatedMarker.y;
+
+      ctx.beginPath();
+      ctx.arc(mX, mY, 7, 0, 2 * Math.PI);
+      ctx.fillStyle = "#b9770e";
+      ctx.fill();
+      ctx.strokeStyle = "#26241d";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Ponto Central (Origem da Rotação)
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = "#c0392b";
+      ctx.fill();
+
+      ctx.restore();
+
+      // Texto de Ângulo
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#26241d";
+      ctx.fillText(angDeg + "°", cx + 8, cy - 8);
+    }
+
+    slAng.addEventListener('input', draw);
+
+    btn0.addEventListener('click', function() { slAng.value = 0; draw(); });
+    btn90.addEventListener('click', function() { slAng.value = 90; draw(); });
+    btn180.addEventListener('click', function() { slAng.value = 180; draw(); });
+    btn270.addEventListener('click', function() { slAng.value = 270; draw(); });
+    btnReset.addEventListener('click', function() { slAng.value = 0; draw(); });
+
+    draw();
+  }
+
+  function tryInitSimEP0206(){
+    var root = document.getElementById('sim-ep0206-rotacao');
+    if (root) initSimEP0206(root); else setTimeout(tryInitSimEP0206, 200);
+  }
+  tryInitSimEP0206();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0207(root){
+    if (!root || root.dataset.simEp0207Init) return;
+    root.dataset.simEp0207Init = "1";
+
+    var slFator      = root.querySelector('#sim_ep0207_sl_fator');
+    var vlFator      = root.querySelector('#sim_ep0207_vl_fator');
+    var gOrig        = root.querySelector('#sim_ep0207_grid_orig');
+    var gNearest     = root.querySelector('#sim_ep0207_grid_nearest');
+    var gBilinear    = root.querySelector('#sim_ep0207_grid_bilinear');
+    var infoDiv      = root.querySelector('#sim_ep0207_info');
+
+    var btnNew       = root.querySelector('#sim_ep0207_btnNew');
+    var btnReset     = root.querySelector('#sim_ep0207_btnReset');
+
+    var srcPixels    = Array(9).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+    var srcW = 3, srcH = 3;
+
+    function getBilinear(src, w, h, x, y) {
+      var x0 = Math.floor(x);
+      var y0 = Math.floor(y);
+      var x1 = Math.min(x0 + 1, w - 1);
+      var y1 = Math.min(y0 + 1, h - 1);
+      var tx = x - x0;
+      var ty = y - y0;
+
+      var v00 = src[y0 * w + x0];
+      var v10 = src[y0 * w + x1];
+      var v01 = src[y1 * w + x0];
+      var v11 = src[y1 * w + x1];
+
+      var top = v00 * (1 - tx) + v10 * tx;
+      var bottom = v01 * (1 - tx) + v11 * tx;
+      var val = top * (1 - ty) + bottom * ty;
+
+      return Math.round(Math.min(255, Math.max(0, val)));
+    }
+
+    function render() {
+      var f = parseFloat(slFator.value) || 1.0;
+      vlFator.textContent = f.toFixed(1);
+
+      var newW = Math.floor(srcW * f);
+      var newH = Math.floor(srcH * f);
+
+      infoDiv.innerHTML = 'Fator = <b>' + f.toFixed(2) + '</b> → novo tamanho: <b>' + newW + '×' + newH + '</b> pixels &nbsp;|&nbsp; <b>Nearest:</b> réplica do vizinho mais próximo &nbsp;|&nbsp; <b>Bilinear:</b> média ponderada dos 4 vizinhos';
+
+      // Grade Original (3x3)
+      gOrig.style.gridTemplateColumns = 'repeat(3, 42px)';
+      gOrig.innerHTML = '';
+      for (var i = 0; i < srcH; i++) {
+        for (var j = 0; j < srcW; j++) {
+          var val = srcPixels[i * srcW + j];
+          var cellO = document.createElement('div');
+          var fgColorO = val > 128 ? '#000000' : '#ffffff';
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';box-sizing:border-box;';
+          cellO.textContent = val;
+          gOrig.appendChild(cellO);
+        }
+      }
+
+      // Configuração das grades redimensionadas
+      gNearest.style.gridTemplateColumns = 'repeat(' + newW + ', 42px)';
+      gBilinear.style.gridTemplateColumns = 'repeat(' + newW + ', 42px)';
+      gNearest.innerHTML = '';
+      gBilinear.innerHTML = '';
+
+      for (var r = 0; r < newH; r++) {
+        for (var c = 0; c < newW; c++) {
+          var srcX_cont = c / f;
+          var srcY_cont = r / f;
+
+          // Nearest Neighbor
+          var nnX = Math.min(srcW - 1, Math.max(0, Math.round(srcX_cont)));
+          var nnY = Math.min(srcH - 1, Math.max(0, Math.round(srcY_cont)));
+          var valN = srcPixels[nnY * srcW + nnX];
+
+          // Bilinear
+          var valB = getBilinear(srcPixels, srcW, srcH, srcX_cont, srcY_cont);
+
+          // Célula Nearest
+          var cellN = document.createElement('div');
+          var fgN = valN > 128 ? '#000000' : '#ffffff';
+          cellN.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + valN + ',' + valN + ',' + valN + ');color:' + fgN + ';box-sizing:border-box;';
+          cellN.textContent = valN;
+          gNearest.appendChild(cellN);
+
+          // Célula Bilinear
+          var cellB = document.createElement('div');
+          var fgB = valB > 128 ? '#000000' : '#ffffff';
+          cellB.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + valB + ',' + valB + ',' + valB + ');color:' + fgB + ';box-sizing:border-box;';
+          cellB.textContent = valB;
+          gBilinear.appendChild(cellB);
+        }
+      }
+    }
+
+    slFator.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      srcPixels = Array(9).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slFator.value = '1';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0207(){
+    var root = document.getElementById('sim-ep0207-escala');
+    if (root) initSimEP0207(root); else setTimeout(tryInitSimEP0207, 200);
+  }
+  tryInitSimEP0207();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0208(root){
+    if (!root || root.dataset.simEp0208Init) return;
+    root.dataset.simEp0208Init = "1";
+
+    var slShx    = root.querySelector('#sim_ep0208_sl_shx');
+    var slShy    = root.querySelector('#sim_ep0208_sl_shy');
+    var vlShx    = root.querySelector('#sim_ep0208_vl_shx');
+    var vlShy    = root.querySelector('#sim_ep0208_vl_shy');
+    var gOrig    = root.querySelector('#sim_ep0208_grid_orig');
+    var gShear   = root.querySelector('#sim_ep0208_grid_shear');
+    var infoDiv  = root.querySelector('#sim_ep0208_info');
+
+    var btnNew   = root.querySelector('#sim_ep0208_btnNew');
+    var btnReset = root.querySelector('#sim_ep0208_btnReset');
+
+    var pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+
+    function getSourceCoords(xd, yd, shx, shy) {
+      var det = 1 - shx * shy;
+      if (Math.abs(det) < 1e-6) {
+        if (Math.abs(shx) > 0.5) {
+          return { xs: Math.round(xd - shx * yd), ys: Math.round(yd) };
+        } else {
+          return { xs: Math.round(xd), ys: Math.round(yd - shy * xd) };
+        }
+      }
+      var xs = (xd - shx * yd) / det;
+      var ys = (yd - shy * xd) / det;
+      return { xs: Math.round(xs), ys: Math.round(ys) };
+    }
+
+    function render() {
+      var shx = parseFloat(slShx.value) || 0;
+      var shy = parseFloat(slShy.value) || 0;
+
+      vlShx.textContent = shx.toFixed(2);
+      vlShy.textContent = shy.toFixed(2);
+
+      // Renderiza Grade Original (4x4)
+      gOrig.innerHTML = '';
+      for (var i = 0; i < 4; i++) {
+        for (var j = 0; j < 4; j++) {
+          var val = pixels[i * 4 + j];
+          var cellO = document.createElement('div');
+          var fgColorO = val > 128 ? '#000000' : '#ffffff';
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + val + ',' + val + ',' + val + ');color:' + fgColorO + ';box-sizing:border-box;';
+          cellO.textContent = val;
+          gOrig.appendChild(cellO);
+        }
+      }
+
+      // Renderiza Grade Cisalhada (4x4)
+      gShear.innerHTML = '';
+      for (var r = 0; r < 4; r++) {       // y destino
+        for (var c = 0; c < 4; c++) {   // x destino
+          var src = getSourceCoords(c, r, shx, shy);
+          var v = 0;
+
+          if (src.xs >= 0 && src.xs < 4 && src.ys >= 0 && src.ys < 4) {
+            v = pixels[src.ys * 4 + src.xs];
+          }
+
+          var cellS = document.createElement('div');
+          var fgColorS = v > 128 ? '#000000' : '#ffffff';
+          cellS.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + v + ',' + v + ',' + v + ');color:' + fgColorS + ';box-sizing:border-box;';
+          cellS.textContent = v;
+          gShear.appendChild(cellS);
+        }
+      }
+
+      var det = 1 - shx * shy;
+      infoDiv.innerHTML = 'shx = <b>' + shx.toFixed(2) + '</b>, shy = <b>' + shy.toFixed(2) + '</b> &nbsp;|&nbsp; <b>Matriz S: [[1, ' + shx.toFixed(2) + '], [' + shy.toFixed(2) + ', 1]]</b> (det = ' + det.toFixed(3) + ')';
+    }
+
+    slShx.addEventListener('input', render);
+    slShy.addEventListener('input', render);
+
+    btnNew.addEventListener('click', function() {
+      pixels = Array(16).fill(0).map(function(){ return Math.floor(Math.random() * 256); });
+      render();
+    });
+
+    btnReset.addEventListener('click', function() {
+      slShx.value = '0';
+      slShy.value = '0';
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0208(){
+    var root = document.getElementById('sim-ep0208-cisalhamento');
+    if (root) initSimEP0208(root); else setTimeout(tryInitSimEP0208, 200);
+  }
+  tryInitSimEP0208();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0209(root){
+    if (!root || root.dataset.simEp0209Init) return;
+    root.dataset.simEp0209Init = "1";
+
+    var inpA  = root.querySelector('#sim_ep0209_a');
+    var inpB  = root.querySelector('#sim_ep0209_b');
+    var inpTx = root.querySelector('#sim_ep0209_tx');
+    var inpC  = root.querySelector('#sim_ep0209_c');
+    var inpD  = root.querySelector('#sim_ep0209_d');
+    var inpTy = root.querySelector('#sim_ep0209_ty');
+    var canvas = root.querySelector('#sim_ep0209_canvas');
+    var debugDiv = root.querySelector('#sim_ep0209_debug');
+
+    var btnIdent  = root.querySelector('#sim_ep0209_btnIdent');
+    var btnRot90  = root.querySelector('#sim_ep0209_btnRot90');
+    var btnReflex = root.querySelector('#sim_ep0209_btnReflex');
+    var btnShear  = root.querySelector('#sim_ep0209_btnShear');
+    var btnReset  = root.querySelector('#sim_ep0209_btnReset');
+
+    var ctx = canvas.getContext('2d');
+    var w = 300, h = 300;
+    var centerX = w / 2, centerY = h / 2;
+
+    function drawGrid() {
+      ctx.save();
+      ctx.strokeStyle = "#eee6d3";
+      ctx.lineWidth = 0.5;
+      for (var i = 0; i <= 4; i++) {
+        var x = i * w / 4;
+        var y = i * h / 4;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(w, centerY);
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, h);
+      ctx.strokeStyle = "#c9bfa3";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#9a8f74";
+      ctx.font = "8px monospace";
+      ctx.fillText("0", centerX + 2, centerY - 2);
+      ctx.fillText("x", w - 8, centerY - 4);
+      ctx.fillText("y", centerX + 4, 10);
+      ctx.restore();
+    }
+
+    function drawShape() {
+      ctx.save();
+
+      var a  = parseFloat(inpA.value);
+      var b  = parseFloat(inpB.value);
+      var tx = parseFloat(inpTx.value);
+      var c  = parseFloat(inpC.value);
+      var d  = parseFloat(inpD.value);
+      var ty = parseFloat(inpTy.value);
+
+      ctx.translate(centerX, centerY);
+      ctx.transform(a, b, c, d, tx, ty);
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-20, 10);
+      ctx.lineTo(-10, 0);
+      ctx.lineTo(-20, -10);
+      ctx.fillStyle = '#e67e22';
+      ctx.fill();
+
+      ctx.fillStyle = '#26241d';
+      ctx.fillRect(-5, -2, 40, 4);
+
+      ctx.restore();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, w, h);
+      drawGrid();
+      drawShape();
+
+      var a  = parseFloat(inpA.value);
+      var b  = parseFloat(inpB.value);
+      var tx = parseFloat(inpTx.value);
+      var c  = parseFloat(inpC.value);
+      var d  = parseFloat(inpD.value);
+      var ty = parseFloat(inpTy.value);
+
+      debugDiv.innerHTML = 'Matriz afim: [ [' + a.toFixed(2) + ', ' + b.toFixed(2) + ', ' + tx + '], [' + c.toFixed(2) + ', ' + d.toFixed(2) + ', ' + ty + '] ] &nbsp;|&nbsp; ' +
+        'Transformação: (x\', y\') = (' + a.toFixed(2) + '·x + ' + b.toFixed(2) + '·y + ' + tx + ', ' + c.toFixed(2) + '·x + ' + d.toFixed(2) + '·y + ' + ty + ')';
+    }
+
+    function setMatriz(av, bv, txv, cv, dv, tyv) {
+      inpA.value = av; inpB.value = bv; inpTx.value = txv;
+      inpC.value = cv; inpD.value = dv; inpTy.value = tyv;
+      render();
+    }
+
+    inpA.addEventListener('input', render);
+    inpB.addEventListener('input', render);
+    inpTx.addEventListener('input', render);
+    inpC.addEventListener('input', render);
+    inpD.addEventListener('input', render);
+    inpTy.addEventListener('input', render);
+
+    btnIdent.addEventListener('click', function(){ setMatriz(1, 0, 0, 0, 1, 0); });
+    btnRot90.addEventListener('click', function(){ setMatriz(0, -1, 0, 1, 0, 0); });
+    btnReflex.addEventListener('click', function(){ setMatriz(-1, 0, 0, 0, 1, 0); });
+    btnShear.addEventListener('click', function(){ setMatriz(1, 0.5, 0, 0, 1, 0); });
+    btnReset.addEventListener('click', function(){ setMatriz(1, 0, 0, 0, 1, 0); });
+
+    render();
+  }
+
+  function tryInitSimEP0209(){
+    var root = document.getElementById('sim-ep0209-afim');
+    if (root) initSimEP0209(root); else setTimeout(tryInitSimEP0209, 200);
+  }
+  tryInitSimEP0209();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0210(root){
+    if (!root || root.dataset.simEp0210Init) return;
+    root.dataset.simEp0210Init = "1";
+
+    var canvas    = root.querySelector('#sim_ep0210_canvas');
+    var ctx       = canvas.getContext('2d');
+    var btnReset  = root.querySelector('#sim_ep02010_btnReset') || root.querySelector('#sim_ep0210_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0210_btnCorrect');
+    var subinfo   = root.querySelector('#sim_ep0210_subinfo');
+    var debugDiv  = root.querySelector('#sim_ep0210_debug');
+
+    var points = [
+      [80, 80],   // Top-Left (TL)
+      [320, 60],  // Top-Right (TR)
+      [60, 340],  // Bottom-Left (BL)
+      [340, 320]  // Bottom-Right (BR)
+    ];
+
+    var dragIndex = -1;
+
+    function drawCheckerboard() {
+      var cellSize = 25;
+      for (var i = 0; i < 400; i += cellSize) {
+        for (var j = 0; j < 400; j += cellSize) {
+          ctx.fillStyle = (Math.floor(i / cellSize) + Math.floor(j / cellSize)) % 2 === 0 ? '#f1ead7' : '#e4dcc8';
+          ctx.fillRect(i, j, cellSize, cellSize);
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, 400, 400);
+      drawCheckerboard();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      ctx.lineTo(points[1][0], points[1][1]);
+      ctx.lineTo(points[3][0], points[3][1]);
+      ctx.lineTo(points[2][0], points[2][1]);
+      ctx.closePath();
+      
+      ctx.fillStyle = 'rgba(126, 231, 198, 0.35)';
+      ctx.fill();
+      ctx.strokeStyle = '#26241d';
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      for (var k = 0; k < points.length; k++) {
+        ctx.beginPath();
+        ctx.arc(points[k][0], points[k][1], 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#b9770e';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.font = "bold 10px monospace";
+      ctx.fillStyle = '#26241d';
+      ctx.fillText("TL", points[0][0] - 16, points[0][1] - 6);
+      ctx.fillText("TR", points[1][0] + 6, points[1][1] - 6);
+      ctx.fillText("BL", points[2][0] - 16, points[2][1] + 12);
+      ctx.fillText("BR", points[3][0] + 6, points[3][1] + 12);
+    }
+
+    function getMousePos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var scaleX = canvas.width / rect.width;
+      var scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleMouseDown(e) {
+      var pos = getMousePos(e);
+      for (var i = 0; i < points.length; i++) {
+        var dx = pos.x - points[i][0];
+        var dy = pos.y - points[i][1];
+        if (Math.sqrt(dx * dx + dy * dy) < 14) {
+          dragIndex = i;
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (dragIndex !== -1) {
+        var pos = getMousePos(e);
+        var x = Math.min(395, Math.max(5, pos.x));
+        var y = Math.min(395, Math.max(5, pos.y));
+        points[dragIndex] = [x, y];
+        draw();
+
+        subinfo.textContent = 'Vértice movido → quadrilátero redefinido.';
+        debugDiv.innerHTML = 'Quadrilátero atual: <b>TL(' + Math.round(points[0][0]) + ',' + Math.round(points[0][1]) + ') TR(' + Math.round(points[1][0]) + ',' + Math.round(points[1][1]) + ') BL(' + Math.round(points[2][0]) + ',' + Math.round(points[2][1]) + ') BR(' + Math.round(points[3][0]) + ',' + Math.round(points[3][1]) + ')</b>';
+      }
+    }
+
+    function handleMouseUp() {
+      dragIndex = -1;
+      canvas.style.cursor = 'crosshair';
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    function correctPerspective() {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#26241d';
+      ctx.fillRect(50, 50, 300, 300);
+
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = '#7ee7c6';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(50, 50, 300, 300);
+
+      ctx.fillStyle = '#7ee7c6';
+      ctx.font = "bold 13px monospace";
+      ctx.fillText("✅ HOMOGRAPHY APPLIED (H 3×3)", 85, 190);
+
+      ctx.font = "10px monospace";
+      ctx.fillStyle = '#fbf7ee';
+      ctx.fillText("300×300 rectangle rectified successfully", 85, 220);
+      ctx.restore();
+
+      subinfo.textContent = "Projection rectified to flat rectangular area of 300×300.";
+      debugDiv.innerHTML = '<b>✅ Homografia Estimada:</b> Mapeamento perspectiva dos 4 vértices para a grade retangular [(50,50), (350,50), (50,350), (350,350)].';
+    }
+
+    btnReset.addEventListener('click', function() {
+      points = [
+        [80, 80],
+        [320, 60],
+        [60, 340],
+        [340, 320]
+      ];
+      draw();
+      subinfo.textContent = "Points reset to standard coordinates.";
+      debugDiv.innerHTML = "Arraste os vértices para deformar a projeção e clique em 'Corrigir Perspectiva' para estimar a matriz H.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    draw();
+  }
+
+  function tryInitSimEP0210(){
+    var root = document.getElementById('sim-ep0210-perspectiva');
+    if (root) initSimEP0210(root); else setTimeout(tryInitSimEP0210, 200);
+  }
+  tryInitSimEP0210();
+})();
+</script>
+<script>
+(function(){
+  function initSimEP0211(root){
+    if (!root || root.dataset.simEp0211Init) return;
+    root.dataset.simEp0211Init = "1";
+
+    var srcCanvas = root.querySelector('#sim_ep0211_canvas_src');
+    var dstCanvas = root.querySelector('#sim_ep0211_canvas_dst');
+    var ctxSrc    = srcCanvas.getContext('2d');
+    var ctxDst    = dstCanvas.getContext('2d');
+
+    var btnReset  = root.querySelector('#sim_ep0211_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0211_btnCorrect');
+    var btnPad    = root.querySelector('#sim_ep0211_btnPad');
+    var debugDiv  = root.querySelector('#sim_ep0211_debug');
+
+    var SIZE = 400;
+    var PAD = 32;
+    var img = null;
+    var imgLoaded = false;
+    var points = [];
+    var dragIndex = -1;
+    var showPad = false;
+
+    function defaultPoints() {
+      return [
+        [PAD + 48, PAD + 38],        // TL
+        [SIZE - PAD - 32, PAD + 28], // TR
+        [PAD + 35, SIZE - PAD - 32], // BL
+        [SIZE - PAD - 28, SIZE - PAD - 24] // BR
+      ];
+    }
+
+    function loadImage() {
+      var imageObj = new Image();
+      imageObj.src = "sudoku.png";
+      imageObj.crossOrigin = "Anonymous";
+
+      imageObj.onload = function() {
+        img = imageObj;
+        imgLoaded = true;
+        points = defaultPoints();
+        drawSource();
+        drawPlaceholder();
+        debugDiv.innerHTML = "✅ Imagem local carregada! Arraste os marcadores nos cantos da grade.";
+      };
+
+      imageObj.onerror = function() {
+        imageObj.src = "https://upload.wikimedia.org/wikipedia/commons/e/e7/Sudoku_en_peri%C3%B3dico.jpg";
+        imageObj.onload = function() {
+          img = imageObj;
+          imgLoaded = true;
+          points = defaultPoints();
+          drawSource();
+          drawPlaceholder();
+          debugDiv.innerHTML = "⚠️ Imagem local não encontrada. Carregada imagem remota fallback.";
+        };
+        imageObj.onerror = function() {
+          debugDiv.innerHTML = "❌ Erro ao carregar imagem. Verifique a existência de sudoku.png.";
+          imgLoaded = false;
+        };
+      };
+    }
+
+    function drawSource() {
+      if (!imgLoaded || !img) return;
+      ctxSrc.clearRect(0, 0, SIZE, SIZE);
+      ctxSrc.fillStyle = "#f1ead7";
+      ctxSrc.fillRect(0, 0, SIZE, SIZE);
+
+      var maxW = SIZE - 2 * PAD;
+      var maxH = SIZE - 2 * PAD;
+      var scale = Math.min(maxW / img.width, maxH / img.height);
+      var drawW = img.width * scale;
+      var drawH = img.height * scale;
+      var offX = PAD + (maxW - drawW) / 2;
+      var offY = PAD + (maxH - drawH) / 2;
+      ctxSrc.drawImage(img, offX, offY, drawW, drawH);
+
+      if (showPad) {
+        ctxSrc.fillStyle = "rgba(41, 128, 185, 0.2)";
+        ctxSrc.fillRect(0, 0, SIZE, PAD);
+        ctxSrc.fillRect(0, SIZE - PAD, SIZE, PAD);
+        ctxSrc.fillRect(0, 0, PAD, SIZE);
+        ctxSrc.fillRect(SIZE - PAD, 0, PAD, SIZE);
+        ctxSrc.strokeStyle = "#2980b9";
+        ctxSrc.setLineDash([4, 6]);
+        ctxSrc.strokeRect(PAD, PAD, SIZE - 2 * PAD, SIZE - 2 * PAD);
+        ctxSrc.setLineDash([]);
+      }
+
+      if (points.length === 4) {
+        ctxSrc.beginPath();
+        ctxSrc.moveTo(points[0][0], points[0][1]);
+        ctxSrc.lineTo(points[1][0], points[1][1]);
+        ctxSrc.lineTo(points[3][0], points[3][1]);
+        ctxSrc.lineTo(points[2][0], points[2][1]);
+        ctxSrc.closePath();
+        ctxSrc.strokeStyle = "#b9770e";
+        ctxSrc.lineWidth = 2.5;
+        ctxSrc.stroke();
+
+        var labels = ["TL", "TR", "BL", "BR"];
+        for (var i = 0; i < 4; i++) {
+          ctxSrc.beginPath();
+          ctxSrc.arc(points[i][0], points[i][1], 7, 0, 2 * Math.PI);
+          ctxSrc.fillStyle = "#b9770e";
+          ctxSrc.fill();
+          ctxSrc.strokeStyle = "#ffffff";
+          ctxSrc.lineWidth = 2;
+          ctxSrc.stroke();
+
+          ctxSrc.fillStyle = "#26241d";
+          ctxSrc.font = "bold 11px monospace";
+          var dx = (i === 0 || i === 2) ? -20 : 8;
+          var dy = (i < 2) ? -8 : 14;
+          ctxSrc.fillText(labels[i], points[i][0] + dx, points[i][1] + dy);
+        }
+      }
+    }
+
+    function drawPlaceholder() {
+      ctxDst.clearRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#fafaf7";
+      ctxDst.fillRect(0, 0, SIZE, SIZE);
+      ctxDst.fillStyle = "#8a8371";
+      ctxDst.font = "11px monospace";
+      ctxDst.textAlign = "center";
+      ctxDst.fillText("Click 'Correct Perspective'", SIZE / 2, SIZE / 2 - 10);
+      ctxDst.fillText("to rectify the Sudoku grid", SIZE / 2, SIZE / 2 + 10);
+      ctxDst.textAlign = "left";
+    }
+
+    function gaussSolve(A, b) {
+      var n = A.length;
+      var M = A.map(function(row, i) { return row.concat([b[i]]); });
+
+      for (var i = 0; i < n; i++) {
+        var maxRow = i;
+        for (var k = i + 1; k < n; k++) {
+          if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+        }
+        var temp = M[i]; M[i] = M[maxRow]; M[maxRow] = temp;
+
+        if (Math.abs(M[i][i]) < 1e-8) return null;
+
+        for (var k = i + 1; k <= n; k++) M[i][k] /= M[i][i];
+        for (var k = 0; k < n; k++) {
+          if (k !== i) {
+            var factor = M[k][i];
+            for (var j = i + 1; j <= n; j++) M[k][j] -= factor * M[i][j];
+          }
+        }
+      }
+      return M.map(function(row) { return row[n]; });
+    }
+
+    function getPerspectiveTransform(src, dst) {
+      var A = [];
+      for (var i = 0; i < 4; i++) {
+        var x = src[i][0], y = src[i][1];
+        var xp = dst[i][0], yp = dst[i][1];
+        A.push([-x, -y, -1, 0, 0, 0, x * xp, y * xp, xp]);
+        A.push([0, 0, 0, -x, -y, -1, x * yp, y * yp, yp]);
+      }
+      var B = [], C = [];
+      for (var i = 0; i < 8; i++) {
+        B.push(A[i].slice(0, 8));
+        C.push(-A[i][8]);
+      }
+      var sol = gaussSolve(B, C);
+      if (!sol) return null;
+      var h = sol.concat([1]);
+      return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], h[8]]];
+    }
+
+    function invertMatrix3x3(m) {
+      var a = m[0][0], b = m[0][1], c = m[0][2];
+      var d = m[1][0], e = m[1][1], f = m[1][2];
+      var g = m[2][0], h = m[2][1], i = m[2][2];
+
+      var det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+      if (Math.abs(det) < 1e-8) return null;
+      var invDet = 1 / det;
+
+      return [
+        [(e * i - f * h) * invDet, (c * h - b * i) * invDet, (b * f - c * e) * invDet],
+        [(f * g - d * i) * invDet, (a * i - c * g) * invDet, (c * d - a * f) * invDet],
+        [(d * h - e * g) * invDet, (b * g - a * h) * invDet, (a * e - b * d) * invDet]
+      ];
+    }
+
+    function warpPerspective(sCanvas, dCanvas, H, outW, outH) {
+      var sCtx = sCanvas.getContext('2d');
+      var dCtx = dCanvas.getContext('2d');
+      var srcImg = sCtx.getImageData(0, 0, sCanvas.width, sCanvas.height);
+      var dstData = dCtx.createImageData(outW, outH);
+      var srcData = srcImg.data;
+      var srcW = sCanvas.width, srcH = sCanvas.height;
+      var Hinv = invertMatrix3x3(H);
+      if (!Hinv) return false;
+
+      for (var y = 0; y < outH; y++) {
+        for (var x = 0; x < outW; x++) {
+          var denom = Hinv[2][0] * x + Hinv[2][1] * y + Hinv[2][2];
+          if (Math.abs(denom) < 1e-6) continue;
+          var u = (Hinv[0][0] * x + Hinv[0][1] * y + Hinv[0][2]) / denom;
+          var v = (Hinv[1][0] * x + Hinv[1][1] * y + Hinv[1][2]) / denom;
+
+          var idxDst = (y * outW + x) * 4;
+          if (u >= 0 && u < srcW - 1 && v >= 0 && v < srcH - 1) {
+            var x0 = Math.floor(u), y0 = Math.floor(v);
+            var dx = u - x0, dy = v - y0;
+            var idx = (y0 * srcW + x0) * 4;
+
+            var c00 = [srcData[idx], srcData[idx + 1], srcData[idx + 2]];
+            var c10 = [srcData[idx + 4], srcData[idx + 5], srcData[idx + 6]];
+            var c01 = [srcData[idx + srcW * 4], srcData[idx + srcW * 4 + 1], srcData[idx + srcW * 4 + 2]];
+            var c11 = [srcData[idx + srcW * 4 + 4], srcData[idx + srcW * 4 + 5], srcData[idx + srcW * 4 + 6]];
+
+            var r = (1 - dx) * (1 - dy) * c00[0] + dx * (1 - dy) * c10[0] + (1 - dx) * dy * c01[0] + dx * dy * c11[0];
+            var g = (1 - dx) * (1 - dy) * c00[1] + dx * (1 - dy) * c10[1] + (1 - dx) * dy * c01[1] + dx * dy * c11[1];
+            var b = (1 - dx) * (1 - dy) * c00[2] + dx * (1 - dy) * c10[2] + (1 - dx) * dy * c01[2] + dx * dy * c11[2];
+
+            dstData.data[idxDst]     = r;
+            dstData.data[idxDst + 1] = g;
+            dstData.data[idxDst + 2] = b;
+            dstData.data[idxDst + 3] = 255;
+          } else {
+            dstData.data[idxDst]     = 241;
+            dstData.data[idxDst + 1] = 234;
+            dstData.data[idxDst + 2] = 215;
+            dstData.data[idxDst + 3] = 255;
+          }
+        }
+      }
+      dCtx.putImageData(dstData, 0, 0);
+      return true;
+    }
+
+    function correctPerspective() {
+      if (!imgLoaded) { debugDiv.textContent = "Waiting for image to load."; return; }
+      var pts1 = points.map(function(p){ return [p[0], p[1]]; });
+      var pts2 = [[0, 0], [SIZE, 0], [0, SIZE], [SIZE, SIZE]];
+      var H = getPerspectiveTransform(pts1, pts2);
+
+      if (!H) { debugDiv.textContent = "Error: collinear points or singular matrix."; return; }
+
+      var tempCanvas = document.createElement('canvas');
+      tempCanvas.width = SIZE;
+      tempCanvas.height = SIZE;
+      tempCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+
+      var success = warpPerspective(tempCanvas, dstCanvas, H, SIZE, SIZE);
+      if (success) {
+        debugDiv.innerHTML = '✅ <b>Homografia 3×3 aplicada:</b> Vértices retificados para grade frontal de ' + SIZE + '×' + SIZE + ' pixels.';
+      } else {
+        debugDiv.textContent = "❌ Perspective resampling failed.";
+      }
+    }
+
+    function getMousePos(e, cEl) {
+      var rect = cEl.getBoundingClientRect();
+      var scaleX = cEl.width / rect.width;
+      var scaleY = cEl.height / rect.height;
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+    }
+
+    srcCanvas.addEventListener('mousedown', function(e) {
+      var pos = getMousePos(e, srcCanvas);
+      for (var i = 0; i < points.length; i++) {
+        if (Math.sqrt(Math.pow(pos[0] - points[i][0], 2) + Math.pow(pos[1] - points[i][1], 2)) < 14) {
+          dragIndex = i;
+          srcCanvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (dragIndex === -1) return;
+      var pos = getMousePos(e, srcCanvas);
+      points[dragIndex] = [
+        Math.min(SIZE - 5, Math.max(5, pos[0])),
+        Math.min(SIZE - 5, Math.max(5, pos[1]))
+      ];
+      drawSource();
+      debugDiv.textContent = 'Placing point ' + dragIndex + ' → (' + Math.round(points[dragIndex][0]) + ', ' + Math.round(points[dragIndex][1]) + ')';
+    });
+
+    window.addEventListener('mouseup', function() {
+      dragIndex = -1;
+      srcCanvas.style.cursor = 'crosshair';
+    });
+
+    btnReset.addEventListener('click', function() {
+      points = defaultPoints();
+      showPad = false;
+      drawSource();
+      drawPlaceholder();
+      debugDiv.textContent = "Points reset to default positions.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    btnPad.addEventListener('click', function() {
+      showPad = !showPad;
+      drawSource();
+    });
+
+    loadImage();
+  }
+
+  function tryInitSimEP0211(){
+    var root = document.getElementById('sim-ep0211-sudoku');
+    if (root) initSimEP0211(root); else setTimeout(tryInitSimEP0211, 200);
+  }
+  tryInitSimEP0211();
+})();
+</script>
+</body>
+</html>

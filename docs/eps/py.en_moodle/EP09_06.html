@@ -1,0 +1,549 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_06.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_06.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_06 🔴 Integrated Pipeline: From Detection to Real-World Measurement</h2>
+<p>This final exercise integrates the two detection exercises and the principle of <strong>photogrammetry</strong> presented in the section “Photogrammetry and Scale Reference” — exactly the same calculation implemented in the scale-reference measurement figure in this chapter. The scenario reproduces a realistic situation: a detector (Faster R-CNN or YOLO) generates <strong>several overlapping candidate boxes</strong> for the same object of interest; after filtering them by NMS, the surviving box with the highest confidence is used, together with a reference box of known real width (such as the 8.56 cm card), to estimate the real dimensions of the detected object.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Known reference:</strong> Read the real value <em>L</em>_ref (real width of the reference object, in cm) and then the four real values <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 of its bounding box in pixels (already known, with no need for detection).</li>
+<li><strong>Candidates of the object to measure:</strong> Read the integer <em>N</em> (number of candidate boxes produced by the detector for the object of interest) and the real threshold \tau; then read the <em>N</em> lines of candidate boxes, each with <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2\ score.</li>
+<li><strong>Step 1 — NMS:</strong> Apply exactly the Non-Maximum Suppression algorithm from EP09_04 to the <em>N</em> candidate boxes, using the threshold \tau, to eliminate redundant detections of the same object.</li>
+<li><strong>Step 2 — Final box selection:</strong> After NMS, the box with the highest <code>score</code> among those retained is the final detection of the object (the input guarantees that all candidate boxes correspond to a single physical object, so the first box selected by NMS is already the final result).</li>
+<li><strong>Step 3 — Scale-reference measurement:</strong> Calculate the ratio cm/pixel = <em>L</em>_ref / reference width in pixels and apply it to both the width and height (in pixels) of the final object box, obtaining its estimated real dimensions in centimeters.</li>
+<li><strong>Output:</strong> First, one line per box retained after NMS (same format as EP09_04): <code>index score</code>. Then the line <code>Total kept: X</code>. Finally, the line <code>Object: L x A cm</code>, where <em>L</em> and <em>A</em> are the estimated width and height of the object, each with 2 decimal places.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Reuse the NMS from EP09_04</strong> in full — same tie-breaking rule, same suppression criterion (IoU &gt; \tau).</li>
+<li><strong>The reference does not undergo NMS:</strong> its box is given directly, without competing candidates.</li>
+<li><strong>Single ratio for width and height:</strong> just as in the photogrammetry figure in the chapter, the same cm/pixel ratio (derived from the reference width) is applied to both the width and height of the object — there is no separate vertical calibration.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Step</th>
+<th style="padding:10px;border:1px solid #ddd;">Chapter concept</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Multiple candidate boxes</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Raw output of a detector such as Faster R-CNN or YOLO, before post-processing</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">NMS (EP09_04)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Filters redundant detections, keeping only the most confident one for the object</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Known scale reference</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Same principle as the 8.56 cm card used in the section “Photogrammetry and Scale Reference”</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel → centimeter conversion</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simple rule of three: cm/pixel = <em>L</em>_ref / <em>w</em>_ref_px, applied to the final object box</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 <code>morph.py</code> Methods That May Help</h4>
+<ul>
+<li><code>mm.IoU(boxA, boxB)</code> — the same function suggested in EP09_04, here reused within the NMS step of this integrated <em>pipeline</em> (remember the format conversion: <em>w</em> = <em>x</em>_2-<em>x</em>_1, <em>h</em> = <em>y</em>_2-<em>y</em>_1).</li>
+<li>If you have already solved EP09_04 by encapsulating NMS in your own function, this is the ideal time to <strong>reuse that code</strong> — integrating modules that have already been tested individually is exactly the engineering practice this exercise aims to reinforce.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Real <em>L</em>_ref.</li>
+<li>Line 2: <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 of the reference box.</li>
+<li>Line 3: Integer <em>N</em> and real \tau.</li>
+<li>Next <em>N</em> lines: <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2\ score of the candidate boxes for the object.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>One line per box retained after NMS: <code>index score</code>.</li>
+<li>Next line: <code>Total kept: X</code>.</li>
+<li>Last line: <code>Object: L x A cm</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8.56<br/>
+30 200 170 288<br/>
+3 0.5<br/>
+250 100 470 250 0.92<br/>
+255 105 468 245 0.88<br/>
+600 600 650 650 0.40</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0.9200<br/>
+2 0.4000<br/>
+Total kept: 2<br/>
+Object: 13.45 x 9.17 cm</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Box 1 is suppressed because it strongly overlaps box 0; the final detection of the object is box 0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="72" data-quarto-private-1='{"key":"pdi","value":{"ck":"d59c31662d4692f1b7bce02d06034b56"}}' id="cell-fig-09-sim-ep0906">
+</div>
+</div><div id="sim-ep0906" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulator: Integrated Pipeline — Detection to Measurement</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🔴 Photogrammetry</span>
+<div style="padding:16px;background:white;">
+<!-- Legenda compacta -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
+<b>Selected box</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;border-radius:2px;display:inline-block;"></span>
+<b>Suppressed box</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#50e3c2;border:2px solid #2c8a6e;border-radius:2px;display:inline-block;"></span>
+<b>Reference</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;border-radius:2px;display:inline-block;"></span>
+<b>Final object</b>
+</span>
+</div>
+<!-- Controles -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:8px;">
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">L_ref (cm)</label>
+<span id="ep0906_lref_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">8.56</span>
+</div>
+<input id="ep0906_lref" max="20" min="1" step="0.01" style="width:100%;height:4px;" type="range" value="8.56"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Threshold τ</label>
+<span id="ep0906_tau_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">0.50</span>
+</div>
+<input id="ep0906_tau" max="1.0" min="0.1" step="0.05" style="width:100%;height:4px;" type="range" value="0.5"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Example</label>
+<span id="ep0906_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Default</span>
+</div>
+<select id="ep0906_example" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:10px;">
+<option value="padrao">Default Example</option>
+<option value="multiplos">Multiple Objects</option>
+<option value="agrupado">Grouped Boxes</option>
+</select>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;">
+<button id="ep0906_run_btn" style="background:#2980b9;color:white;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-size:11px;font-weight:bold;transition:all 0.3s;">
+            ▶️ Run Pipeline
+          </button>
+</div>
+</div>
+<!-- Caixas configuráveis -->
+<div id="ep0906_boxes_config" style="display:flex;flex-wrap:wrap;gap:6px;font-size:9px;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+<!-- Visualização -->
+<div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px;">
+<!-- Canvas -->
+<div style="background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;min-height:350px;">
+<div style="color:white;font-weight:bold;font-size:13px;text-align:center;margin-bottom:8px;">
+          🎯 Pipeline Visualization
+        </div>
+<canvas id="ep0906_canvas" style="width:100%;height:300px;display:block;background:white;border-radius:5px;"></canvas>
+</div>
+<!-- Passo a passo -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:10px;padding:12px;overflow-y:auto;max-height:350px;">
+<div style="font-weight:bold;font-size:12px;color:#333;margin-bottom:8px;">
+          📋 Step-by-Step Pipeline
+        </div>
+<div id="ep0906_steps" style="font-size:10px;line-height:1.8;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+</div>
+<!-- Resultado final -->
+<div id="ep0906_summary" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:8px;padding:12px;font-family:monospace;font-size:14px;color:white;line-height:1.8;text-align:center;">
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    
+    // Elementos DOM
+    var lrefEl = root.querySelector('#ep0906_lref');
+    var lrefvEl = root.querySelector('#ep0906_lref_v');
+    var tauEl = root.querySelector('#ep0906_tau');
+    var tauvEl = root.querySelector('#ep0906_tau_v');
+    var exampleEl = root.querySelector('#ep0906_example');
+    var boxesConfigEl = root.querySelector('#ep0906_boxes_config');
+    var canvas = root.querySelector('#ep0906_canvas');
+    var ctx = canvas.getContext('2d');
+    var stepsEl = root.querySelector('#ep0906_steps');
+    var summaryEl = root.querySelector('#ep0906_summary');
+    var runBtn = root.querySelector('#ep0906_run_btn');
+    
+    // Estado
+    var refBox = { x1: 30, y1: 200, x2: 170, y2: 288 };
+    var boxes = [];
+    var selectedBoxes = [];
+    var suppressedBoxes = [];
+    var finalBox = null;
+    var cmPerPixel = 0;
+    
+    // Exemplos
+    var examples = {
+      padrao: {
+        refBox: { x1: 30, y1: 200, x2: 170, y2: 288 },
+        boxes: [
+          { x1: 250, y1: 100, x2: 470, y2: 250, score: 0.92 },
+          { x1: 255, y1: 105, x2: 468, y2: 245, score: 0.88 },
+          { x1: 600, y1: 600, x2: 650, y2: 650, score: 0.40 }
+        ]
+      },
+      multiplos: {
+        refBox: { x1: 20, y1: 50, x2: 100, y2: 130 },
+        boxes: [
+          { x1: 200, y1: 150, x2: 350, y2: 280, score: 0.85 },
+          { x1: 210, y1: 160, x2: 360, y2: 290, score: 0.75 },
+          { x1: 400, y1: 300, x2: 550, y2: 420, score: 0.70 },
+          { x1: 410, y1: 310, x2: 560, y2: 430, score: 0.65 }
+        ]
+      },
+      agrupado: {
+        refBox: { x1: 50, y1: 50, x2: 150, y2: 150 },
+        boxes: [
+          { x1: 300, y1: 200, x2: 500, y2: 350, score: 0.95 },
+          { x1: 310, y1: 210, x2: 490, y2: 340, score: 0.90 },
+          { x1: 320, y1: 220, x2: 480, y2: 330, score: 0.85 },
+          { x1: 330, y1: 230, x2: 470, y2: 320, score: 0.80 }
+        ]
+      }
+    };
+    
+    // Ajustar canvas
+    function resizeCanvas() {
+      var rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    
+    // Carregar exemplo
+    function loadExample(name) {
+      var example = examples[name];
+      refBox = JSON.parse(JSON.stringify(example.refBox));
+      boxes = JSON.parse(JSON.stringify(example.boxes));
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      finalBox = null;
+      generateBoxesConfig();
+      render();
+      stepsEl.innerHTML = 'Clique em "Processar Pipeline" para executar.';
+      summaryEl.innerHTML = 'Aguardando processamento...';
+    }
+    
+    // Gerar configuração das caixas
+    function generateBoxesConfig() {
+      var html = '';
+      html += '<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:4px 6px;">';
+      html += '<b>Referência:</b> ';
+      html += '<input type="number" id="ep0906_ref_x1" value="' + refBox.x1 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+      html += '<input type="number" id="ep0906_ref_y1" value="' + refBox.y1 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+      html += '<input type="number" id="ep0906_ref_x2" value="' + refBox.x2 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+      html += '<input type="number" id="ep0906_ref_y2" value="' + refBox.y2 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+      html += '</div>';
+      
+      boxes.forEach(function(box, i) {
+        html += '<div style="background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 6px;">';
+        html += '<b>#' + i + ':</b> ';
+        html += '<input type="number" id="ep0906_x1_' + i + '" value="' + box.x1 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+        html += '<input type="number" id="ep0906_y1_' + i + '" value="' + box.y1 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+        html += '<input type="number" id="ep0906_x2_' + i + '" value="' + box.x2 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+        html += '<input type="number" id="ep0906_y2_' + i + '" value="' + box.y2 + '" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+        html += '<input type="number" id="ep0906_score_' + i + '" value="' + box.score + '" step="0.05" min="0" max="1" style="width:35px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;">';
+        html += '</div>';
+      });
+      
+      boxesConfigEl.innerHTML = html;
+      
+      // Event listeners para referência
+      ['x1', 'y1', 'x2', 'y2'].forEach(function(field) {
+        var input = root.querySelector('#ep0906_ref_' + field);
+        if (input) {
+          input.addEventListener('input', function() {
+            refBox[field] = parseFloat(input.value) || 0;
+            render();
+          });
+        }
+      });
+      
+      // Event listeners para caixas
+      boxes.forEach(function(box, i) {
+        ['x1', 'y1', 'x2', 'y2', 'score'].forEach(function(field) {
+          var input = root.querySelector('#ep0906_' + field + '_' + i);
+          if (input) {
+            input.addEventListener('input', function() {
+              boxes[i][field] = parseFloat(input.value) || 0;
+              selectedBoxes = [];
+              suppressedBoxes = [];
+              finalBox = null;
+              render();
+            });
+          }
+        });
+      });
+    }
+    
+    // Calcular IoU
+    function calculateIoU(box1, box2) {
+      var x1 = Math.max(box1.x1, box2.x1);
+      var y1 = Math.max(box1.y1, box2.y1);
+      var x2 = Math.min(box1.x2, box2.x2);
+      var y2 = Math.min(box1.y2, box2.y2);
+      
+      var intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+      if (intersectionArea === 0) return 0;
+      
+      var area1 = (box1.x2 - box1.x1) * (box1.y2 - box1.y1);
+      var area2 = (box2.x2 - box2.x1) * (box2.y2 - box2.y1);
+      var unionArea = area1 + area2 - intersectionArea;
+      
+      return intersectionArea / unionArea;
+    }
+    
+    // Executar pipeline
+    function runPipeline() {
+      var tau = parseFloat(tauEl.value);
+      var lref = parseFloat(lrefEl.value);
+      
+      // Etapa 1: NMS
+      var remaining = boxes.map(function(box, index) {
+        return { box: box, originalIndex: index };
+      });
+      
+      remaining.sort(function(a, b) {
+        if (b.box.score !== a.box.score) return b.box.score - a.box.score;
+        return a.originalIndex - b.originalIndex;
+      });
+      
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      var steps = [];
+      
+      steps.push('<div style="font-weight:bold;color:#333;">Etapa 1: NMS</div>');
+      
+      while (remaining.length > 0) {
+        var selected = remaining.shift();
+        selectedBoxes.push(selected);
+        
+        steps.push('<div style="color:#4a90e2;">Selecionar caixa #' + selected.originalIndex + ' (score: ' + selected.box.score.toFixed(4) + ')</div>');
+        
+        var newRemaining = [];
+        for (var i = 0; i < remaining.length; i++) {
+          var iou = calculateIoU(selected.box, remaining[i].box);
+          if (iou > tau) {
+            suppressedBoxes.push(remaining[i]);
+            steps.push('<div style="color:#ff6b6b;margin-left:10px;">↳ Suprimir #' + remaining[i].originalIndex + ' (IoU: ' + iou.toFixed(3) + ')</div>');
+          } else {
+            newRemaining.push(remaining[i]);
+          }
+        }
+        remaining = newRemaining;
+      }
+      
+      steps.push('<div style="margin-top:4px;">Total mantidas: <b>' + selectedBoxes.length + '</b></div>');
+      
+      // Etapa 2: Seleção da caixa final
+      if (selectedBoxes.length > 0) {
+        finalBox = selectedBoxes[0];
+        steps.push('<div style="margin-top:8px;font-weight:bold;color:#333;">Etapa 2: Caixa Final</div>');
+        steps.push('<div>Caixa selecionada: #' + finalBox.originalIndex + ' (score: ' + finalBox.box.score.toFixed(4) + ')</div>');
+      }
+      
+      // Etapa 3: Medição
+      steps.push('<div style="margin-top:8px;font-weight:bold;color:#333;">Etapa 3: Medição por Referência</div>');
+      
+      var refWidthPx = refBox.x2 - refBox.x1;
+      cmPerPixel = lref / refWidthPx;
+      
+      steps.push('<div>Largura da referência: ' + refWidthPx + ' pixels</div>');
+      steps.push('<div>cm/pixel = ' + lref + ' / ' + refWidthPx + ' = <b>' + cmPerPixel.toFixed(6) + '</b></div>');
+      
+      if (finalBox) {
+        var objWidthPx = finalBox.box.x2 - finalBox.box.x1;
+        var objHeightPx = finalBox.box.y2 - finalBox.box.y1;
+        var objWidthCm = objWidthPx * cmPerPixel;
+        var objHeightCm = objHeightPx * cmPerPixel;
+        
+        steps.push('<div>Largura do objeto: ' + objWidthPx + ' px × ' + cmPerPixel.toFixed(6) + ' = <b>' + objWidthCm.toFixed(2) + ' cm</b></div>');
+        steps.push('<div>Altura do objeto: ' + objHeightPx + ' px × ' + cmPerPixel.toFixed(6) + ' = <b>' + objHeightCm.toFixed(2) + ' cm</b></div>');
+        
+        stepsEl.innerHTML = steps.join('');
+        
+        summaryEl.innerHTML = '<b>Objeto: ' + objWidthCm.toFixed(2) + ' x ' + objHeightCm.toFixed(2) + ' cm</b>';
+      } else {
+        stepsEl.innerHTML = steps.join('');
+        summaryEl.innerHTML = 'Nenhum objeto detectado.';
+      }
+      
+      render();
+    }
+    
+    // Renderizar visualização
+    function render() {
+      resizeCanvas();
+      
+      // Limpar canvas
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      var scale = Math.min(canvas.width / 700, canvas.height / 700);
+      var offsetX = 20;
+      var offsetY = 20;
+      
+      // Desenhar caixa de referência
+      drawBoxOnCanvas(refBox, '#50e3c2', 'Ref', scale, offsetX, offsetY);
+      
+      // Desenhar caixas
+      boxes.forEach(function(box, index) {
+        var isSelected = selectedBoxes.some(function(s) { return s.originalIndex === index; });
+        var isSuppressed = suppressedBoxes.some(function(s) { return s.originalIndex === index; });
+        var isFinal = finalBox && finalBox.originalIndex === index;
+        
+        var color = '#f5a623';
+        var label = '#' + index;
+        
+        if (isFinal) {
+          color = '#f5a623';
+          label = '#' + index + ' ✓';
+        } else if (isSelected) {
+          color = '#4a90e2';
+        } else if (isSuppressed) {
+          color = '#ff6b6b';
+          label = '#' + index + ' ✗';
+        }
+        
+        drawBoxOnCanvas(box, color, label, scale, offsetX, offsetY);
+      });
+      
+      // Desenhar linhas de medição
+      if (finalBox && cmPerPixel > 0) {
+        var refWidthPx = refBox.x2 - refBox.x1;
+        var objWidthPx = finalBox.box.x2 - finalBox.box.x1;
+        var objHeightPx = finalBox.box.y2 - finalBox.box.y1;
+        var objWidthCm = objWidthPx * cmPerPixel;
+        var objHeightCm = objHeightPx * cmPerPixel;
+        
+        // Linha de largura do objeto
+        var y = offsetY + finalBox.box.y1 * scale - 10;
+        var x1 = offsetX + finalBox.box.x1 * scale;
+        var x2 = offsetX + finalBox.box.x2 * scale;
+        
+        ctx.strokeStyle = '#f5a623';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(x2, y);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#f5a623';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(objWidthCm.toFixed(2) + ' cm', (x1 + x2) / 2, y - 3);
+      }
+    }
+    
+    // Desenhar caixa no canvas
+    function drawBoxOnCanvas(box, color, label, scale, offsetX, offsetY) {
+      var x = offsetX + box.x1 * scale;
+      var y = offsetY + box.y1 * scale;
+      var w = (box.x2 - box.x1) * scale;
+      var h = (box.y2 - box.y1) * scale;
+      
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+      
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
+      
+      ctx.fillStyle = color;
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x + w/2, y - 5);
+    }
+    
+    // Event listeners
+    runBtn.addEventListener('click', function() {
+      runPipeline();
+      runBtn.textContent = '✓ Processado!';
+      runBtn.style.background = '#50e3c2';
+      setTimeout(function() {
+        runBtn.textContent = '▶️ Processar Pipeline';
+        runBtn.style.background = '#2980b9';
+      }, 1000);
+    });
+    
+    lrefEl.addEventListener('input', function() {
+      lrefvEl.textContent = parseFloat(lrefEl.value).toFixed(2);
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      finalBox = null;
+      render();
+    });
+    
+    tauEl.addEventListener('input', function() {
+      tauvEl.textContent = parseFloat(tauEl.value).toFixed(2);
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      finalBox = null;
+      render();
+    });
+    
+    exampleEl.addEventListener('change', function() {
+      loadExample(exampleEl.value);
+    });
+    
+    // Inicializar
+    loadExample('padrao');
+  }
+  
+  function tryInit(){
+    var root = document.getElementById('sim-ep0906');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

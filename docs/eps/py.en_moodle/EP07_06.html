@@ -1,0 +1,439 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP07_06.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP07_06.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_06 🟣 Complete Pipeline : Descriptors + k-NN + Multi-Class Evaluation</h2>
+<p>This exercise integrates the three central stages of the chapter into a single <em>pipeline</em>, reproducing in miniature the <strong>Practical Project 2</strong> (classification of synthetic textures by LBP): a set of histograms of descriptors <strong>already extracted</strong> (as if they were LBP histograms) is used to train a k-NN classifier, which in turn is evaluated on an independent test set using a multi-class confusion matrix.</p>
+<p>Unlike EP07_01, here the feature space has arbitrary dimension <em>H</em> (the histogram size), there are more than two classes, and the distance metric is an input parameter — making it possible to reproduce the metric comparison experiment discussed in the chapter.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Classes:</strong> Read the integer <em>C</em> (number of classes) followed by <em>C</em> class names (<em>strings</em> without spaces), in the order in which they should appear in the confusion matrix.</li>
+<li><strong>Configuration:</strong> Read the integer <em>H</em> (histogram dimension), the <em>string</em> <em>M</em> (metric: <code>euclidiana</code> or <code>manhattan</code>) and the odd integer <em>k</em>.</li>
+<li><strong>Training:</strong> Read the integer <em>N</em> and then <em>N</em> lines, each containing the class name followed by <em>H</em> real values (the descriptor histogram).</li>
+<li><strong>Testing:</strong> Read the integer <em>Q</em> and then <em>Q</em> lines, each containing the <strong>actual</strong> class name followed by <em>H</em> real values (the descriptor histogram of the test sample).</li>
+<li><strong>Distance:</strong> For each test sample, calculate the distance to each training example using the metric <em>M</em>: <em>d</em>_euclidiana(<em>u</em>,<em>v</em>) = √(∑_j=1)^H(<em>u</em>_<em>j</em>-<em>v</em>_<em>j</em>)^2, \qquad
+<em>d</em>_manhattan(<em>u</em>,<em>v</em>) = ∑_j=1^H |<em>u</em>_<em>j</em> - <em>v</em>_<em>j</em>|.</li>
+<li><strong>k-NN Classification:</strong> Select the <em>k</em> closest training examples (distance tie broken by reading order, as in EP07_01) and classify by the majority class among them. In the case of a <strong>voting tie</strong> between two or more classes, choose the one that appears <strong>first</strong> in the class list from item 1.</li>
+<li><strong>Confusion matrix:</strong> Build a <em>C</em> × <em>C</em> matrix in which the row corresponds to the actual class and the column to the predicted class, following the class order from item 1.</li>
+<li><strong>Accuracy:</strong> Calculate the global accuracy as the ratio of correct predictions to <em>Q</em>.</li>
+<li><strong>Output:</strong> For each test sample, in input order, print the predicted class. Then print the confusion matrix (one row per actual class, values separated by spaces, in class order). Finally, print the accuracy rounded to 4 decimal places.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Selectable metric:</strong> implement both distances; the metric <em>M</em> defines which one is used throughout the execution (it is not possible to mix metrics in the same run).</li>
+<li><strong>Deterministic voting tie-break:</strong> the criterion from item 6 (class list order) must be followed even when the tie involves more than two classes.</li>
+<li><strong>Training and test independence:</strong> there is no need to validate that the test samples do not appear in training — assume the input is valid.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Exercise stage</th>
+<th style="padding:10px;border:1px solid #ddd;">Corresponding stage in the chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Training/test histograms already extracted</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>descritor_lbp</code> applied to synthetic textures</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Euclidean or Manhattan distance</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>metric</code> parameter of the <code>KNeighborsClassifier</code></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Majority voting with <em>k</em> neighbors</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>KNeighborsClassifier.predict</code></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>× <em>C</em> confusion matrix</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>confusion_matrix</code> from <code>scikit-learn</code></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Global accuracy</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>accuracy_score</code> from <code>scikit-learn</code></td>
+</tr>
+</tbody>
+</table>
+<p>This exercise highlights, in a controlled way, a result discussed in the chapter: the <strong>choice of distance metric</strong> and the <strong>value of <em>k</em></strong> can change the predicted class for the same sample, even keeping the descriptor used fixed — reinforcing that, in classical pattern recognition, the descriptor, the metric, and the classifier form an interdependent system, not isolated parts.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: integer <em>C</em> followed by <em>C</em> class names.</li>
+<li>Line 2: integer <em>H</em>, <em>string</em> <em>M</em>, and integer <em>k</em>.</li>
+<li>Line 3: integer <em>N</em>.</li>
+<li>Next <em>N</em> training lines: class name followed by <em>H</em> real values.</li>
+<li>Next line: integer <em>Q</em>.</li>
+<li>Next <em>Q</em> test lines: actual class name followed by <em>H</em> real values.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li><em>Q</em> lines with the predicted class of each test sample, in input order.</li>
+<li><em>C</em> lines with the confusion matrix (one row per actual class).</li>
+<li>Last line: <code>Acuracia: &lt;value&gt;</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input (summarized)</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 granular listrada<br/>
+2 euclidiana 1<br/>
+4<br/>
+granular 0.9 0.1<br/>
+granular 0.8 0.2<br/>
+listrada 0.1 0.9<br/>
+listrada 0.2 0.8<br/>
+2<br/>
+granular 0.85 0.15<br/>
+listrada 0.15 0.85</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">granular<br/>
+listrada<br/>
+1 0<br/>
+0 1<br/>
+Acuracia: 1.0000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">With k=1, each test sample is classified by the closest training neighbor.</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This simulator uses a simplified set of <strong>3 classes</strong> (<code>granular</code>, <code>striped</code>, <code>spotted</code>) over fictional 2D points, solely to illustrate the voting, tie-breaking, and confusion matrix pipeline of k-NN. In <strong>EP07_07</strong>, you will apply this same logic to a real image mosaic, which introduces a fourth class (<code>checkered</code>) and replaces the 2D points with LBP histograms extracted directly from the image pixels.</p>
+</div>
+</div>
+<div class="cell" data-execution_count="36" data-quarto-private-1='{"key":"pdi","value":{"ck":"8fd71e674514798aa49e78b92eb28829"}}' id="cell-fig-07-sim-ep0706">
+</div>
+</div><div id="sim-ep0706" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0706 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0706 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0706 button:hover { background: #e8dfcf; }
+  #sim-ep0706 button.sim-ep0706_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim-ep0706_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0706_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP07_06: Multi-Class k-NN Pipeline</span>
+<span class="sim-ep0706_pill">6 Train· 3 Test· 3 Classes</span>
+
+</div><div style="padding:20px;background:white;overflow:auto">
+<p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
+      Choose the metric, k value, and test sample (★). See the k nearest neighbors, the voting,
+      the tie-breaking when necessary, and how this propagates to the confusion matrix and the accuracy of the whole set.
+    </p>
+<!-- Controles -->
+<div style="display:flex;flex-wrap:wrap;gap:18px;justify-content:center;margin-bottom:16px;">
+<div>
+<div style="font-size:10px;color:#5e5a4a;margin-bottom:4px;text-align:center;">Metric (M)</div>
+<div style="display:flex;gap:6px;">
+<button class="ep0706_btn" id="ep0706_be">Euclidean</button>
+<button class="ep0706_btn" id="ep0706_bm">Manhattan</button>
+</div>
+</div>
+<div>
+<div style="font-size:10px;color:#5e5a4a;margin-bottom:4px;text-align:center;">Neighbors (k)</div>
+<div style="display:flex;gap:6px;">
+<button class="ep0706_btn" id="ep0706_k1">k=1</button>
+<button class="ep0706_btn" id="ep0706_k3">k=3</button>
+<button class="ep0706_btn" id="ep0706_k5">k=5</button>
+</div>
+</div>
+<div>
+<div style="font-size:10px;color:#5e5a4a;margin-bottom:4px;text-align:center;">Test sample (★)</div>
+<div style="display:flex;gap:6px;">
+<button class="ep0706_btn" id="ep0706_t0">test 1</button>
+<button class="ep0706_btn" id="ep0706_t1">test 2</button>
+<button class="ep0706_btn" id="ep0706_t2">test 3</button>
+</div>
+</div>
+</div>
+<!-- Legenda -->
+<div id="ep0706_legenda" style="display:flex;gap:10px;justify-content:center;margin-bottom:10px;"></div>
+<!-- Dispersao 2D -->
+<div style="max-width:340px;margin:0 auto 16px auto;height:300px;border:1px solid #e5e7eb;border-radius:12px;background:#fafafa;">
+<div id="ep0706_svg_container" style="width:100%;height:100%;"></div>
+</div>
+<!-- Distancias ordenadas -->
+<div style="margin-bottom:16px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📏 Distances to the test sample (sorted) — <span style="font-weight:400;font-size:10px;color:#8a8672;">#i = reading order in the training list (hover)</span></div>
+<div id="ep0706_dists" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-family:monospace;font-size:10px;"></div>
+</div>
+<!-- Votacao -->
+<div style="margin-bottom:16px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">🗳️ Voting among the k neighbors</div>
+<div id="ep0706_votos" style="display:flex;gap:10px;justify-content:center;margin-bottom:6px;"></div>
+<div id="ep0706_previsao" style="text-align:center;font-size:12px;font-weight:bold;"></div>
+</div>
+<!-- Matriz de confusao + acuracia (conjunto de teste inteiro) -->
+<div style="margin-bottom:8px;">
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📋 Confusion matrix and accuracy — running the pipeline over the 3 test samples</div>
+<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;justify-content:center;">
+<table id="ep0706_cm" style="border-collapse:collapse;font-size:11px;font-family:monospace;"></table>
+<div id="ep0706_acc" style="font-size:13px;font-weight:bold;color:#5e5a4a;"></div>
+</div>
+</div>
+<div id="ep0706_debug" style="background:#e3f2fd;border-radius:8px;padding:10px;border:1px solid #bbdefb;font-family:monospace;font-size:10px;color:#1565c0;text-align:center;margin-top:12px;"></div>
+</div>
+<style>
+  #sim-ep0706 .ep0706_btn { font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer; }
+  #sim-ep0706 .ep0706_btn.ativo { background:#7c3aed;color:#fff;border-color:#7c3aed; }
+</style>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    var classes = ["granular","listrada","manchada"];
+    var CORES = {granular:"#6366f1", listrada:"#f59e0b", manchada:"#10b981"};
+
+    var trainPts = [
+      {nome:"granular_1", cls:"granular", x:0.70, y:0.70},
+      {nome:"granular_2", cls:"granular", x:0.25, y:0.85},
+      {nome:"listrada_1", cls:"listrada", x:0.85, y:0.50},
+      {nome:"listrada_2", cls:"listrada", x:0.60, y:0.15},
+      {nome:"manchada_1", cls:"manchada", x:0.30, y:0.30},
+      {nome:"manchada_2", cls:"manchada", x:0.15, y:0.55}
+    ];
+    var testPts = [
+      {nome:"teste 1", cls:"granular", x:0.50, y:0.50},
+      {nome:"teste 2", cls:"listrada", x:0.70, y:0.20},
+      {nome:"teste 3", cls:"manchada", x:0.20, y:0.40}
+    ];
+
+    var svgContainer = root.querySelector("#ep0706_svg_container");
+    var svg = svgNS("svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("style", "width:100%;height:100%;");
+    svgContainer.appendChild(svg);
+    var legendaEl = root.querySelector("#ep0706_legenda");
+    var distsEl = root.querySelector("#ep0706_dists");
+    var votosEl = root.querySelector("#ep0706_votos");
+    var previsaoEl = root.querySelector("#ep0706_previsao");
+    var cmEl = root.querySelector("#ep0706_cm");
+    var accEl = root.querySelector("#ep0706_acc");
+    var dbg = root.querySelector("#ep0706_debug");
+
+    var be = root.querySelector("#ep0706_be"), bm = root.querySelector("#ep0706_bm");
+    var bk1 = root.querySelector("#ep0706_k1"), bk3 = root.querySelector("#ep0706_k3"), bk5 = root.querySelector("#ep0706_k5");
+    var bt0 = root.querySelector("#ep0706_t0"), bt1 = root.querySelector("#ep0706_t1"), bt2 = root.querySelector("#ep0706_t2");
+
+    var metrica = "euclidiana", k = 1, testSel = 0;
+
+    function dist(u, v){
+      var dx = u.x-v.x, dy = u.y-v.y;
+      if(metrica === "euclidiana") return Math.sqrt(dx*dx+dy*dy);
+      return Math.abs(dx)+Math.abs(dy);
+    }
+
+    function knnPredict(xtest){
+      var ds = trainPts.map(function(p, i){ return {i:i, p:p, d:dist(xtest, p)}; });
+      ds.sort(function(a,b){ return a.d - b.d; }); // ordem estavel = desempate por ordem de leitura
+      var viz = ds.slice(0, k);
+      var votos = {}; classes.forEach(function(c){ votos[c]=0; });
+      viz.forEach(function(v){ votos[v.p.cls]++; });
+      var maxV = Math.max.apply(null, classes.map(function(c){return votos[c];}));
+      var empatados = classes.filter(function(c){ return votos[c]===maxV; });
+      var pred = empatados[0]; // primeira classe da lista entre as empatadas
+      return {pred:pred, viz:viz, votos:votos, empatados:empatados, ordenados:ds};
+    }
+
+    function svgNS(tag){
+      // Concatenado de propósito: evita que filtros de auto-link do Moodle
+      // reconheçam "http://www.w3.org/2000/svg" como URL e insiram uma tag <a>
+      // dentro desta string, o que quebraria a sintaxe do createElementNS.
+      var SVG_NS = "http" + "://www.w3.org/2000/svg";
+      return document.createElementNS(SVG_NS, tag);
+    }
+
+    function render(){
+      be.classList.toggle("ativo", metrica==="euclidiana");
+      bm.classList.toggle("ativo", metrica==="manhattan");
+      bk1.classList.toggle("ativo", k===1);
+      bk3.classList.toggle("ativo", k===3);
+      bk5.classList.toggle("ativo", k===5);
+      bt0.classList.toggle("ativo", testSel===0);
+      bt1.classList.toggle("ativo", testSel===1);
+      bt2.classList.toggle("ativo", testSel===2);
+
+      // Legenda
+      legendaEl.innerHTML = "";
+      classes.forEach(function(c){
+        var chip = document.createElement("div");
+        chip.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;color:#374151;";
+        chip.innerHTML = '<span style="width:10px;height:10px;border-radius:50%;background:'+CORES[c]+';display:inline-block;"></span>'+c;
+        legendaEl.appendChild(chip);
+      });
+
+      var xt = testPts[testSel];
+      var r = knnPredict(xt);
+      var vizIdx = r.viz.map(function(v){ return v.i; });
+
+      // ---- SVG: pontos de treino, linhas para vizinhos, estrela de teste ----
+      svg.innerHTML = "";
+      // grade leve
+      for(var g=1; g<4; g++){
+        var lineV = svgNS("line");
+        lineV.setAttribute("x1", g*25); lineV.setAttribute("y1", 0);
+        lineV.setAttribute("x2", g*25); lineV.setAttribute("y2", 100);
+        lineV.setAttribute("stroke", "#eee"); lineV.setAttribute("stroke-width", "0.4");
+        svg.appendChild(lineV);
+        var lineH = svgNS("line");
+        lineH.setAttribute("x1", 0); lineH.setAttribute("y1", g*25);
+        lineH.setAttribute("x2", 100); lineH.setAttribute("y2", g*25);
+        lineH.setAttribute("stroke", "#eee"); lineH.setAttribute("stroke-width", "0.4");
+        svg.appendChild(lineH);
+      }
+      // linhas ate os vizinhos (desenhadas antes dos pontos, para ficarem por baixo)
+      vizIdx.forEach(function(i){
+        var p = trainPts[i];
+        var line = svgNS("line");
+        line.setAttribute("x1", xt.x*100); line.setAttribute("y1", (1-xt.y)*100);
+        line.setAttribute("x2", p.x*100); line.setAttribute("y2", (1-p.y)*100);
+        line.setAttribute("stroke", CORES[p.cls]); line.setAttribute("stroke-width", "0.6");
+        line.setAttribute("stroke-dasharray", "1.5,1"); line.setAttribute("opacity", "0.7");
+        svg.appendChild(line);
+      });
+      // pontos de treino
+      trainPts.forEach(function(p, i){
+        var isViz = vizIdx.indexOf(i) !== -1;
+        if(isViz){
+          var halo = svgNS("circle");
+          halo.setAttribute("cx", p.x*100); halo.setAttribute("cy", (1-p.y)*100);
+          halo.setAttribute("r", 5); halo.setAttribute("fill", "none");
+          halo.setAttribute("stroke", CORES[p.cls]); halo.setAttribute("stroke-width", "0.8");
+          svg.appendChild(halo);
+        }
+        var c = svgNS("circle");
+        c.setAttribute("cx", p.x*100); c.setAttribute("cy", (1-p.y)*100);
+        c.setAttribute("r", 3.2);
+        c.setAttribute("fill", CORES[p.cls]);
+        c.setAttribute("stroke", "#fff"); c.setAttribute("stroke-width", "0.6");
+        c.setAttribute("opacity", isViz ? "1" : "0.55");
+        svg.appendChild(c);
+      });
+      // estrela de teste
+      var correto = (r.pred === xt.cls);
+      var estCor = correto ? "#16a34a" : "#dc2626";
+      var halo2 = svgNS("circle");
+      halo2.setAttribute("cx", xt.x*100); halo2.setAttribute("cy", (1-xt.y)*100);
+      halo2.setAttribute("r", 5.5); halo2.setAttribute("fill", "#fff");
+      halo2.setAttribute("stroke", estCor); halo2.setAttribute("stroke-width", "0.8");
+      svg.appendChild(halo2);
+      var txt = svgNS("text");
+      txt.setAttribute("x", xt.x*100); txt.setAttribute("y", (1-xt.y)*100+1.8);
+      txt.setAttribute("text-anchor", "middle"); txt.setAttribute("font-size", "6.5");
+      txt.setAttribute("fill", estCor);
+      txt.textContent = "★";
+      svg.appendChild(txt);
+
+      // ---- Distancias ordenadas ----
+      distsEl.innerHTML = "";
+r.ordenados.forEach(function(v, ord){
+  var dentroK = ord < k;
+  var row = document.createElement("div");
+  row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:2px 6px;border-radius:6px;" +
+    (dentroK ? "background:"+CORES[v.p.cls]+"22;border:1px solid "+CORES[v.p.cls]+";" : "background:#f9fafb;border:1px solid #f1f1f1;color:#9ca3af;");
+  row.innerHTML =
+    '<span style="display:flex;align-items:center;gap:4px;">' +
+      (dentroK ? '✓' : ' ') +
+      '<span title="reading position in the original training list — used for tie-breaking when two distances are equal" ' +
+        'style="background:#eee;color:#9ca3af;border-radius:3px;padding:0 3px;font-size:8.5px;cursor:help;">#' + (v.i+1) + '</span>' +
+      ' ' + v.p.nome + ' <span style="color:'+CORES[v.p.cls]+';font-weight:700;">('+v.p.cls+')</span>' +
+    '</span>' +
+    '<span>d='+v.d.toFixed(4)+'</span>';
+  distsEl.appendChild(row);
+});
+
+      // ---- Votacao ----
+      votosEl.innerHTML = "";
+      classes.forEach(function(c){
+        var venceu = (c === r.pred);
+        var empatou = r.empatados.length > 1 && r.empatados.indexOf(c) !== -1;
+        var div = document.createElement("div");
+        div.style.cssText = "text-align:center;border-radius:10px;padding:8px 14px;font-size:12px;" +
+          (venceu ? "background:"+CORES[c]+"22;border:2px solid "+CORES[c]+";" : "background:#f9fafb;border:1px solid #e5e7eb;color:#9ca3af;");
+        div.innerHTML = '<div style="font-weight:700;color:'+CORES[c]+';">'+c+'</div><div style="font-size:16px;font-weight:700;">'+r.votos[c]+'</div>' +
+          (empatou ? '<div style="font-size:9px;color:#b91c1c;">empate</div>' : '');
+        votosEl.appendChild(div);
+      });
+      var msgEmpate = r.empatados.length > 1 ? " (empate entre "+r.empatados.join(", ")+" — desempate pela ordem da lista de classes)" : "";
+      previsaoEl.innerHTML = 'Classe prevista: <span style="color:'+CORES[r.pred]+';">'+r.pred+'</span>' + msgEmpate +
+        ' &nbsp;|&nbsp; classe real: <span style="color:'+CORES[xt.cls]+';">'+xt.cls+'</span> ' + (correto ? '✅' : '❌');
+
+      // ---- Matriz de confusao + acuracia sobre as 3 amostras de teste ----
+      var cm = [[0,0,0],[0,0,0],[0,0,0]];
+      var acertos = 0;
+      var predsGlobais = [];
+      testPts.forEach(function(tp){
+        var rr = knnPredict(tp);
+        predsGlobais.push(rr.pred);
+        var iReal = classes.indexOf(tp.cls);
+        var iPrev = classes.indexOf(rr.pred);
+        cm[iReal][iPrev]++;
+        if(rr.pred === tp.cls) acertos++;
+      });
+      var acc = acertos/testPts.length;
+
+      var thead = '<tr><td></td>' + classes.map(function(c){ return '<td style="padding:4px 8px;color:'+CORES[c]+';font-weight:700;">'+c.slice(0,4)+'</td>'; }).join('') + '</tr>';
+      var rows = classes.map(function(cReal, i){
+        var cells = classes.map(function(cPrev, j){
+          var v = cm[i][j];
+          var diag = (i===j);
+          var bg = v===0 ? '#fff' : (diag ? '#dcfce7' : '#fee2e2');
+          return '<td style="padding:4px 10px;text-align:center;border:1px solid #e5e7eb;background:'+bg+';">'+v+'</td>';
+        }).join('');
+        return '<tr><td style="padding:4px 8px;color:'+CORES[cReal]+';font-weight:700;">'+cReal.slice(0,4)+'</td>'+cells+'</tr>';
+      }).join('');
+      cmEl.innerHTML = thead + rows;
+      accEl.textContent = "Accuracy: " + acc.toFixed(4) + " (" + acertos + "/" + testPts.length + ")";
+
+      dbg.textContent = "M="+metrica+" k="+k+" | teste_sel="+xt.nome+" | y_pred(todas)=["+predsGlobais.join(", ")+"]";
+    }
+
+    be.addEventListener("click", function(){ metrica="euclidiana"; render(); });
+    bm.addEventListener("click", function(){ metrica="manhattan"; render(); });
+    bk1.addEventListener("click", function(){ k=1; render(); });
+    bk3.addEventListener("click", function(){ k=3; render(); });
+    bk5.addEventListener("click", function(){ k=5; render(); });
+    bt0.addEventListener("click", function(){ testSel=0; render(); });
+    bt1.addEventListener("click", function(){ testSel=1; render(); });
+    bt2.addEventListener("click", function(){ testSel=2; render(); });
+
+    render();
+  }
+  function tryInit(){
+    var root = document.getElementById("sim-ep0706");
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

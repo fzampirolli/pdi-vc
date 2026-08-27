@@ -1,0 +1,316 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP06_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP06_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_01 🟢 Segmentation Evaluation by IoU ( Intersection over Union )</h2>
+<p>Throughout this chapter, several stages of the <em>pipeline</em> produce <strong>binary masks</strong>, such as in document segmentation, <em>QRCode</em> localization, and defect detection. To objectively evaluate the quality of these segmentations, it is necessary to compare them with a reference mask (<em>ground truth</em>).</p>
+<p>One of the most widely used metrics for this purpose is the <strong>IoU</strong> (<em>Intersection over Union</em>), defined as the ratio between the intersection area and the union area of two binary masks. The higher the IoU value, the greater the agreement between the segmentation produced by the algorithm and the reference.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Dimensions:</strong> Read the integers <em>L</em> (number of rows) and <em>C</em> (number of columns).</li>
+<li><strong>Reference mask:</strong> Read the <em>L</em> × <em>C</em> binary elements (0 or 1) of the <code>ref</code> matrix.</li>
+<li><strong>Predicted mask:</strong> Read the <em>L</em> × <em>C</em> binary elements (0 or 1) of the <code>pred</code> matrix.</li>
+<li><strong>Intersection:</strong> Count the number of positions (<em>i</em>,<em>j</em>) for which <code>ref[i][j] = 1</code> and <code>pred[i][j] = 1</code>.</li>
+<li><strong>Union:</strong> Count the number of positions (<em>i</em>,<em>j</em>) for which <code>ref[i][j] = 1</code> or <code>pred[i][j] = 1</code>.</li>
+<li><strong>Degenerate case:</strong> If the union equals 0, set IoU=1,0, since both masks are empty.</li>
+<li><strong>Calculation:</strong> If the union is greater than zero, compute</li>
+</ol>
+<p>IoU=
+\frac|Intersecao|
+|Uniao|.</p>
+<ol start="8" type="1">
+<li><strong>Classification:</strong> Determine the qualitative classification using the IoU value <strong>before</strong> rounding.</li>
+<li><strong>Rounding:</strong> Display the IoU with four decimal places.</li>
+<li><strong>Output:</strong> Print, in this order, the intersection, union, IoU, and classification.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Restrictions</h4>
+<ul>
+<li>If the union equals 0, the division must not be performed; the IoU must be defined as 1,0.</li>
+<li>The classification ranges use non-strict comparisons (≥).</li>
+<li>The classification must be performed using the IoU value in full precision, before rounding for display.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<p>The IoU is defined by</p>
+<p>IoU=
+\frac|<em>R</em>\cap <em>P</em>|
+|<em>R</em>\cup <em>P</em>|,</p>
+<p>where:</p>
+<ul>
+<li><em>R</em> represents the set of pixels belonging to the reference mask;</li>
+<li><em>P</em> represents the set of pixels belonging to the predicted mask;</li>
+<li>|<em>R</em>\cap <em>P</em>| corresponds to the number of pixels belonging simultaneously to both masks;</li>
+<li>|<em>R</em>\cup <em>P</em>| corresponds to the number of pixels belonging to at least one of the masks.</li>
+</ul>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">IoU Range</th>
+<th style="padding:10px;border:1px solid #ddd;">Classification</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU≥0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>EXCELENTE</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Very high agreement between the masks.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,70≤IoU&lt;0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>BOM</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Small differences between the masks.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,50≤IoU&lt;0,70</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>ACEITAVEL</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Partial agreement between the masks.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU&lt;0,50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>RUIM</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Low agreement between the masks.</td>
+</tr>
+</tbody>
+</table>
+<p>The IoU depends only on the overlap between the masks and is therefore independent of the image size.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: integer <em>L</em>.</li>
+<li>Line 2: integer <em>C</em>.</li>
+<li>Next <em>L</em> lines: binary elements (0 or 1) of the <code>ref</code> matrix.</li>
+<li>Next <em>L</em> lines: binary elements (0 or 1) of the <code>pred</code> matrix.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Line 1: <code>Intersecao: X</code></li>
+<li>Line 2: <code>Uniao: Y</code></li>
+<li>Line 3: <code>IoU: Z</code></li>
+<li>Line 4: <code>Classificacao: NOME</code></li>
+</ul>
+<p>The <code>IoU</code> value must be printed with four decimal places.</p>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+1 1<br/>
+0 0<br/>
+1 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Intersecao: 1<br/>
+Uniao: 2<br/>
+IoU: 0.5000<br/>
+Classificacao: ACEITAVEL</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Half of the reference region was correctly segmented.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+0 0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Intersecao: 0<br/>
+Uniao: 0<br/>
+IoU: 1.0000<br/>
+Classificacao: EXCELENTE</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Both masks are empty; by convention, IoU=1,0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="31" data-quarto-private-1='{"key":"pdi","value":{"ck":"200ac06355af700afd0bb3872d981d32"}}' id="cell-fig-06-sim-ep0601">
+</div>
+</div><div id="sim-ep0601" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0601 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0601 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0601 button:hover { background: #e8dfcf; }
+  #sim-ep0601 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0601_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0601_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0601_grid_ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .sim-ep0601_px { width: 24px; height: 24px; border: 1px solid #e4dcc8; box-sizing: border-border; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP06_01: IoU (Intersection over Union)</span>
+<span class="sim-ep0601_pill">IoU = |A ∩ B| / |A ∪ B|</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Controles -->
+<div class="sim-ep0601_panel" style="margin-bottom:14px;">
+<div class="sim-ep0601_grid_ctrls">
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Horizontal Shift (Δx)</label>
+<span id="sim-ep0601_vdx" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0601_dx" max="3" min="-3" step="1" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Vertical Shift (Δy)</label>
+<span id="sim-ep0601_vdy" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0601_dy" max="3" min="-3" step="1" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Square Side</label>
+<span id="sim-ep0601_vsz" style="font-family:monospace; font-weight:700; color:#26241d;">6</span>
+</div>
+<input id="sim-ep0601_sz" max="8" min="2" step="1" type="range" value="6"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:10px; text-align:center;">Move and resize the predicted mask to evaluate alignment.</div>
+</div>
+<!-- Exibição das Máscaras 10x10 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">Reference (A)</div>
+</div>
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">Predicted (B)</div>
+</div>
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">Overlap (A ∩ B)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep01(root){
+    if (!root || root.dataset.sim06Ep01Init) return;
+    root.dataset.sim06Ep01Init = "1";
+
+    var dx = root.querySelector("#sim-ep0601_dx");
+    var dy = root.querySelector("#sim-ep0601_dy");
+    var sz = root.querySelector("#sim-ep0601_sz");
+
+    var vdx = root.querySelector("#sim-ep0601_vdx");
+    var vdy = root.querySelector("#sim-ep0601_vdy");
+    var vsz = root.querySelector("#sim-ep0601_vsz");
+
+    var gRef  = root.querySelector("#sim-ep0601_ref");
+    var gPred = root.querySelector("#sim-ep0601_pred");
+    var gMix  = root.querySelector("#sim-ep0601_mix");
+
+    var dbg = root.querySelector("#sim-ep0601_dbg");
+
+    var N = 10;
+    var ref = {x: 2, y: 2, w: 6, h: 6};
+
+    function inside(x, y, r){
+      return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    }
+
+    function pixel(color){
+      var d = document.createElement("div");
+      d.className = "sim-ep0601_px";
+      d.style.background = color;
+      return d;
+    }
+
+    function classe(i){
+      if (i >= 0.90) return "Excelente";
+      if (i >= 0.75) return "Muito boa";
+      if (i >= 0.50) return "Aceitável";
+      return "Ruim";
+    }
+
+    function render(){
+      vdx.textContent = dx.value;
+      vdy.textContent = dy.value;
+      vsz.textContent = sz.value;
+
+      gRef.innerHTML  = "";
+      gPred.innerHTML = "";
+      gMix.innerHTML  = "";
+
+      var pred = {
+        x: ref.x + parseInt(dx.value, 10),
+        y: ref.y + parseInt(dy.value, 10),
+        w: parseInt(sz.value, 10),
+        h: parseInt(sz.value, 10)
+      };
+
+      var inter = 0;
+      var uniao = 0;
+
+      for (var y = 0; y < N; y++){
+        for (var x = 0; x < N; x++){
+          var r = inside(x, y, ref);
+          var p = inside(x, y, pred);
+
+          gRef.appendChild(pixel(r ? "#7fdc92" : "#ffffff"));
+          gPred.appendChild(pixel(p ? "#7fbfff" : "#ffffff"));
+
+          if (r && p){
+            gMix.appendChild(pixel("#9b59b6"));
+            inter++;
+          }
+          else if (r){
+            gMix.appendChild(pixel("#7fdc92"));
+            uniao++;
+          }
+          else if (p){
+            gMix.appendChild(pixel("#7fbfff"));
+            uniao++;
+          }
+          else{
+            gMix.appendChild(pixel("#ffffff"));
+          }
+
+          if (r && p) uniao++;
+        }
+      }
+
+      var iou = inter / uniao;
+
+      dbg.innerHTML =
+        "<b>Interseção</b> = " + inter + " pixels &nbsp;&nbsp;&nbsp;" +
+        "<b>União</b> = " + uniao + " pixels<br><br>" +
+        "IoU = <b>" + inter + " / " + uniao + " = " + iou.toFixed(4) + "</b><br><br>" +
+        "<span style='font-weight:700; color:#04342C;'>" + classe(iou) + "</span>";
+    }
+
+    dx.addEventListener('input', render);
+    dy.addEventListener('input', render);
+    sz.addEventListener('input', render);
+
+    render();
+  }
+
+  function tryInitSim06Ep01(){
+    var root = document.getElementById('sim-ep0601');
+    if (root) initSim06Ep01(root); else setTimeout(tryInitSim06Ep01, 200);
+  }
+  tryInitSim06Ep01();
+})();
+
+</script>
+</div><div id="sim-ep0601_ref" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div id="sim-ep0601_pred" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div id="sim-ep0601_mix" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div class="sim-ep0601_panel" id="sim-ep0601_dbg" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

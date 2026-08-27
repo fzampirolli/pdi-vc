@@ -1,0 +1,198 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP05_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP05_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_04 🔴 Implementing the 2D DFT from the Definition</h2>
+<p>A research laboratory in <strong>computational astronomy</strong> received, from an old mission, a small experimental sensor whose raw data cannot be processed by modern FFT libraries — the validation environment is isolated and only allows basic arithmetic operations. The team needs to <strong>reimplement the 2D Discrete Fourier Transform from the mathematical definition itself</strong>, cell by cell, to later compare bit by bit with <code>np.fft.fft2</code> in another environment.</p>
+<p>This is the most conceptual exercise on the list: there are no shortcuts. You will implement the double summation from Equation 5.1 directly, demonstrating <em>why</em> the FFT exists — and the computational cost it avoids.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Dimensions:</strong> Read the integers <em>M</em> (rows) and <em>N</em> (columns) of the image <em>f</em>(<em>x</em>,<em>y</em>).</li>
+<li><strong>Data:</strong> Read the integer values of <em>f</em>(<em>x</em>,<em>y</em>), row by row.</li>
+<li><strong>2D DFT:</strong> For each frequency pair (<em>u</em>,<em>v</em>) with u=0,…,<em>M</em>-1 and v=0,…,<em>N</em>-1, compute <em>F</em>(<em>u</em>,<em>v</em>) = ∑_x=0^M-1∑_y=0^N-1 <em>f</em>(<em>x</em>,<em>y</em>)\, <em>e</em>^-<em>j</em>2\pi\left((ux)/(<em>M</em>)+(vy)/(<em>N</em>)\right) using Euler’s identity <em>e</em>^-<em>j</em>\theta = \cos(\theta) - <em>j</em>\sin(\theta) to separate the real and imaginary parts — <strong>do not use any ready-made FFT function</strong>.</li>
+<li><strong>Magnitude:</strong> Compute |<em>F</em>(<em>u</em>,<em>v</em>)| = √(Re)(<em>F</em>)^2 + \textIm(<em>F</em>)^2 and round to the nearest integer.</li>
+<li><strong>Output:</strong> Display the matrix of rounded magnitudes, <em>M</em> × <em>N</em>, in the same order (without <code>fftshift</code> — the DC remains at (0,0)).</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Using FFT libraries is prohibited:</strong> the implementation must compute the double summations explicitly (nested loops), even if slower.</li>
+<li><strong>No <code>fftshift</code>:</strong> the output maintains the raw DFT convention, with the DC component at <em>F</em>(0,0) (upper-left corner).</li>
+<li><strong>Rounding:</strong> the final magnitude must be rounded to the nearest integer; in the test cases there is no <code>.5</code> ambiguity.</li>
+<li><strong>Precision:</strong> small floating-point errors (on the order of 10^-6) before rounding are expected and do not affect the final integer result.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Element</th>
+<th style="padding:10px;border:1px solid #ddd;">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>F</em>(0,0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">DC component — sum of all pixels, <em>F</em>(0,0) = ∑ <em>f</em>(<em>x</em>,<em>y</em>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Real part Re(<em>F</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Projection of the signal onto cosines</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Imaginary part Im(<em>F</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Projection of the signal onto sines</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Complexity of this implementation</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">\mathcalO((MN)^2) — this is why the FFT, with \mathcalO(MN\log(MN)), is indispensable for real images</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>M</em>.</li>
+<li>Line 2: Integer <em>N</em>.</li>
+<li>Following lines: Integer elements of <em>f</em>(<em>x</em>,<em>y</em>), <em>M</em> lines.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Matrix of rounded magnitudes |<em>F</em>(<em>u</em>,<em>v</em>)|, <em>M</em> × <em>N</em>, separated by spaces.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+1 2<br/>
+3 4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 2<br/>
+4 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;"><em>F</em>(0,0)=1+2+3+4=10 (DC = total sum). <em>F</em>(0,1)=(1-2)+(3-4)=-2 \to |<em>F</em>|=2. <em>F</em>(1,0)=(1+2)-(3+4)=-4\to|<em>F</em>|=4. <em>F</em>(1,1)=(1-2)-(3-4)=0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="42" data-quarto-private-1='{"key":"pdi","value":{"ck":"bec41602bbd0ef5003945df8f15cffb0"}}' id="cell-fig-05-sim-ep0504">
+</div>
+</div><div id="sim-ep0504" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0504 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0504 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0504 button:hover { background: #e8dfcf; }
+  .sim-ep0504_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0504_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0504_cell { width: 52px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP05_04: 2D DFT — Direct Definition</span>
+<span class="sim-ep0504_pill">ΣΣ f(x,y) e<sup>-j2π(…)</sup></span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Instrução -->
+<div class="sim-ep0504_panel" style="margin-bottom:14px; text-align:center;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600;">
+      Click on the f(x,y) cells to change the values (click increments +1; Shift + click decrements -1) and watch |F(u,v)| recalculated live.
+    </div>
+</div>
+<!-- Exibição das Grades 2x2 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0504_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        f(x,y) — Spatial Domain
+      </div>
+</div>
+<div class="sim-ep0504_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        |F(u,v)| — Magnitude (No Shift)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep04(root){
+    if (!root || root.dataset.sim05Ep04Init) return;
+    root.dataset.sim05Ep04Init = "1";
+
+    var f = [[1, 2], [3, 4]];
+    var gf  = root.querySelector('#sim-ep0504_grid_f');
+    var gF  = root.querySelector('#sim-ep0504_grid_F');
+    var dbg = root.querySelector('#sim-ep0504_debug');
+
+    function render(){
+      gf.innerHTML = '';
+      gF.innerHTML = '';
+
+      for (var x = 0; x < 2; x++){
+        for (var y = 0; y < 2; y++){
+          (function(xx, yy){
+            var c = document.createElement('div');
+            c.className = 'sim-ep0504_cell';
+            c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7; cursor:pointer;';
+            c.textContent = f[xx][yy];
+            c.addEventListener('click', function(e){
+              if (e.shiftKey){ f[xx][yy]--; } else { f[xx][yy]++; }
+              render();
+            });
+            gf.appendChild(c);
+          })(x, y);
+        }
+      }
+
+      var M = 2, N = 2;
+      for (var u = 0; u < M; u++){
+        for (var v = 0; v < N; v++){
+          var re = 0, im = 0;
+          for (var x = 0; x < M; x++){
+            for (var y = 0; y < N; y++){
+              var theta = 2 * Math.PI * (u * x / M + v * y / N);
+              re += f[x][y] * Math.cos(theta);
+              im -= f[x][y] * Math.sin(theta);
+            }
+          }
+          var mag = Math.round(Math.sqrt(re * re + im * im));
+          var c = document.createElement('div');
+          c.className = 'sim-ep0504_cell';
+          c.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          c.textContent = mag;
+          gF.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'F(0,0) = sum of all pixels = ' + (f[0][0] + f[0][1] + f[1][0] + f[1][1]) + ' (componente DC)';
+    }
+
+    render();
+  }
+
+  function tryInitSim05Ep04(){
+    var root = document.getElementById('sim-ep0504');
+    if (root) initSim05Ep04(root); else setTimeout(tryInitSim05Ep04, 200);
+  }
+  tryInitSim05Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0504_grid_f" style="display:grid; grid-template-columns:repeat(2, 52px); gap:6px; justify-content:center;"></div><div id="sim-ep0504_grid_F" style="display:grid; grid-template-columns:repeat(2, 52px); gap:6px; justify-content:center;"></div><div class="sim-ep0504_panel" id="sim-ep0504_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

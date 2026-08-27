@@ -1,0 +1,1057 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_03 🟡 Comptage des paramètres entraînables d’un CNN</h2>
+<p>Cet EP formalise le comptage des paramètres entraînables d’un <em>CNN</em>. Étant donné la description textuelle d’une petite architecture, composée de couches convolutives, de <em>pooling</em> et entièrement connectées, déterminez, pour chaque couche, le nombre de paramètres entraînables et le total du réseau.</p>
+<p>L’architecture doit être interprétée <strong>séquentiellement</strong> : la sortie d’une couche convolutive devient l’entrée de la couche suivante compatible. Ainsi, le nombre de canaux produits par une couche <code>CONV</code> détermine le nombre de canaux d’entrée (<code>cin</code>) de la couche convolutive suivante.</p>
+<p>Dans une couche convolutive, il est important de distinguer <strong>les canaux d’entrée</strong> et <strong>les canaux de sortie</strong> :</p>
+<div>
+<li><em>c</em>_in (<em>channels in</em>) est le nombre de <strong>canaux qui entrent dans la couche</strong>. Une image en niveaux de gris possède <em>c</em>_in=1, alors qu’une image RVB possède <em>c</em>_in=3. Dans une couche convolutive intermédiaire, <code>cin</code> est généralement égal au nombre de canaux produits par la couche <code>CONV</code> précédente.</li>
+<li><em>c</em>_out (<em>channels out</em>) est le nombre de <strong>canaux produits par la couche</strong>. Il est égal au nombre de filtres utilisés. Par conséquent, si une couche possède 16 filtres, elle produit <em>c</em>_out=16 canaux.</li>
+</div>
+<p>Par exemple, considérez la séquence :</p>
+<div><code>CONV 3 3 1 8 1
+POOL
+CONV 3 3 8 16 1
+POOL
+FC 784 10 1</code></div>
+<p>La première convolution reçoit une image avec un canal et produit 8 canaux. Après le <em>pooling</em>, la seconde convolution reçoit ces 8 canaux et produit 16 canaux. La couche <code>POOL</code> ne modifie pas le nombre de canaux, elle peut seulement réduire les dimensions spatiales. La couche <code>FC</code> reçoit le nombre d’entrées indiqué dans la description elle-même.</p>
+<p>Chaque filtre convolutif possède des dimensions</p>
+<p><em>k</em>_<em>h</em> × <em>k</em>_<em>w</em> × <em>c</em>_in.</p>
+<p>Ainsi, une couche avec <em>c</em>_out filtres possède</p>
+<p><em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in · <em>c</em>_out</p>
+<p>poids. S’il y a un biais, on ajoute un paramètre pour chaque filtre, totalisant ainsi <em>c</em>_out paramètres supplémentaires.</p>
+<p>Le point central de cet exercice est d’observer que la quantité de paramètres d’une couche convolutive <strong>ne dépend pas des dimensions spatiales</strong> (<em>H</em> × <em>W</em>) de la carte de caractéristiques. Cela est dû au <strong>partage des poids</strong> : le même filtre est réutilisé à différentes positions de l’entrée.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><p><strong>Entrée :</strong> Lire l’entier <em>L</em> (nombre de couches de l’architecture, dans l’ordre où elles sont appliquées).</p></li>
+<li><p><strong>Couches :</strong> Lire <em>L</em> lignes, chacune décrivant une couche dans l’un des trois formats :</p>
+<ul>
+<li><code>CONV kh kw cin cout bias</code> — couche convolutive avec un <em>kernel</em> <em>k</em>_<em>h</em> × <em>k</em>_<em>w</em>, <em>c</em>_in canaux d’entrée, <em>c</em>_out canaux de sortie et <code>bias</code> (0 ou 1), indiquant s’il y a un biais par filtre ;</li>
+<li><code>POOL</code> — couche de <em>pooling</em> (maximum ou moyen), qui ne possède pas de paramètres entraînables et préserve le nombre de canaux ;</li>
+<li><code>FC in out bias</code> — couche entièrement connectée avec <code>in</code> entrées, <code>out</code> sorties et <code>bias</code> (0 ou 1), indiquant s’il y a un biais par neurone.</li>
+</ul></li>
+<li><p><strong>Cohérence entre les couches <code>CONV</code> :</strong> dans une séquence de couches convolutives, le <code>cin</code> d’une couche doit correspondre au <code>cout</code> de la couche convolutive précédente. Une couche <code>POOL</code> ne modifie pas ce nombre de canaux.</p>
+<p>Par exemple :</p>
+<pre class="text"><code>CONV 3 3 1 8 1
+POOL
+CONV 3 3 8 16 1</code></pre>
+<p>La première <code>CONV</code> produit 8 canaux, qui sont reçus par la seconde <code>CONV</code>. Par conséquent, dans la seconde couche, <code>cin=8</code> et <code>cout=16</code>.</p></li>
+<li><p><strong>Paramètres d’une couche <code>CONV</code> :</strong></p>
+<p>Chacun des <em>c</em>_out filtres possède <em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in poids. Par conséquent,</p>
+<p><em>P</em>_CONV =
+<em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in · <em>c</em>_out
++
+<em>c</em>_out·bias.</p></li>
+<li><p><strong>Paramètres d’une couche <code>FC</code> :</strong></p>
+<p><em>P</em>_FC =
+in·out
++
+out·bias.</p></li>
+<li><p><strong>Paramètres d’une couche <code>POOL</code> :</strong> toujours 0.</p></li>
+<li><p><strong>Total du réseau :</strong> additionner les paramètres entraînables de toutes les couches.</p></li>
+<li><p><strong>Sortie :</strong> Pour chaque couche, dans l’ordre de lecture, imprimer <code>Camada i: P</code>, où <em>i</em> commence à 1 et <em>P</em> est le nombre de paramètres de cette couche. À la fin, imprimer <code>Total: T</code>.</p></li>
+</ol>
+</div>
+<div>
+<h4> 📐 Exemple pour comprendre <code>cin</code> et <code>cout</code></h4>
+<p>Considérez la séquence :</p>
+<pre class="text"><code>CONV 3 3 1 8 1
+POOL
+CONV 3 3 8 16 1</code></pre>
+<p>Dans la première couche :</p>
+<ul>
+<li><code>cin=1</code> : un canal entre ;</li>
+<li><code>cout=8</code> : il existe 8 filtres et, par conséquent, 8 canaux sortent.</li>
+</ul>
+<p>Chaque filtre possède</p>
+<p>3·3·1=9</p>
+<p>poids. Comme il existe 8 filtres :</p>
+<p>9·8=72</p>
+<p>poids. Avec un biais par filtre :</p>
+<p>72+8=80.</p>
+<p>Dans la seconde couche :</p>
+<ul>
+<li><code>cin=8</code> : les 8 canaux produits par la première <code>CONV</code> entrent ;</li>
+<li><code>cout=16</code> : il existe 16 filtres et, par conséquent, 16 canaux sortent.</li>
+</ul>
+<p>Chaque filtre possède</p>
+<p>3·3·8=72</p>
+<p>poids. Comme il existe 16 filtres :</p>
+<p>72·16=1152</p>
+<p>poids. Avec 16 biais :</p>
+<p>1152+16=1168.</p>
+<p>Ainsi, les deux couches possèdent, respectivement, <strong>80</strong> et <strong>1168 paramètres entraînables</strong>.</p>
+<p>Observez que <code>cout</code> <strong>n’est pas</strong> cin multiplié par le nombre de filtres. Le nombre de filtres est exactement <code>cout</code> : chaque filtre combine tous les canaux d’entrée et produit <strong>un seul canal de sortie</strong>.</p>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong>Indépendance de la dimension spatiale :</strong> l’entrée ne fournit pas <em>H</em> × <em>W</em>. Le comptage d’une couche <code>CONV</code> dépend uniquement de <code>kh</code>, <code>kw</code>, <code>cin</code> et <code>cout</code>.</li>
+<li><strong>Cohérence des canaux :</strong> pour deux couches <code>CONV</code> consécutives, le <code>cin</code> de la seconde doit être égal au <code>cout</code> de la première. Une couche <code>POOL</code> préserve le nombre de canaux.</li>
+<li><strong><code>bias</code> toujours 0 ou 1 :</strong> multiplier directement le terme de biais par cette valeur.</li>
+<li><strong>Couches <code>POOL</code> sans arguments supplémentaires :</strong> la ligne contient uniquement le mot <code>POOL</code>.</li>
+<li><strong>Couches <code>FC</code> :</strong> le nombre d’entrées <code>in</code> est fourni explicitement. Il n’est pas nécessaire de calculer les dimensions spatiales produites par les couches précédentes.</li>
+<li>Toutes les valeurs numériques d’entrée sont des entiers non négatifs.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans le comptage des paramètres</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>c</em>_in</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nombre de canaux reçus par la couche</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>c</em>_out</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nombre de filtres et, par conséquent, de canaux produits par la couche</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Filtre convolutif</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Chaque filtre possède <em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in poids et produit un canal de sortie</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Partage des poids</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le même filtre est réutilisé à différentes positions de l’entrée, rendant le comptage indépendant de <em>H</em> × <em>W</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Biais</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Un seul paramètre supplémentaire par filtre (<code>CONV</code>) ou par neurone (<code>FC</code>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Peut modifier <em>H</em> × <em>W</em>, mais ne possède pas de paramètres entraînables et préserve le nombre de canaux</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Couche <code>FC</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Possède un poids pour chaque combinaison entre entrée et neurone de sortie</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Méthodes de <code>morph.py</code> pouvant aider</h4>
+<p>Cet exercice est purement arithmétique et n’utilise pas directement les fonctions de <code>morph.py</code>. Le comptage peut, cependant, être vérifié sur une architecture réelle implémentée en PyTorch via :</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a aria-hidden="true" href="#cb75-1" tabindex="-1"></a><span class="bu">sum</span>(p.numel() <span class="cf">for</span> p <span class="kw">in</span> modelo.parameters())</span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+<p>Cette expression comptabilise les paramètres du modèle, y compris les poids et les biais.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>L</em>.</li>
+<li><em>L</em> lignes suivantes : description de chaque couche, au format <code>CONV kh kw cin cout bias</code>, <code>POOL</code> ou <code>FC in out bias</code>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li><em>L</em> lignes au format <code>Camada i: P</code>.</li>
+<li>Dernière ligne : <code>Total: T</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+CONV 3 3 1 8 1<br/>
+POOL<br/>
+FC 1352 10 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Camada 1: 80<br/>
+Camada 2: 0<br/>
+Camada 3: 13530<br/>
+Total: 13610</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Réseau simple avec une convolution, <em>pooling</em> et couche de classification.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+CONV 3 3 1 8 1<br/>
+POOL<br/>
+CONV 3 3 8 16 1<br/>
+POOL<br/>
+FC 400 10 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Camada 1: 80<br/>
+Camada 2: 0<br/>
+Camada 3: 1168<br/>
+Camada 4: 0<br/>
+Camada 5: 4010<br/>
+Total: 5258</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Petit CNN avec deux convolutions, deux <em>poolings</em> et une couche entièrement connectée.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">6<br/>
+CONV 3 3 1 8 1<br/>
+POOL<br/>
+CONV 3 3 8 16 1<br/>
+POOL<br/>
+FC 256 32 1<br/>
+FC 32 10 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Camada 1: 80<br/>
+Camada 2: 0<br/>
+Camada 3: 1168<br/>
+Camada 4: 0<br/>
+Camada 5: 8224<br/>
+Camada 6: 330<br/>
+Total: 9802</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Petit CNN avec deux convolutions, <em>pooling</em> intermédiaire et deux couches entièrement connectées pour la classification.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="63" data-quarto-private-1='{"key":"pdi","value":{"ck":"a50dd53baf721611c0a776ebfa7ad2a5"}}' id="cell-fig-09-sim-ep0903">
+</div>
+</div><div id="sim-ep0903" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulateur : Comptage des paramètres</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 partage des poids</span>
+<div style="padding:16px;background:white;">
+<!-- Legenda compacta -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
+<b>CONV</b> Bloc bleu
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#50e3c2;border:2px solid #2c8a6e;border-radius:50%;display:inline-block;"></span>
+<b>POOL</b> Cylindre vert
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;display:inline-block;transform:rotate(45deg);"></span>
+<b>FC</b> Losange orange
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;display:inline-block;"></span>
+<b>BATCH</b> Pile rouge
+      </span>
+<span style="display:flex;align-items:center;gap:3px;color:#666;">
+        🖱️ Faites glisser pour déplacer les couches
+      </span>
+</div>
+<!-- Controles compactos -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px;">
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">H×W</label>
+<span id="ep0903_hw_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">32×32</span>
+</div>
+<input id="ep0903_hw" max="64" min="8" step="2" style="width:100%;height:4px;" type="range" value="32"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Canaux</label>
+<span id="ep0903_cin_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">1</span>
+</div>
+<input id="ep0903_cin" max="3" min="1" step="1" style="width:100%;height:4px;" type="range" value="1"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Batch</label>
+<span id="ep0903_batch_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">4</span>
+</div>
+<input id="ep0903_batch" max="16" min="1" step="1" style="width:100%;height:4px;" type="range" value="4"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Couches</label>
+<span id="ep0903_nlayers_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">3</span>
+</div>
+<input id="ep0903_nlayers" max="6" min="1" step="1" style="width:100%;height:4px;" type="range" value="3"/>
+</div>
+</div>
+<!-- Configuração das camadas compacta -->
+<div id="ep0903_layers_config" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;">
+<!-- Gerado dinamicamente -->
+</div>
+<div style="display:flex;gap:12px;align-items:center;font-size:10px;">
+<label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+<input checked="" id="ep0903_bias" style="width:14px;height:14px;" type="checkbox"/>
+<span style="font-weight:bold;color:#2980b9;">Utiliser le biais</span>
+</label>
+</div>
+</div>
+<!-- Visualização 3D -->
+<div style="position:relative;background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;margin-bottom:12px;min-height:400px;">
+<div style="position:absolute;top:8px;left:10px;color:white;font-weight:bold;font-size:14px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);z-index:10;">
+        🧠 Visualisation 3D
+      </div>
+<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:10;">
+<button id="ep0903_pause_btn" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:4px 8px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;backdrop-filter:blur(5px);transition:all 0.3s;">
+          ⏸️ Pause
+        </button>
+<button id="ep0903_reset_btn" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:4px 8px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;backdrop-filter:blur(5px);transition:all 0.3s;">
+          🔄 Réinitialiser
+        </button>
+<button id="ep0903_auto_layout_btn" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:4px 8px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;backdrop-filter:blur(5px);transition:all 0.3s;">
+          📐 Auto
+        </button>
+</div>
+<canvas id="ep0903_canvas" style="width:100%;height:340px;display:block;cursor:grab;"></canvas>
+<div style="position:absolute;bottom:6px;right:8px;color:white;font-size:9px;background:rgba(0,0,0,0.5);padding:3px 8px;border-radius:14px;">
+        🖱️ Faites glisser les couches | Molette zoom | P pause
+      </div>
+</div>
+<!-- Resumo compacto -->
+<div id="ep0903_summary" style="background:#e3f2fd;border-radius:6px;padding:8px;border:1px solid #bbdefb;font-family:monospace;font-size:10px;color:#1565c0;line-height:1.5;">
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    
+    // Elementos DOM
+    var hwEl = root.querySelector('#ep0903_hw'), hwvEl = root.querySelector('#ep0903_hw_v');
+    var cinEl = root.querySelector('#ep0903_cin'), cinvEl = root.querySelector('#ep0903_cin_v');
+    var batchEl = root.querySelector('#ep0903_batch'), batchvEl = root.querySelector('#ep0903_batch_v');
+    var nlayersEl = root.querySelector('#ep0903_nlayers'), nlayersvEl = root.querySelector('#ep0903_nlayers_v');
+    var layersConfigEl = root.querySelector('#ep0903_layers_config');
+    var biasEl = root.querySelector('#ep0903_bias');
+    var summaryEl = root.querySelector('#ep0903_summary');
+    var canvas = root.querySelector('#ep0903_canvas');
+    var ctx = canvas.getContext('2d');
+    var pauseBtn = root.querySelector('#ep0903_pause_btn');
+    var resetBtn = root.querySelector('#ep0903_reset_btn');
+    var autoLayoutBtn = root.querySelector('#ep0903_auto_layout_btn');
+    
+    // Estado da visualização
+    var rotationX = -0.3;
+    var rotationY = 0.5;
+    var zoom = 1;
+    var isDragging = false;
+    var isDraggingLayer = false;
+    var selectedLayer = null;
+    var lastX = 0;
+    var lastY = 0;
+    var autoRotate = true;
+    var isPaused = false;
+    var lastInteractionTime = Date.now();
+    var animationId = null;
+    var time = 0;
+    
+    // Posições das camadas
+    var layerPositions = [];
+    var batchPosition = { x: -6, y: -0.5, z: 0 };
+    
+    function resizeCanvas() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    function autoLayout() {
+      var nlayers = parseInt(nlayersEl.value);
+      var spacing = 4;
+      var startX = -((nlayers) * spacing) / 2;
+      
+      batchPosition = { x: startX - spacing / 2, y: -0.5, z: 0 };
+      
+      layerPositions = [];
+      for (var i = 0; i < nlayers; i++) {
+        layerPositions.push({
+          x: startX + (i + 0.5) * spacing,
+          y: i * 1.5,
+          z: 0
+        });
+      }
+    }
+    
+    function togglePause() {
+      isPaused = !isPaused;
+      if (isPaused) {
+        pauseBtn.textContent = '▶️';
+        pauseBtn.style.background = 'rgba(76, 175, 80, 0.4)';
+        autoRotate = false;
+      } else {
+        pauseBtn.textContent = '⏸️';
+        pauseBtn.style.background = 'rgba(255,255,255,0.2)';
+        autoRotate = true;
+        lastInteractionTime = Date.now();
+      }
+    }
+    
+    function resetView() {
+      rotationX = -0.3;
+      rotationY = 0.5;
+      zoom = 1;
+      isPaused = false;
+      autoRotate = true;
+      pauseBtn.textContent = '⏸️';
+      pauseBtn.style.background = 'rgba(255,255,255,0.2)';
+      lastInteractionTime = Date.now();
+      autoLayout();
+    }
+    
+    pauseBtn.addEventListener('click', togglePause);
+    resetBtn.addEventListener('click', resetView);
+    autoLayoutBtn.addEventListener('click', autoLayout);
+    
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'p' || e.key === 'P') togglePause();
+      if (e.key === 'r' || e.key === 'R') resetView();
+      if (e.key === 'a' || e.key === 'A') autoLayout();
+    });
+    
+    function findLayerAt(mouseX, mouseY, layers) {
+      var minDist = Infinity;
+      var foundLayer = null;
+      
+      var batchProj = project(batchPosition);
+      var batchDist = Math.sqrt(Math.pow(batchProj.x - mouseX, 2) + Math.pow(batchProj.y - mouseY, 2));
+      if (batchDist < 50) {
+        minDist = batchDist;
+        foundLayer = { type: 'batch', index: -1 };
+      }
+      
+      for (var i = 0; i < layerPositions.length && i < layers.length; i++) {
+        var proj = project(layerPositions[i]);
+        var dist = Math.sqrt(Math.pow(proj.x - mouseX, 2) + Math.pow(proj.y - mouseY, 2));
+        
+        if (dist < minDist && dist < 60) {
+          minDist = dist;
+          foundLayer = { type: 'layer', index: i };
+        }
+      }
+      
+      return foundLayer;
+    }
+    
+    canvas.addEventListener('mousedown', function(e) {
+      var rect = canvas.getBoundingClientRect();
+      var mouseX = e.clientX - rect.left;
+      var mouseY = e.clientY - rect.top;
+      
+      var layers = getCurrentLayersInfo();
+      var clickedLayer = findLayerAt(mouseX, mouseY, layers);
+      
+      if (clickedLayer) {
+        isDraggingLayer = true;
+        selectedLayer = clickedLayer;
+        canvas.style.cursor = 'grabbing';
+      } else {
+        isDragging = true;
+        canvas.style.cursor = 'grabbing';
+      }
+      
+      autoRotate = false;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastInteractionTime = Date.now();
+    });
+    
+    canvas.addEventListener('mousemove', function(e) {
+      var rect = canvas.getBoundingClientRect();
+      var mouseX = e.clientX - rect.left;
+      var mouseY = e.clientY - rect.top;
+      
+      if (isDraggingLayer && selectedLayer) {
+        var deltaX = (e.clientX - lastX) * 0.05;
+        var deltaY = -(e.clientY - lastY) * 0.05;
+        
+        if (selectedLayer.type === 'batch') {
+          batchPosition.x += deltaX;
+          batchPosition.y += deltaY;
+        } else if (selectedLayer.type === 'layer') {
+          layerPositions[selectedLayer.index].x += deltaX;
+          layerPositions[selectedLayer.index].y += deltaY;
+        }
+        
+        lastX = e.clientX;
+        lastY = e.clientY;
+      } else if (isDragging) {
+        var deltaX = e.clientX - lastX;
+        var deltaY = e.clientY - lastY;
+        rotationY += deltaX * 0.01;
+        rotationX += deltaY * 0.01;
+        rotationX = Math.max(-1.5, Math.min(1.5, rotationX));
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+      
+      if (!isDragging && !isDraggingLayer) {
+        var layers = getCurrentLayersInfo();
+        var hoveredLayer = findLayerAt(mouseX, mouseY, layers);
+        canvas.style.cursor = hoveredLayer ? 'pointer' : 'grab';
+      }
+    });
+    
+    canvas.addEventListener('mouseup', function() {
+      isDragging = false;
+      isDraggingLayer = false;
+      selectedLayer = null;
+      canvas.style.cursor = 'grab';
+      if (!isPaused) {
+        setTimeout(function() { autoRotate = true; }, 3000);
+      }
+    });
+    
+    canvas.addEventListener('mouseleave', function() {
+      isDragging = false;
+      isDraggingLayer = false;
+      selectedLayer = null;
+      canvas.style.cursor = 'grab';
+    });
+    
+    canvas.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      zoom *= (1 + e.deltaY * 0.001);
+      zoom = Math.max(0.5, Math.min(2, zoom));
+      lastInteractionTime = Date.now();
+      autoRotate = false;
+      if (!isPaused) {
+        setTimeout(function() { autoRotate = true; }, 3000);
+      }
+    });
+    
+    function rotateX(point, angle) {
+      var cos = Math.cos(angle);
+      var sin = Math.sin(angle);
+      return { x: point.x, y: point.y * cos - point.z * sin, z: point.y * sin + point.z * cos };
+    }
+    
+    function rotateY(point, angle) {
+      var cos = Math.cos(angle);
+      var sin = Math.sin(angle);
+      return { x: point.x * cos - point.z * sin, y: point.y, z: point.x * sin + point.z * cos };
+    }
+    
+    function project(point) {
+      var rotated = rotateX(point, rotationX);
+      rotated = rotateY(rotated, rotationY);
+      var scale = zoom * 30;
+      return { x: canvas.width / 2 + rotated.x * scale, y: canvas.height / 2 - rotated.y * scale, z: rotated.z };
+    }
+    
+    function shadeColor(color, percent) {
+      var num = parseInt(color.replace('#', ''), 16);
+      var amt = Math.round(2.55 * percent);
+      var R = (num >> 16) + amt;
+      var G = (num >> 8 & 0x00FF) + amt;
+      var B = (num & 0x0000FF) + amt;
+      return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+    
+    function draw3DBox(x, y, z, width, height, depth, color, opacity, label, shape) {
+      shape = shape || 'box';
+      if (shape === 'cylinder') { draw3DCylinder(x, y, z, width, height, depth, color, opacity, label); return; }
+      if (shape === 'diamond') { draw3DDiamond(x, y, z, width, height, depth, color, opacity, label); return; }
+      
+      var vertices = [
+        {x: x - width/2, y: y - height/2, z: z - depth/2},
+        {x: x + width/2, y: y - height/2, z: z - depth/2},
+        {x: x + width/2, y: y + height/2, z: z - depth/2},
+        {x: x - width/2, y: y + height/2, z: z - depth/2},
+        {x: x - width/2, y: y - height/2, z: z + depth/2},
+        {x: x + width/2, y: y - height/2, z: z + depth/2},
+        {x: x + width/2, y: y + height/2, z: z + depth/2},
+        {x: x - width/2, y: y + height/2, z: z + depth/2}
+      ];
+      
+      var projected = vertices.map(function(v) { return project(v); });
+      
+      var faces = [
+        {vertices: [0, 1, 2, 3], color: shadeColor(color, -20)},
+        {vertices: [4, 5, 6, 7], color: shadeColor(color, 20)},
+        {vertices: [0, 1, 5, 4], color: shadeColor(color, -40)},
+        {vertices: [2, 3, 7, 6], color: shadeColor(color, 40)},
+        {vertices: [1, 2, 6, 5], color: shadeColor(color, -10)},
+        {vertices: [0, 3, 7, 4], color: shadeColor(color, 10)}
+      ];
+      
+      faces.sort(function(a, b) {
+        var za = a.vertices.reduce(function(sum, i) { return sum + projected[i].z; }, 0) / 4;
+        var zb = b.vertices.reduce(function(sum, i) { return sum + projected[i].z; }, 0) / 4;
+        return za - zb;
+      });
+      
+      faces.forEach(function(face) {
+        ctx.beginPath();
+        ctx.moveTo(projected[face.vertices[0]].x, projected[face.vertices[0]].y);
+        for (var i = 1; i < face.vertices.length; i++) {
+          ctx.lineTo(projected[face.vertices[i]].x, projected[face.vertices[i]].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = face.color;
+        ctx.globalAlpha = opacity;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+      
+      if (label) {
+        var center = project({x: x, y: y + height/2 + 0.5, z: z});
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, center.x, center.y);
+      }
+    }
+    
+    function draw3DCylinder(x, y, z, width, height, depth, color, opacity, label) {
+      var segments = 12;
+      var topVertices = [];
+      var bottomVertices = [];
+      
+      for (var i = 0; i < segments; i++) {
+        var angle = (i / segments) * Math.PI * 2;
+        var cx = x + Math.cos(angle) * width / 2;
+        var cz = z + Math.sin(angle) * depth / 2;
+        topVertices.push({x: cx, y: y + height/2, z: cz});
+        bottomVertices.push({x: cx, y: y - height/2, z: cz});
+      }
+      
+      var projectedTop = topVertices.map(function(v) { return project(v); });
+      var projectedBottom = bottomVertices.map(function(v) { return project(v); });
+      
+      for (var i = 0; i < segments; i++) {
+        var next = (i + 1) % segments;
+        ctx.beginPath();
+        ctx.moveTo(projectedTop[i].x, projectedTop[i].y);
+        ctx.lineTo(projectedTop[next].x, projectedTop[next].y);
+        ctx.lineTo(projectedBottom[next].x, projectedBottom[next].y);
+        ctx.lineTo(projectedBottom[i].x, projectedBottom[i].y);
+        ctx.closePath();
+        ctx.fillStyle = shadeColor(color, (i % 2 === 0) ? -10 : 10);
+        ctx.globalAlpha = opacity;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      
+      if (label) {
+        var center = project({x: x, y: y + height/2 + 0.5, z: z});
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, center.x, center.y);
+      }
+    }
+    
+    function draw3DDiamond(x, y, z, width, height, depth, color, opacity, label) {
+      var vertices = [
+        {x: x, y: y + height/2, z: z},
+        {x: x + width/2, y: y, z: z},
+        {x: x, y: y, z: z + depth/2},
+        {x: x - width/2, y: y, z: z},
+        {x: x, y: y, z: z - depth/2},
+        {x: x, y: y - height/2, z: z}
+      ];
+      
+      var projected = vertices.map(function(v) { return project(v); });
+      
+      var faces = [
+        {vertices: [0, 1, 2], color: shadeColor(color, -20)},
+        {vertices: [0, 2, 3], color: shadeColor(color, 20)},
+        {vertices: [0, 3, 4], color: shadeColor(color, -10)},
+        {vertices: [0, 4, 1], color: shadeColor(color, 10)},
+        {vertices: [5, 1, 2], color: shadeColor(color, -30)},
+        {vertices: [5, 2, 3], color: shadeColor(color, 30)},
+        {vertices: [5, 3, 4], color: shadeColor(color, -20)},
+        {vertices: [5, 4, 1], color: shadeColor(color, 20)}
+      ];
+      
+      faces.sort(function(a, b) {
+        var za = a.vertices.reduce(function(sum, i) { return sum + projected[i].z; }, 0) / 3;
+        var zb = b.vertices.reduce(function(sum, i) { return sum + projected[i].z; }, 0) / 3;
+        return za - zb;
+      });
+      
+      faces.forEach(function(face) {
+        ctx.beginPath();
+        ctx.moveTo(projected[face.vertices[0]].x, projected[face.vertices[0]].y);
+        for (var i = 1; i < face.vertices.length; i++) {
+          ctx.lineTo(projected[face.vertices[i]].x, projected[face.vertices[i]].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = face.color;
+        ctx.globalAlpha = opacity;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+      
+      if (label) {
+        var center = project({x: x, y: y + height/2 + 0.5, z: z});
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, center.x, center.y);
+      }
+    }
+    
+    function drawImageBatch(x, y, z, width, height, numImages, color) {
+      var imageDepth = 0.3;
+      var gap = 0.1;
+      var totalDepth = numImages * (imageDepth + gap);
+      var startZ = z - totalDepth / 2;
+      
+      for (var i = 0; i < numImages; i++) {
+        var imageZ = startZ + i * (imageDepth + gap);
+        var alpha = 0.3 + (i / numImages) * 0.5;
+        draw3DBox(x, y, imageZ, width, height, imageDepth, color, alpha, null, 'box');
+      }
+    }
+    
+    function drawConnection(x1, y1, z1, x2, y2, z2, animated) {
+      var start = project({x: x1, y: y1, z: z1});
+      var end = project({x: x2, y: y2, z: z2});
+      var midX = (start.x + end.x) / 2;
+      var midY = Math.min(start.y, end.y) - 20;
+      
+      if (animated && !isPaused) {
+        var pulse = Math.sin(time * 0.002) * 0.5 + 0.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.3 + pulse * 0.3) + ')';
+        ctx.lineWidth = 1.5 + pulse;
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1.5;
+      }
+      
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.quadraticCurveTo(midX, midY, end.x, end.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    
+    function getCurrentLayersInfo() {
+      var hw = parseInt(hwEl.value);
+      var cin = parseInt(cinEl.value);
+      var nlayers = parseInt(nlayersEl.value);
+      var currentH = hw;
+      var currentW = hw;
+      var currentCin = cin;
+      var currentFCInput = 0;
+      var layersInfo = [];
+      
+      for (var i = 0; i < nlayers; i++) {
+        var typeSelect = root.querySelector('#ep0903_type_' + i);
+        var type = typeSelect ? typeSelect.value : 'CONV';
+        var inputStr = '';
+        var outputStr = '';
+        
+        if (type === 'CONV' || type === 'POOL') {
+          inputStr = currentH + '×' + currentW + '×' + currentCin;
+        } else if (type === 'FC') {
+          // Se a camada anterior era FC, usa a saída dela
+          if (i > 0 && layersInfo[i-1].type === 'FC') {
+            inputStr = currentFCInput;
+          } else {
+            // Se veio de CONV/POOL, faz flatten
+            inputStr = (currentH * currentW * currentCin);
+            currentFCInput = inputStr;
+          }
+        }
+        
+        if (type === 'CONV') {
+          var kh = parseInt(root.querySelector('#ep0903_kh_' + i).value);
+          var kw = parseInt(root.querySelector('#ep0903_kw_' + i).value);
+          var cout = parseInt(root.querySelector('#ep0903_cout_' + i).value);
+          var outH = currentH - kh + 1;
+          var outW = currentW - kw + 1;
+          outputStr = outH + '×' + outW + '×' + cout;
+          currentH = outH;
+          currentW = outW;
+          currentCin = cout;
+          currentFCInput = currentH * currentW * currentCin;
+        } else if (type === 'POOL') {
+          var poolSize = parseInt(root.querySelector('#ep0903_pool_size_' + i).value);
+          var poolOutH = Math.floor(currentH / poolSize);
+          var poolOutW = Math.floor(currentW / poolSize);
+          outputStr = poolOutH + '×' + poolOutW + '×' + currentCin;
+          currentH = poolOutH;
+          currentW = poolOutW;
+          currentFCInput = currentH * currentW * currentCin;
+        } else if (type === 'FC') {
+          var fcout = parseInt(root.querySelector('#ep0903_fcout_' + i).value);
+          outputStr = fcout;
+          currentFCInput = fcout;
+          // Após FC, não há mais dimensões espaciais
+          currentH = 0;
+          currentW = 0;
+          currentCin = 0;
+        }
+        
+        layersInfo.push({
+          type: type,
+          input: inputStr,
+          output: outputStr,
+          h: currentH,
+          w: currentW,
+          cin: currentCin
+        });
+      }
+      
+      return layersInfo;
+    }
+    
+    function render3D(layers, batchSize) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!isPaused) time += 16;
+      if (autoRotate && !isDragging && !isPaused && Date.now() - lastInteractionTime > 3000) rotationY += 0.005;
+      
+      // Grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 0.5;
+      for (var i = -10; i <= 10; i++) {
+        var start = project({x: i * 2, y: -2, z: -10 * 2});
+        var end = project({x: i * 2, y: -2, z: 10 * 2});
+        ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+        start = project({x: -10 * 2, y: -2, z: i * 2});
+        end = project({x: 10 * 2, y: -2, z: i * 2});
+        ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+      }
+      
+      var colors = ['#4a90e2', '#50e3c2', '#f5a623', '#d0021b', '#8b572a', '#9013fe'];
+      
+      // Batch (apenas se a primeira camada for CONV ou POOL)
+      if (layers.length > 0 && (layers[0].type === 'CONV' || layers[0].type === 'POOL')) {
+        var inputWidth = Math.max(1, Math.min(4, layers[0].h / 8));
+        var inputHeight = Math.max(1, Math.min(4, layers[0].w / 8));
+        var labelPos = project({x: batchPosition.x, y: batchPosition.y + inputHeight/2 + 0.7, z: batchPosition.z});
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 9px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('BATCH : ' + batchSize, labelPos.x, labelPos.y);
+        drawImageBatch(batchPosition.x, batchPosition.y, batchPosition.z, inputWidth, inputHeight, batchSize, '#ff6b6b');
+        
+        // Conexão batch -> primeira camada
+        drawConnection(batchPosition.x + inputWidth/2, batchPosition.y, batchPosition.z, layerPositions[0].x - Math.max(1, Math.min(4, layers[0].h / 8))/2, layerPositions[0].y, layerPositions[0].z, true);
+      }
+      
+      // Conexões entre camadas
+      for (var i = 0; i < layers.length - 1 && i < layerPositions.length - 1; i++) {
+        drawConnection(layerPositions[i].x + 1, layerPositions[i].y, layerPositions[i].z, layerPositions[i + 1].x - 1, layerPositions[i + 1].y, layerPositions[i + 1].z, true);
+      }
+      
+      // Camadas
+      for (var i = 0; i < layers.length && i < layerPositions.length; i++) {
+        var layer = layers[i];
+        var pos = layerPositions[i];
+        
+        var color = colors[i % colors.length];
+        var label = '';
+        
+        if (layer.type === 'CONV') {
+          var visWidth = Math.max(1, Math.min(4, layer.h / 8));
+          var visHeight = Math.max(1, Math.min(4, layer.w / 8));
+          var visDepth = Math.max(0.3, Math.min(2, layer.cin / 4));
+          label = layer.type + ': ' + layer.input + ' → ' + layer.output;
+          draw3DBox(pos.x, pos.y, pos.z, visWidth, visHeight, visDepth, color, 0.7, label, 'box');
+        } else if (layer.type === 'POOL') {
+          var visWidth = Math.max(1, Math.min(4, layer.h / 8));
+          var visHeight = Math.max(1, Math.min(4, layer.w / 8));
+          var visDepth = Math.max(0.3, Math.min(2, layer.cin / 4));
+          label = layer.type + ': ' + layer.input + ' → ' + layer.output;
+          draw3DBox(pos.x, pos.y, pos.z, visWidth, visHeight, visDepth, color, 0.7, label, 'cylinder');
+        } else if (layer.type === 'FC') {
+          label = layer.type + ': ' + layer.input + ' → ' + layer.output;
+          draw3DBox(pos.x, pos.y, pos.z, 1, 1, 1, color, 0.7, label, 'diamond');
+        }
+      }
+      
+      animationId = requestAnimationFrame(function() { render3D(layers, batchSize); });
+    }
+    
+    function generateLayerConfig() {
+      var nlayers = parseInt(nlayersEl.value);
+      var html = '';
+      
+      for (var i = 0; i < nlayers; i++) {
+        html += '<div style="background:white;border:1px solid #e0e0e0;border-radius:6px;padding:6px 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:9px;">';
+        html += '<span style="font-weight:bold;color:#666;">' + (i+1) + ':</span>';
+        html += '<select id="ep0903_type_' + i + '" style="padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;">';
+        html += '<option value="CONV"' + (i < 2 ? ' selected' : '') + '>CONV</option>';
+        html += '<option value="POOL">POOL</option>';
+        html += '<option value="FC"' + (i >= 2 ? ' selected' : '') + '>FC</option>';
+        html += '</select>';
+        html += '<div id="ep0903_params_' + i + '" style="display:flex;gap:3px;flex-wrap:wrap;"></div>';
+        html += '</div>';
+      }
+      
+      layersConfigEl.innerHTML = html;
+      
+      for (var i = 0; i < nlayers; i++) {
+        (function(index) {
+          var typeSelect = root.querySelector('#ep0903_type_' + index);
+          typeSelect.addEventListener('change', function() {
+            updateLayerParams(index);
+            render();
+          });
+          updateLayerParams(index);
+        })(i);
+      }
+      
+      autoLayout();
+    }
+    
+    function updateLayerParams(index) {
+      var typeSelect = root.querySelector('#ep0903_type_' + index);
+      var paramsDiv = root.querySelector('#ep0903_params_' + index);
+      var type = typeSelect.value;
+      
+      if (type === 'CONV') {
+        paramsDiv.innerHTML = 
+          '<input type="number" id="ep0903_kh_' + index + '" value="3" min="1" max="7" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="kernel h">' +
+          '<span style="font-size:8px;">×</span>' +
+          '<input type="number" id="ep0903_kw_' + index + '" value="3" min="1" max="7" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="kernel w">' +
+          '<input type="number" id="ep0903_cout_' + index + '" value="' + (index === 0 ? '8' : '16') + '" min="1" max="64" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="filtres">';
+      } else if (type === 'POOL') {
+        paramsDiv.innerHTML = 
+          '<input type="number" id="ep0903_pool_size_' + index + '" value="2" min="2" max="4" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="taille du pool">';
+      } else if (type === 'FC') {
+        paramsDiv.innerHTML = 
+          '<input type="number" id="ep0903_fcout_' + index + '" value="10" min="1" max="100" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="sorties">';
+      }
+      
+      var inputs = paramsDiv.querySelectorAll('input');
+      inputs.forEach(function(input) {
+        input.addEventListener('input', render);
+        input.addEventListener('change', render);
+      });
+    }
+    
+    function render() {
+      var hw = parseInt(hwEl.value);
+      var cin = parseInt(cinEl.value);
+      var batchSize = parseInt(batchEl.value);
+      var nlayers = parseInt(nlayersEl.value);
+      var bias = biasEl.checked ? 1 : 0;
+      
+      hwvEl.textContent = hw + '×' + hw;
+      cinvEl.textContent = cin;
+      batchvEl.textContent = batchSize;
+      nlayersvEl.textContent = nlayers;
+      
+      var currentH = hw;
+      var currentW = hw;
+      var currentCin = cin;
+      var currentFCInput = 0;
+      var totalParams = 0;
+      var layersInfo = [];
+      var summaryHTML = '';
+      
+      for (var i = 0; i < nlayers; i++) {
+        var typeSelect = root.querySelector('#ep0903_type_' + i);
+        var type = typeSelect.value;
+        var params = 0;
+        var inputStr = '';
+        var outputStr = '';
+        
+        // Determinar entrada
+        if (type === 'CONV' || type === 'POOL') {
+          inputStr = currentH + '×' + currentW + '×' + currentCin;
+        } else if (type === 'FC') {
+          if (i > 0 && layersInfo[i-1].type === 'FC') {
+            inputStr = currentFCInput;
+          } else {
+            inputStr = (currentH * currentW * currentCin);
+            currentFCInput = inputStr;
+          }
+        }
+        
+        // Processar camada
+        if (type === 'CONV') {
+          var kh = parseInt(root.querySelector('#ep0903_kh_' + i).value);
+          var kw = parseInt(root.querySelector('#ep0903_kw_' + i).value);
+          var cout = parseInt(root.querySelector('#ep0903_cout_' + i).value);
+          var outH = currentH - kh + 1;
+          var outW = currentW - kw + 1;
+          params = kh * kw * currentCin * cout + cout * bias;
+          outputStr = outH + '×' + outW + '×' + cout;
+          currentH = outH;
+          currentW = outW;
+          currentCin = cout;
+          currentFCInput = currentH * currentW * currentCin;
+        } else if (type === 'POOL') {
+          var poolSize = parseInt(root.querySelector('#ep0903_pool_size_' + i).value);
+          var poolOutH = Math.floor(currentH / poolSize);
+          var poolOutW = Math.floor(currentW / poolSize);
+          params = 0;
+          outputStr = poolOutH + '×' + poolOutW + '×' + currentCin;
+          currentH = poolOutH;
+          currentW = poolOutW;
+          currentFCInput = currentH * currentW * currentCin;
+        } else if (type === 'FC') {
+          var fcout = parseInt(root.querySelector('#ep0903_fcout_' + i).value);
+          var fcin = parseInt(inputStr);
+          params = fcin * fcout + fcout * bias;
+          outputStr = fcout;
+          currentFCInput = fcout;
+          currentH = 0;
+          currentW = 0;
+          currentCin = 0;
+        }
+        
+        totalParams += params;
+        layersInfo.push({
+          type: type,
+          input: inputStr,
+          output: outputStr,
+          params: params,
+          h: currentH,
+          w: currentW,
+          cin: currentCin
+        });
+        
+        summaryHTML += '<span style="color:' + (type === 'CONV' ? '#2980b9' : type === 'POOL' ? '#666' : '#009933') + ';font-weight:bold;">' + (i+1) + ' (' + type + '):</span> ';
+        summaryHTML += inputStr + ' → ' + outputStr;
+        summaryHTML += ' [' + params.toLocaleString('pt-BR') + ']<br>';
+      }
+      
+      summaryHTML += '<b>Total: ' + totalParams.toLocaleString('pt-BR') + ' parâmetros</b>';
+      summaryEl.innerHTML = summaryHTML;
+      
+      if (animationId) cancelAnimationFrame(animationId);
+      render3D(layersInfo, batchSize);
+    }
+    
+    // Inicializar
+    autoLayout();
+    generateLayerConfig();
+    render();
+    
+    // Event listeners
+    hwEl.addEventListener('input', render);
+    cinEl.addEventListener('input', render);
+    batchEl.addEventListener('input', render);
+    nlayersEl.addEventListener('input', function() { generateLayerConfig(); render(); });
+    biasEl.addEventListener('change', render);
+  }
+  
+  function tryInit(){
+    var root = document.getElementById('sim-ep0903');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

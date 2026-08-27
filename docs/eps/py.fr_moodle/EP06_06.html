@@ -1,0 +1,284 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_06.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_06.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_06 🔴 Carte de Variance Locale pour la Détection de Texture</h2>
+<p>Une usine de tissus doit inspecter des rouleaux de tissu en temps réel, sans disposer d’une image de référence — chaque rouleau présente de petites variations naturelles. Dans cette situation, la stratégie présentée dans le chapitre consiste à analyser l’<strong>homogénéité locale de la texture</strong> : les régions uniformes présentent une faible variance d’intensité dans de petits voisinages, tandis que les rayures, taches et défauts de fabrication produisent des augmentations locales de cette variance.</p>
+<p>Dans cet exercice, vous implémenterez le cœur de cette méthode, en calculant la variance locale dans une fenêtre glissante et en générant un masque binaire qui identifie les régions dont la variance dépasse un seuil.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’Implémentation</h4>
+<ol type="1">
+<li><p><strong>Dimensions et paramètres :</strong> Lire les entiers <em>L</em>, <em>C</em>, <em>k</em> (taille de la fenêtre, toujours impaire) et <em>T</em> (seuil de variance).</p></li>
+<li><p><strong>Image :</strong> Lire les <em>L</em> × <em>C</em> valeurs entières de la matrice de texture (intensités entre 0 et 255).</p></li>
+<li><p><strong>Traitement des bords :</strong> Lorsque la fenêtre dépasse les limites de l’image, utiliser la <strong>réplication de bord</strong>, c’est-à-dire répéter la valeur du pixel valide le plus proche.</p></li>
+<li><p><strong>Moyenne locale :</strong> Pour chaque position (<em>i</em>,<em>j</em>), calculer μ(<em>i</em>,<em>j</em>)=
+(1)/(<em>k</em>^2)
+∑_(<em>p</em>,<em>q</em>)∈fenêtre
+texture(<em>p</em>,<em>q</em>).</p></li>
+<li><p><strong>Variance locale :</strong> Calculer la variance populationnelle de la fenêtre, σ^2(<em>i</em>,<em>j</em>)=
+(1)/(<em>k</em>^2)
+∑_(<em>p</em>,<em>q</em>)∈fenêtre
+\left(texture(<em>p</em>,<em>q</em>)-μ(<em>i</em>,<em>j</em>)\right)^2, ou, de manière équivalente, σ^2(<em>i</em>,<em>j</em>)=\overlinex^2-μ(<em>i</em>,<em>j</em>)^2, où \overlinex^2 représente la moyenne des carrés des intensités.</p></li>
+<li><p><strong>Arrondi :</strong> Arrondir la variance à l’entier le plus proche (<em>round half away from zero</em>, avec <code>np.floor(res_norm + 0.5)</code>).</p></li>
+<li><p><strong>Seuillage :</strong> Définir masque(<em>i</em>,<em>j</em>)=1 si la variance arrondie est <strong>strictement supérieure</strong> à <em>T</em> ; sinon, définir masque(<em>i</em>,<em>j</em>)=0.</p></li>
+<li><p><strong>Sortie :</strong> Imprimer le masque binaire résultant.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes Computationnelles</h4>
+<ul>
+<li><strong>Réplication de bord :</strong> utiliser la valeur du pixel valide le plus proche chaque fois que la fenêtre dépasse les limites de l’image.</li>
+<li><strong>Variance populationnelle :</strong> utiliser le dénominateur <em>k</em>^2, jamais <em>k</em>^2-1.</li>
+<li><strong>Comparaison stricte :</strong> le masque doit être calculé en utilisant la condition σ^2_arrondi&gt;<em>T</em>.</li>
+<li><strong>Fenêtre impaire :</strong> la valeur de <em>k</em> est toujours impaire, garantissant un pixel central.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement Théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Situation</th>
+<th style="padding:10px;border:1px solid #ddd;">Variance locale</th>
+<th style="padding:10px;border:1px solid #ddd;">Interprétation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Région uniforme</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Faible</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Intensités similaires dans le voisinage.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Région contenant un défaut</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Élevée</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La présence d’intensités distinctes augmente la dispersion des valeurs.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Petite fenêtre</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Plus grande sensibilité aux détails et au bruit</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Détecte les altérations localisées.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Grande fenêtre</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Réponse plus lisse</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Met en évidence les défauts plus grands, mais réduit la précision de leur localisation.</td>
+</tr>
+</tbody>
+</table>
+<p>La variance locale mesure la dispersion des intensités dans un voisinage. Les régions homogènes présentent une faible variance, tandis que les altérations de la texture augmentent cette mesure, permettant d’identifier d’éventuels défauts par un simple seuillage.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’Entrée et de Sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>L</em>.</li>
+<li>Ligne 2 : Entier <em>C</em>.</li>
+<li>Ligne 3 : Entier <em>k</em> (impair).</li>
+<li>Ligne 4 : Entier <em>T</em>.</li>
+<li>Lignes suivantes <em>L</em> : éléments entiers de la matrice de texture.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Masque binaire (valeurs 0 ou 1), avec <em>L</em> lignes et <em>C</em> colonnes.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+50<br/>
+10 10 10<br/>
+10 10 10<br/>
+10 90 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0<br/>
+1 1 1<br/>
+1 1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le défaut augmente la variance dans toutes les fenêtres qui le contiennent.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+3<br/>
+5<br/>
+100 100<br/>
+100 100</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La texture est uniforme ; la variance est nulle sur toute l’image.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="46" data-quarto-private-1='{"key":"pdi","value":{"ck":"94afc0427507e5f97c9b5886cc2b6a50"}}' id="cell-fig-06-sim-ep0606">
+</div>
+</div><div id="sim-ep0606" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0606 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0606 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0606 button:hover { background: #e8dfcf; }
+  #sim-ep0606 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0606_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0606_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0606_cell { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; border: 1px solid #e4dcc8; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP06_06 : Variance locale (détection de texture)</span>
+<span class="sim-ep0606_pill">σ² = média(x²) − média(x)²</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0606_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Intensité du défaut (position centrale) : <span id="sim-ep0606_vl_def" style="font-family:monospace; color:#26241d;">90</span>
+</label>
+</div>
+<input id="sim-ep0606_sl_def" max="255" min="10" step="5" type="range" value="90"/>
+<div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Seuil (T) : <span id="sim-ep0606_vl_t" style="font-family:monospace; color:#26241d;">50</span>
+</label>
+</div>
+<input id="sim-ep0606_sl_t" max="2000" min="0" step="10" type="range" value="50"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajustez la valeur du défaut et le seuil T ; observez comment la fenêtre 3×3 propage la détection dans le voisinage.
+    </div>
+</div>
+<!-- Exibição das Grades 3x3 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0606_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Texture (3×3)
+      </div>
+</div>
+<div class="sim-ep0606_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Masque de défaut
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep06(root){
+    if (!root || root.dataset.sim06Ep06Init) return;
+    root.dataset.sim06Ep06Init = "1";
+
+    var slDef = root.querySelector('#sim-ep0606_sl_def');
+    var vlDef = root.querySelector('#sim-ep0606_vl_def');
+    var slT   = root.querySelector('#sim-ep0606_sl_t');
+    var vlT   = root.querySelector('#sim-ep0606_vl_t');
+    var gTex  = root.querySelector('#sim-ep0606_g_tex');
+    var gMask = root.querySelector('#sim-ep0606_g_mask');
+    var dbg   = root.querySelector('#sim-ep0606_debug');
+
+    function roundHalfAway(x){
+      return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
+    }
+
+    function clampIdx(v, n){
+      return Math.max(0, Math.min(n - 1, v));
+    }
+
+    function render(){
+      var defeito = parseInt(slDef.value, 10);
+      var T       = parseInt(slT.value, 10);
+      vlDef.textContent = defeito;
+      vlT.textContent   = T;
+
+      var N = 3;
+      var tex = [[10, 10, 10], [10, defeito, 10], [10, 10, 10]];
+
+      gTex.innerHTML  = '';
+      gMask.innerHTML = '';
+      
+      var mask = [];
+      for (var i = 0; i < N; i++){
+        var row = [];
+        for (var j = 0; j < N; j++){
+          var vals = [];
+          for (var di = -1; di <= 1; di++){
+            for (var dj = -1; dj <= 1; dj++){
+              var pi = clampIdx(i + di, N);
+              var pj = clampIdx(j + dj, N);
+              vals.push(tex[pi][pj]);
+            }
+          }
+          var mean = vals.reduce(function(a, b){ return a + b; }, 0) / vals.length;
+          var meanSq = vals.reduce(function(a, b){ return a + b * b; }, 0) / vals.length;
+          var varr = meanSq - mean * mean;
+          var varRound = roundHalfAway(varr);
+          row.push(varRound > T ? 1 : 0);
+        }
+        mask.push(row);
+      }
+
+      var total = 0;
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var g = tex[i][j];
+          var ct = document.createElement('div');
+          ct.className = 'sim-ep0606_cell';
+          ct.style.cssText = 'background:rgb(' + g + ',' + g + ',' + g + '); color:' + (g > 140 ? '#000000' : '#ffffff') + ';';
+          ct.textContent = g;
+          gTex.appendChild(ct);
+
+          var m = mask[i][j];
+          if (m) total++;
+
+          var cm = document.createElement('div');
+          cm.className = 'sim-ep0606_cell';
+          if (m) {
+            cm.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          } else {
+            cm.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+          }
+          cm.textContent = m;
+          gMask.appendChild(cm);
+        }
+      }
+
+      if (total > 0) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'défaut = ' + defeito + '  |  T = ' + T + '  |  Pixels marcados: ' + total + ' / 9';
+    }
+
+    slDef.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep06(){
+    var root = document.getElementById('sim-ep0606');
+    if (root) initSim06Ep06(root); else setTimeout(tryInitSim06Ep06, 200);
+  }
+  tryInitSim06Ep06();
+})();
+
+</script>
+</div><div id="sim-ep0606_g_tex" style="display:grid; grid-template-columns:repeat(3, 44px); gap:4px; justify-content:center;"></div><div id="sim-ep0606_g_mask" style="display:grid; grid-template-columns:repeat(3, 44px); gap:4px; justify-content:center;"></div><div class="sim-ep0606_panel" id="sim-ep0606_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

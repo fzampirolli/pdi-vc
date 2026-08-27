@@ -1,0 +1,270 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP04_10.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP04_10.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_10 🪙 Séparation des blobs , étiquetage et descripteurs</h2>
+<p>Dans une <strong>ligne de production de pièces de monnaie</strong>, il est courant que les pièces se touchent sur le tapis roulant, formant une seule tache connectée dans l’image — un comptage naïf donnerait un nombre erroné. La solution classique combine des opérations morphologiques et une analyse de connectivité : d’abord, une <strong>érosion</strong> réduit ou rompt les connexions fragiles entre les objets, puis l’<strong>étiquetage des composantes connexes</strong> sépare chaque objet en une région distincte. Enfin, des <strong>descripteurs géométriques</strong> (aire et boîte englobante) résument chaque composante trouvée.</p>
+<p>Voir Figure 4.39 pour une simulation de cet EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><p><strong>Dimensions de l’image :</strong> lire les entiers <em>L</em> (lignes) et <em>C</em> (colonnes) de <em>f</em>.</p></li>
+<li><p><strong>Dimensions de <em>B</em> :</strong> lire les entiers <em>L</em>_<em>B</em> (lignes) et <em>C</em>_<em>B</em> (colonnes) de l’élément structurant.</p></li>
+<li><p><strong>Élément structurant :</strong> lire la matrice <em>B</em>, contenant des valeurs 0 ou 1, ligne par ligne.</p></li>
+<li><p><strong>Données :</strong> lire la matrice binaire <em>f</em> (valeurs 0 ou 1), ligne par ligne.</p></li>
+<li><p><strong>Séparation :</strong> calculer <em>f</em>_ero = <em>f</em> \ominus <em>B</em> en utilisant une érosion binaire plane (comme dans l’EP04_04), en éliminant les connexions fragiles entre les objets.</p></li>
+<li><p><strong>Étiquetage :</strong> sur <em>f</em>_ero, identifier les composantes connexes en utilisant la connectivité définie par le voisinage <em>B</em>. L’étiquetage doit suivre un balayage <em>raster</em> : lorsqu’un pixel 1 non encore étiqueté est trouvé, attribuer un nouveau label entier croissant à partir de 1 et propager ce label à toute la région connexe.</p></li>
+<li><p><strong>Descripteurs :</strong> pour chaque label <em>k</em>, calculer :</p>
+<ul>
+<li><strong>Aire :</strong> nombre de pixels appartenant au label ;</li>
+<li><strong>Boîte englobante :</strong> (<em>y</em>_min, <em>x</em>_min, <em>y</em>_max, <em>x</em>_max)</li>
+</ul></li>
+<li><p><strong>Sortie :</strong> afficher le nombre total de labels, puis une ligne par label au format : <em>k</em>,\ aire,\ <em>y</em>_min,\ <em>x</em>_min,\ <em>y</em>_max,\ <em>x</em>_max</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li>L’érosion doit être appliquée avant l’étiquetage.</li>
+<li>La connectivité est fixe et définie par le voisinage ci-dessus.</li>
+<li>L’élément structurant <em>B</em> n’interfère pas avec la connectivité de l’étiquetage.</li>
+<li>Aucun padding à aucune étape.</li>
+<li>L’ordre des labels suit la première découverte en balayage <em>raster</em>.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concept</th>
+<th style="padding:10px;border:1px solid #ddd;">Signification</th>
+<th style="padding:10px;border:1px solid #ddd;">Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pont fin</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Connexion étroite entre objets</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Peut être supprimé par l’érosion morphologique</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Connectivité</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Définie par l’ensemble \mathcalN(<em>y</em>,<em>x</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Détermine quels pixels appartiennent à la même composante</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aire</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nombre de pixels par composante</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Estimation directe de la taille de l’objet</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Boîte englobante</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Extension spatiale du label</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Résumé géométrique de la composante</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : entier <em>L</em></li>
+<li>Ligne 2 : entier <em>C</em></li>
+<li>Ligne 3 : entier <em>L</em>_<em>B</em></li>
+<li>Ligne 4 : entier <em>C</em>_<em>B</em></li>
+<li>Les <em>L</em>_<em>B</em> lignes suivantes : matrice <em>B</em></li>
+<li>Les <em>L</em> lignes suivantes : matrice <em>f</em></li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Ligne 1 : nombre total de labels trouvés</li>
+<li>Lignes suivantes : <em>k</em>,\ aire,\ <em>y</em>_min,\ <em>x</em>_min,\ <em>y</em>_max,\ <em>x</em>_max</li>
+</ul>
+<div class="cell" data-execution_count="62" data-quarto-private-1='{"key":"pdi","value":{"ck":"8c42b5487c46a1bc33fef2d823b51c6e"}}' id="cell-fig-04-sim-ep0410-rotulacao">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0410-rotulacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 4.39: Simulateur EP04_10: Séparation des Blobs, Étiquetage et Descripteurs
+</figcaption>
+</div>
+</div><div id="sim-ep0410-rotulacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🪙 Simulateur EP04_10 : Pièces Collées → Séparées → Comptées</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">érosion + étiquette + descripteurs</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Ajustez l'épaisseur du pont entre les pièces et observez comment l'érosion morphologique sépare les objets pour le comptage et l'extraction de descripteurs (aire et boîte englobante).</p>
+<!-- Controle de Espessura da Ponte -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;text-align:center;">
+<label style="font-size:11px;font-weight:700;color:#b9770e;">Épaisseur du Pont entre les Pièces</label><br/>
+<input id="sim_ep0410_sl_p" max="3" min="1" step="1" style="width:60%;cursor:pointer;margin-top:6px;" type="range" value="1"/>
+<span id="sim_ep0410_vl_p" style="font-family:monospace;font-size:12px;font-weight:700;color:#b9770e;margin-left:8px;">1 px</span>
+</div>
+<!-- Comparativo Lado a Lado: f original vs Rótulos Pós-Erosão -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- f Original (ligadas) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Original (Collées)</span>
+<div id="sim_ep0410_grid_f" style="display:grid;grid-template-columns:repeat(10, 26px);gap:2px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Após Erosão + Rótulos -->
+<div style="background:#fafaf7;border:1px solid #2980b9;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Après Érosion + Étiquettes</span>
+<div id="sim_ep0410_grid_lab" style="display:grid;grid-template-columns:repeat(10, 26px);gap:2px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+<!-- Painel Informativo / Descritores -->
+<div id="sim_ep0410_info" style="background:#fef5e7;border:1px solid #f8c471;border-radius:8px;padding:10px 14px;font-size:11px;color:#7d5a00;text-align:center;line-height:1.5;"></div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0410(root){
+    if (!root || root.dataset.simEp0410Init) return;
+    root.dataset.simEp0410Init = "1";
+
+    var slP  = root.querySelector('#sim_ep0410_sl_p');
+    var vlP  = root.querySelector('#sim_ep0410_vl_p');
+    var gF   = root.querySelector('#sim_ep0410_grid_f');
+    var gL   = root.querySelector('#sim_ep0410_grid_lab');
+    var info = root.querySelector('#sim_ep0410_info');
+
+    var L = 7, C = 10;
+    var B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+    var palette = ['#e74c3c', '#27ae60', '#2980b9', '#8e44ad', '#d35400'];
+
+    function buildF(p) {
+      var f = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      for (var y = 1; y < 6; y++) {
+        for (var x = 1; x < 4; x++) f[y][x] = 1;
+      }
+      for (var y = 1; y < 6; y++) {
+        for (var x = 6; x < 9; x++) f[y][x] = 1;
+      }
+      var midRow = 3;
+      for (var dy = 0; dy < p; dy++) {
+        var ry = midRow - Math.floor(p / 2) + dy;
+        for (var x = 4; x < 6; x++) f[ry][x] = 1;
+      }
+      return f;
+    }
+
+    function erode(img, Bm) {
+      var HB = Bm.length, WB = Bm[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bm[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && img[vy][vx] < g[y][x]) {
+                g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function labelK8(img) {
+      var labels = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      var dirs = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+      var cur = 0, desc = [];
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          if (img[y][x] === 1 && labels[y][x] === 0) {
+            cur++;
+            var stack = [[y, x]];
+            labels[y][x] = cur;
+            var area = 0, miny = y, maxy = y, minx = x, maxx = x;
+
+            while (stack.length) {
+              var cell = stack.pop();
+              var cy = cell[0], cx = cell[1];
+              area++;
+              if (cy < miny) miny = cy;
+              if (cy > maxy) maxy = cy;
+              if (cx < minx) minx = cx;
+              if (cx > maxx) maxx = cx;
+
+              dirs.forEach(function(d){
+                var ny = cy + d[0], nx = cx + d[1];
+                if (ny >= 0 && ny < L && nx >= 0 && nx < C && img[ny][nx] === 1 && labels[ny][nx] === 0) {
+                  labels[ny][nx] = cur;
+                  stack.push([ny, nx]);
+                }
+              });
+            }
+            desc.push({k: cur, area: area, miny: miny, minx: minx, maxy: maxy, maxx: maxx});
+          }
+        }
+      }
+      return {labels: labels, desc: desc};
+    }
+
+    function paintBin(grid, img) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;box-sizing:border-box;';
+          c.style.background = img[y][x] ? '#b9770e' : '#fafaf7';
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function paintLabels(grid, labels) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          var k = labels[y][x];
+          c.style.cssText = 'width:26px;height:26px;border-radius:4px;border:1px solid #e4dcc8;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;color:#ffffff;box-sizing:border-box;';
+          c.style.background = k > 0 ? palette[(k - 1) % palette.length] : '#fafaf7';
+          c.textContent = k > 0 ? k : '';
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function render() {
+      var p = parseInt(slP.value, 10) || 1;
+      vlP.textContent = p + ' px';
+      var f = buildF(p);
+      var fe = erode(f, B);
+      var res = labelK8(fe);
+
+      paintBin(gF, f);
+      paintLabels(gL, res.labels);
+
+      var txt = '<b>' + res.desc.length + ' objeto(s) detectado(s) após a erosão.</b><br>';
+      res.desc.forEach(function(d){
+        txt += 'Rótulo ' + d.k + ': área = ' + d.area + ', bbox = (' + d.miny + ',' + d.minx + ') → (' + d.maxy + ',' + d.maxx + ')<br>';
+      });
+      if (res.desc.length < 2) {
+        txt += '<i>A ponte ainda é espessa demais para a erosão 3×3 — as moedas continuam fundidas em 1 só objeto.</i>';
+      }
+      info.innerHTML = txt;
+    }
+
+    slP.addEventListener('input', render);
+
+    render();
+  }
+
+  function tryInitSimEP0410(){
+    var root = document.getElementById('sim-ep0410-rotulacao');
+    if (root) initSimEP0410(root); else setTimeout(tryInitSimEP0410, 200);
+  }
+  tryInitSimEP0410();
+})();
+
+</script>
+</div></div>

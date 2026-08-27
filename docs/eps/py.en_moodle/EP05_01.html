@@ -1,0 +1,228 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP05_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP05_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_01 🟢 Ideal Low-Pass Filter by Distance in the Spectrum</h2>
+<p>In an <strong>old document scanner</strong>, the sensor captures crumpled paper and fiber texture along with the text — high-frequency noise that “pollutes” the spectrum at the edges. The maintenance technician has no access to the original image, only to the <strong>magnitude spectrum already computed</strong> by the scanner’s software. Their job is simple and surgical: keep only the <strong>central circle</strong> of low frequencies (the global structure of the document) and erase everything outside the radius <em>D</em>_0, eliminating the fine texture without even needing to touch the spatial image.</p>
+<p>This is the <strong>Ideal Low-Pass Filter (LPFI)</strong>: the most direct spectral operation in the chapter, but also the one that best reveals the anatomy of a centered spectrum.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Dimensions:</strong> Read the integers <em>L</em> (rows) and <em>C</em> (columns) from the magnitude spectrum — already provided <strong>centered</strong> (equivalent to the output of <code>np.fft.fftshift</code>).</li>
+<li><strong>Cutoff frequency:</strong> Read the integer <em>D</em>_0.</li>
+<li><strong>Data:</strong> Read the integer values of the magnitude matrix, row by row.</li>
+<li><strong>Spectrum center:</strong> Compute (<em>c</em>_<em>y</em>, <em>c</em>_<em>x</em>) = (<em>L</em> \mathbin// 2,\; <em>C</em> \mathbin// 2).</li>
+<li><strong>Distance:</strong> For each position (<em>u</em>,<em>v</em>), compute <em>D</em>(<em>u</em>,<em>v</em>) = √((<em>u</em>-<em>c</em>_<em>y</em>)^2 + (<em>v</em>-<em>c</em>_<em>x</em>)^2)</li>
+<li><strong>Ideal mask:</strong> Apply <em>H</em>(<em>u</em>,<em>v</em>) = 1, <em>D</em>(<em>u</em>,<em>v</em>) \le <em>D</em>_0; 0, <em>D</em>(<em>u</em>,<em>v</em>) &gt; <em>D</em>_0</li>
+<li><strong>Filtering:</strong> The output value is mag'(<em>u</em>,<em>v</em>) = mag(<em>u</em>,<em>v</em>) · <em>H</em>(<em>u</em>,<em>v</em>).</li>
+<li><strong>Output:</strong> Display the filtered matrix with dimensions <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Non-strict comparison:</strong> the criterion uses <em>D</em>(<em>u</em>,<em>v</em>) \le <em>D</em>_0 (the boundary belongs to the filter, i.e., it is kept).</li>
+<li><strong>Type:</strong> all input and output values are integers; the distance is computed in floating point only internally.</li>
+<li><strong>No magnitude rounding:</strong> since the input is already integer and the mask is binary (0 or 1), the output never requires rounding.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Background</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Region</th>
+<th style="padding:10px;border:1px solid #ddd;">Distance to center</th>
+<th style="padding:10px;border:1px solid #ddd;">Filter effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Center</strong> (<em>D</em> \le <em>D</em>_0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Low frequencies</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Preserved — global structure maintained</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Edges</strong> (<em>D</em> &gt; <em>D</em>_0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">High frequencies</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Zeroed — texture and noise removed</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Small <em>D</em>_0</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">—</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reconstructed image would be very blurry</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Large <em>D</em>_0</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">—</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Little filtering; almost all energy preserved</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>L</em>.</li>
+<li>Line 2: Integer <em>C</em>.</li>
+<li>Line 3: Integer <em>D</em>_0.</li>
+<li>Following lines: Integer elements of the magnitude matrix (centered).</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Filtered matrix with <em>L</em> rows and <em>C</em> columns, separated by spaces.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+1<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 20 0<br/>
+40 50 60<br/>
+0 80 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Center (1,1). Corners have D=√(2)\approx1.41 &gt; 1, hence they are zeroed; orthogonal neighbors have D=1 \le 1 and are kept.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+3<br/>
+0<br/>
+5 9 7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 9 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">L=1, C=3: center at (0,1). Only the central position itself (D=0) survives <em>D</em>_0=0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="33" data-quarto-private-1='{"key":"pdi","value":{"ck":"5a8771974ee1e16b6b5716b1ee321ff0"}}' id="cell-fig-05-sim-ep0501">
+</div>
+</div><div id="sim-ep0501" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0501 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0501 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0501 button:hover { background: #e8dfcf; }
+  #sim-ep0501 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0501_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0501_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0501_grid_stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .sim-ep0501_stat_box { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 10px; padding: 10px; text-align: center; }
+  .sim-ep0501_stat_label { font-size: 9.5px; color: #8a8371; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; font-weight: 700; }
+  .sim-ep0501_stat_value { font-size: 16px; font-weight: 700; font-family: monospace; color: #26241d; }
+  .sim-ep0501_cell { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP05_01: Ideal Low-Pass Filter</span>
+<span class="sim-ep0501_pill">H = (D ≤ D₀) ? 1 : 0</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0501_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Cutoff radius (D₀): <span id="sim-ep0501_vl_d0" style="font-family:monospace; color:#26241d;">1</span>
+</label>
+</div>
+<input id="sim-ep0501_sl_d0" max="4" min="0" step="1" type="range" value="1"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">Adjust D₀ and observe which positions of the 5×5 spectrum survive the filter.</div>
+</div>
+<!-- Exibição das Grades de Espectro -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0501_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">Original Spectrum (Magnitude)</div>
+</div>
+<div class="sim-ep0501_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">Filtered Result</div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep01(root){
+    if (!root || root.dataset.sim05Ep01Init) return;
+    root.dataset.sim05Ep01Init = "1";
+
+    var N = 5, cy = Math.floor(N / 2), cx = Math.floor(N / 2);
+    var mag = [];
+    for (var i = 0; i < N; i++){
+      var row = [];
+      for (var j = 0; j < N; j++){
+        row.push(10 * (i + 1) + j + 1);
+      }
+      mag.push(row);
+    }
+
+    var d0el = root.querySelector('#sim-ep0501_sl_d0');
+    var d0v  = root.querySelector('#sim-ep0501_vl_d0');
+    var go   = root.querySelector('#sim-ep0501_grid_orig');
+    var gn   = root.querySelector('#sim-ep0501_grid_new');
+    var dbg  = root.querySelector('#sim-ep0501_debug');
+
+    function cellStyle(active){
+      if (active) {
+        return 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      } else {
+        return 'background:#fafaf7; color:#8a8371; border:1px solid #e4dcc8;';
+      }
+    }
+
+    function render(){
+      var D0 = parseInt(d0el.value, 10);
+      d0v.textContent = D0;
+      go.innerHTML = '';
+      gn.innerHTML = '';
+      var kept = 0;
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var d = Math.sqrt((i - cy) * (i - cy) + (j - cx) * (j - cx));
+          var keep = d <= D0;
+          if (keep) kept++;
+
+          var co = document.createElement('div');
+          co.className = 'sim-ep0501_cell';
+          co.style.cssText = cellStyle(true);
+          co.textContent = mag[i][j];
+          go.appendChild(co);
+
+          var cn = document.createElement('div');
+          cn.className = 'sim-ep0501_cell';
+          cn.style.cssText = cellStyle(keep);
+          cn.textContent = keep ? mag[i][j] : 0;
+          gn.appendChild(cn);
+        }
+      }
+
+      dbg.textContent = 'Center = (' + cy + ', ' + cx + ')  |  D₀ = ' + D0 + '  |  Coeficientes mantidos: ' + kept + ' / ' + (N * N);
+    }
+
+    d0el.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep01(){
+    var root = document.getElementById('sim-ep0501');
+    if (root) initSim05Ep01(root); else setTimeout(tryInitSim05Ep01, 200);
+  }
+  tryInitSim05Ep01();
+})();
+
+</script>
+</div><div id="sim-ep0501_grid_orig" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px; justify-content:center;"></div><div id="sim-ep0501_grid_new" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px; justify-content:center;"></div><div class="sim-ep0501_panel" id="sim-ep0501_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

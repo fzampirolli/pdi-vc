@@ -1,0 +1,388 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP03_06.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP03_06.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP03_06 🌫️ N×N Mean Filter Kernel</h2>
+<p>In autonomous vehicle cameras, images captured under rain or fog exhibit Gaussian noise. The <strong>mean filter</strong> is widely used for real-time noise reduction, being implemented directly in the <strong>ISP</strong> (<em>Image Signal Processor</em>) of <strong>CMOS</strong> (<em>Complementary Metal-Oxide-Semiconductor</em>) sensors.</p>
+<p>CMOS sensors are the image sensors used in most modern cameras (<em>smartphones</em>, <em>webcams</em>, automotive cameras, etc.). They convert light into electrical signals, and the ISP processes these signals in real time — applying operations such as noise reduction, white balance, and other image adjustments.</p>
+<p>See the simulation of this EP in Figure 3.31.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Dimensions:</strong> Read the integers <em>L</em> (rows), <em>C</em> (columns), and <em>N</em> (kernel size, always odd).</li>
+<li><strong>Data:</strong> Read the pixel matrix <em>f</em>.</li>
+<li><strong>Mean Filter:</strong> For each <strong>internal</strong> pixel (<em>i</em>,<em>j</em>) (without borders), compute:</li>
+</ol>
+<p><em>g</em>(<em>i</em>,<em>j</em>) = round\left((1)/(<em>N</em>^2) ∑_s=-(<em>r</em>)^r ∑_t=-(<em>r</em>)^r <em>f</em>(<em>i</em>+<em>s</em>,\, <em>j</em>+<em>t</em>)\right), \quad <em>r</em> = \lfloor <em>N</em>/2 \rfloor</p>
+<ol start="4" type="1">
+<li><strong>Border Handling:</strong> Pixels at the border (where the <em>N</em> × <em>N</em> window exceeds the limits) must be <strong>copied directly</strong> from the original without modification.</li>
+<li><strong>Output:</strong> Display the resulting <em>L</em> × <em>C</em> matrix.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Radius:</strong> <em>r</em> = \lfloor <em>N</em>/2 \rfloor (half of the kernel, integer).</li>
+<li><strong>Internal pixels:</strong> (<em>i</em>,<em>j</em>) with <em>r</em> \le <em>i</em> &lt; <em>L</em>-<em>r</em> and <em>r</em> \le <em>j</em> &lt; <em>C</em>-<em>r</em>.</li>
+<li><strong>Rounding:</strong> Use mathematical rounding before converting to integer.</li>
+<li><strong>No clipping:</strong> The average of values ∈ [0,255] remains in [0,255].</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Background</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Size <em>N</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Coefficient</th>
+<th style="padding:10px;border:1px solid #ddd;">Pixels in the window</th>
+<th style="padding:10px;border:1px solid #ddd;">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/9 \approx 0.111</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">9</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Smooth</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/25 = 0.04</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">25</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Medium</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/49 \approx 0.020</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">49</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Strong</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>L</em>.</li>
+<li>Line 2: Integer <em>C</em>.</li>
+<li>Line 3: Integer <em>N</em> (odd, <em>N</em> \ge 3).</li>
+<li>Following lines: Elements of the original matrix.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Filtered <em>L</em> × <em>C</em> matrix.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Only border (3×3 = all border)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+5<br/>
+3<br/>
+0 0 0 0 0<br/>
+0 0 0 0 0<br/>
+0 0 100 0 0<br/>
+0 0 0 0 0<br/>
+0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0<br/>
+0 11 11 11 0<br/>
+0 11 11 11 0<br/>
+0 11 11 11 0<br/>
+0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Isolated pixel: all 9 internal pixels whose 3×3 window includes the value 100 receive round(100/9)=11</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="49" data-quarto-private-1='{"key":"pdi","value":{"ck":"8a6ffaf3e1b83df385e8e6452ad5ab00"}}' id="cell-fig-03-sim-ep0306-media">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-ep0306-media-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 3.31: Simulator EP03_06: Average Filter with N×N Kernel
+</figcaption>
+</div>
+<div class="cell" data-execution_count="50" data-quarto-private-1='{"key":"pdi","value":{"ck":"6b8f547bac9d499878ade768d4cfba2f"}}' id="ep0306_write">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a aria-hidden="true" href="#cb68-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_06.py</span>
+<span id="cb68-2"><a aria-hidden="true" href="#cb68-2" tabindex="-1"></a><span class="co"># Python code</span></span></code></pre></div><button class="code-copy-button" title="Copy to Clipboard"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Overwriting EP03_06.py</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="51" data-quarto-private-1='{"key":"pdi","value":{"ck":"ddce761df5ce30f4498ba0573d393d41"}}' id="ep0306_test">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a aria-hidden="true" href="#cb70-1" tabindex="-1"></a>TestSuite(<span class="st">"EP03_06.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copy to Clipboard"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP03_06.cases already exists in casos/
+📋 5 case(s) loaded from casos/EP03_06.cases
+
+🔍 Testing Python: EP03_06.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP03_06.py: Empty file (fewer than 3 lines). Tests skipped.</span></pre>
+</div>
+</div>
+</div><div id="sim-ep0306-media" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🔲 Simulator EP03_06: Mean Filter with N×N Kernel</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">g = Mean(Neighbors)</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Select the kernel size and hover over the result pixels to inspect the neighborhood and the arithmetic mean calculation.</p>
+<!-- Barra de Controles / Seleção de Kernel -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span style="font-size:11px;font-weight:700;color:#26241d;">Kernel size:</span>
+<button id="sim_ep0306_btn_k3" style="padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #2980b9;background:#ebf4fd;color:#2980b9;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">3 × 3 (9 neighbors)</button>
+<button id="sim_ep0306_btn_k5" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">5 × 5 (25 neighbors)</button>
+</div>
+<button id="sim_ep0306_btnNew" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 New Image</button>
+</div>
+<!-- Comparativo Lado a Lado: Original vs Resultado -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Imagem Original (7x7) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Original Image f (7×7)</span>
+<span style="font-size:10px;color:#8a8371;display:block;margin-bottom:10px;">With salt-and-pepper noise</span>
+<div id="sim_ep0306_grid_f" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Resultado Suavizado -->
+<div style="background:#fafaf7;border:2px solid #2980b9;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Result g (Smoothed Filter)</span>
+<span style="font-size:10px;color:#2980b9;display:block;margin-bottom:10px;">Hover to inspect</span>
+<div id="sim_ep0306_grid_result" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+<!-- Legenda -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:10px;padding:10px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
+<span style="font-size:11px;font-weight:700;color:#5e5a4a;">Legend:</span>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#fef5e7;border:1.5px dashed #b9770e;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Kernel Window</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#eafaf1;border:1.5px solid #27ae60;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Border (Copied)</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#ebf4fd;border:1.5px solid #2980b9;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Inspected Pixel</span>
+</div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0306_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:10px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;min-height:36px;line-height:1.5;">
+      Hover over an inner pixel of the result to see the mean calculation.
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0306(root){
+    if (!root || root.dataset.simEp0306Init) return;
+    root.dataset.simEp0306Init = "1";
+
+    var ROWS = 7, COLS = 7, N = 49;
+    var pixels = [], result = [], kSize = 3, radius = 1;
+
+    var gridF   = root.querySelector('#sim_ep0306_grid_f');
+    var gridRes = root.querySelector('#sim_ep0306_grid_result');
+    var debug   = root.querySelector('#sim_ep0306_debug');
+    var btnK3   = root.querySelector('#sim_ep0306_btn_k3');
+    var btnK5   = root.querySelector('#sim_ep0306_btn_k5');
+    var btnNew  = root.querySelector('#sim_ep0306_btnNew');
+
+    function generatePixels() {
+      pixels = Array.from({ length: N }, function(){
+        var v = 60 + Math.floor(Math.random() * 60);
+        if (Math.random() > 0.82) v = Math.random() > 0.5 ? 255 : 0;
+        return v;
+      });
+    }
+
+    function calculateFilter() {
+      result = pixels.slice();
+      radius = Math.floor(kSize / 2);
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (r >= radius && r < ROWS - radius && c >= radius && c < COLS - radius) {
+            var sum = 0, cnt = 0;
+            for (var s = -radius; s <= radius; s++) {
+              for (var t = -radius; t <= radius; t++) {
+                sum += pixels[(r + s) * COLS + (c + t)];
+                cnt++;
+              }
+            }
+            result[r * COLS + c] = Math.round(sum / cnt);
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+
+    function highlightKernel(tr, tc, on) {
+      var cells = gridF.children;
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var idx = r * COLS + c;
+          if (!cells[idx]) continue;
+          var p = pixels[idx];
+          if (on && Math.abs(r - tr) <= radius && Math.abs(c - tc) <= radius) {
+            cells[idx].style.background = '#fef5e7';
+            cells[idx].style.color = '#b9770e';
+            cells[idx].style.boxShadow = '0 0 0 2px #b9770e inset';
+          } else {
+            cells[idx].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+            cells[idx].style.color = textColor(p);
+            cells[idx].style.boxShadow = 'none';
+          }
+        }
+      }
+    }
+
+    function render() {
+      var cols = 'repeat(' + COLS + ', 42px)';
+      gridF.style.gridTemplateColumns = cols;
+      gridRes.style.gridTemplateColumns = cols;
+      gridF.innerHTML = '';
+      gridRes.innerHTML = '';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], res = result[i];
+        var isBorder = r < radius || r >= ROWS - radius || c < radius || c >= COLS - radius;
+
+        // Célula Original f
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '2px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel (' + row + ',' + col + ') é <b>borda</b>: valor herdado do original sem cálculo &nbsp;→&nbsp; <b>' + val + '</b>';
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              highlightKernel(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var neighbors = [];
+              for (var s = -radius; s <= radius; s++) {
+                for (var t = -radius; t <= radius; t++) {
+                  neighbors.push(pixels[(row + s) * COLS + (col + t)]);
+                }
+              }
+              var kTotal = kSize * kSize;
+              debug.innerHTML = 'Pixel (' + row + ',' + col + '): round( (' + neighbors.join(' + ') + ') / ' + kTotal + ' ) &nbsp;=&nbsp; <b>' + val + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlightKernel(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + val + ',' + val + ',' + val + ')';
+              cr.style.color = textColor(val);
+              resetDebug();
+            });
+          })(r, c, res);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um pixel interno do resultado para ver o cálculo da média.';
+    }
+
+    function setKernel(k) {
+      kSize = k;
+      if (k === 3) {
+        btnK3.style.background = '#ebf4fd';
+        btnK3.style.borderColor = '#2980b9';
+        btnK3.style.color = '#2980b9';
+        btnK3.style.fontWeight = '700';
+
+        btnK5.style.background = '#f1ead7';
+        btnK5.style.borderColor = '#e4dcc8';
+        btnK5.style.color = '#5e5a4a';
+        btnK5.style.fontWeight = '600';
+      } else {
+        btnK5.style.background = '#ebf4fd';
+        btnK5.style.borderColor = '#2980b9';
+        btnK5.style.color = '#2980b9';
+        btnK5.style.fontWeight = '700';
+
+        btnK3.style.background = '#f1ead7';
+        btnK3.style.borderColor = '#e4dcc8';
+        btnK3.style.color = '#5e5a4a';
+        btnK3.style.fontWeight = '600';
+      }
+      calculateFilter();
+      render();
+    }
+
+    btnK3.addEventListener('click', function(){ setKernel(3); });
+    btnK5.addEventListener('click', function(){ setKernel(5); });
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      calculateFilter();
+      render();
+    });
+
+    generatePixels();
+    calculateFilter();
+    render();
+  }
+
+  function tryInitSimEP0306(){
+    var root = document.getElementById('sim-ep0306-media');
+    if (root) initSimEP0306(root); else setTimeout(tryInitSimEP0306, 200);
+  }
+  tryInitSimEP0306();
+})();
+
+</script>
+</div>
+</div>

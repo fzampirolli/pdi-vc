@@ -1,0 +1,389 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP03_06.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP03_06.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP03_06 🌫️ Filtre de moyenne avec kernel N×N</h2>
+<p>Dans les caméras de véhicules autonomes, les images capturées sous la pluie ou le brouillard présentent un bruit gaussien. Le <strong>filtre de moyenne</strong> est largement utilisé pour sa réduction en temps réel, étant implémenté directement dans le <strong>ISP</strong> (<em>Image Signal Processor</em>) des capteurs <strong>CMOS</strong> (<em>Complementary Metal-Oxide-Semiconductor</em>).</p>
+<p>Les capteurs CMOS sont les capteurs d’image utilisés dans la plupart des caméras modernes (<em>smartphones</em>, <em>webcams</em>, caméras automobiles, etc.). Ils convertissent la lumière en signaux électriques, et l’ISP traite ces signaux en temps réel — en appliquant des opérations telles que la réduction du bruit, la balance des blancs et d’autres ajustements d’image.</p>
+<p>Voir dans Figure 3.31 une simulation de cet EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Dimensions :</strong> Lire les entiers <em>L</em> (lignes), <em>C</em> (colonnes) et <em>N</em> (taille du <em>kernel</em>, toujours impair).</li>
+<li><strong>Données :</strong> Lire la matrice de pixels <em>f</em>.</li>
+<li><strong>Filtre de moyenne :</strong> Pour chaque pixel (<em>i</em>,<em>j</em>) <strong>interne</strong> (sans bordures), calculer :</li>
+</ol>
+<p><em>g</em>(<em>i</em>,<em>j</em>) = round\left((1)/(<em>N</em>^2) ∑_s=-(<em>r</em>)^r ∑_t=-(<em>r</em>)^r <em>f</em>(<em>i</em>+<em>s</em>,\, <em>j</em>+<em>t</em>)\right), \quad <em>r</em> = \lfloor <em>N</em>/2 \rfloor</p>
+<ol start="4" type="1">
+<li><strong>Traitement des bords :</strong> Les pixels sur le bord (où la fenêtre <em>N</em> × <em>N</em> dépasse les limites) doivent être <strong>copiés directement</strong> depuis l’original sans modification.</li>
+<li><strong>Sortie :</strong> Afficher la matrice résultante <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes de calcul</h4>
+<ul>
+<li><strong>Rayon :</strong> <em>r</em> = \lfloor <em>N</em>/2 \rfloor (moitié du <em>kernel</em>, entier).</li>
+<li><strong>Pixels internes :</strong> (<em>i</em>,<em>j</em>) avec <em>r</em> \le <em>i</em> &lt; <em>L</em>-<em>r</em> et <em>r</em> \le <em>j</em> &lt; <em>C</em>-<em>r</em>.</li>
+<li><strong>Arrondi :</strong> Utiliser l’arrondi mathématique avant de convertir en entier.</li>
+<li><strong>Sans <em>clipping</em> :</strong> La moyenne des valeurs ∈ [0,255] reste dans [0,255].</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements théoriques</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Taille <em>N</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Coefficient</th>
+<th style="padding:10px;border:1px solid #ddd;">Pixels dans la fenêtre</th>
+<th style="padding:10px;border:1px solid #ddd;">Effet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/9 \approx 0.111</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">9</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Lisse</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/25 = 0.04</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">25</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Moyen</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1/49 \approx 0.020</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">49</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Fort</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>L</em>.</li>
+<li>Ligne 2 : Entier <em>C</em>.</li>
+<li>Ligne 3 : Entier <em>N</em> (impair, <em>N</em> \ge 3).</li>
+<li>Lignes suivantes : Éléments de la matrice originale.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Matrice filtrée <em>L</em> × <em>C</em>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Bordure uniquement (3×3 = bordure totale)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+5<br/>
+3<br/>
+0 0 0 0 0<br/>
+0 0 0 0 0<br/>
+0 0 100 0 0<br/>
+0 0 0 0 0<br/>
+0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0<br/>
+0 11 11 11 0<br/>
+0 11 11 11 0<br/>
+0 11 11 11 0<br/>
+0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel isolé : tous les 9 pixels internes dont la fenêtre 3×3 inclut la valeur 100 reçoivent round(100/9)=11</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="49" data-quarto-private-1='{"key":"pdi","value":{"ck":"1d7372f356f69d5768d7bbd749bab735"}}' id="cell-fig-03-sim-ep0306-media">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-ep0306-media-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 3.31: Simulateur EP03_06: Filtre de Moyenne avec Noyau N×N
+</figcaption>
+</div>
+<div class="cell" data-execution_count="50" data-quarto-private-1='{"key":"pdi","value":{"ck":"e6333cc05ef9181de7038965667794d3"}}' id="ep0306_write">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a aria-hidden="true" href="#cb68-1" tabindex="-1"></a><span class="op">%%</span>writefile EP03_06.py</span>
+<span id="cb68-2"><a aria-hidden="true" href="#cb68-2" tabindex="-1"></a><span class="co"># Code Python</span></span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing EP03_06.py</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="51" data-quarto-private-1='{"key":"pdi","value":{"ck":"7f0df8cc865908eacdfe377250096206"}}' id="ep0306_test">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a aria-hidden="true" href="#cb70-1" tabindex="-1"></a>TestSuite(<span class="st">"EP03_06.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentative : https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap03/casos/EP03_06.cases
+   ✅ Téléchargement réussi
+📋 5 cas chargé(s) depuis casos/EP03_06.cases
+
+🔍 Test de Python : EP03_06.py
+<span style="color:#f39c12;font-weight:500">⚠️ EP03_06.py : fichier vide (moins de 3 lignes). Tests ignorés.</span></pre>
+</div>
+</div>
+</div><div id="sim-ep0306-media" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🔲 Simulateur EP03_06 : Filtre Moyenne avec Noyau N×N</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">g = Moyenne(Voisins)</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Sélectionnez la taille du noyau et survolez les pixels du résultat pour inspecter le voisinage et le calcul de la moyenne arithmétique.</p>
+<!-- Barra de Controles / Seleção de Kernel -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span style="font-size:11px;font-weight:700;color:#26241d;">Taille du noyau :</span>
+<button id="sim_ep0306_btn_k3" style="padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #2980b9;background:#ebf4fd;color:#2980b9;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">3 × 3 (9 voisins)</button>
+<button id="sim_ep0306_btn_k5" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">5 × 5 (25 voisins)</button>
+</div>
+<button id="sim_ep0306_btnNew" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nouvelle Image</button>
+</div>
+<!-- Comparativo Lado a Lado: Original vs Resultado -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Imagem Original (7x7) -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Image originale f (7×7)</span>
+<span style="font-size:10px;color:#8a8371;display:block;margin-bottom:10px;">Avec bruit sel et poivre</span>
+<div id="sim_ep0306_grid_f" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Resultado Suavizado -->
+<div style="background:#fafaf7;border:2px solid #2980b9;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:4px;">Résultat g (Filtre Lissé)</span>
+<span style="font-size:10px;color:#2980b9;display:block;margin-bottom:10px;">Survolez pour inspecter</span>
+<div id="sim_ep0306_grid_result" style="display:grid;gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+<!-- Legenda -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:10px;padding:10px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
+<span style="font-size:11px;font-weight:700;color:#5e5a4a;">Légende :</span>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#fef5e7;border:1.5px dashed #b9770e;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Fenêtre du Noyau</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#eafaf1;border:1.5px solid #27ae60;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Bord (Copié)</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:18px;height:18px;background:#ebf4fd;border:1.5px solid #2980b9;border-radius:3px;"></div>
+<span style="font-size:10.5px;color:#5e5a4a;">Pixel Inspecté</span>
+</div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0306_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:10px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;min-height:36px;line-height:1.5;">
+      Survolez un pixel interne du résultat pour voir le calcul de la moyenne.
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0306(root){
+    if (!root || root.dataset.simEp0306Init) return;
+    root.dataset.simEp0306Init = "1";
+
+    var ROWS = 7, COLS = 7, N = 49;
+    var pixels = [], result = [], kSize = 3, radius = 1;
+
+    var gridF   = root.querySelector('#sim_ep0306_grid_f');
+    var gridRes = root.querySelector('#sim_ep0306_grid_result');
+    var debug   = root.querySelector('#sim_ep0306_debug');
+    var btnK3   = root.querySelector('#sim_ep0306_btn_k3');
+    var btnK5   = root.querySelector('#sim_ep0306_btn_k5');
+    var btnNew  = root.querySelector('#sim_ep0306_btnNew');
+
+    function generatePixels() {
+      pixels = Array.from({ length: N }, function(){
+        var v = 60 + Math.floor(Math.random() * 60);
+        if (Math.random() > 0.82) v = Math.random() > 0.5 ? 255 : 0;
+        return v;
+      });
+    }
+
+    function calculateFilter() {
+      result = pixels.slice();
+      radius = Math.floor(kSize / 2);
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (r >= radius && r < ROWS - radius && c >= radius && c < COLS - radius) {
+            var sum = 0, cnt = 0;
+            for (var s = -radius; s <= radius; s++) {
+              for (var t = -radius; t <= radius; t++) {
+                sum += pixels[(r + s) * COLS + (c + t)];
+                cnt++;
+              }
+            }
+            result[r * COLS + c] = Math.round(sum / cnt);
+          }
+        }
+      }
+    }
+
+    function textColor(g){ return g > 140 ? '#000000' : '#ffffff'; }
+
+    function highlightKernel(tr, tc, on) {
+      var cells = gridF.children;
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var idx = r * COLS + c;
+          if (!cells[idx]) continue;
+          var p = pixels[idx];
+          if (on && Math.abs(r - tr) <= radius && Math.abs(c - tc) <= radius) {
+            cells[idx].style.background = '#fef5e7';
+            cells[idx].style.color = '#b9770e';
+            cells[idx].style.boxShadow = '0 0 0 2px #b9770e inset';
+          } else {
+            cells[idx].style.background = 'rgb(' + p + ',' + p + ',' + p + ')';
+            cells[idx].style.color = textColor(p);
+            cells[idx].style.boxShadow = 'none';
+          }
+        }
+      }
+    }
+
+    function render() {
+      var cols = 'repeat(' + COLS + ', 42px)';
+      gridF.style.gridTemplateColumns = cols;
+      gridRes.style.gridTemplateColumns = cols;
+      gridF.innerHTML = '';
+      gridRes.innerHTML = '';
+
+      for (var i = 0; i < N; i++) {
+        var r = Math.floor(i / COLS), c = i % COLS;
+        var p = pixels[i], res = result[i];
+        var isBorder = r < radius || r >= ROWS - radius || c < radius || c >= COLS - radius;
+
+        // Célula Original f
+        var cf = document.createElement('div');
+        cf.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + textColor(p) + ';box-sizing:border-box;';
+        cf.textContent = p;
+        gridF.appendChild(cf);
+
+        // Célula Resultado g
+        var cr = document.createElement('div');
+        cr.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;user-select:none;box-sizing:border-box;transition:all 0.15s ease;';
+
+        if (isBorder) {
+          cr.style.background = '#eafaf1';
+          cr.style.border = '2px solid #27ae60';
+          cr.style.color = '#27ae60';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              debug.innerHTML = 'Pixel (' + row + ',' + col + ') é <b>borda</b>: valor herdado do original sem cálculo &nbsp;→&nbsp; <b>' + val + '</b>';
+            });
+            cr.addEventListener('mouseleave', function(){ resetDebug(); });
+          })(r, c, res);
+        } else {
+          cr.style.background = 'rgb(' + res + ',' + res + ',' + res + ')';
+          cr.style.color = textColor(res);
+          cr.style.border = '1px solid #e4dcc8';
+          cr.style.cursor = 'pointer';
+          cr.textContent = res;
+
+          (function(row, col, val){
+            cr.addEventListener('mouseenter', function(){
+              highlightKernel(row, col, true);
+              cr.style.transform = 'scale(1.12)';
+              cr.style.boxShadow = '0 0 0 2px #2980b9 inset';
+              cr.style.background = '#ebf4fd';
+              cr.style.color = '#2980b9';
+
+              var neighbors = [];
+              for (var s = -radius; s <= radius; s++) {
+                for (var t = -radius; t <= radius; t++) {
+                  neighbors.push(pixels[(row + s) * COLS + (col + t)]);
+                }
+              }
+              var kTotal = kSize * kSize;
+              debug.innerHTML = 'Pixel (' + row + ',' + col + '): round( (' + neighbors.join(' + ') + ') / ' + kTotal + ' ) &nbsp;=&nbsp; <b>' + val + '</b>';
+            });
+
+            cr.addEventListener('mouseleave', function(){
+              highlightKernel(row, col, false);
+              cr.style.transform = 'scale(1)';
+              cr.style.boxShadow = 'none';
+              cr.style.background = 'rgb(' + val + ',' + val + ',' + val + ')';
+              cr.style.color = textColor(val);
+              resetDebug();
+            });
+          })(r, c, res);
+        }
+        gridRes.appendChild(cr);
+      }
+    }
+
+    function resetDebug() {
+      debug.textContent = 'Passe o mouse sobre um pixel interno do resultado para ver o cálculo da média.';
+    }
+
+    function setKernel(k) {
+      kSize = k;
+      if (k === 3) {
+        btnK3.style.background = '#ebf4fd';
+        btnK3.style.borderColor = '#2980b9';
+        btnK3.style.color = '#2980b9';
+        btnK3.style.fontWeight = '700';
+
+        btnK5.style.background = '#f1ead7';
+        btnK5.style.borderColor = '#e4dcc8';
+        btnK5.style.color = '#5e5a4a';
+        btnK5.style.fontWeight = '600';
+      } else {
+        btnK5.style.background = '#ebf4fd';
+        btnK5.style.borderColor = '#2980b9';
+        btnK5.style.color = '#2980b9';
+        btnK5.style.fontWeight = '700';
+
+        btnK3.style.background = '#f1ead7';
+        btnK3.style.borderColor = '#e4dcc8';
+        btnK3.style.color = '#5e5a4a';
+        btnK3.style.fontWeight = '600';
+      }
+      calculateFilter();
+      render();
+    }
+
+    btnK3.addEventListener('click', function(){ setKernel(3); });
+    btnK5.addEventListener('click', function(){ setKernel(5); });
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      calculateFilter();
+      render();
+    });
+
+    generatePixels();
+    calculateFilter();
+    render();
+  }
+
+  function tryInitSimEP0306(){
+    var root = document.getElementById('sim-ep0306-media');
+    if (root) initSimEP0306(root); else setTimeout(tryInitSimEP0306, 200);
+  }
+  tryInitSimEP0306();
+})();
+
+</script>
+</div>
+</div>

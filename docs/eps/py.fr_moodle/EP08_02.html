@@ -1,0 +1,210 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_02 🟢 Homographie et RANSAC : Le vote par inliers</h2>
+<p>Le RANSAC, présenté dans la section « Modélisation mathématique : Homographie et RANSAC », répète un cycle de trois étapes — tirer un échantillon minimal, estimer un modèle candidat, et compter combien de correspondances sont cohérentes avec lui (les <strong><em>inliers</em></strong>) — en conservant à la fin le modèle le plus voté. L’étape d’estimation du modèle à partir de 4 points (étape 2) implique une algèbre linéaire qui sort du cadre de cet EP ; ici, vous recevez directement un ensemble d’homographies <strong>déjà candidates</strong> — comme si chacune avait été estimée à partir d’un échantillon aléatoire différent — et vous êtes chargé de reproduire exactement l’étape décisive de l’algorithme : <strong>appliquer chaque modèle à toutes les correspondances et compter ses <em>inliers</em></strong>, en choisissant le gagnant.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Correspondances :</strong> Lire l’entier <em>N</em> puis <em>N</em> lignes contenant chacune quatre réels, <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>' — un point de l’image A et son correspondant (éventuellement incorrect) dans l’image B, exactement comme produit par l’étape de <em>matching</em> de l’EP08_01.</li>
+<li><strong>Modèles candidats :</strong> Lire l’entier <em>K</em> (nombre d’homographies candidates) et le réel \varepsilon (seuil d’erreur de reprojection). Ensuite, lire <em>K</em> lignes, chacune avec neuf réels <em>h</em>_11\ <em>h</em>_12\ <em>h</em>_13\ <em>h</em>_21\ <em>h</em>_22\ <em>h</em>_23\ <em>h</em>_31\ <em>h</em>_32\ <em>h</em>_33 — les éléments de la matrice <em>H</em> candidate, en ordre de lecture par ligne (<em>row-major</em>).</li>
+<li><strong>Reprojection :</strong> Pour chaque correspondance (<em>x</em>,<em>y</em>,<em>x</em>',<em>y</em>') et chaque modèle candidat <em>H</em>_<em>k</em>, calculer le point projeté \beginbmatrix \hat <em>x</em> \\ \hat <em>y</em> \\ \hat <em>w</em> \endbmatrix = <em>H</em>_<em>k</em> \beginbmatrix <em>x</em> \\ <em>y</em> \\ 1 \endbmatrix,
+\qquad
+(\hat <em>x</em> / \hat <em>w</em>,\ \hat <em>y</em> / \hat <em>w</em>)\ est le point projeté.</li>
+<li><strong>Erreur de reprojection :</strong> <em>e</em> = √((\hat <em>x</em>/\hat <em>w</em> - <em>x</em>')^2 + (\hat <em>y</em> /\hat <em>w</em> - <em>y</em>')^2).</li>
+<li><strong>Comptage des <em>inliers</em> :</strong> Une correspondance est un <em>inlier</em> du modèle <em>H</em>_<em>k</em> si <em>e</em> \le \varepsilon.</li>
+<li><strong>Sélection du meilleur modèle :</strong> Le modèle gagnant est celui ayant le plus grand nombre d’<em>inliers</em> ; en cas d’égalité, choisissez celui de <strong>plus petit indice</strong> <em>k</em> (le premier trouvé pendant le cycle itératif du RANSAC).</li>
+<li><strong>Sortie :</strong> Pour chaque modèle <em>k</em> de 0 à <em>K</em>-1, dans l’ordre de lecture, imprimer <code>Modelo k: I inliers</code>. À la fin, imprimer <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong>Comparaison inclusive :</strong> une erreur de reprojection <strong>exactement égale</strong> à \varepsilon compte comme <em>inlier</em> (<em>e</em> \le \varepsilon).</li>
+<li><strong>Sans estimation de <em>H</em> :</strong> les matrices sont déjà fournies prêtes — il n’est pas nécessaire (ni attendu) de résoudre un quelconque système linéaire.</li>
+<li><strong>Égalité résolue par le plus petit indice</strong>, reflétant le comportement naturel d’un algorithme itératif qui parcourt les modèles dans l’ordre et ne remplace le meilleur trouvé jusqu’alors que lorsqu’un nouveau modèle le <strong>dépasse strictement</strong>.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans le RANSAC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Échantillon minimal (4 paires)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Suffisant pour déterminer les 8 degrés de liberté d’une homographie</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modèle candidat <em>H</em>_<em>k</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Estimé à partir d’un échantillon minimal ; peut être bon ou mauvais, selon que l’échantillon contenait des <em>outliers</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Erreur de reprojection</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Mesure à quel point le modèle « prédit » chaque correspondance observée</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Inlier</em> vs. <em>outlier</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Correspondances cohérentes avec le modèle gagnant (<em>inliers</em>) vs. les autres, typiquement des correspondances incorrectes du <em>matching</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Raffinement final</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">En pratique, après avoir choisi le meilleur modèle, le RANSAC le recalcule en utilisant <strong>uniquement</strong> ses <em>inliers</em> — étape non exigée dans cet EP</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>N</em>.</li>
+<li><em>N</em> lignes suivantes : quatre réels <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>'.</li>
+<li>Ligne suivante : Entier <em>K</em> et réel \varepsilon.</li>
+<li><em>K</em> lignes suivantes : neuf réels (éléments de <em>H</em>_<em>k</em>, <em>row-major</em>).</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li><em>K</em> lignes au format <code>Modelo k: I inliers</code>.</li>
+<li>Dernière ligne : <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+0 0 0 0<br/>
+1 1 2 2<br/>
+2 0 4 0<br/>
+0 2 0 4<br/>
+5 5 1 1<br/>
+2 0.5<br/>
+2 0 0 0 2 0 0 0 1<br/>
+1 0 0 0 1 0 0 0 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modelo 0: 4 inliers<br/>
+Modelo 1: 1 inliers<br/>
+Melhor modelo: 0 com 4 inliers</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le Modèle 0 (échelle ×2) explique correctement 4 des 5 correspondances ; la 5ᵉ, (5,5)\to(1,1), est un <em>outlier</em> qu’aucun des deux modèles n’explique bien.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="23" data-quarto-private-1='{"key":"pdi","value":{"ck":"136667ff99da85d44183f72244fa086e"}}' id="cell-fig-08-sim-ep0802">
+</div>
+</div><div id="sim-ep0802" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0802 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0802 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0802 button:hover { background: #e8dfcf; }
+  #sim-ep0802 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0802_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0802_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP08_02 : RANSAC — Comptage des inliers</span>
+<span class="sim-ep0802_pill">Modèle : Échelle ×2</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0808_panel sim-ep0802_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Seuil (ε): <span id="sim-ep0802_vl" style="font-family:monospace; color:#26241d;">0.50</span>
+</label>
+</div>
+<input id="sim-ep0802_sl" max="13" min="0" step="0.25" type="range" value="0.5"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Le modèle candidat mappe (x,y) → à (2x,2y). Ajustez le seuil ε et observez quelles correspondances deviennent des inliers ou des outliers.
+    </div>
+</div>
+<!-- Cards de Pontos / Correspondências -->
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep02(root){
+    if (!root || root.dataset.sim08Ep02Init) return;
+    root.dataset.sim08Ep02Init = "1";
+
+    var pontos = [
+      {x:0, y:0, xp:0, yp:0},
+      {x:1, y:1, xp:2, yp:2},
+      {x:2, y:0, xp:4, yp:0},
+      {x:0, y:2, xp:0, yp:4},
+      {x:5, y:5, xp:1, yp:1}
+    ];
+
+    var slEl  = root.querySelector('#sim-ep0802_sl');
+    var vlEl  = root.querySelector('#sim-ep0802_vl');
+    var cards = root.querySelector('#sim-ep0802_cards');
+    var dbg   = root.querySelector('#sim-ep0802_debug');
+
+    function render(){
+      var eps = parseFloat(slEl.value);
+      vlEl.textContent = eps.toFixed(2);
+      cards.innerHTML = '';
+      var inliers = 0;
+
+      pontos.forEach(function(p){
+        var px = 2 * p.x, py = 2 * p.y;
+        var erro = Math.sqrt((px - p.xp) * (px - p.xp) + (py - p.yp) * (py - p.yp));
+        var dentro = erro <= eps;
+        if (dentro) inliers++;
+
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center; border-radius:10px; padding:10px 6px; font-size:11px; transition:all 0.15s ease;' +
+          (dentro 
+            ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' 
+            : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;');
+
+        div.innerHTML = '<div style="font-weight:700; margin-bottom:4px;">(' + p.x + ',' + p.y + ') &rarr; (' + p.xp + ',' + p.yp + ')</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px; font-size:10px;">erro = ' + erro.toFixed(2) + '</div>' +
+          '<div style="font-weight:700; font-size:10px;">' + (dentro ? 'INLIER' : 'outlier') + '</div>';
+
+        cards.appendChild(div);
+      });
+
+      if (inliers > 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'ε = ' + eps.toFixed(2) + '  |  inliers = ' + inliers + ' de ' + pontos.length;
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep02(){
+    var root = document.getElementById('sim-ep0802');
+    if (root) initSim08Ep02(root); else setTimeout(tryInitSim08Ep02, 200);
+  }
+  tryInitSim08Ep02();
+})();
+
+</script>
+</div><div id="sim-ep0802_cards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:8px; margin-bottom:14px;"></div><div class="sim-ep0802_panel" id="sim-ep0802_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

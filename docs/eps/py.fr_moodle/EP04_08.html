@@ -1,0 +1,274 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP04_08.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP04_08.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_08 🌋 Gradient morphologique, Top-hat et Black-hat</h2>
+<p>En <strong>inspection automatique de plaques de circuits</strong>, trois questions reviennent constamment : où se trouvent les <strong>bords</strong> des composants ? Quels <strong>détails clairs et petits</strong> (comme les points de soudure) se détachent du fond ? Quelles <strong>cavités sombres</strong> (comme les fissures) le fond dissimule-t-il ? Une seule paire érosion/dilatation répond aux trois : le <strong>gradient morphologique</strong> met en évidence les contours, le <strong>top-hat</strong> révèle les pics étroits, et le <strong>black-hat</strong> révèle les vallées étroites — trois outils, un seul voisinage. Voir dans Figure 4.37 une simulation de cet EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Dimensions de l’image :</strong> Lire les entiers <em>L</em> (lignes) et <em>C</em> (colonnes) de <em>f</em>.</li>
+<li><strong>Dimensions de <em>B</em> :</strong> Lire les entiers <em>L</em>_<em>B</em> (lignes) et <em>C</em>_<em>B</em> (colonnes) de l’élément structurant.</li>
+<li><strong>Élément structurant :</strong> Lire la matrice <em>B</em> avec des valeurs 0 ou 1, ligne par ligne.</li>
+<li><strong>Données :</strong> Lire la matrice <em>f</em> (l’image originale, en niveaux de gris), ligne par ligne.</li>
+<li><strong>Opérateurs de base :</strong> Calculer, exactement comme dans les EP 04_03 à 04_06 :
+<ul>
+<li><em>d</em> = <em>f</em> \oplus <em>B</em> (dilatation),</li>
+<li><em>e</em> = <em>f</em> \ominus <em>B</em> (érosion),</li>
+<li>ouverture = <em>e</em> \oplus <em>B</em>,</li>
+<li>fermeture = <em>d</em> \ominus <em>B</em>.</li>
+</ul></li>
+<li><strong>Gradient morphologique :</strong> grad(<em>y</em>,<em>x</em>) = <em>d</em>(<em>y</em>,<em>x</em>) - <em>e</em>(<em>y</em>,<em>x</em>).</li>
+<li><strong>Top-hat :</strong> tophat(<em>y</em>,<em>x</em>) = <em>f</em>(<em>y</em>,<em>x</em>) - ouverture(<em>y</em>,<em>x</em>).</li>
+<li><strong>Black-hat :</strong> blackhat(<em>y</em>,<em>x</em>) = fermeture(<em>y</em>,<em>x</em>) - <em>f</em>(<em>y</em>,<em>x</em>).</li>
+<li><strong>Sortie :</strong> Afficher, <strong>dans cet ordre</strong>, les trois matrices complètes : gradient, top-hat, black-hat.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong>Sans padding à aucune étape intermédiaire</strong> — dilatation, érosion, ouverture et fermeture suivent les mêmes règles de voisinage que les EP précédents.</li>
+<li><strong>Pas de <em>clipping</em> :</strong> les trois sorties peuvent contenir n’importe quelle valeur entière (le gradient est toujours ≥ 0, mais top-hat et black-hat le sont aussi).</li>
+<li><strong>Réutilisation :</strong> <em>d</em> et <em>e</em> doivent être calculés <strong>une seule fois</strong> et réutilisés pour construire ouverture, fermeture et gradient.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements théoriques</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Opérateur</th>
+<th style="padding:10px;border:1px solid #ddd;">Formule</th>
+<th style="padding:10px;border:1px solid #ddd;">Ce qu’il révèle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Gradient</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>d</em> - <em>e</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Bords : zéro dans les régions planes, élevé aux transitions</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Top-hat</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>f</em> - ouverture(<em>f</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Éléments <strong>clairs et fins</strong>, plus petits que <em>B</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Black-hat</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">fermeture(<em>f</em>) - <em>f</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Éléments <strong>sombres et fins</strong>, plus petits que <em>B</em></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>L</em>.</li>
+<li>Ligne 2 : Entier <em>C</em>.</li>
+<li>Ligne 3 : Entier <em>L</em>_<em>B</em>.</li>
+<li>Ligne 4 : Entier <em>C</em>_<em>B</em>.</li>
+<li>Lignes suivantes <em>L</em>_<em>B</em> : éléments entiers (0 ou 1) de la matrice <em>B</em>.</li>
+<li>Lignes suivantes <em>L</em> : éléments entiers de la matrice <em>f</em>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Matrice gradient en <em>L</em> lignes et <em>C</em> colonnes.</li>
+<li>Matrice top-hat en <em>L</em> lignes et <em>C</em> colonnes.</li>
+<li>Matrice black-hat en <em>L</em> lignes et <em>C</em> colonnes.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">9<br/>
+9<br/>
+3<br/>
+3<br/>
+1 1 1<br/>
+1 1 1<br/>
+1 1 1<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 80 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 2 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">(gradient : halo 3×3=70 autour de (2,2) et halo 3×3=8 autour de (6,6), reste 0)<br/>
+(top-hat : unique 70 en (2,2), reste 0)<br/>
+(black-hat : unique 8 en (6,6), reste 0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pic isolé devient top-hat ; vallée isolée devient black-hat ; les deux apparaissent dans le gradient</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="56" data-quarto-private-1='{"key":"pdi","value":{"ck":"f1408ba917ae69adcb97b1e86aa30b1f"}}' id="cell-fig-04-sim-ep0408-gradiente">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0408-gradiente-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 4.37: Simulateur EP04_08: Gradient morphologique, Top-hat et Black-hat
+</figcaption>
+</div>
+</div><div id="sim-ep0408-gradiente" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🌋 Simulateur EP04_08 : Gradient / Top-hat / Black-hat</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">3 opérateurs, 1 voisinage</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Ajoutez des pics ou des creux dans la matrice f et observez le comportement simultané des opérateurs de gradient, top-hat et black-hat.</p>
+<!-- Botões de Ação -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+<button id="sim_ep0408_btn_pico" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #b9770e;background:#fef5e7;color:#b9770e;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">☀️ Ajouter un Pic</button>
+<button id="sim_ep0408_btn_vale" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #2980b9;background:#ebf4fd;color:#2980b9;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">🕳️ Ajouter un Creux</button>
+<button id="sim_ep0408_btn_reset" style="padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">↩ Tout Effacer</button>
+</div>
+<!-- Comparativo em 4 Colunas: f, Gradiente, Top-hat, Black-hat -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;align-items:start;margin-bottom:14px;">
+<!-- Matriz f -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">f (Entrée)</span>
+<div id="sim_ep0408_grid_f" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Gradiente -->
+<div style="background:#fafaf7;border:1px solid #8e44ad;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#8e44ad;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Gradient</span>
+<div id="sim_ep0408_grid_grad" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Top-hat -->
+<div style="background:#fafaf7;border:1px solid #d35400;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#d35400;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Top-hat</span>
+<div id="sim_ep0408_grid_th" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Black-hat -->
+<div style="background:#fafaf7;border:1px solid #2980b9;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Black-hat</span>
+<div id="sim_ep0408_grid_bh" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0408(root){
+    if (!root || root.dataset.simEp0408Init) return;
+    root.dataset.simEp0408Init = "1";
+
+    var gF   = root.querySelector('#sim_ep0408_grid_f');
+    var gGrad= root.querySelector('#sim_ep0408_grid_grad');
+    var gTh  = root.querySelector('#sim_ep0408_grid_th');
+    var gBh  = root.querySelector('#sim_ep0408_grid_bh');
+
+    var btnPico  = root.querySelector('#sim_ep0408_btn_pico');
+    var btnVale  = root.querySelector('#sim_ep0408_btn_vale');
+    var btnReset = root.querySelector('#sim_ep0408_btn_reset');
+
+    var L = 9, C = 9, f = [], B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+
+    function resetMatrix() {
+      f = Array.from({ length: L }, function(){ return new Array(C).fill(10); });
+    }
+
+    function morph(img, Bm, mode) {
+      var Bref = mode === 'dil' ? Bm.slice().reverse().map(function(r){ return r.slice().reverse(); }) : Bm;
+      var HB = Bref.length, WB = Bref[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bref[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C) {
+                if (mode === 'dil' && img[vy][vx] > g[y][x]) g[y][x] = img[vy][vx];
+                if (mode === 'ero' && img[vy][vx] < g[y][x]) g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function paint(grid, img, cmin, cmax, hue) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var v = img[y][x];
+          var t = cmax > cmin ? (v - cmin) / (cmax - cmin) : 0;
+          var c = document.createElement('div');
+          c.style.cssText = 'width:20px;height:20px;border-radius:3px;box-sizing:border-box;';
+          c.style.background = v === 0 ? '#fafaf7' : hue;
+          c.style.opacity = v === 0 ? '1' : (0.35 + 0.65 * Math.min(1, t));
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function render() {
+      var d = morph(f, B, 'dil');
+      var e = morph(f, B, 'ero');
+      var ab = morph(e, B, 'dil');
+      var fc = morph(d, B, 'ero');
+
+      var grad = f.map(function(r, y){ return r.map(function(_, x){ return d[y][x] - e[y][x]; }); });
+      var th   = f.map(function(r, y){ return r.map(function(v, x){ return v - ab[y][x]; }); });
+      var bh   = f.map(function(r, y){ return r.map(function(v, x){ return fc[y][x] - v; }); });
+
+      var maxF = Math.max.apply(null, f.map(function(r){ return Math.max.apply(null, r); }));
+      var maxG = Math.max.apply(null, grad.map(function(r){ return Math.max.apply(null, r); }));
+      var maxTh = Math.max.apply(null, th.map(function(r){ return Math.max.apply(null, r); }));
+      var maxBh = Math.max.apply(null, bh.map(function(r){ return Math.max.apply(null, r); }));
+
+      paint(gF, f, 10, maxF || 1, '#7f8c8d');
+      paint(gGrad, grad, 0, Math.max(1, maxG), '#8e44ad');
+      paint(gTh, th, 0, Math.max(1, maxTh), '#d35400');
+      paint(gBh, bh, 0, Math.max(1, maxBh), '#2980b9');
+    }
+
+    btnPico.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.min(255, f[y][x] + 60 + Math.floor(Math.random() * 30));
+      render();
+    });
+
+    btnVale.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.max(0, f[y][x] - 8 - Math.floor(Math.random() * 4));
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      resetMatrix();
+      f[2][2] = 80;
+      f[6][6] = 2;
+      render();
+    });
+
+    resetMatrix();
+    f[2][2] = 80;
+    f[6][6] = 2;
+    render();
+  }
+
+  function tryInitSimEP0408(){
+    var root = document.getElementById('sim-ep0408-gradiente');
+    if (root) initSimEP0408(root); else setTimeout(tryInitSimEP0408, 200);
+  }
+  tryInitSimEP0408();
+})();
+
+</script>
+</div></div>

@@ -1,0 +1,237 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP06_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP06_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_05 🟠 Background Normalization by Division (Illumination Correction)</h2>
+<p>A form was photographed under non-uniform illumination, causing one side of the page to appear lighter than the other. Under these conditions, global thresholding by Otsu can produce unsatisfactory results, since a single threshold does not properly separate text and background across the entire image. The solution presented in the chapter consists of <strong>normalizing the background</strong> by dividing the original image by a heavily smoothed version of itself, which represents the low-frequency illumination.</p>
+<p>In this exercise, the original image and the smoothed background (equivalent to the result of a <code>cv2.GaussianBlur</code> with high σ) are already provided. Your task is to implement the normalization step that produces the corrected image.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Dimensions:</strong> Read the integers <em>L</em> (rows) and <em>C</em> (columns).</li>
+<li><strong>Original image:</strong> Read the <em>L</em> × <em>C</em> integer values of the matrix <code>img</code> (intensities between 0 and 255).</li>
+<li><strong>Estimated background:</strong> Read the <em>L</em> × <em>C</em> integer values of the matrix <code>bg</code> (intensities between 0 and 255, always strictly greater than zero).</li>
+<li><strong>Normalization:</strong> For each position (<em>i</em>,<em>j</em>), compute value(<em>i</em>,<em>j</em>)=
+\fracimg(<em>i</em>,<em>j</em>)bg(<em>i</em>,<em>j</em>)×255.</li>
+<li><strong>Rounding:</strong> Round the result to the nearest integer (<em>round half away from zero</em>, using <code>np.floor(img + 0.5)</code>).</li>
+<li><strong>Saturation:</strong> Clip the obtained value to the interval [0,255].</li>
+<li><strong>Output:</strong> Print the resulting matrix <code>img_norm</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Division by zero:</strong> the input guarantees bg(<em>i</em>,<em>j</em>)&gt;0 at all positions.</li>
+<li><strong>Order of operations:</strong> first round, then apply saturation.</li>
+<li><strong>Independent processing:</strong> each pixel must be normalized individually, without using information from neighboring pixels.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Situation</th>
+<th style="padding:10px;border:1px solid #ddd;">Effect of normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)=bg(<em>i</em>,<em>j</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Result equal to 255, corresponding to the normalized background.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)<bg(<em>i,<em>j</em>)</bg(<em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Result less than 255, preserving darker regions, such as text.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">img(<em>i</em>,<em>j</em>)&gt;bg(<em>i</em>,<em>j</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Result greater than 255, subsequently saturated.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Background with non-uniform illumination</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">The division reduces slow illumination variations, making the image more homogeneous.</td>
+</tr>
+</tbody>
+</table>
+<p>Dividing by the estimated background reduces the effects of non-uniform illumination and preserves the contrast between foreground and background, facilitating subsequent segmentation steps.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>L</em>.</li>
+<li>Line 2: Integer <em>C</em>.</li>
+<li>Next <em>L</em> lines: elements of the matrix <code>img</code>.</li>
+<li>Next <em>L</em> lines: elements of the matrix <code>bg</code>.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Matrix <code>img_norm</code>, with <em>L</em> rows and <em>C</em> columns, containing integer values separated by spaces.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+60 120<br/>
+180 40<br/>
+100 100<br/>
+200 80</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">153 255<br/>
+230 128</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Values greater than 255 must be saturated; 180/200×255=229.5 results in 230 after rounding.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+3<br/>
+30 60 90<br/>
+60 60 60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">128 255 255</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Only the first value remains below 255 after normalization.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="43" data-quarto-private-1='{"key":"pdi","value":{"ck":"0e36463873eae6d0ad6d8c7e0c9a616a"}}' id="cell-fig-06-sim-ep0605">
+</div>
+</div><div id="sim-ep0605" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0605 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0605 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0605 button:hover { background: #e8dfcf; }
+  #sim-ep0605 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0605_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0605_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim05_ep05_cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 9px; font-weight: 700; font-family: monospace; border: 1px solid #e4dcc8; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP06_05: Background Normalization by Division</span>
+<span class="sim-ep0605_pill">(img / bg) × 255</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0605_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Left Background Intensity (bg_esq): <span id="sim-ep0605_vl" style="font-family:monospace; color:#26241d;">100</span>
+</label>
+</div>
+<input id="sim-ep0605_sl" max="220" min="40" step="5" type="range" value="100"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Adjust the background gradient (left → right) and observe how division cancels the illumination variation.
+    </div>
+</div>
+<!-- Exibição das Matrizes 1x4 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0605_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        img (Original)
+      </div>
+</div>
+<div class="sim-ep0605_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        bg (Smoothed Background)
+      </div>
+</div>
+<div class="sim-ep0605_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        img_norm (Output)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep05(root){
+    if (!root || root.dataset.sim06Ep05Init) return;
+    root.dataset.sim06Ep05Init = "1";
+
+    var linha_img = [90, 90, 90, 90];
+    var slEl = root.querySelector('#sim-ep0605_sl');
+    var vlEl = root.querySelector('#sim-ep0605_vl');
+    var gImg = root.querySelector('#sim-ep0605_g_img');
+    var gBg  = root.querySelector('#sim-ep0605_g_bg');
+    var gOut = root.querySelector('#sim-ep0605_g_out');
+    var dbg  = root.querySelector('#sim-ep0605_debug');
+
+    function roundHalfAway(x){
+      return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
+    }
+
+    function cellStyle(v){
+      var g = Math.max(0, Math.min(255, v));
+      return 'background:rgb(' + g + ',' + g + ',' + g + '); color:' + (g > 140 ? '#000000' : '#ffffff') + ';';
+    }
+
+    function render(){
+      var bgEsq = parseInt(slEl.value, 10);
+      vlEl.textContent = bgEsq;
+
+      // Gradiente linear de bgEsq até 200 na direita, 4 colunas
+      var bg = [];
+      for (var j = 0; j < 4; j++){
+        bg.push(Math.round(bgEsq + (200 - bgEsq) * j / 3));
+      }
+
+      gImg.innerHTML = '';
+      gBg.innerHTML  = '';
+      gOut.innerHTML = '';
+      
+      var out = [];
+      for (var j = 0; j < 4; j++){
+        var v = (linha_img[j] / bg[j]) * 255;
+        var r = roundHalfAway(v);
+        var sat = Math.max(0, Math.min(255, r));
+        out.push(sat);
+
+        var ci = document.createElement('div');
+        ci.className = 'sim05_ep05_cell';
+        ci.style.cssText = cellStyle(linha_img[j]);
+        ci.textContent = linha_img[j];
+        gImg.appendChild(ci);
+
+        var cb = document.createElement('div');
+        cb.className = 'sim05_ep05_cell';
+        cb.style.cssText = cellStyle(bg[j]);
+        cb.textContent = bg[j];
+        gBg.appendChild(cb);
+
+        var co = document.createElement('div');
+        co.className = 'sim05_ep05_cell';
+        co.style.cssText = cellStyle(sat);
+        co.textContent = sat;
+        gOut.appendChild(co);
+      }
+
+      dbg.textContent = 'bg = [' + bg.join(', ') + ']  |  img_norm = [' + out.join(', ') + ']';
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep05(){
+    var root = document.getElementById('sim-ep0605');
+    if (root) initSim06Ep05(root); else setTimeout(tryInitSim06Ep05, 200);
+  }
+  tryInitSim06Ep05();
+})();
+
+</script>
+</div><div id="sim-ep0605_g_img" style="display:grid; grid-template-columns:repeat(4, 40px); gap:4px; justify-content:center;"></div><div id="sim-ep0605_g_bg" style="display:grid; grid-template-columns:repeat(4, 40px); gap:4px; justify-content:center;"></div><div id="sim-ep0605_g_out" style="display:grid; grid-template-columns:repeat(4, 40px); gap:4px; justify-content:center;"></div><div class="sim-ep0605_panel" id="sim-ep0605_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

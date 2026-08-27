@@ -1,0 +1,282 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP04_09.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP04_09.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_09 🗺️ Distance Transform and the Object’s “Core”</h2>
+<p>In <strong>mobile robotics</strong>, when planning a route within a corridor, the robot wants to know not only <em>where</em> free space exists, but also <strong>how far</strong> each free point is from the nearest wall. The safest paths tend to pass through the corridor’s “core,” away from obstacles.</p>
+<p>The <strong>morphological distance transform</strong> assigns to each pixel a value representing its distance to the nearest edge, according to the metric defined by the structuring element. Pixels near the edge receive low values, while more internal pixels receive higher values. The pixel with the maximum value corresponds to the most protected region of the object, often associated with its morphological center.</p>
+<p>See Figure 4.38 for a simulation of this EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Image dimensions:</strong> read the integers <em>L</em> (rows) and <em>C</em> (columns) of image <em>f</em>.</li>
+<li><strong>Dimensions of <em>B</em>:</strong> read the integers <em>L</em>_<em>B</em> (rows) and <em>C</em>_<em>B</em> (columns) of the structuring element.</li>
+<li><strong>Structuring element:</strong> read the matrix <em>b</em>, containing value 0 at the center and negative values at other positions.</li>
+<li><strong>Image:</strong> read the binary matrix <em>f</em> (values 0 or 1), row by row.</li>
+<li><strong>Preparation:</strong> multiply the image by <em>L</em>× <em>C</em>, ensuring that internal pixels have an initial value sufficiently high for distance propagation.</li>
+<li><strong>Distance transform:</strong> compute the distance matrix using the method <code>mm.dist1(f,b)</code>.</li>
+<li><strong>Output:</strong> display the matrix resulting from the distance transform.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li>Use the weighted erosion implementation provided by the library.</li>
+<li>The structuring element may contain arbitrary negative values.</li>
+<li>The transform must be obtained by iteratively applying weighted erosions until a fixed point is reached.</li>
+</ul>
+<p><strong>⚠️ Crucial Note on Matrix Reading:</strong> Since the structuring element may contain negative integer values (e.g., <code>-1</code> and <code>-99</code>), <strong>do not use the <code>mm.readImg</code> function to read matrix <em>b</em></strong>. This function converts data to <code>uint8</code> type, causing <em>underflow</em> and corrupting negative values. Read the <em>L</em>_<em>B</em> rows of <em>b</em> manually using the default <code>int</code> type. Image <em>f</em> can continue to be read normally using <code>mm.readImg</code>.</p>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concept</th>
+<th style="padding:10px;border:1px solid #ddd;">Meaning</th>
+<th style="padding:10px;border:1px solid #ddd;">Visual Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>dist(<em>y</em>,<em>x</em>)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Morphological distance to the nearest edge according to the metric defined by <em>b</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">More internal pixels receive higher values</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Maximum value</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel farthest from the edge</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Approximates the object’s morphological center</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Weighted structuring element</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Defines the displacement costs between neighboring pixels</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Determines the distance metric used</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Thin objects</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Narrow regions of the object</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Produce low distance values</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: integer <em>L</em>.</li>
+<li>Line 2: integer <em>C</em>.</li>
+<li>Line 3: integer <em>L</em>_<em>B</em>.</li>
+<li>Line 4: integer <em>C</em>_<em>B</em>.</li>
+<li>Next <em>L</em>_<em>B</em> lines: integer elements of matrix <em>b</em>.</li>
+<li>Next <em>L</em> lines: binary elements (0 or 1) of matrix <em>f</em>.</li>
+</ul>
+<p>⚠️ <strong>Implementation note:</strong> The elements of matrix <em>f</em> (0 or 1) must be multiplied by <strong>255</strong> to generate an adequate binary image (0 and 255) before applying the Distance Transform (DT).</p>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Distance transform matrix with <em>L</em> rows and <em>C</em> columns.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Example</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+9<br/>
+3<br/>
+3<br/>
+-99 -1 -99<br/>
+-1 0 -1<br/>
+-99 -1 -99<br/>
+0 0 0 0 0 0 0 0 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 0 0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 0 0 0 0 0 0 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 1 2 2 2 2 2 1 0<br/>
+0 1 1 1 1 1 1 1 0<br/>
+0 0 0 0 0 0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Result of the distance transform.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note:</strong> the value <code>-99</code> acts as a practical approximation of -∈fty, preventing propagation along diagonals. Thus, only horizontal and vertical neighbors contribute to the distance, producing the Manhattan distance.</p>
+<div class="cell" data-execution_count="59" data-quarto-private-1='{"key":"pdi","value":{"ck":"7a5e92d2800cecf03a8ac31fa01421e6"}}' id="cell-fig-04-sim-ep0409-distancia">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0409-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 4.38: Simulador EP04_09: Distância por Transformada (Camadas de Erosão)
+</figcaption>
+</div>
+</div><div id="sim-ep0409-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🗺️ EP04_09 Simulator: Distance Transform</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Erosion Layers</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Click cells to draw your own object or select a predefined shape to calculate the cascading distance map.</p>
+<!-- Grade f Original Clicável -->
+<div style="display:flex;justify-content:center;margin-bottom:14px;">
+<div id="sim_ep0409_grid_f" style="display:grid;grid-template-columns:repeat(9, 32px);gap:2px;user-select:none;"></div>
+</div>
+<!-- Botões de Formas Predefinidas -->
+<div style="text-align:center;margin-bottom:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+<button id="sim_ep0409_btn_corredor" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #16a085;background:#eafaf1;color:#16a085;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">📐 Corridor</button>
+<button id="sim_ep0409_btn_disco" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #16a085;background:#eafaf1;color:#16a085;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">⬤ Disc</button>
+<button id="sim_ep0409_btn_l" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #16a085;background:#eafaf1;color:#16a085;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">📏 L-Shape</button>
+</div>
+<!-- Título do Mapa de Distâncias -->
+<span style="font-size:10px;font-weight:700;color:#5e5a4a;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;text-align:center;">Calculated Distance Map</span>
+<!-- Grade de Distâncias -->
+<div style="display:flex;justify-content:center;">
+<div id="sim_ep0409_grid_dist" style="display:grid;grid-template-columns:repeat(9, 32px);gap:2px;user-select:none;"></div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0409(root){
+    if (!root || root.dataset.simEp0409Init) return;
+    root.dataset.simEp0409Init = "1";
+
+    var gF = root.querySelector('#sim_ep0409_grid_f');
+    var gD = root.querySelector('#sim_ep0409_grid_dist');
+
+    var L = 5, C = 9, f = [];
+    var B = [[0, 1, 0], [1, 1, 1], [0, 1, 0]];
+
+    function setCorredor() {
+      f = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      for (var y = 1; y < 4; y++) {
+        for (var x = 1; x < 8; x++) f[y][x] = 1;
+      }
+    }
+
+    function setDisco() {
+      f = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      var cy = 2, cx = 4;
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          if (Math.pow(y - cy, 2) + Math.pow((x - cx) * 0.6, 2) <= 4) f[y][x] = 1;
+        }
+      }
+    }
+
+    function setL() {
+      f = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      for (var y = 1; y < 4; y++) {
+        for (var x = 1; x < 3; x++) f[y][x] = 1;
+      }
+      for (var y = 2; y < 4; y++) {
+        for (var x = 1; x < 8; x++) f[y][x] = 1;
+      }
+    }
+
+    function erode(img, Bm) {
+      var HB = Bm.length, WB = Bm[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bm[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && img[vy][vx] < g[y][x]) {
+                g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function sameMatrix(a, b) {
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          if (a[y][x] !== b[y][x]) return false;
+        }
+      }
+      return true;
+    }
+
+    function render() {
+      gF.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          (function(yy, xx){
+            var c = document.createElement('div');
+            c.style.cssText = 'width:32px;height:32px;border-radius:6px;border:1px solid #e4dcc8;cursor:pointer;box-sizing:border-box;transition:all 0.1s ease;';
+            c.style.background = f[yy][xx] ? '#16a085' : '#fafaf7';
+
+            c.addEventListener('click', function(){
+              f[yy][xx] = 1 - f[yy][xx];
+              render();
+            });
+            gF.appendChild(c);
+          })(y, x);
+        }
+      }
+
+      var dist = Array.from({length: L}, function(){ return new Array(C).fill(0); });
+      var atual = f.map(function(r){ return r.slice(); });
+      var nivel = 0;
+
+      while (atual.some(function(r){ return r.some(function(v){ return v === 1; }); })) {
+        nivel++;
+        for (var y = 0; y < L; y++) {
+          for (var x = 0; x < C; x++) {
+            if (atual[y][x] === 1) dist[y][x] = nivel;
+          }
+        }
+        var prox = erode(atual, B);
+        if (sameMatrix(prox, atual)) break;
+        atual = prox;
+      }
+
+      gD.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          var v = dist[y][x];
+          var t = v / (nivel || 1);
+          var inten = Math.round(220 - t * 170);
+
+          c.style.cssText = 'width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:monospace;border:1px solid #e4dcc8;box-sizing:border-box;';
+          c.style.background = v === 0 ? '#fafaf7' : 'rgb(' + (inten - 60) + ',' + inten + ',' + (inten - 30) + ')';
+          c.style.color = v > 0 ? '#ffffff' : '#8a8371';
+          c.textContent = v || '';
+          gD.appendChild(c);
+        }
+      }
+    }
+
+    root.querySelector('#sim_ep0409_btn_corredor').addEventListener('click', function(){ setCorredor(); render(); });
+    root.querySelector('#sim_ep0409_btn_disco').addEventListener('click', function(){ setDisco(); render(); });
+    root.querySelector('#sim_ep0409_btn_l').addEventListener('click', function(){ setL(); render(); });
+
+    setCorredor();
+    render();
+  }
+
+  function tryInitSimEP0409(){
+    var root = document.getElementById('sim-ep0409-distancia');
+    if (root) initSimEP0409(root); else setTimeout(tryInitSimEP0409, 200);
+  }
+  tryInitSimEP0409();
+})();
+
+</script>
+</div></div>

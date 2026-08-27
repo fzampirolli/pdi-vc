@@ -1,0 +1,221 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP08_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_04 🟢 IoU et Suppression des Non-Maximums (NMS)</h2>
+<p>La figure de cette section a montré l’effet de la Suppression des Non-Maximums sur un ensemble de boîtes produites par un détecteur de type <em>sliding window</em> : de multiples détections redondantes par objet ont été réduites à une seule boîte par objet. Vous avez été chargé de réimplémenter, octet par octet, les deux fonctions qui ont produit ce résultat — <code>calcular_iou</code> et <code>supressao_nao_maximos</code> — afin de confirmer, de vos propres mains, exactement les nombres que le chapitre a présentés.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><p><strong>Entrée :</strong> Lire l’entier <em>N</em> (nombre de boîtes) et le réel \tau (seuil d’IoU). Ensuite, lire <em>N</em> lignes, chacune avec cinq réels <em>x</em>_min\ <em>y</em>_min\ <em>x</em>_max\ <em>y</em>_max\ score.</p></li>
+<li><p><strong>Intersection sur Union :</strong> Pour deux boîtes <em>A</em> et <em>B</em>, IoU(<em>A</em>,<em>B</em>) = \fracaire(<em>A</em> \cap <em>B</em>)aire(<em>A</em> \cup <em>B</em>), avec une aire d’intersection nulle lorsque les boîtes ne se chevauchent pas.</p></li>
+<li><p><strong>Algorithme de NMS</strong> (exactement comme décrit dans le chapitre) :</p>
+<ol type="a">
+<li><p>Trier les boîtes par <code>score</code> décroissant (les égalités conservent l’ordre de lecture original).</p></li>
+<li><p>Sélectionner la boîte ayant le score le plus élevé parmi les restantes ; l’ajouter à la sortie et la retirer de la liste.</p></li>
+<li><p>Éliminer, de la liste restante, <strong>toutes</strong> les boîtes dont l’IoU avec la boîte sélectionnée est <strong>supérieur ou égal</strong> à \tau — seules les boîtes avec IoU &lt; \tau restent candidates.</p></li>
+<li><p>Répéter (b)–(c) jusqu’à ce que la liste des restantes soit vide.</p></li>
+</ol></li>
+<li><p><strong>Sortie :</strong> Pour chaque boîte conservée, dans l’ordre où elle a été sélectionnée, imprimer son indice original (position de lecture, à partir de 0) et son <code>score</code>, avec 2 décimales. À la fin, imprimer <code>Total mantidas: X</code>.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong>Attention au sens du seuil :</strong> contrairement à ce que l’on pourrait supposer, une boîte est <strong>supprimée</strong> lorsque IoU \ge \tau (et non seulement lorsque IoU &gt; \tau) — suivez exactement ce critère, le même que celui du code de référence du chapitre.</li>
+<li><strong>Indices originaux :</strong> la sortie référence la position de lecture de chaque boîte dans l’entrée, et non sa position après le tri par <code>score</code>.</li>
+<li><strong>Aire sans ajout de 1 pixel :</strong> utilisez l’aire = (<em>x</em>_max-<em>x</em>_min) × (<em>y</em>_max-<em>y</em>_min), exactement comme dans le chapitre (sans l’ajustement « +1 » parfois utilisé dans d’autres conventions).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondements théoriques</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans le post-traitement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quantifie le chevauchement spatial entre deux boîtes englobantes</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Sliding window</em> (Haar Cascade)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Produit généralement plusieurs détections chevauchantes pour le même objet, à des positions et échelles proches</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Seuil \tau</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contrôle l’agressivité de la suppression : trop faible fusionne les objets proches ; trop élevé laisse passer les redondances</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Tri par <code>score</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Garantit que, parmi les boîtes redondantes, celle avec la plus grande confiance survive toujours</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>N</em> et réel \tau.</li>
+<li>Lignes suivantes <em>N</em> : cinq réels <em>x</em>_min\ <em>y</em>_min\ <em>x</em>_max\ <em>y</em>_max\ score.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Une ligne par boîte conservée, dans l’ordre de sélection : <code>indice score</code> (score avec 2 décimales).</li>
+<li>Dernière ligne : <code>Total mantidas: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5 0.4<br/>
+50 50 150 150 0.90<br/>
+60 55 155 145 0.75<br/>
+58 60 160 150 0.60<br/>
+300 300 400 420 0.95<br/>
+310 305 395 415 0.70</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 0.95<br/>
+0 0.90<br/>
+Total mantidas: 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Exactement l’exemple de la figure du chapitre : 5 boîtes redondantes (2 objets) deviennent 2 détections finales. L’IoU entre la 1re et la 2e boîtes est \approx 0,775, bien au-dessus de \tau=0,4.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="29" data-quarto-private-1='{"key":"pdi","value":{"ck":"27a65330578d9518e2a032ca700a83ff"}}' id="cell-fig-08-sim-ep0804">
+</div>
+</div><div id="sim-ep0804" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0804 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0804 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0804 button:hover { background: #e8dfcf; }
+  #sim-ep0804 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0804_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0804_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP08_04 : IoU et suppression des non-maxima (NMS)</span>
+<span class="sim-ep0804_pill">Suppression si IoU ≥ τ</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0804_panel" style="margin-bottom:14px;">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+<div>
+<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Déplacement de la candidate (dx)</label>
+<span id="sim-ep0804_dx_v" style="font-family:monospace; font-weight:700; color:#26241d;">3</span>
+</div>
+<input id="sim-ep0804_dx" max="10" min="0" step="1" type="range" value="3"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Seuil (τ)</label>
+<span id="sim-ep0804_tau_v" style="font-family:monospace; font-weight:700; color:#26241d;">0.40</span>
+</div>
+<input id="sim-ep0804_tau" max="0.9" min="0.1" step="0.05" type="range" value="0.4"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      La boîte bleue (score plus élevé) a déjà été sélectionnée. Ajustez le chevauchement et le seuil τ pour vérifier la suppression de la boîte rouge (candidate).
+    </div>
+</div>
+<!-- Canvas Visual de Caixas Delimitadoras -->
+<div class="sim-ep0804_panel" style="position:relative; width:100%; height:160px; margin-bottom:14px; overflow:hidden;">
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep04(root){
+    if (!root || root.dataset.sim08Ep04Init) return;
+    root.dataset.sim08Ep04Init = "1";
+
+    var dxEl   = root.querySelector('#sim-ep0804_dx');
+    var dxvEl  = root.querySelector('#sim-ep0804_dx_v');
+    var tauEl  = root.querySelector('#sim-ep0804_tau');
+    var tauvEl = root.querySelector('#sim-ep0804_tau_v');
+    var boxA   = root.querySelector('#sim-ep0804_boxA');
+    var boxB   = root.querySelector('#sim-ep0804_boxB');
+    var dbg    = root.querySelector('#sim-ep0804_debug');
+
+    var ESCALA = 10;
+    var A = {x1: 5, y1: 3, x2: 15, y2: 13};
+
+    function iou(a, b){
+      var ix1 = Math.max(a.x1, b.x1), iy1 = Math.max(a.y1, b.y1);
+      var ix2 = Math.min(a.x2, b.x2), iy2 = Math.min(a.y2, b.y2);
+      var iw  = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+      var inter = iw * ih;
+      var areaA = (a.x2 - a.x1) * (a.y2 - a.y1);
+      var areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
+      return inter / (areaA + areaB - inter);
+    }
+
+    function render(){
+      var dx  = parseInt(dxEl.value, 10);
+      var tau = parseFloat(tauEl.value);
+
+      dxvEl.textContent  = dx;
+      tauvEl.textContent = tau.toFixed(2);
+
+      var B = {x1: 5 + dx, y1: 3 + dx * 0.4, x2: 15 + dx, y2: 13 + dx * 0.4};
+
+      boxA.style.left   = (A.x1 * ESCALA) + 'px';
+      boxA.style.top    = (A.y1 * ESCALA) + 'px';
+      boxA.style.width  = ((A.x2 - A.x1) * ESCALA) + 'px';
+      boxA.style.height = ((A.y2 - A.y1) * ESCALA) + 'px';
+
+      boxB.style.left   = (B.x1 * ESCALA) + 'px';
+      boxB.style.top    = (B.y1 * ESCALA) + 'px';
+      boxB.style.width  = ((B.x2 - B.x1) * ESCALA) + 'px';
+      boxB.style.height = ((B.y2 - B.y1) * ESCALA) + 'px';
+
+      var val = iou(A, B);
+      var suprimida = val >= tau;
+
+      if (suprimida) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'IoU(A,B) = ' + val.toFixed(4) + '  |  τ = ' + tau.toFixed(2) + '  →  Candidata (Vermelha) ' + 
+        (suprimida ? 'SUPRIMIDA (IoU ≥ τ)' : 'MANTIDA (IoU < τ)');
+    }
+
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep04(){
+    var root = document.getElementById('sim-ep0804');
+    if (root) initSim08Ep04(root); else setTimeout(tryInitSim08Ep04, 200);
+  }
+  tryInitSim08Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0804_boxA" style="position:absolute; border:2px solid #2980b9; background:rgba(41,128,185,0.20); border-radius:4px; transition:all 0.15s ease;"></div><div id="sim-ep0804_boxB" style="position:absolute; border:2px solid #c0392b; background:rgba(192,57,43,0.20); border-radius:4px; transition:all 0.15s ease;"></div><div class="sim-ep0804_panel" id="sim-ep0804_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

@@ -1,0 +1,534 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_04 🟡 Intersection over Union (IoU) and Non-Maximum Suppression (NMS)</h2>
+<p>Object detection models can produce <strong>multiple candidate bounding boxes</strong> for the same object, with different positions and confidence scores. The post-processing step responsible for eliminating these redundant detections is <strong>Non-Maximum Suppression (NMS)</strong>, whose fundamental operation uses the <strong>Intersection over Union (IoU)</strong> metric.</p>
+<p>NMS uses this measure to decide which boxes should be kept. In general, the box with the highest confidence is selected first; then, boxes that have an IoU above a given threshold with the selected box are considered redundant and removed. The process is repeated until no candidate boxes remain.</p>
+<p>In this exercise, you must implement the NMS algorithm from scratch, calculating the IoU between boxes and successively applying the selection and suppression criteria to produce the final set of detections.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><p><strong>Input:</strong> Read the integer <em>N</em> (number of candidate boxes) and the real threshold \tau (IoU threshold for suppression), on the same line.</p></li>
+<li><p><strong>Boxes:</strong> Read <em>N</em> lines, each with five real values:</p>
+<p><code>x1 y1 x2 y2 score</code></p>
+<p>where (<em>x</em>_1,<em>y</em>_1) represents the top-left corner, (<em>x</em>_2,<em>y</em>_2) the bottom-right corner, and <code>score</code> the confidence score.</p></li>
+<li><p><strong>Intersection over Union:</strong> For two boxes <em>A</em> and <em>B</em>,</p>
+<p>IoU(<em>A</em>,<em>B</em>)=
+\frac\operatornameArea(<em>A</em>\cap <em>B</em>)
+\operatornameArea(<em>A</em>\cup <em>B</em>).</p>
+<p>The intersection area must be computed from the overlap of the intervals in <em>x</em> and <em>y</em>. If there is no overlap, the intersection area is zero.</p></li>
+<li><p><strong>Greedy NMS algorithm:</strong></p>
+<ol type="a">
+<li><p>Sort the boxes by <code>score</code> in descending order. In case of ties, maintain the original reading order.</p></li>
+<li><p>Select the box with the highest score among the remaining boxes and add it to the output set.</p></li>
+<li><p>Compute the IoU between the selected box and <strong>all remaining boxes</strong>. Suppress those boxes for which</p></li>
+</ol>
+<p>IoU &gt; \tau.</p>
+<ol start="4" type="a">
+<li>Repeat steps (b) and (c) until no boxes remain.</li>
+</ol></li>
+<li><p><strong>Output:</strong> For each kept box, in the order it was selected, print its original index (reading position, starting at 0) and its <code>score</code>, formatted with 4 decimal places. At the end, print:</p>
+<p><code>Total kept: X</code></p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Strict suppression:</strong> only boxes with IoU &gt; \tau are suppressed. Boxes with IoU=\tau are kept.</li>
+<li><strong>Original indices:</strong> the output refers to the position in which each box was read from the input (starting at 0), not its position after sorting.</li>
+<li><strong>Stable sorting:</strong> in case of equal <code>score</code> values, the original reading order must be preserved.</li>
+<li><strong>Axis-aligned rectangles:</strong> all boxes are specified by two corners, with <em>x</em>_1 &lt; <em>x</em>_2 and <em>y</em>_1 &lt; <em>y</em>_2 guaranteed in the input.</li>
+<li><strong>Coordinates and scores:</strong> real values may be positive or negative, according to the limits defined by the input, but the box dimensions are always positive.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Background</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Element</th>
+<th style="padding:10px;border:1px solid #ddd;">Role in detection post-processing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quantifies the spatial overlap between two boxes; IoU=1 for identical boxes and IoU=0 for boxes with no overlap</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Confidence-based sorting</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ensures that the box with the highest <code>score</code> is analyzed first</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Threshold \tau</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Defines the amount of overlap required for a box to be considered redundant</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Suppression</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Removes boxes that exhibit large overlap with an already selected box</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distant boxes</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Have IoU close to zero and, in general, are not suppressed by this rule</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Methods from <code>morph.py</code> that may help</h4>
+<ul>
+<li><p><code>mm.IoU(boxA, boxB)</code> — computes the IoU metric, but expects boxes in the format (<em>x</em>,<em>y</em>,<em>w</em>,<em>h</em>), i.e., top-left corner, width, and height. The input of this exercise uses the format (<em>x</em>_1,<em>y</em>_1,<em>x</em>_2,<em>y</em>_2). The conversion is straightforward:</p>
+<p>w=<em>x</em>_2-<em>x</em>_1,\qquad h=<em>y</em>_2-<em>y</em>_1.</p>
+<p>Using this function is optional. The main goal of the exercise is to correctly implement the NMS selection and suppression process.</p></li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: integer <em>N</em> and real \tau.</li>
+<li>Next <em>N</em> lines: <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2\ score.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>One line per kept box, in selection order: <code>index score</code>.</li>
+<li>Last line: <code>Total kept: X</code>.</li>
+</ul>
+<div class="cell" data-execution_count="66" data-quarto-private-1='{"key":"pdi","value":{"ck":"0748df6a12cd34fef2148800de7f7371"}}' id="cell-fig-09-sim-ep0904">
+</div>
+</div><div id="sim-ep0904" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulator: IoU and Non-Maximum Suppression</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 NMS</span>
+<div style="padding:16px;background:white;">
+<!-- Legenda compacta -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
+<b>Selected box</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#50e3c2;border:2px solid #2c8a6e;border-radius:2px;display:inline-block;"></span>
+<b>Kept box</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;border-radius:2px;display:inline-block;"></span>
+<b>Suppressed box</b>
+</span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;border-radius:2px;display:inline-block;"></span>
+<b>Candidate box</b>
+</span>
+</div>
+<!-- Controles compactos -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px;">
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Number of boxes</label>
+<span id="ep0904_n_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">5</span>
+</div>
+<input id="ep0904_n" max="8" min="2" step="1" style="width:100%;height:4px;" type="range" value="5"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Threshold τ (IoU)</label>
+<span id="ep0904_tau_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">0.50</span>
+</div>
+<input id="ep0904_tau" max="1.0" min="0.1" step="0.05" style="width:100%;height:4px;" type="range" value="0.5"/>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Example</label>
+<span id="ep0904_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Default</span>
+</div>
+<select id="ep0904_example" style="width:100%;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;">
+<option value="padrao">Default Example</option>
+<option value="agrupado">Clustered Boxes</option>
+<option value="disperso">Scattered Boxes</option>
+<option value="aninhado">Nested Boxes</option>
+</select>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;">
+<button id="ep0904_run_btn" style="background:#2980b9;color:white;border:none;padding:6px 12px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;transition:all 0.3s;">▶️ Run NMS</button>
+</div>
+</div>
+<!-- Caixas configuráveis -->
+<div id="ep0904_boxes_config" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+<!-- Visualização -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+<!-- Canvas da visualização -->
+<div style="position:relative;background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;min-height:300px;">
+<div style="position:absolute;top:8px;left:10px;color:white;font-weight:bold;font-size:14px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);z-index:10;">🎯 Box Visualization</div>
+<canvas id="ep0904_canvas" style="width:100%;height:280px;display:block;"></canvas>
+</div>
+<!-- Passo a passo -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:10px;padding:12px;overflow-y:auto;max-height:310px;">
+<div style="font-weight:bold;font-size:12px;color:#333;margin-bottom:8px;">📋 NMS Step by Step</div>
+<div id="ep0904_steps" style="font-family:monospace;font-size:10px;line-height:1.6;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+</div>
+<!-- Resumo -->
+<div id="ep0904_summary" style="background:#e3f2fd;border-radius:6px;padding:8px;border:1px solid #bbdefb;font-family:monospace;font-size:10px;color:#1565c0;line-height:1.5;">
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    
+    // Elementos DOM
+    var nEl = root.querySelector('#ep0904_n'), nvEl = root.querySelector('#ep0904_n_v');
+    var tauEl = root.querySelector('#ep0904_tau'), tauvEl = root.querySelector('#ep0904_tau_v');
+    var exampleEl = root.querySelector('#ep0904_example');
+    var boxesConfigEl = root.querySelector('#ep0904_boxes_config');
+    var canvas = root.querySelector('#ep0904_canvas');
+    var ctx = canvas.getContext('2d');
+    var stepsEl = root.querySelector('#ep0904_steps');
+    var summaryEl = root.querySelector('#ep0904_summary');
+    var runBtn = root.querySelector('#ep0904_run_btn');
+    
+    // Estado
+    var boxes = [];
+    var selectedBoxes = [];
+    var suppressedBoxes = [];
+    
+    // Exemplos pré-definidos
+    var examples = {
+      padrao: [
+        {x1: 10, y1: 10, x2: 50, y2: 50, score: 0.9},
+        {x1: 20, y1: 20, x2: 60, y2: 60, score: 0.8},
+        {x1: 30, y1: 15, x2: 70, y2: 55, score: 0.7},
+        {x1: 80, y1: 80, x2: 120, y2: 120, score: 0.6},
+        {x1: 85, y1: 85, x2: 125, y2: 125, score: 0.5}
+      ],
+      agrupado: [
+        {x1: 10, y1: 10, x2: 50, y2: 50, score: 0.9},
+        {x1: 15, y1: 15, x2: 55, y2: 55, score: 0.85},
+        {x1: 20, y1: 20, x2: 60, y2: 60, score: 0.8},
+        {x1: 25, y1: 25, x2: 65, y2: 65, score: 0.75},
+        {x1: 30, y1: 30, x2: 70, y2: 70, score: 0.7}
+      ],
+      disperso: [
+        {x1: 10, y1: 10, x2: 40, y2: 40, score: 0.9},
+        {x1: 80, y1: 10, x2: 110, y2: 40, score: 0.8},
+        {x1: 10, y1: 80, x2: 40, y2: 110, score: 0.7},
+        {x1: 80, y1: 80, x2: 110, y2: 110, score: 0.6},
+        {x1: 45, y1: 45, x2: 75, y2: 75, score: 0.5}
+      ],
+      aninhado: [
+        {x1: 10, y1: 10, x2: 90, y2: 90, score: 0.9},
+        {x1: 20, y1: 20, x2: 80, y2: 80, score: 0.8},
+        {x1: 30, y1: 30, x2: 70, y2: 70, score: 0.7},
+        {x1: 40, y1: 40, x2: 60, y2: 60, score: 0.6},
+        {x1: 45, y1: 45, x2: 55, y2: 55, score: 0.5}
+      ]
+    };
+    
+    // Ajustar tamanho do canvas
+    function resizeCanvas() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', function() {
+      resizeCanvas();
+      render();
+    });
+    
+    // Carregar exemplo
+    function loadExample(name) {
+      boxes = JSON.parse(JSON.stringify(examples[name]));
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      generateBoxesConfig();
+      render();
+      stepsEl.innerHTML = 'Clique em "Executar NMS" para processar as caixas.';
+      summaryEl.innerHTML = 'Caixas carregadas: ' + boxes.length + '. Clique em "Executar NMS".';
+    }
+    
+    // Gerar configuração das caixas
+    function generateBoxesConfig() {
+      var html = '';
+      for (var i = 0; i < boxes.length; i++) {
+        html += '<div style="background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 6px;font-size:9px;">';
+        html += '<span style="font-weight:bold;color:#666;">#' + i + ':</span>';
+        html += '<input type="number" id="ep0904_x1_' + i + '" value="' + boxes[i].x1 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="x1">';
+        html += '<input type="number" id="ep0904_y1_' + i + '" value="' + boxes[i].y1 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y1">';
+        html += '<input type="number" id="ep0904_x2_' + i + '" value="' + boxes[i].x2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="x2">';
+        html += '<input type="number" id="ep0904_y2_' + i + '" value="' + boxes[i].y2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y2">';
+        html += '<input type="number" id="ep0904_score_' + i + '" value="' + boxes[i].score + '" step="0.05" min="0" max="1" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="score">';
+        html += '</div>';
+      }
+      boxesConfigEl.innerHTML = html;
+      
+      // Adicionar event listeners
+      for (var i = 0; i < boxes.length; i++) {
+        (function(index) {
+          ['x1', 'y1', 'x2', 'y2', 'score'].forEach(function(field) {
+            var input = root.querySelector('#ep0904_' + field + '_' + index);
+            if (input) {
+              input.addEventListener('input', function() {
+                boxes[index][field] = parseFloat(input.value) || 0;
+                selectedBoxes = [];
+                suppressedBoxes = [];
+                render();
+              });
+            }
+          });
+        })(i);
+      }
+    }
+    
+    // Calcular IoU
+    function calculateIoU(box1, box2) {
+      var x1 = Math.max(box1.x1, box2.x1);
+      var y1 = Math.max(box1.y1, box2.y1);
+      var x2 = Math.min(box1.x2, box2.x2);
+      var y2 = Math.min(box1.y2, box2.y2);
+      
+      var intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+      if (intersectionArea === 0) return 0;
+      
+      var area1 = (box1.x2 - box1.x1) * (box1.y2 - box1.y1);
+      var area2 = (box2.x2 - box2.x1) * (box2.y2 - box2.y1);
+      var unionArea = area1 + area2 - intersectionArea;
+      
+      return intersectionArea / unionArea;
+    }
+    
+    // Executar NMS
+    function runNMS() {
+      var tau = parseFloat(tauEl.value);
+      var remaining = boxes.map(function(box, index) {
+        return { box: box, originalIndex: index };
+      });
+      
+      // Ordenar por score decrescente (estável)
+      remaining.sort(function(a, b) {
+        if (b.box.score !== a.box.score) {
+          return b.box.score - a.box.score;
+        }
+        return a.originalIndex - b.originalIndex;
+      });
+      
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      var steps = [];
+      
+      while (remaining.length > 0) {
+        var selected = remaining.shift();
+        selectedBoxes.push(selected);
+        
+        steps.push({
+          type: 'select',
+          box: selected,
+          remaining: remaining.slice()
+        });
+        
+        var newRemaining = [];
+        var suppressed = [];
+        
+        for (var i = 0; i < remaining.length; i++) {
+          var iou = calculateIoU(selected.box, remaining[i].box);
+          if (iou > tau) {
+            suppressed.push({ box: remaining[i], iou: iou });
+            suppressedBoxes.push(remaining[i]);
+          } else {
+            newRemaining.push(remaining[i]);
+          }
+        }
+        
+        if (suppressed.length > 0) {
+          steps.push({
+            type: 'suppress',
+            box: selected,
+            suppressed: suppressed,
+            remaining: newRemaining.slice()
+          });
+        }
+        
+        remaining = newRemaining;
+      }
+      
+      return steps;
+    }
+    
+    // Renderizar visualização
+    function render() {
+      var tau = parseFloat(tauEl.value);
+      nvEl.textContent = boxes.length;
+      tauvEl.textContent = tau.toFixed(2);
+      
+      // Limpar canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Desenhar todas as caixas
+      boxes.forEach(function(box, index) {
+        var isSelected = selectedBoxes.some(function(s) { return s.originalIndex === index; });
+        var isSuppressed = suppressedBoxes.some(function(s) { return s.originalIndex === index; });
+        
+        var color = '#f5a623'; // candidata
+        if (isSelected) color = '#4a90e2'; // selecionada
+        if (isSuppressed) color = '#ff6b6b'; // suprimida
+        
+        drawBox(box, color, index);
+      });
+      
+      // Atualizar resumo
+      var summaryHTML = '';
+      if (selectedBoxes.length > 0) {
+        summaryHTML += '<b>Caixas selecionadas (em ordem):</b><br>';
+        selectedBoxes.forEach(function(s) {
+          summaryHTML += '#' + s.originalIndex + ' (score: ' + s.box.score.toFixed(4) + ')<br>';
+        });
+        summaryHTML += '<b>Total mantidas: ' + selectedBoxes.length + '</b>';
+        summaryEl.innerHTML = summaryHTML;
+      }
+    }
+    
+    // Desenhar caixa
+    function drawBox(box, color, index) {
+      var scale = 2.0;
+      var offsetX = 30;
+      var offsetY = 30;
+      
+      var x = offsetX + box.x1 * scale;
+      var y = offsetY + box.y1 * scale;
+      var w = (box.x2 - box.x1) * scale;
+      var h = (box.y2 - box.y1) * scale;
+      
+      // Desenhar caixa
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+      
+      // Preenchimento translúcido
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
+      
+      // Label
+      ctx.fillStyle = color;
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('#' + index, x + w/2, y - 5);
+      
+      // Score
+      ctx.fillStyle = '#666';
+      ctx.font = '10px Arial';
+      ctx.fillText('score: ' + box.score.toFixed(2), x + w/2, y + h/2);
+    }
+    
+    // Mostrar passo a passo
+    function showSteps(steps) {
+      var html = '';
+      
+      steps.forEach(function(step, index) {
+        if (step.type === 'select') {
+          html += '<div style="color:#4a90e2;font-weight:bold;margin-top:4px;">';
+          html += 'Passo ' + (index + 1) + ': Selecionar caixa #' + step.box.originalIndex;
+          html += ' (score: ' + step.box.box.score.toFixed(4) + ')';
+          html += '</div>';
+        } else if (step.type === 'suppress') {
+          html += '<div style="color:#ff6b6b;margin-left:10px;">';
+          html += '↳ Suprimir: ';
+          step.suppressed.forEach(function(s, i) {
+            if (i > 0) html += ', ';
+            html += '#' + s.box.originalIndex;
+            html += ' (IoU: ' + s.iou.toFixed(3) + ')';
+          });
+          html += '</div>';
+        }
+      });
+      
+      if (selectedBoxes.length > 0) {
+        html += '<div style="color:#50e3c2;font-weight:bold;margin-top:8px;">';
+        html += '✓ Resultado: ' + selectedBoxes.length + ' caixa(s) mantida(s)';
+        html += '</div>';
+      }
+      
+      stepsEl.innerHTML = html;
+    }
+    
+    // Executar NMS
+    function executeNMS() {
+      var steps = runNMS();
+      showSteps(steps);
+      render();
+      
+      // Animação do botão
+      runBtn.textContent = '✓ Executado!';
+      runBtn.style.background = '#50e3c2';
+      setTimeout(function() {
+        runBtn.textContent = '▶️ Executar NMS';
+        runBtn.style.background = '#2980b9';
+      }, 1000);
+    }
+    
+    // Event listeners
+    runBtn.addEventListener('click', executeNMS);
+    
+    nEl.addEventListener('input', function() {
+      var n = parseInt(nEl.value);
+      var currentN = boxes.length;
+      
+      if (n > currentN) {
+        for (var i = currentN; i < n; i++) {
+          boxes.push({
+            x1: 10 + i * 5,
+            y1: 10 + i * 5,
+            x2: 50 + i * 5,
+            y2: 50 + i * 5,
+            score: 0.9 - i * 0.1
+          });
+        }
+      } else if (n < currentN) {
+        boxes = boxes.slice(0, n);
+      }
+      
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      generateBoxesConfig();
+      render();
+      stepsEl.innerHTML = 'Clique em "Executar NMS" para processar as caixas.';
+      summaryEl.innerHTML = 'Caixas atualizadas: ' + boxes.length + '. Clique em "Executar NMS".';
+    });
+    
+    tauEl.addEventListener('input', function() {
+      tauvEl.textContent = parseFloat(tauEl.value).toFixed(2);
+      selectedBoxes = [];
+      suppressedBoxes = [];
+      render();
+      stepsEl.innerHTML = 'Clique em "Executar NMS" para processar as caixas.';
+      summaryEl.innerHTML = 'Limiar atualizado. Clique em "Executar NMS".';
+    });
+    
+    exampleEl.addEventListener('change', function() {
+      loadExample(exampleEl.value);
+    });
+    
+    // Inicializar
+    loadExample('padrao');
+  }
+  
+  function tryInit(){
+    var root = document.getElementById('sim-ep0904');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

@@ -1,0 +1,293 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP06_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_07 🟣 Pipeline d’inspection industrielle : enregistrement par translation et soustraction</h2>
+<p>Sur une chaîne de production, une caméra fixe photographie chaque pièce passant sur le tapis roulant, en la comparant à une image de référence sans défauts. Le problème : de petites vibrations du tapis déplacent la pièce par rapport à la position de référence à chaque capture. Si la soustraction d’images est appliquée directement, sans correction, le déplacement en lui-même génère déjà d’énormes différences — <strong>faux positifs</strong> qui masquent les défauts réels.</p>
+<p>Cet exercice est le plus complet du chapitre : vous devez <strong>d’abord enregistrer</strong> (aligner géométriquement) l’image capturée en utilisant un déplacement connu (dx, dy), fourni par un capteur de position du tapis, et <strong>seulement ensuite appliquer la soustraction</strong> avec seuillage, exactement comme décrit dans la section sur l’inspection industrielle.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Dimensions et paramètres :</strong> Lire <em>L</em>, <em>C</em> (dimensions des images), le déplacement entier connu dx, dy (pouvant être négatifs) et le seuil de détection <em>T</em> (entier).</li>
+<li><strong>Images :</strong> Lire la matrice de référence (<code>ref</code>, <em>L</em>× <em>C</em>, sans défauts) et la matrice capturée (<code>cap</code>, <em>L</em>× <em>C</em>, éventuellement déplacée et avec défaut).</li>
+<li><strong>Enregistrement par translation :</strong> Construire l’image alignée <code>alin</code> en appliquant le déplacement (dx,dy) reçu : alin(<em>i</em>,<em>j</em>) = cap(<em>i</em>+dy,\; <em>j</em>+dx), si (<em>i</em>+dy,\ <em>j</em>+dx) ∈ [0,<em>L</em>)×[0,<em>C</em>); 0, sinon</li>
+<li><strong>Remplissage des bords :</strong> Les positions qui « sortent » de l’image capturée après le déplacement reçoivent la valeur <strong>0</strong> (<em>zero-padding</em> — hors du champ de vision de la caméra ; <strong>notez que cet exercice utilise zéro, contrairement à la réplication des bords de l’EP06_06</strong>).</li>
+<li><strong>Différence absolue :</strong> Calculer, pixel par pixel, diff(<em>i</em>,<em>j</em>) = |ref(<em>i</em>,<em>j</em>) - alin(<em>i</em>,<em>j</em>)|</li>
+<li><strong>Seuillage :</strong> Définir masque(<em>i</em>,<em>j</em>) = 1 si diff(<em>i</em>,<em>j</em>) &gt; <em>T</em> ; sinon, masque(<em>i</em>,<em>j</em>) = 0.</li>
+<li><strong>Sortie :</strong> Dans cet ordre — (a) la matrice <code>alin</code> (<em>L</em>× <em>C</em>) ; (b) le masque de défaut (<em>L</em>× <em>C</em>) ; (c) une dernière ligne avec le nombre total de pixels classés comme défectueux.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong><em>Zero-padding</em>, pas de réplication :</strong> les positions hors des limites de l’image capturée, après le déplacement, valent exactement 0 — c’est le point qui différencie le plus cet exercice de l’EP06_06.</li>
+<li><strong>Comparaison stricte :</strong> diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>.</li>
+<li><strong>Signe de (dx,dy) :</strong> le déplacement peut être positif ou négatif ; la formule de l’étape 3 doit être appliquée littéralement, sans inverser les signes.</li>
+<li><strong>Toutes les valeurs sont des entiers :</strong> aucun arrondi n’est effectué à cette étape.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Étape omise</th>
+<th style="padding:10px;border:1px solid #ddd;">Conséquence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sauter l’enregistrement géométrique</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le bord entier de l’image (introduit par le déplacement) est marqué comme « défaut » — faux positif systématique</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Enregistrement avec (dx,dy) incorrect</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La pièce et la référence restent désalignées ; la soustraction détecte des contours déplacés, pas de véritables défauts</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Seuil <em>T</em> trop bas</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le bruit de capture (variations de 1 à 2 niveaux de gris) est confondu avec un défaut</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Seuil <em>T</em> trop élevé</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Les défauts subtils ne sont plus détectés</td>
+</tr>
+</tbody>
+</table>
+<p>L’enregistrement géométrique et la soustraction sont des étapes complémentaires : le premier garantit que les deux images représentent exactement la même scène dans le même référentiel spatial ; la seconde isole ce qui a réellement changé entre elles — idéalement, uniquement les défauts.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>L</em>.</li>
+<li>Ligne 2 : Entier <em>C</em>.</li>
+<li>Ligne 3 : Deux entiers dx et dy, séparés par un espace.</li>
+<li>Ligne 4 : Entier <em>T</em>.</li>
+<li>Les <em>L</em> lignes suivantes : éléments entiers de la matrice <code>ref</code>.</li>
+<li>Les <em>L</em> lignes suivantes : éléments entiers de la matrice <code>cap</code>.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li><em>L</em> lignes avec la matrice <code>alin</code>.</li>
+<li><em>L</em> lignes avec le masque de défaut (0/1).</li>
+<li>Dernière ligne : <code>Total de pixels défectueux : X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+1 0<br/>
+30<br/>
+50 50 50<br/>
+50 50 50<br/>
+50 50 50<br/>
+0 50 50<br/>
+0 50 90<br/>
+0 50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 50 0<br/>
+50 90 0<br/>
+50 50 0<br/>
+0 0 1<br/>
+0 1 1<br/>
+0 0 1<br/>
+Total de pixels défectueux : 4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">dx=1 décale la lecture d’une colonne vers la droite ; la dernière colonne de <code>alin</code> n’a pas de correspondance <br/>
+(devient 0) et est systématiquement marquée ; le défaut réel (90) est également détecté.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+20<br/>
+10 10<br/>
+10 10<br/>
+10 10<br/>
+10 60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 10<br/>
+10 60<br/>
+0 0<br/>
+0 1<br/>
+Total de pixels défectueux : 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sans déplacement (dx=dy=0) : <code>alin</code> est identique à <code>cap</code> ; seul le défaut réel (60) est détecté.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="49" data-quarto-private-1='{"key":"pdi","value":{"ck":"ba3cdc545144b706f728d5c83cc82e60"}}' id="cell-fig-06-sim-ep0607">
+</div>
+</div><div id="sim-ep0607" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0607 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0607 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0607 button:hover { background: #e8dfcf; }
+  #sim-ep0607 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0607_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0607_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0607_cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 10px; font-weight: 700; font-family: monospace; border: 1px solid #e4dcc8; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP06_07 : Registre par Translation + Soustraction</span>
+<span class="sim-ep0607_pill">|ref − alin(dx,dy)| &gt; T</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0607_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Déplacement horizontal (dx) : <span id="sim-ep0607_vl_dx" style="font-family:monospace; color:#26241d;">1</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_dx" max="2" min="-2" step="1" type="range" value="1"/>
+<div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Seuil (T) : <span id="sim-ep0607_vl_t" style="font-family:monospace; color:#26241d;">30</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_t" max="100" min="0" step="5" type="range" value="30"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajustez le déplacement du tapis (dx) et le seuil T. Observez comment le bord « fantôme » disparaît lorsque dx = 0.
+    </div>
+</div>
+<!-- Exibição das Grades 3x3 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        ref
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        alin (enregistré)
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        masque
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep07(root){
+    if (!root || root.dataset.sim06Ep07Init) return;
+    root.dataset.sim06Ep07Init = "1";
+
+    var N = 3;
+    var ref = [[50, 50, 50], [50, 50, 50], [50, 50, 50]];
+    // cap representa a peça deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
+    var cap = [[0, 50, 50], [0, 50, 90], [0, 50, 50]];
+
+    var slDx  = root.querySelector('#sim-ep0607_sl_dx');
+    var vlDx  = root.querySelector('#sim-ep0607_vl_dx');
+    var slT   = root.querySelector('#sim-ep0607_sl_t');
+    var vlT   = root.querySelector('#sim-ep0607_vl_t');
+    var gRef  = root.querySelector('#sim-ep0607_g_ref');
+    var gAlin = root.querySelector('#sim-ep0607_g_alin');
+    var gMask = root.querySelector('#sim-ep0607_g_mask');
+    var dbg   = root.querySelector('#sim-ep0607_debug');
+
+    function cellStyle(g){
+      var v = Math.max(0, Math.min(255, g));
+      return 'background:rgb(' + v + ',' + v + ',' + v + '); color:' + (v > 140 ? '#000000' : '#ffffff') + ';';
+    }
+
+    function render(){
+      var dx = parseInt(slDx.value, 10);
+      var T  = parseInt(slT.value, 10);
+      vlDx.textContent = dx;
+      vlT.textContent  = T;
+
+      gRef.innerHTML  = '';
+      gAlin.innerHTML = '';
+      gMask.innerHTML = '';
+
+      var alin = [], mask = [], total = 0;
+
+      for (var i = 0; i < N; i++){
+        var rowA = [], rowM = [];
+        for (var j = 0; j < N; j++){
+          var pj = j + dx;
+          var v = (pj >= 0 && pj < N) ? cap[i][pj] : 0;
+          rowA.push(v);
+
+          var diff = Math.abs(ref[i][j] - v);
+          var m = diff > T ? 1 : 0;
+          if (m) total++;
+          rowM.push(m);
+        }
+        alin.push(rowA);
+        mask.push(rowM);
+      }
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var cr = document.createElement('div');
+          cr.className = 'sim-ep0607_cell';
+          cr.style.cssText = cellStyle(ref[i][j]);
+          cr.textContent = ref[i][j];
+          gRef.appendChild(cr);
+
+          var ca = document.createElement('div');
+          ca.className = 'sim-ep0607_cell';
+          ca.style.cssText = cellStyle(alin[i][j]);
+          ca.textContent = alin[i][j];
+          gAlin.appendChild(ca);
+
+          var m = mask[i][j];
+          var cm = document.createElement('div');
+          cm.className = 'sim-ep0607_cell';
+          if (m) {
+            cm.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          } else {
+            cm.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+          }
+          cm.textContent = m;
+          gMask.appendChild(cm);
+        }
+      }
+
+      if (total > 0) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'dx = ' + dx + '  |  T = ' + T + '  |  Total de pixels defeituosos: ' + total + ' / 9';
+    }
+
+    slDx.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep07(){
+    var root = document.getElementById('sim-ep0607');
+    if (root) initSim06Ep07(root); else setTimeout(tryInitSim06Ep07, 200);
+  }
+  tryInitSim06Ep07();
+})();
+
+</script>
+</div><div id="sim-ep0607_g_ref" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_alin" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_mask" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div class="sim-ep0607_panel" id="sim-ep0607_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

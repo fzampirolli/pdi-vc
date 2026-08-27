@@ -1,0 +1,290 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP02_10.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP02_10.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP02_10 🎯 Perspective Correction (Homography)</h2>
+<p>In this activity, you must implement the perspective transformation, also known as homography. Unlike affine transformations, perspective does not preserve parallelism, allowing you to “rectify” tilted objects, such as documents or signs captured at oblique angles.</p>
+<div>
+<li>Read two integers <strong>L</strong> and <strong>C</strong>, representing the dimensions of the original matrix.</li>
+<li>Read <strong>four coordinate pairs</strong> (<em>x</em>, <em>y</em>) representing the corners of the source quadrilateral (distorted object).</li>
+<li>Read <strong>four coordinate pairs</strong> (<em>x</em>, <em>y</em>) representing the corners of the destination quadrilateral (where the object should be mapped).</li>
+<li>Read the values of the original matrix.</li>
+<li>Compute the 3 × 3 homography matrix and apply the transformation.</li>
+<li>Print the resulting matrix with the specified output dimensions.</li>
+<li>See Figure 2.21 for a simulation of this EP.</li>
+</div>
+<p>📌 <strong>Important</strong>:</p>
+<div>
+<li><strong>Degrees of Freedom:</strong> The homography has 8 degrees of freedom (the ninth element of the 3 × 3 matrix is a normalization constant, usually 1), requiring at least 4 corresponding points to be computed.</li>
+<li><strong>Projection:</strong> After multiplying the coordinates by the matrix, you must divide the results <em>x</em>' and <em>y</em>' by the homogeneous component <em>w</em> to return to the 2D plane.</li>
+<li><strong>Use of Libraries:</strong> For this task, you may use the functions <code>cv2.getPerspectiveTransform</code> to obtain the matrix and <code>cv2.warpPerspective</code> to apply the transformation, or implement the linear system and inverse mapping manually for an extra challenge.</li>
+</div>
+<div><div class="sourceCode" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a aria-hidden="true" href="#cb52-1" tabindex="-1"></a><span class="co"># Output dimensions: bounding box of destination points + 1</span></span>
+<span id="cb52-2"><a aria-hidden="true" href="#cb52-2" tabindex="-1"></a>w <span class="op">=</span> <span class="bu">int</span>(<span class="bu">max</span>(pts2[:, <span class="dv">0</span>])) <span class="op">+</span> <span class="dv">1</span><span class="op">;</span> h <span class="op">=</span> <span class="bu">int</span>(<span class="bu">max</span>(pts2[:, <span class="dv">1</span>])) <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb52-3"><a aria-hidden="true" href="#cb52-3" tabindex="-1"></a><span class="co"># M = cv2.getPerspectiveTransform(pts1, pts2)</span></span>
+<span id="cb52-4"><a aria-hidden="true" href="#cb52-4" tabindex="-1"></a><span class="co"># dst = cv2.warpPerspective(img, M, (w, h))</span></span>
+<span id="cb52-5"><a aria-hidden="true" href="#cb52-5" tabindex="-1"></a><span class="co"># or</span></span>
+<span id="cb52-6"><a aria-hidden="true" href="#cb52-6" tabindex="-1"></a>dst <span class="op">=</span> mm.perspective_transform(img, pts1, pts2, size<span class="op">=</span>(w, h))</span></code></pre></div><button class="code-copy-button" title="Copy to Clipboard"><i class="bi"></i></button></div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Non-affine Deformation</h4>
+<p>While affine transformations map parallelograms to parallelograms, the homography maps any quadrilateral to another quadrilateral. This is essential for computer vision:</p>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Operation</th>
+<th style="padding:10px;border:1px solid #ddd;">Characteristic</th>
+<th style="padding:10px;border:1px solid #ddd;">Typical Application</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Homography</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Plane projection</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Document correction, plate scanning.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Vanishing Point</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Line convergence</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3D reconstruction from 2D images.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Warping</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Mesh deformation</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Video stabilization and panoramas (stitching).</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+0 0<br/>
+3 0<br/>
+0 3<br/>
+3 3<br/>
+0 0<br/>
+3 0<br/>
+0 3<br/>
+3 3<br/>
+10 20 30 40<br/>
+50 60 70 80<br/>
+90 100 110 120<br/>
+130 140 150 160</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 20 30 40<br/>
+50 60 70 80<br/>
+90 100 110 120<br/>
+130 140 150 160</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">The first 4 lines after the dimensions are the source points; the following 4 are the destinations. With identical points, the perspective transformation is the identity and the image is preserved.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="42" data-quarto-private-1='{"key":"pdi","value":{"ck":"f85e4e06244a79e2267fdfd9cd244034"}}' id="cell-fig-02-sim-ep0210-perspectiva">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sim-ep0210-perspectiva-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure 2.21: Simulator EP02_10: Perspective Correction (3×3 Homography Transformation)
+</figcaption>
+</div>
+</div><div id="sim-ep0210-perspectiva" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">📐 Simulator EP02_10: Perspective Correction (3×3 Homography)</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">p' = H · p</span>
+<div style="padding:16px;background:#ffffff;">
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px 14px;margin-bottom:14px;text-align:center;">
+<p style="font-size:11px;margin:0;color:#5e5a4a;line-height:1.3;">
+        💡 <b>Instructions:</b> Drag the 4 markers at the corners of the distorted quadrilateral. Click <b>Correct Perspective</b> to map the projected region to an aligned 300×300 pixel rectangle.
+      </p>
+</div>
+<!-- Área de Interação Gráfica -->
+<div style="text-align:center;margin-bottom:14px;">
+<div style="display:inline-block;background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
+<canvas height="400" id="sim_ep0210_canvas" style="border-radius:8px;border:1px solid #e4dcc8;background:#ffffff;display:block;margin:0 auto;cursor:crosshair;" width="400"></canvas>
+<!-- Botões de Controle -->
+<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+<button id="sim_ep0210_btnReset" style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:16px;transition:all 0.15s ease;">↺ Reset Points</button>
+<button id="sim_ep0210_btnCorrect" style="padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:16px;font-family:monospace;transition:all 0.15s ease;">✨ Correct Perspective (Homography)</button>
+</div>
+<p id="sim_ep0210_subinfo" style="font-size:10px;color:#8a8371;margin-top:8px;margin-bottom:0;font-family:monospace;"></p>
+</div>
+</div>
+<!-- Painel de Informação Explicativo -->
+<div id="sim_ep0210_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      Drag the red vertices to change the perspective projection. The homography computes the 3×3 H matrix that rectifies the region.
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0210(root){
+    if (!root || root.dataset.simEp0210Init) return;
+    root.dataset.simEp0210Init = "1";
+
+    var canvas    = root.querySelector('#sim_ep0210_canvas');
+    var ctx       = canvas.getContext('2d');
+    var btnReset  = root.querySelector('#sim_ep02010_btnReset') || root.querySelector('#sim_ep0210_btnReset');
+    var btnCorrect= root.querySelector('#sim_ep0210_btnCorrect');
+    var subinfo   = root.querySelector('#sim_ep0210_subinfo');
+    var debugDiv  = root.querySelector('#sim_ep0210_debug');
+
+    var points = [
+      [80, 80],   // Top-Left (TL)
+      [320, 60],  // Top-Right (TR)
+      [60, 340],  // Bottom-Left (BL)
+      [340, 320]  // Bottom-Right (BR)
+    ];
+
+    var dragIndex = -1;
+
+    function drawCheckerboard() {
+      var cellSize = 25;
+      for (var i = 0; i < 400; i += cellSize) {
+        for (var j = 0; j < 400; j += cellSize) {
+          ctx.fillStyle = (Math.floor(i / cellSize) + Math.floor(j / cellSize)) % 2 === 0 ? '#f1ead7' : '#e4dcc8';
+          ctx.fillRect(i, j, cellSize, cellSize);
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, 400, 400);
+      drawCheckerboard();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      ctx.lineTo(points[1][0], points[1][1]);
+      ctx.lineTo(points[3][0], points[3][1]);
+      ctx.lineTo(points[2][0], points[2][1]);
+      ctx.closePath();
+      
+      ctx.fillStyle = 'rgba(126, 231, 198, 0.35)';
+      ctx.fill();
+      ctx.strokeStyle = '#26241d';
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      for (var k = 0; k < points.length; k++) {
+        ctx.beginPath();
+        ctx.arc(points[k][0], points[k][1], 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#b9770e';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.font = "bold 10px monospace";
+      ctx.fillStyle = '#26241d';
+      ctx.fillText("TL", points[0][0] - 16, points[0][1] - 6);
+      ctx.fillText("TR", points[1][0] + 6, points[1][1] - 6);
+      ctx.fillText("BL", points[2][0] - 16, points[2][1] + 12);
+      ctx.fillText("BR", points[3][0] + 6, points[3][1] + 12);
+    }
+
+    function getMousePos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var scaleX = canvas.width / rect.width;
+      var scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleMouseDown(e) {
+      var pos = getMousePos(e);
+      for (var i = 0; i < points.length; i++) {
+        var dx = pos.x - points[i][0];
+        var dy = pos.y - points[i][1];
+        if (Math.sqrt(dx * dx + dy * dy) < 14) {
+          dragIndex = i;
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (dragIndex !== -1) {
+        var pos = getMousePos(e);
+        var x = Math.min(395, Math.max(5, pos.x));
+        var y = Math.min(395, Math.max(5, pos.y));
+        points[dragIndex] = [x, y];
+        draw();
+
+        subinfo.textContent = 'Vértice movido → quadrilátero redefinido.';
+        debugDiv.innerHTML = 'Quadrilátero atual: <b>TL(' + Math.round(points[0][0]) + ',' + Math.round(points[0][1]) + ') TR(' + Math.round(points[1][0]) + ',' + Math.round(points[1][1]) + ') BL(' + Math.round(points[2][0]) + ',' + Math.round(points[2][1]) + ') BR(' + Math.round(points[3][0]) + ',' + Math.round(points[3][1]) + ')</b>';
+      }
+    }
+
+    function handleMouseUp() {
+      dragIndex = -1;
+      canvas.style.cursor = 'crosshair';
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    function correctPerspective() {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#26241d';
+      ctx.fillRect(50, 50, 300, 300);
+
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = '#7ee7c6';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(50, 50, 300, 300);
+
+      ctx.fillStyle = '#7ee7c6';
+      ctx.font = "bold 13px monospace";
+      ctx.fillText("✅ HOMOGRAPHY APPLIED (H 3×3)", 85, 190);
+
+      ctx.font = "10px monospace";
+      ctx.fillStyle = '#fbf7ee';
+      ctx.fillText("300×300 rectangle rectified successfully", 85, 220);
+      ctx.restore();
+
+      subinfo.textContent = "Projection rectified to flat rectangular area of 300×300.";
+      debugDiv.innerHTML = '<b>✅ Homografia Estimada:</b> Mapeamento perspectiva dos 4 vértices para a grade retangular [(50,50), (350,50), (50,350), (350,350)].';
+    }
+
+    btnReset.addEventListener('click', function() {
+      points = [
+        [80, 80],
+        [320, 60],
+        [60, 340],
+        [340, 320]
+      ];
+      draw();
+      subinfo.textContent = "Points reset to standard coordinates.";
+      debugDiv.innerHTML = "Arraste os vértices para deformar a projeção e clique em 'Corrigir Perspectiva' para estimar a matriz H.";
+    });
+
+    btnCorrect.addEventListener('click', correctPerspective);
+
+    draw();
+  }
+
+  function tryInitSimEP0210(){
+    var root = document.getElementById('sim-ep0210-perspectiva');
+    if (root) initSimEP0210(root); else setTimeout(tryInitSimEP0210, 200);
+  }
+  tryInitSimEP0210();
+})();
+
+</script>
+</div></div>

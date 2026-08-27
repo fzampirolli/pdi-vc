@@ -1,0 +1,247 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP07_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP07_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_04 🟠 Manual Encoding of the LBP Descriptor</h2>
+<p>The <code>local_binary_pattern</code> function from <code>scikit-image</code>, used in the texture classification project, automatically computes the LBP code for each pixel of an image. Before using it as a black box, you have been tasked with manually implementing the computation of the classic LBP code (P=8, R=1) for the central pixel of a 3×3 neighborhood, exactly as defined in the equation in the chapter.</p>
+<p>In addition to the code, the texture inspection system also needs to know whether that pattern is <strong>uniform</strong> — a pattern is uniform when the number of transitions (0\to1 or 1\to0) when traversing the 8 bits <strong>circularly</strong> (returning from the last bit to the first) is <strong>at most 2</strong>, a property exploited by the <em>uniform</em> variant of the LBP mentioned in the chapter.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><strong>Quantity:</strong> Read the integer <em>T</em> (number of neighborhoods to process).</li>
+<li><strong>Data for each neighborhood:</strong> For each of the <em>T</em> neighborhoods, read a 3×3 matrix of integers (intensities), provided in 3 lines of 3 values each. The central pixel is at position <code>[1][1]</code>.</li>
+<li><strong>Order of neighbors:</strong> Traverse the 8 neighbors in <strong>clockwise</strong> order, starting at the top-left corner, in the following sequence of positions <code>[row][column]</code>: <code>[0][0]</code>, <code>[0][1]</code>, <code>[0][2]</code>, <code>[1][2]</code>, <code>[2][2]</code>, <code>[2][1]</code>, <code>[2][0]</code>, <code>[1][0]</code>. This corresponds to the index <em>p</em> = 0, 1, …, 7 in the LBP equation.</li>
+<li><strong>Threshold function:</strong> For each neighbor <em>p</em> with intensity <em>g</em>_<em>p</em> and center <em>g</em>_<em>c</em>, compute <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>), which is <code>1</code> if <em>g</em>_<em>p</em> ≥ <em>g</em>_<em>c</em> and <code>0</code> otherwise.</li>
+<li><strong>LBP code:</strong> Compute LBP = ∑_p=0^7 <em>s</em>(<em>g</em>_<em>p</em> - <em>g</em>_<em>c</em>)\, 2^<em>p</em>.</li>
+<li><strong>Transitions:</strong> Considering the circular bit sequence <em>s</em>_0, <em>s</em>_1, …, <em>s</em>_7 (in the order from item 3), count how many consecutive pairs <strong>adjacent in the circular sequence</strong> (including the pair <em>s</em>_7, <em>s</em>_0) differ from each other.</li>
+<li><strong>Classification:</strong> If the number of transitions is \le 2, classify as <code>UNIFORME</code>; otherwise, classify as <code>NAO_UNIFORME</code>.</li>
+<li><strong>Output:</strong> For each neighborhood, in input order, print the LBP code (decimal integer, 0–255), the number of transitions, and the classification.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Fixed neighbor order:</strong> The order from item 3 is mandatory — reversing it produces a numerically different code, even though it represents the same visual pattern.</li>
+<li><strong>Non-strict comparison:</strong> <em>s</em>(<em>z</em>) = 1 when <em>z</em> \ge 0 (the chapter itself defines equality as included in the <code>1</code> case).</li>
+<li><strong>Circular counting:</strong> Do not forget the pair that closes the cycle (<em>s</em>_7 with <em>s</em>_0); ignoring this pair is a common mistake that incorrectly classifies uniform patterns.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Pattern (bits <em>s</em>_0… <em>s</em>_7)</th>
+<th style="padding:10px;border:1px solid #ddd;">Transitions</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00000000</code> or <code>11111111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Homogeneous region (light or dark patch)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>00001111</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simple edge between two regions</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>01010101</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">8</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Alternating contrast texture — non-uniform</td>
+</tr>
+</tbody>
+</table>
+<p>Uniform patterns are concentrated in smooth texture regions or simple edges; non-uniform patterns tend to correspond to high-frequency noise. For this reason, the <em>uniform</em> LBP histogram, used in the texture classification project, groups all non-uniform patterns into a single bin, reducing the dimensionality of the descriptor.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integer <em>T</em>.</li>
+<li>For each neighborhood: 3 lines with 3 integers each (3×3 matrix).</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li><em>T</em> lines, in the format <code>LBP=&lt;int&gt; transicoes=&lt;int&gt; &lt;UNIFORME|NAO_UNIFORME&gt;</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+10 10 10<br/>
+10 50 10<br/>
+10 10 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=0 transicoes=0 UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Center is the brightest; all neighbors generate bit 0.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+90 90 90<br/>
+10 50 10<br/>
+90 90 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LBP=119 transicoes=4 NAO_UNIFORME</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">Light and dark neighbors alternate in the neighborhood.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="30" data-quarto-private-1='{"key":"pdi","value":{"ck":"47933f01660f83793a8997ffe774ec45"}}' id="cell-fig-07-sim-ep0704">
+</div>
+</div><div id="sim-ep0704" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0704 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0704 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0704 button:hover { background: #e8dfcf; }
+  #sim-ep0704 button.sim-ep0704_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim-ep0704_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0704_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulator EP07_04: LBP Code of a Neighborhood 3×3</span>
+<span class="sim-ep0704_pill">P = 8, R = 1</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Seleção de Exemplo -->
+<div class="sim-ep0704_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:10px;">
+      Click a cell in the neighborhood to toggle between light and dark (the center is fixed) and observe the resulting LBP code. The label p indicates the equation index.
+    </div>
+<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+<button id="sim-ep0704_b1">Example 1: Homogeneous Patch</button>
+<button class="sim-ep0704_active" id="sim-ep0704_b2">Example 2: Alternating Pattern</button>
+</div>
+</div>
+<!-- Grid Vizinhança 3x3 -->
+<div class="sim-ep0704_panel" style="margin-bottom:14px; text-align:center;">
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim07Ep04(root){
+    if (!root || root.dataset.sim07Ep04Init) return;
+    root.dataset.sim07Ep04Init = "1";
+
+    var exemplos = {
+      1: [[10, 10, 10], [10, 50, 10], [10, 10, 10]],
+      2: [[90, 90, 90], [10, 50, 10], [90, 90, 90]]
+    };
+
+    var valores = exemplos[2].map(function(row){ return row.slice(); });
+    var grid = root.querySelector('#sim-ep0704_grid');
+    var dbg  = root.querySelector('#sim-ep0704_debug');
+    var btn1 = root.querySelector('#sim-ep0704_b1');
+    var btn2 = root.querySelector('#sim-ep0704_b2');
+
+    var ordem = [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0], [1, 0]];
+    var pIndex = {};
+    ordem.forEach(function(pos, p){ pIndex[pos[0] + ',' + pos[1]] = p; });
+    var cenarioAtivo = 2;
+
+    function marcarBotaoAtivo(n){
+      cenarioAtivo = n;
+      btn1.classList.toggle('sim-ep0704_active', n === 1);
+      btn2.classList.toggle('sim-ep0704_active', n === 2);
+    }
+
+    function render(){
+      grid.innerHTML = '';
+      for (var r = 0; r < 3; r++){
+        for (var c = 0; c < 3; c++){
+          (function(r, c){
+            var v = valores[r][c];
+            var central = (r === 1 && c === 1);
+            var div = document.createElement('div');
+
+            var bordaCor = central ? '#26241d' : '#e4dcc8';
+            var textoCor = v > 128 ? '#26241d' : '#ffffff';
+
+            div.style.cssText = 'position:relative; height:60px; display:flex; align-items:center; justify-content:center; font-family:monospace; font-weight:700; border-radius:6px; cursor:' + (central ? 'default' : 'pointer') + '; border:2px solid ' + bordaCor + '; background:rgb(' + v + ',' + v + ',' + v + '); color:' + textoCor + '; transition:all 0.15s ease;';
+            div.textContent = v;
+
+            if (!central){
+              var pLabel = document.createElement('span');
+              pLabel.textContent = 'p' + pIndex[r + ',' + c];
+              pLabel.style.cssText = 'position:absolute; top:2px; left:4px; font-size:9px; font-weight:400; opacity:0.8;';
+              div.appendChild(pLabel);
+
+              div.addEventListener('click', function(){
+                valores[r][c] = valores[r][c] >= 128 ? 10 : 200;
+                cenarioAtivo = null;
+                btn1.classList.remove('sim-ep0704_active');
+                btn2.classList.remove('sim-ep0704_active');
+                render();
+              });
+            }
+            grid.appendChild(div);
+          })(r, c);
+        }
+      }
+
+      var gc = valores[1][1];
+      var bits = ordem.map(function(pos){ return valores[pos[0]][pos[1]] >= gc ? 1 : 0; });
+      var lbp = 0;
+      bits.forEach(function(b, p){ lbp += b * Math.pow(2, p); });
+
+      var trans = 0;
+      for (var i = 0; i < 8; i++){
+        if (bits[i] !== bits[(i + 1) % 8]) trans++;
+      }
+
+      var classe = trans <= 2 ? 'UNIFORME' : 'NÃO-UNIFORME';
+
+      if (trans <= 2) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'bits (p0..p7) = ' + bits.join('') + '  |  LBP = ' + lbp + '  |  transições = ' + trans + '  |  ' + classe;
+    }
+
+    btn1.addEventListener('click', function(){
+      valores = exemplos[1].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(1);
+      render();
+    });
+
+    btn2.addEventListener('click', function(){
+      valores = exemplos[2].map(function(row){ return row.slice(); });
+      marcarBotaoAtivo(2);
+      render();
+    });
+
+    marcarBotaoAtivo(2);
+    render();
+  }
+
+  function tryInitSim07Ep04(){
+    var root = document.getElementById('sim-ep0704');
+    if (root) initSim07Ep04(root); else setTimeout(tryInitSim07Ep04, 200);
+  }
+  tryInitSim07Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0704_grid" style="display:grid; grid-template-columns:repeat(3, 60px); gap:4px; justify-content:center;"></div><div class="sim-ep0704_panel" id="sim-ep0704_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

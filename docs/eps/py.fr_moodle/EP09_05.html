@@ -1,0 +1,500 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP09_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_05 🟠 Évaluation de segmentation : IoU et Dice pixel par pixel</h2>
+<p>Le Bloc 2 de la section « Segmentation sémantique avec l’architecture U-Net » définit, en quelques lignes, la fonction <code>iou_mascaras</code>, utilisée pour mesurer la qualité de la ligne de base morphologique classique (lissage + Otsu + ouverture) et, plus loin, celle de la U-Net elle-même après entraînement. Contrairement à l’IoU de l’EP09_04 — calculé sur des <strong>boîtes englobantes</strong> (régions rectangulaires décrites par quatre nombres) —, l’IoU de segmentation est calculé <strong>pixel par pixel</strong> : chaque position de l’image est comparée individuellement entre le masque prédit et le masque de référence.</p>
+<p>Vous êtes chargé de généraliser cette évaluation, en implémentant non seulement l’IoU pixel par pixel, mais aussi le <strong>coefficient de Dice</strong>, une autre métrique de chevauchement largement utilisée en segmentation médicale (y compris dans la fonction <code>perda_dice</code>, mentionnée dans le même bloc du chapitre comme base de la fonction de perte utilisée pour entraîner la U-Net).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><p><strong>Entrée :</strong> Lire les dimensions <em>H</em> × <em>W</em> des masques.</p></li>
+<li><p><strong>Masque prédit :</strong> Lire <em>H</em> lignes contenant chacune <em>W</em> valeurs entières (0 ou 1) — par exemple, la sortie d’une U-Net après seuillage à 0,5 sur la sigmoïde, comme dans le Bloc 4 du chapitre.</p></li>
+<li><p><strong>Masque de référence :</strong> Lire <em>H</em> lignes supplémentaires avec chacune <em>W</em> valeurs entières (0 ou 1) — la <em>vérité terrain</em> (<em>ground truth</em>).</p></li>
+<li><p><strong>Intersection et union :</strong> En considérant chaque pixel comme appartenant à l’objet lorsque sa valeur est non nulle, intersection = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \wedge <em>R</em>_ij=1], \qquad
+union = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></li>
+<li><p><strong>IoU pixel par pixel :</strong> IoU = \fracintersectionunion.</p></li>
+<li><p><strong>Coefficient de Dice :</strong> Dice = \frac2 · intersection|<em>P</em>| + |<em>R</em>|, où |<em>P</em>| et |<em>R</em>| sont le nombre total de pixels d’objet dans chaque masque.</p></li>
+<li><p><strong>Convention pour les masques vides :</strong> si <strong>les deux</strong> masques ne contiennent aucun pixel d’objet (union = 0 et |<em>P</em>|+|<em>R</em>|=0), considérez la correspondance comme trivialement parfaite : IoU = Dice = 1,0.</p></li>
+<li><p><strong>Sortie :</strong> Deux lignes, <code>IoU: X.XXXX</code> et <code>Dice: X.XXXX</code>, chaque valeur avec 4 décimales.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes de calcul</h4>
+<ul>
+<li><strong>Toute valeur non nulle compte comme objet :</strong> traitez les valeurs différentes de 0 (pas seulement 1) comme appartenant au masque, en répliquant la vérification <code>predita &gt; 0</code> utilisée dans <code>iou_mascaras</code> au chapitre.</li>
+<li><strong>Mêmes dimensions :</strong> les deux masques ont toujours exactement <em>H</em> × <em>W</em> éléments.</li>
+<li><strong>Convention de vide :</strong> appliquez la règle de l’item 7 <strong>uniquement</strong> lorsque les deux masques sont entièrement vides ; si un seul est vide, l’intersection est 0 et l’IoU/Dice résultant sera également 0.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Élément</th>
+<th style="padding:10px;border:1px solid #ddd;">Rôle dans l’évaluation de segmentation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU pixel par pixel</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Généralise la métrique de l’EP09_04 à des régions de forme arbitraire — pas seulement des rectangles — en comparant le masque prédit et la référence position par position</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Coefficient de Dice</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Métrique liée à l’IoU (toujours Dice \ge IoU), plus sensible aux petites intersections et largement utilisée comme fonction de perte en segmentation (fonction <code>perda_dice</code> du chapitre)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Convention des masques vides</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Évite la division par zéro et reconnaît que « aucun objet prédit, aucun objet réel » est, par définition, une réussite</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Comparaison classique vs. U-Net</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Le chapitre utilise exactement ce type de métrique pour justifier, numériquement, pourquoi la U-Net surpasse la ligne de base morphologique dans des scénarios à faible contraste</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Méthodes de <code>morph.py</code> pouvant aider</h4>
+<ul>
+<li><code>mm.readImg(h, w, dtype='uint8')</code> — lit directement chaque masque binaire <em>h</em> × <em>w</em> depuis l’entrée standard (les valeurs 0/1 tiennent parfaitement dans le type entier standard).</li>
+<li>La fonction <code>iou_mascaras</code> elle-même, définie dans le Bloc 2 de la section U-Net du chapitre (ne fait pas partie de <code>morph.py</code>, mais du code du chapitre), est l’inspiration directe de cet exercice — il vaut la peine de relire ces quelques lignes avant de programmer.</li>
+<li>Pour une extension optionnelle (non exigée par cet EP), <code>mm.connectedComponents</code> ou <code>mm.label0</code> (vus dans le contexte de l’analyse des composantes connexes) permettraient de labelliser chaque nodule individuellement et de calculer l’IoU <strong>par composante</strong>, plutôt que sur le masque entier.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entiers <em>H</em> et <em>W</em>.</li>
+<li><em>H</em> lignes suivantes : <em>W</em> valeurs entières (0 ou 1) — masque prédit.</li>
+<li><em>H</em> lignes suivantes : <em>W</em> valeurs entières (0 ou 1) — masque de référence.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Ligne 1 : <code>IoU: X.XXXX</code>.</li>
+<li>Ligne 2 : <code>Dice: X.XXXX</code>.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Astuce</span>💡 Exemple illustratif
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Considérons un masque prédit avec un carré 2×2 de pixels actifs et une référence décalée d’une colonne, se chevauchant sur seulement la moitié de la surface :</p>
+<pre><code>Prédit          Référence
+0 0 0 0         0 0 0 0
+0 1 1 0         0 0 1 1
+0 1 1 0         0 0 1 1
+0 0 0 0         0 0 0 0</code></pre>
+<p>Intersection =2 pixels, union =6 pixels (4+4-2), donc IoU=2/6\approx0,3333 et Dice=2·2/(4+4)=0,5000 — notez que le Dice est toujours supérieur ou égal à l’IoU pour le même chevauchement.</p>
+</div>
+</div>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+0 0 0 0<br/>
+0 1 1 0<br/>
+0 1 1 0<br/>
+0 0 0 0<br/>
+0 0 0 0<br/>
+0 0 1 1<br/>
+0 0 1 1<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU: 0.3333<br/>
+Dice: 0.5000</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Masques 4×4 avec chevauchement partiel de 2 pixels.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="69" data-quarto-private-1='{"key":"pdi","value":{"ck":"c21e08e5deefd7560c2ee1ee33c947c2"}}' id="cell-fig-09-sim-ep0905">
+</div>
+</div><div id="sim-ep0905" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulateur : IoU et Dice pixel par pixel</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 Segmentation</span>
+<div style="padding:16px;background:white;">
+<!-- Legenda compacta -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
+<b>Intersection</b> (VP)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;border-radius:2px;display:inline-block;"></span>
+<b>Prédite uniquement</b> (FP)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;border-radius:2px;display:inline-block;"></span>
+<b>Référence uniquement</b> (FN)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f0f0f0;border:2px solid #ccc;border-radius:2px;display:inline-block;"></span>
+<b>Fond</b> (VN)
+      </span>
+</div>
+<!-- Controles compactos -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+<div style="flex:1;min-width:120px;">
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Dimensions</label>
+<span id="ep0905_dim_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">5×5</span>
+</div>
+<input id="ep0905_dim" max="8" min="3" step="1" style="width:100%;height:4px;" type="range" value="5"/>
+</div>
+<div style="flex:1;min-width:120px;">
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Exemple</label>
+<span id="ep0905_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Carré</span>
+</div>
+<select id="ep0905_example" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:10px;">
+<option value="quadrado">Carré 2×2</option>
+<option value="deslocado">Décalé</option>
+<option value="perfeito">Parfait</option>
+<option value="vazio">Masques vides</option>
+<option value="parcial">Chevauchement partiel</option>
+</select>
+</div>
+<div style="display:flex;align-items:center;gap:8px;">
+<button id="ep0905_clear_btn" style="background:#666;color:white;border:none;padding:6px 12px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;">🗑️ Effacer</button>
+<button id="ep0905_random_btn" style="background:#f5a623;color:white;border:none;padding:6px 12px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;">🎲 Aléatoire</button>
+</div>
+</div>
+<!-- Grids de máscaras -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+<div>
+<div style="font-weight:bold;font-size:11px;color:#333;margin-bottom:4px;text-align:center;">
+            🔵 Masque prédit
+          </div>
+<div id="ep0905_pred_grid" style="display:flex;justify-content:center;overflow-x:auto;"></div>
+</div>
+<div>
+<div style="font-weight:bold;font-size:11px;color:#333;margin-bottom:4px;text-align:center;">
+            🟡 Masque de référence
+          </div>
+<div id="ep0905_ref_grid" style="display:flex;justify-content:center;overflow-x:auto;"></div>
+</div>
+</div>
+</div>
+<!-- Visualização -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+<!-- Canvas da visualização -->
+<div style="background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;">
+<div style="color:white;font-weight:bold;font-size:13px;text-align:center;margin-bottom:8px;">
+          🎯 Comparaison visuelle
+        </div>
+<canvas id="ep0905_canvas" style="width:100%;height:220px;display:block;background:white;border-radius:5px;"></canvas>
+</div>
+<!-- Métricas -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:10px;padding:12px;overflow-y:auto;max-height:280px;">
+<div style="font-weight:bold;font-size:12px;color:#333;margin-bottom:8px;">
+          📊 Calculs et formules
+        </div>
+<div id="ep0905_metrics" style="font-size:10px;line-height:1.8;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+</div>
+<!-- Resumo final -->
+<div id="ep0905_summary" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:8px;padding:12px;font-family:monospace;font-size:14px;color:white;line-height:1.8;text-align:center;">
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    
+    // Elementos DOM
+    var dimEl = root.querySelector('#ep0905_dim');
+    var dimvEl = root.querySelector('#ep0905_dim_v');
+    var exampleEl = root.querySelector('#ep0905_example');
+    var predGridEl = root.querySelector('#ep0905_pred_grid');
+    var refGridEl = root.querySelector('#ep0905_ref_grid');
+    var canvas = root.querySelector('#ep0905_canvas');
+    var ctx = canvas.getContext('2d');
+    var metricsEl = root.querySelector('#ep0905_metrics');
+    var summaryEl = root.querySelector('#ep0905_summary');
+    var clearBtn = root.querySelector('#ep0905_clear_btn');
+    var randomBtn = root.querySelector('#ep0905_random_btn');
+    
+    // Estado
+    var predMask = [];
+    var refMask = [];
+    var H = 5;
+    var W = 5;
+    
+    // Exemplos pré-definidos
+    var examples = {
+      quadrado: {
+        pred: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      deslocado: {
+        pred: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      perfeito: {
+        pred: [[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1]],
+        ref: [[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1]]
+      },
+      vazio: {
+        pred: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      parcial: {
+        pred: [[0,0,0,0,0],[0,1,1,1,0],[0,1,1,1,0],[0,1,1,1,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,0,0,0]]
+      }
+    };
+    
+    // Ajustar tamanho do canvas
+    function resizeCanvas() {
+      var rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    
+    // Carregar exemplo
+    function loadExample(name) {
+      var example = examples[name];
+      predMask = example.pred.map(function(row) { return row.slice(); });
+      refMask = example.ref.map(function(row) { return row.slice(); });
+      H = predMask.length;
+      W = predMask[0].length;
+      dimEl.value = H;
+      dimvEl.textContent = H + '×' + W;
+      generateGrids();
+      render();
+    }
+    
+    // Gerar grids clicáveis
+    function generateGrids() {
+      var predHTML = '<table style="border-collapse:collapse;">';
+      var refHTML = '<table style="border-collapse:collapse;">';
+      
+      for (var i = 0; i < H; i++) {
+        predHTML += '<tr>';
+        refHTML += '<tr>';
+        for (var j = 0; j < W; j++) {
+          predHTML += '<td data-type="pred" data-i="' + i + '" data-j="' + j + '" style="width:28px;height:28px;background:' + (predMask[i][j] ? '#4a90e2' : 'white') + ';border:1px solid #999;cursor:pointer;text-align:center;font-size:10px;color:' + (predMask[i][j] ? 'white' : '#999') + ';">' + (predMask[i][j] ? '1' : '0') + '</td>';
+          refHTML += '<td data-type="ref" data-i="' + i + '" data-j="' + j + '" style="width:28px;height:28px;background:' + (refMask[i][j] ? '#f5a623' : 'white') + ';border:1px solid #999;cursor:pointer;text-align:center;font-size:10px;color:' + (refMask[i][j] ? 'white' : '#999') + ';">' + (refMask[i][j] ? '1' : '0') + '</td>';
+        }
+        predHTML += '</tr>';
+        refHTML += '</tr>';
+      }
+      
+      predHTML += '</table>';
+      refHTML += '</table>';
+      
+      predGridEl.innerHTML = predHTML;
+      refGridEl.innerHTML = refHTML;
+      
+      // Adicionar event listeners
+      predGridEl.querySelectorAll('td[data-type="pred"]').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+          var i = parseInt(cell.getAttribute('data-i'));
+          var j = parseInt(cell.getAttribute('data-j'));
+          predMask[i][j] = predMask[i][j] ? 0 : 1;
+          generateGrids();
+          render();
+        });
+      });
+      
+      refGridEl.querySelectorAll('td[data-type="ref"]').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+          var i = parseInt(cell.getAttribute('data-i'));
+          var j = parseInt(cell.getAttribute('data-j'));
+          refMask[i][j] = refMask[i][j] ? 0 : 1;
+          generateGrids();
+          render();
+        });
+      });
+    }
+    
+    // Calcular métricas
+    function calculateMetrics() {
+      var TP = 0, FP = 0, FN = 0, TN = 0;
+      
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          var p = predMask[i][j] ? 1 : 0;
+          var r = refMask[i][j] ? 1 : 0;
+          
+          if (p && r) TP++;
+          else if (p && !r) FP++;
+          else if (!p && r) FN++;
+          else TN++;
+        }
+      }
+      
+      var intersection = TP;
+      var union = TP + FP + FN;
+      var predCount = TP + FP;
+      var refCount = TP + FN;
+      
+      var iou, dice;
+      
+      if (union === 0) {
+        iou = 1.0;
+        dice = 1.0;
+      } else {
+        iou = intersection / union;
+        dice = (predCount + refCount === 0) ? 1.0 : (2 * intersection) / (predCount + refCount);
+      }
+      
+      return { TP, FP, FN, TN, intersection, union, predCount, refCount, iou, dice };
+    }
+    
+    // Renderizar visualização
+    function render() {
+      resizeCanvas();
+      var m = calculateMetrics();
+      
+      // Limpar canvas
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      var cellSize = Math.min(35, (canvas.width - 40) / W);
+      var offsetX = (canvas.width - W * cellSize) / 2;
+      var offsetY = (canvas.height - H * cellSize) / 2;
+      
+      // Desenhar grid
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          var p = predMask[i][j] ? 1 : 0;
+          var r = refMask[i][j] ? 1 : 0;
+          
+          var color = '#f0f0f0';
+          if (p && r) color = '#4a90e2';
+          else if (p && !r) color = '#ff6b6b';
+          else if (!p && r) color = '#f5a623';
+          
+          var x = offsetX + j * cellSize;
+          var y = offsetY + i * cellSize;
+          
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+          ctx.strokeStyle = '#999';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+        }
+      }
+      
+      // Fórmulas e cálculos
+      var html = '';
+      html += '<div style="margin-bottom:6px;"><b>1. Contagem de pixels:</b></div>';
+      html += '<div style="color:#4a90e2;">TP (interseção) = ' + m.TP + '</div>';
+      html += '<div style="color:#ff6b6b;">FP (só predita) = ' + m.FP + '</div>';
+      html += '<div style="color:#f5a623;">FN (só referência) = ' + m.FN + '</div>';
+      html += '<div style="color:#999;">TN (fundo) = ' + m.TN + '</div>';
+      
+      html += '<div style="margin-top:8px;margin-bottom:4px;"><b>2. Interseção e União:</b></div>';
+      html += '<div>Interseção = TP = <b>' + m.intersection + '</b></div>';
+      html += '<div>União = TP + FP + FN = ' + m.TP + ' + ' + m.FP + ' + ' + m.FN + ' = <b>' + m.union + '</b></div>';
+      html += '<div>|P| = TP + FP = ' + m.TP + ' + ' + m.FP + ' = <b>' + m.predCount + '</b></div>';
+      html += '<div>|R| = TP + FN = ' + m.TP + ' + ' + m.FN + ' = <b>' + m.refCount + '</b></div>';
+      
+      html += '<div style="margin-top:8px;margin-bottom:4px;"><b>3. Fórmulas:</b></div>';
+      
+      if (m.union === 0) {
+        html += '<div style="color:#888;">IoU = 1.0 (máscaras vazias)</div>';
+        html += '<div style="color:#888;">Dice = 1.0 (máscaras vazias)</div>';
+      } else {
+        html += '<div>IoU = Interseção / União = ' + m.intersection + ' / ' + m.union + ' = <b style="color:#2980b9;">' + m.iou.toFixed(4) + '</b></div>';
+        html += '<div>Dice = 2·Interseção / (|P| + |R|) = 2·' + m.intersection + ' / (' + m.predCount + ' + ' + m.refCount + ') = ' + (2 * m.intersection) + ' / ' + (m.predCount + m.refCount) + ' = <b style="color:#50e3c2;">' + m.dice.toFixed(4) + '</b></div>';
+      }
+      
+      metricsEl.innerHTML = html;
+      
+      // Resumo final
+      summaryEl.innerHTML = '<b>IoU: ' + m.iou.toFixed(4) + '</b> &nbsp;&nbsp;|&nbsp;&nbsp; <b>Dice: ' + m.dice.toFixed(4) + '</b>';
+    }
+    
+    // Limpar máscaras
+    function clearMasks() {
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          predMask[i][j] = 0;
+          refMask[i][j] = 0;
+        }
+      }
+      generateGrids();
+      render();
+    }
+    
+    // Gerar máscaras aleatórias
+    function randomMasks() {
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          predMask[i][j] = Math.random() > 0.5 ? 1 : 0;
+          refMask[i][j] = Math.random() > 0.5 ? 1 : 0;
+        }
+      }
+      generateGrids();
+      render();
+    }
+    
+    // Event listeners
+    clearBtn.addEventListener('click', clearMasks);
+    randomBtn.addEventListener('click', randomMasks);
+    
+    dimEl.addEventListener('input', function() {
+      H = parseInt(dimEl.value);
+      W = H;
+      dimvEl.textContent = H + '×' + W;
+      
+      var newPred = [];
+      var newRef = [];
+      for (var i = 0; i < H; i++) {
+        newPred.push([]);
+        newRef.push([]);
+        for (var j = 0; j < W; j++) {
+          newPred[i].push(i < predMask.length && j < predMask[0].length ? predMask[i][j] : 0);
+          newRef[i].push(i < refMask.length && j < refMask[0].length ? refMask[i][j] : 0);
+        }
+      }
+      predMask = newPred;
+      refMask = newRef;
+      generateGrids();
+      render();
+    });
+    
+    exampleEl.addEventListener('change', function() {
+      loadExample(exampleEl.value);
+    });
+    
+    // Inicializar
+    loadExample('quadrado');
+  }
+  
+  function tryInit(){
+    var root = document.getElementById('sim-ep0905');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>

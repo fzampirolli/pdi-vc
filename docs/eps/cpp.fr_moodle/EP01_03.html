@@ -1,0 +1,154 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/cpp.fr/EP01_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/cpp.fr/EP01_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP01_03 📈 Mean Average Precision (mAP) — Courbe Précision‑Sensibilité</h2>
+<p>Dans cette activité, vous évaluerez un classificateur binaire (ex. : détection de déforestation dans des images satellites, voir <a href="https://www.dgi.inpe.br/catalogo/explore">dgi.inpe.br</a>) à travers la <strong>courbe Précision‑Sensibilité</strong> et la métrique <strong>mAP (<em>Mean Average Precision</em>)</strong>. Le mAP est standard dans des compétitions comme <a href="https://cocodataset.org/">COCO (<em>Common Objects in Context</em>)</a> et <a href="http://host.robots.ox.ac.uk/pascal/VOC/">PASCAL VOC (<em>Visual Object Classes</em>)</a> et des modèles <a href="https://github.com/ultralytics/ultralytics">YOLO (<em>You Only Look Once</em>)</a>.</p>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Pourquoi le mAP est‑il la métrique‑standard ?</h4>
+<p>Dans l’EP01_02, vous avez vu que le choix du seuil modifie significativement la Précision et la Sensibilité. Le <strong>mAP (<em>Mean Average Precision</em>)</strong> résout cela : il évalue le modèle à <strong>plusieurs seuils</strong> (chaque seuil doit générer une matrice de confusion différente) et résume la performance par <strong>l’aire sous la courbe Précision‑Sensibilité (P‑S)</strong>.</p>
+<p>Alors que le F1‑<em>Score</em> examine un unique point d’équilibre, le mAP considère la courbe entière. Plus il est proche de <strong>1,0</strong>, meilleur est le détecteur à tous les seuils et classes (ex. : pièces de 25, 50 et 1 réal).</p>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Métrique</th>
+<th style="padding:10px;border:1px solid #ddd;">Ce qu’elle résume</th>
+<th style="padding:10px;border:1px solid #ddd;">Limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>F1‑<em>Score</em></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Équilibre P × S à un seuil unique</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dépend du seuil choisi</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>AP</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aire sous la courbe P‑S d’une clase</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Valide uniquement pour une classe</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>mAP</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Moyenne des AP sur toutes les classes</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Plus complexe à implémenter</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p>Références : <a href="https://blog.roboflow.com/mean-average-precision/">Roboflow — mAP</a> · <a href="https://youtu.be/COQPqUH-HG8">Vidéo explicative</a></p>
+</blockquote>
+</div>
+<div>
+<h4> 🔢 Comment le mAP est‑il calculé — pas à pas</h4>
+<ol type="1">
+<li><p><strong>Seuils fixes</strong> (utilisez toujours cette liste) :</p>
+<pre><code>limiares = [0.00, 0.09, 0.21, 0.31, 0.39, 0.52, 0.60, 0.71, 0.81, 0.89, 1.00]</code></pre></li>
+<li><p>Pour chaque seuil (t), classez les échantillons : <code>predito = 1 se confiança ≥ t, senão 0</code>.<br/>
+Calculez VP, FP, FN, VN et obtenez Précision((t)) et Sensibilité((t)).</p></li>
+<li><p>Construisez la courbe P‑S : paires (Sensibilité((t)), Précision((t))), triées par Sensibilité croissante.</p></li>
+<li><p><strong>Monotonisez la Précision</strong> :<br/>
+<em>P</em>_mono[<em>i</em>] = \max_j \ge <em>i</em> <em>P</em>[<em>j</em>]</p></li>
+<li><p>Calculez l’<strong>AP</strong> (aire sous la courbe monotone) en utilisant la <strong>règle du trapèze</strong> (approximation plus précise que la simple somme de Riemann) :<br/>
+AP = ∑_i=1^m-1 \fracP_mono[<em>i</em>-1] + <em>P</em>_mono[<em>i</em>]2 · (<em>S</em>[<em>i</em>] - <em>S</em>[<em>i</em>-1])</p></li>
+<li><p><strong>mAP</strong> = moyenne des AP de toutes les classes. Dans cet EP, il n’y a qu’<strong>1 classe</strong>, donc mAP = AP.</p></li>
+</ol>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>📐 Différence résumée :</strong><br/>
+La <em>somme de Riemann</em> approxime l’aire par des rectangles, pouvant sous‑estimer ou surestimer. La <strong>règle du trapèze</strong> utilise des trapèzes, réduisant l’erreur en considérant la moyenne entre les valeurs aux extrémités de l’intervalle, étant généralement plus précise pour des fonctions lisses par morceaux, comme la courbe Précision‑Sensibilité.</p>
+</div>
+</div>
+</div>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Tâche</h4>
+<p>Lisez un entier <code>n</code> (quantité d’échantillons). Ensuite, lisez <code>n</code> lignes, chacune avec : <code>verdade</code> (0 ou 1) et <code>confiança</code> (float 0.0–1.0).</p>
+<p>Calculez et imprimez, pour le <strong>seuil 0.85</strong> (index 9 de la liste) :</p>
+<ul>
+<li>Matrice de Confusion (VP, FN, FP, VN)</li>
+<li>Acurácia, Précision, Sensibilité et F1‑Score</li>
+</ul>
+<p>Ensuite, pour <strong>tous les seuils</strong>, imprimez :</p>
+<ul>
+<li>Précisions brutes, Précisions monotones et Sensibilités, séparées par <code>,</code></li>
+<li>mAP final</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Important</h4>
+<ul>
+<li>Seuil fixe pour les métriques individuelles : <strong>0.85</strong></li>
+<li>Division sécurisée : si le dénominateur est nul, utilisez 0</li>
+<li>Formatage : deux décimales</li>
+<li>Monotonisez de la fin vers le début</li>
+<li>La <span class="quarto-unresolved-ref">?fig-01-sim-ep0103-map</span> présente une simulation de cette question</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemple d’Exécution</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie Attendue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">7<br/>
+0 0.94<br/>
+1 0.80<br/>
+1 0.69<br/>
+0 0.67<br/>
+1 0.30<br/>
+1 0.15<br/>
+1 0.15</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"># MÉTRIQUES POUR LE SEUIL 0.85 #<br/>
+Matrice de Confusion :<br/>
+VP = 0, FN = 5<br/>
+FP = 1, VN = 1<br/>
+<br/>
+Métriques d’Évaluation :<br/>
+Acurácia : 0.14<br/>
+Précision : 0.00<br/>
+Sensibilité : 0.00<br/>
+F1-Score : 0.00<br/>
+<br/>
+# MÉTRIQUES POUR TOUS LES SEUILS #<br/>
+Précisions : 0.00, 0.00, 0.00, 0.50, 0.50, 0.50, 0.50, 0.50, 0.60, 0.71, 0.71<br/>
+Précisions mon. : 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71, 0.71<br/>
+Sensibilités : 0.00, 0.00, 0.00, 0.20, 0.40, 0.40, 0.40, 0.40, 0.60, 1.00, 1.00<br/>
+mAP : 0.71</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🐍 Astuce pour calculer l’AP (avec la règle du trapèze)</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb82"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a aria-hidden="true" href="#cb82-1" tabindex="-1"></a><span class="kw">def</span> calcular_AP(verdades, confiancas, limiares):</span>
+<span id="cb82-2"><a aria-hidden="true" href="#cb82-2" tabindex="-1"></a>    m <span class="op">=</span> <span class="bu">len</span>(limiares)</span>
+<span id="cb82-3"><a aria-hidden="true" href="#cb82-3" tabindex="-1"></a>    precisoes <span class="op">=</span> [<span class="fl">0.0</span>] <span class="op">*</span> m</span>
+<span id="cb82-4"><a aria-hidden="true" href="#cb82-4" tabindex="-1"></a>    sensibilidades <span class="op">=</span> [<span class="fl">0.0</span>] <span class="op">*</span> m</span>
+<span id="cb82-5"><a aria-hidden="true" href="#cb82-5" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(m):</span>
+<span id="cb82-6"><a aria-hidden="true" href="#cb82-6" tabindex="-1"></a>        p, s <span class="op">=</span> calcular_metricas(verdades, confiancas, limiares[i])</span>
+<span id="cb82-7"><a aria-hidden="true" href="#cb82-7" tabindex="-1"></a>        precisoes[m<span class="op">-</span><span class="dv">1</span><span class="op">-</span>i] <span class="op">=</span> p</span>
+<span id="cb82-8"><a aria-hidden="true" href="#cb82-8" tabindex="-1"></a>        sensibilidades[m<span class="op">-</span><span class="dv">1</span><span class="op">-</span>i] <span class="op">=</span> s</span>
+<span id="cb82-9"><a aria-hidden="true" href="#cb82-9" tabindex="-1"></a>    prec_mono <span class="op">=</span> precisoes.copy()</span>
+<span id="cb82-10"><a aria-hidden="true" href="#cb82-10" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(m<span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>):</span>
+<span id="cb82-11"><a aria-hidden="true" href="#cb82-11" tabindex="-1"></a>        <span class="cf">if</span> prec_mono[i] <span class="op">&lt;</span> prec_mono[i<span class="op">+</span><span class="dv">1</span>]:</span>
+<span id="cb82-12"><a aria-hidden="true" href="#cb82-12" tabindex="-1"></a>            prec_mono[i] <span class="op">=</span> prec_mono[i<span class="op">+</span><span class="dv">1</span>]</span>
+<span id="cb82-13"><a aria-hidden="true" href="#cb82-13" tabindex="-1"></a>    AP <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb82-14"><a aria-hidden="true" href="#cb82-14" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, m):</span>
+<span id="cb82-15"><a aria-hidden="true" href="#cb82-15" tabindex="-1"></a>        <span class="co"># Règle du trapèze : moyenne des hauteurs multipliée par la base</span></span>
+<span id="cb82-16"><a aria-hidden="true" href="#cb82-16" tabindex="-1"></a>        area_trapezio <span class="op">=</span> (prec_mono[i<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> prec_mono[i]) <span class="op">/</span> <span class="fl">2.0</span></span>
+<span id="cb82-17"><a aria-hidden="true" href="#cb82-17" tabindex="-1"></a>        AP <span class="op">+=</span> area_trapezio <span class="op">*</span> (sensibilidades[i] <span class="op">-</span> sensibilidades[i<span class="op">-</span><span class="dv">1</span>])</span>
+<span id="cb82-18"><a aria-hidden="true" href="#cb82-18" tabindex="-1"></a>    <span class="cf">return</span> precisoes, prec_mono, sensibilidades, AP</span></code></pre></div><button class="code-copy-button" title="Copier vers le presse-papier"><i class="bi"></i></button></div>
+</div></div>

@@ -1,0 +1,276 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP05_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.fr/EP05_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_05 🏆 Pipeline JPEG complet : DCT, quantification et reconstruction</h2>
+<p>Vous avez été chargé de créer, à partir de zéro, un <strong>codec JPEG didactique</strong> dans un environnement embarqué, sans aucune bibliothèque d’image disponible — uniquement des opérations mathématiques de base. Le client veut comprendre exactement où la qualité est perdue et où elle est récupérée, bloc par bloc. C’est le défi final du chapitre : intégrer <strong>tout</strong> ce qui a été étudié — la DCT-II orthonormale, la quantification perceptuelle et la reconstruction via IDCT — dans un seul <em>pipeline</em> de bout en bout, traitant un bloc <em>N</em> × <em>N</em> du début à la fin, exactement comme le fait le standard JPEG en interne, 8×8 pixels à la fois.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directives d’implémentation</h4>
+<ol type="1">
+<li><strong>Dimension du bloc :</strong> Lire l’entier <em>N</em>.</li>
+<li><strong>Bloc original :</strong> Lire la matrice de pixels <em>f</em>(<em>x</em>,<em>y</em>), <em>N</em> lignes avec <em>N</em> entiers dans [0,255].</li>
+<li><strong>Table de quantification :</strong> Lire la matrice <em>Q</em>, <em>N</em> × <em>N</em> entiers positifs.</li>
+<li><strong>Centrage :</strong> Soustraire 128 de chaque pixel : <em>g</em>(<em>x</em>,<em>y</em>) = <em>f</em>(<em>x</em>,<em>y</em>) - 128.</li>
+<li><strong>DCT-II 2D orthonormale :</strong> Calculer <em>C</em>(<em>u</em>,<em>v</em>) = α(<em>u</em>)\,α(<em>v</em>)∑_x=0^N-1∑_y=0^N-1 <em>g</em>(<em>x</em>,<em>y</em>)\,\cos\!\left[(\pi(2<em>x</em>+1)<em>u</em>)/(2<em>N</em>)\right]\cos\!\left[(\pi(2<em>y</em>+1)<em>v</em>)/(2<em>N</em>)\right] avec α(0)=√(1/<em>N</em>) et α(<em>k</em>)=√(2/<em>N</em>) pour <em>k</em>&gt;0.</li>
+<li><strong>Quantification :</strong> \tildeC(<em>u</em>,<em>v</em>) = round(<em>C</em>(<em>u</em>,<em>v</em>)/<em>Q</em>(<em>u</em>,<em>v</em>)).</li>
+<li><strong>Déquantification :</strong> <em>C</em>'(<em>u</em>,<em>v</em>) = \tildeC(<em>u</em>,<em>v</em>)× <em>Q</em>(<em>u</em>,<em>v</em>).</li>
+<li><strong>IDCT-II 2D (inverse orthonormale) :</strong> Calculer <em>g</em>'(<em>x</em>,<em>y</em>) à partir de <em>C</em>'(<em>u</em>,<em>v</em>) en utilisant la transformée inverse correspondante (même base, somme sur <em>u</em>,<em>v</em>).</li>
+<li><strong>Inversion du centrage et arrondi :</strong> <em>f</em>'(<em>x</em>,<em>y</em>) = round(<em>g</em>'(<em>x</em>,<em>y</em>) + 128), restreint à l’intervalle [0,255] (<em>clipping</em>).</li>
+<li><strong>Sortie :</strong> Afficher le bloc reconstruit <em>f</em>', <em>N</em> × <em>N</em>, entiers.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Contraintes computationnelles</h4>
+<ul>
+<li><strong><em>Pipeline</em> complet obligatoire :</strong> toutes les six étapes (centrer, DCT, quantifier, déquantifier, IDCT, inverser) doivent être implémentées — sauter la quantification ne réussit pas les tests, car le résultat serait identique à l’original.</li>
+<li><strong><em>Clipping</em> :</strong> les valeurs reconstruites hors de [0,255] doivent être tronquées (0 si négatif, 255 si supérieur à 255).</li>
+<li><strong>Arrondi :</strong> à la fois dans la quantification et dans la reconstruction finale des pixels, utilisez un arrondi standard ; les cas de test évitent toute ambiguïté <code>.5</code>.</li>
+<li><strong>Base orthonormale :</strong> la normalisation α(<em>u</em>) et α(<em>v</em>) doit être appliquée exactement comme spécifié — sans elle, l’IDCT ne reconstruit pas correctement.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondement théorique</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Étape</th>
+<th style="padding:10px;border:1px solid #ddd;">Analogue dans le standard JPEG réel</th>
+<th style="padding:10px;border:1px solid #ddd;">Où la qualité est perdue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Centrage</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Identique — la DCT suppose un signal centré sur zéro</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aucune perte</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">DCT-II</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Étapes 3–4 du <em>pipeline</em> (Table 5.7)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Aucune perte (transformation exacte et réversible)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quantification</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Étape 5 — division par <em>Q</em>(<em>u</em>,<em>v</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Principale source de perte</strong> — les coefficients de haute fréquence deviennent zéro</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IDCT</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reconstruction finale</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reconstruit exactement les coefficients <em>quantifiés</em>, pas les originaux</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Spécification d’entrée et de sortie (VPL)</h4>
+<p><strong>Entrée :</strong></p>
+<ul>
+<li>Ligne 1 : Entier <em>N</em>.</li>
+<li><em>N</em> lignes suivantes : bloc original <em>f</em>(<em>x</em>,<em>y</em>), entiers dans [0,255].</li>
+<li><em>N</em> lignes suivantes : table de quantification <em>Q</em>, entiers positifs.</li>
+</ul>
+<p><strong>Sortie :</strong></p>
+<ul>
+<li>Bloc reconstruit <em>f</em>'(<em>x</em>,<em>y</em>), <em>N</em> × <em>N</em>, entiers dans [0,255], séparés par des espaces.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Exemples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrée</th>
+<th style="padding:10px;border:1px solid #ddd;">Sortie</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+120 130 125 128<br/>
+115 140 135 122<br/>
+118 150 160 130<br/>
+110 120 145 138<br/>
+4 6 8 10<br/>
+6 8 10 12<br/>
+8 10 12 16<br/>
+10 12 16 20</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">118 126 119 131<br/>
+114 143 140 119<br/>
+117 149 159 130<br/>
+107 121 146 139</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Après DCT, quantification agressive des hautes fréquences (grandes valeurs de <em>Q</em> en bas à droite) et reconstruction via IDCT, le bloc reste <strong>proche</strong> de l’original, mais pas identique — la différence est le coût de la compression <em>lossy</em>.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 💡 Conseil de débogage</h4>
+<p>Si le résultat ne correspond pas, vérifiez dans cet ordre : (1) les coefficients DCT bruts (avant quantification) — ils doivent reconstruire l’original <strong>exactement</strong> via IDCT si vous sautez les étapes 6–7 ; (2) la table α(<em>u</em>) — erreur courante : appliquer √(2/<em>N</em>) aussi pour u=0 ; (3) l’arrondi de la quantification, qui doit se produire <strong>avant</strong> de multiplier à nouveau par <em>Q</em>.</p>
+<div class="cell" data-execution_count="45" data-quarto-private-1='{"key":"pdi","value":{"ck":"138fe4bba604dc8427e5034ee471d09b"}}' id="cell-fig-05-sim-ep0505">
+</div>
+</div><div id="sim-ep0505" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0505 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0505 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0505 button:hover { background: #e8dfcf; }
+  #sim-ep0505 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0505_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0505_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0505_cell { width: 46px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulateur EP05_05 : Pipeline JPEG (Bloc 4×4)</span>
+<span class="sim-ep0505_pill">DCT → Q → IDCT</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0505_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Échelle de Q (1 = Table de base, Plus grand = Plus de perte) : <span id="sim-ep0505_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
+</label>
+</div>
+<input id="sim-ep0505_sl_s" max="5" min="0.5" step="0.5" type="range" value="1"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajustez le facteur d'échelle de quantisation et observez le bloc reconstruit s'éloigner (ou se rapprocher) de l'original.
+    </div>
+</div>
+<!-- Exibição das Grades 4x4 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0505_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Bloc original
+      </div>
+</div>
+<div class="sim-ep0505_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Reconstruit (DCT → Q → IDCT)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep05(root){
+    if (!root || root.dataset.sim05Ep05Init) return;
+    root.dataset.sim05Ep05Init = "1";
+
+    var N = 4;
+    var f = [[120, 130, 125, 128], [115, 140, 135, 122], [118, 150, 160, 130], [110, 120, 145, 138]];
+    var Qbase = [[4, 6, 8, 10], [6, 8, 10, 12], [8, 10, 12, 16], [10, 12, 16, 20]];
+
+    var s   = root.querySelector('#sim-ep0505_sl_s');
+    var sv  = root.querySelector('#sim-ep0505_vl_s');
+    var go  = root.querySelector('#sim-ep0505_grid_o');
+    var gr  = root.querySelector('#sim-ep0505_grid_r');
+    var dbg = root.querySelector('#sim-ep0505_debug');
+
+    function alpha(k){ return k === 0 ? Math.sqrt(1 / N) : Math.sqrt(2 / N); }
+
+    function dct2(g){
+      var C = [];
+      for (var u = 0; u < N; u++){ C.push(new Array(N).fill(0)); }
+      for (var u = 0; u < N; u++){
+        for (var v = 0; v < N; v++){
+          var sum = 0;
+          for (var x = 0; x < N; x++){
+            for (var y = 0; y < N; y++){
+              sum += g[x][y] * Math.cos(Math.PI * (2 * x + 1) * u / (2 * N)) * Math.cos(Math.PI * (2 * y + 1) * v / (2 * N));
+            }
+          }
+          C[u][v] = alpha(u) * alpha(v) * sum;
+        }
+      }
+      return C;
+    }
+
+    function idct2(C){
+      var g = [];
+      for (var x = 0; x < N; x++){ g.push(new Array(N).fill(0)); }
+      for (var x = 0; x < N; x++){
+        for (var y = 0; y < N; y++){
+          var sum = 0;
+          for (var u = 0; u < N; u++){
+            for (var v = 0; v < N; v++){
+              sum += alpha(u) * alpha(v) * C[u][v] * Math.cos(Math.PI * (2 * x + 1) * u / (2 * N)) * Math.cos(Math.PI * (2 * y + 1) * v / (2 * N));
+            }
+          }
+          g[x][y] = sum;
+        }
+      }
+      return g;
+    }
+
+    function cell(v){
+      var c = document.createElement('div');
+      c.className = 'sim-ep0505_cell';
+      c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      c.textContent = v;
+      return c;
+    }
+
+    function render(){
+      var scale = parseFloat(s.value);
+      sv.innerHTML = scale.toFixed(2) + '&times;';
+      go.innerHTML = '';
+      gr.innerHTML = '';
+
+      var g = [];
+      for (var x = 0; x < N; x++){
+        var row = [];
+        for (var y = 0; y < N; y++){
+          row.push(f[x][y] - 128);
+        }
+        g.push(row);
+      }
+
+      var C = dct2(g);
+      var Cq = [];
+      for (var u = 0; u < N; u++){
+        var row = [];
+        for (var v = 0; v < N; v++){
+          var Qv = Qbase[u][v] * scale;
+          var q = Math.round(C[u][v] / Qv);
+          row.push(q * Qv);
+        }
+        Cq.push(row);
+      }
+
+      var gr2 = idct2(Cq);
+      var diffSum = 0, n = 0;
+
+      for (var x = 0; x < N; x++){
+        for (var y = 0; y < N; y++){
+          go.appendChild(cell(f[x][y]));
+          var rec = Math.round(gr2[x][y] + 128);
+          rec = Math.max(0, Math.min(255, rec));
+          gr.appendChild(cell(rec));
+          diffSum += Math.abs(rec - f[x][y]);
+          n++;
+        }
+      }
+
+      dbg.textContent = 'Erreur moyenne absolue par pixel : ' + (diffSum / n).toFixed(2) + '  |  Quanto maior a escala de Q, maior o erro de reconstrução.';
+    }
+
+    s.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep05(){
+    var root = document.getElementById('sim-ep0505');
+    if (root) initSim05Ep05(root); else setTimeout(tryInitSim05Ep05, 200);
+  }
+  tryInitSim05Ep05();
+})();
+
+</script>
+</div><div id="sim-ep0505_grid_o" style="display:grid; grid-template-columns:repeat(4, 46px); gap:4px; justify-content:center;"></div><div id="sim-ep0505_grid_r" style="display:grid; grid-template-columns:repeat(4, 46px); gap:4px; justify-content:center;"></div><div class="sim-ep0505_panel" id="sim-ep0505_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

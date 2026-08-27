@@ -1,0 +1,500 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versão com fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.en/EP09_05.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_05 🟠 Segmentation Evaluation: Pixel-wise IoU and Dice</h2>
+<p>Block 2 of the “Semantic Segmentation with U-Net Architecture” section defines, in a few lines, the <code>iou_mascaras</code> function, used to measure the quality of the classic morphological baseline (smoothing + Otsu + opening) and, later, of the trained U-Net itself. Unlike the IoU from EP09_04 — computed over <strong>bounding boxes</strong> (rectangular regions described by four numbers) —, the segmentation IoU is computed <strong>pixel by pixel</strong>: each image position is compared individually between the predicted mask and the reference mask.</p>
+<p>You have been tasked with generalizing this evaluation, implementing not only the pixel-wise IoU but also the <strong>Dice coefficient</strong>, another overlap metric widely used in medical segmentation (including in the <code>perda_dice</code> function, mentioned in the same block of the chapter as the basis for the loss function used to train the U-Net).</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Implementation Guidelines</h4>
+<ol type="1">
+<li><p><strong>Input:</strong> Read the dimensions <em>H</em> × <em>W</em> of the masks.</p></li>
+<li><p><strong>Predicted mask:</strong> Read <em>H</em> lines with <em>W</em> integer values (0 or 1) each — for example, the output of a U-Net after thresholding at 0.5 over the sigmoid, as in Block 4 of the chapter.</p></li>
+<li><p><strong>Reference mask:</strong> Read another <em>H</em> lines with <em>W</em> integer values (0 or 1) each — the <em>ground truth</em>.</p></li>
+<li><p><strong>Intersection and union:</strong> Considering each pixel as belonging to the object when its value is different from zero, intersection = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \wedge <em>R</em>_ij=1], \qquad
+union = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></li>
+<li><p><strong>Pixel-wise IoU:</strong> IoU = \fracintersectionunion.</p></li>
+<li><p><strong>Dice coefficient:</strong> Dice = \frac2 · intersection|<em>P</em>| + |<em>R</em>|, where |<em>P</em>| and |<em>R</em>| are the total number of object pixels in each mask.</p></li>
+<li><p><strong>Convention for empty masks:</strong> if <strong>both</strong> masks have no object pixels (union = 0 and |<em>P</em>|+|<em>R</em>|=0), consider the correspondence trivially perfect: IoU = Dice = 1.0.</p></li>
+<li><p><strong>Output:</strong> Two lines, <code>IoU: X.XXXX</code> and <code>Dice: X.XXXX</code>, each value with 4 decimal places.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Computational Constraints</h4>
+<ul>
+<li><strong>Any non-zero value counts as an object:</strong> treat values different from 0 (not just 1) as belonging to the mask, replicating the <code>predita &gt; 0</code> check used in <code>iou_mascaras</code> in the chapter.</li>
+<li><strong>Same dimensions:</strong> the two masks always have exactly <em>H</em> × <em>W</em> elements.</li>
+<li><strong>Empty convention:</strong> apply the rule from item 7 <strong>only</strong> when both masks are completely empty; if only one is empty, the intersection is 0 and the resulting IoU/Dice will also be 0.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Theoretical Foundation</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Element</th>
+<th style="padding:10px;border:1px solid #ddd;">Role in segmentation evaluation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pixel-wise IoU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Generalizes the metric from EP09_04 to arbitrarily shaped regions — not just rectangles — by comparing predicted and reference masks position by position</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dice coefficient</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Metric related to IoU (always Dice \ge IoU), more sensitive to small intersections and widely used as a loss function in segmentation (<code>perda_dice</code> function from the chapter)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Empty mask convention</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Avoids division by zero and recognizes that “no predicted object, no real object” is, by definition, a correct match</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Classic vs. U-Net comparison</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">The chapter uses exactly this type of metric to numerically justify why the U-Net surpasses the morphological baseline in low-contrast scenarios</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<h4> 🧩 Methods from <code>morph.py</code> that may help</h4>
+<ul>
+<li><code>mm.readImg(h, w, dtype='uint8')</code> — directly reads each binary mask <em>h</em> × <em>w</em> from standard input (the values 0/1 fit perfectly in the standard integer type).</li>
+<li>The <code>iou_mascaras</code> function itself, defined in Block 2 of the U-Net section of the chapter (not part of <code>morph.py</code>, but of the chapter’s code), is the direct inspiration for this exercise — it is worth re-reading those few lines before coding.</li>
+<li>For an optional extension (not required by this EP), <code>mm.connectedComponents</code> or <code>mm.label0</code> (seen in the context of connected component analysis) would allow labeling each nodule individually and computing the IoU <strong>per component</strong>, instead of over the entire mask.</li>
+</ul>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Input and Output Specification (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Line 1: Integers <em>H</em> and <em>W</em>.</li>
+<li>Next <em>H</em> lines: <em>W</em> integer values (0 or 1) — predicted mask.</li>
+<li>Next <em>H</em> lines: <em>W</em> integer values (0 or 1) — reference mask.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Line 1: <code>IoU: X.XXXX</code>.</li>
+<li>Line 2: <code>Dice: X.XXXX</code>.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>💡 Illustrative Example
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Consider a predicted mask with a 2×2 square of active pixels and a reference shifted by one column, overlapping on only half of the area:</p>
+<pre><code>Predicted       Reference
+0 0 0 0         0 0 0 0
+0 1 1 0         0 0 1 1
+0 1 1 0         0 0 1 1
+0 0 0 0         0 0 0 0</code></pre>
+<p>Intersection =2 pixels, union =6 pixels (4+4-2), therefore IoU=2/6\approx0.3333 and Dice=2·2/(4+4)=0.5000 — note that Dice is always equal to or greater than IoU for the same overlap.</p>
+</div>
+</div>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Examples</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 4<br/>
+0 0 0 0<br/>
+0 1 1 0<br/>
+0 1 1 0<br/>
+0 0 0 0<br/>
+0 0 0 0<br/>
+0 0 1 1<br/>
+0 0 1 1<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU: 0.3333<br/>
+Dice: 0.5000</td>
+<td style="padding:10px;border:1px solid #ddd;vertical-align:top;">4×4 masks with partial overlap of 2 pixels.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="69" data-quarto-private-1='{"key":"pdi","value":{"ck":"ff416df4f05fdd8060d9e957502abfbe"}}' id="cell-fig-09-sim-ep0905">
+</div>
+</div><div id="sim-ep0905" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
+<div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
+<span>🎮 Simulator: IoU and Dice Pixel by Pixel</span>
+<span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟠 Segmentation</span>
+<div style="padding:16px;background:white;">
+<!-- Legenda compacta -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
+<b>Intersection</b> (TP)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;border-radius:2px;display:inline-block;"></span>
+<b>Only predicted</b> (FP)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;border-radius:2px;display:inline-block;"></span>
+<b>Only reference</b> (FN)
+      </span>
+<span style="display:flex;align-items:center;gap:3px;">
+<span style="width:12px;height:12px;background:#f0f0f0;border:2px solid #ccc;border-radius:2px;display:inline-block;"></span>
+<b>Background</b> (TN)
+      </span>
+</div>
+<!-- Controles compactos -->
+<div style="background:#fafafa;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;">
+<div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+<div style="flex:1;min-width:120px;">
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Dimensions</label>
+<span id="ep0905_dim_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">5×5</span>
+</div>
+<input id="ep0905_dim" max="8" min="3" step="1" style="width:100%;height:4px;" type="range" value="5"/>
+</div>
+<div style="flex:1;min-width:120px;">
+<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
+<label style="font-weight:bold;color:#2980b9;">Example</label>
+<span id="ep0905_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Square</span>
+</div>
+<select id="ep0905_example" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:10px;">
+<option value="quadrado">2×2 Square</option>
+<option value="deslocado">Offset</option>
+<option value="perfeito">Perfect</option>
+<option value="vazio">Empty Masks</option>
+<option value="parcial">Partial Overlap</option>
+</select>
+</div>
+<div style="display:flex;align-items:center;gap:8px;">
+<button id="ep0905_clear_btn" style="background:#666;color:white;border:none;padding:6px 12px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;">🗑️ Clear</button>
+<button id="ep0905_random_btn" style="background:#f5a623;color:white;border:none;padding:6px 12px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;">🎲 Random</button>
+</div>
+</div>
+<!-- Grids de máscaras -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+<div>
+<div style="font-weight:bold;font-size:11px;color:#333;margin-bottom:4px;text-align:center;">
+            🔵 Predicted Mask
+          </div>
+<div id="ep0905_pred_grid" style="display:flex;justify-content:center;overflow-x:auto;"></div>
+</div>
+<div>
+<div style="font-weight:bold;font-size:11px;color:#333;margin-bottom:4px;text-align:center;">
+            🟡 Reference Mask
+          </div>
+<div id="ep0905_ref_grid" style="display:flex;justify-content:center;overflow-x:auto;"></div>
+</div>
+</div>
+</div>
+<!-- Visualização -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+<!-- Canvas da visualização -->
+<div style="background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;">
+<div style="color:white;font-weight:bold;font-size:13px;text-align:center;margin-bottom:8px;">
+          🎯 Visual Comparison
+        </div>
+<canvas id="ep0905_canvas" style="width:100%;height:220px;display:block;background:white;border-radius:5px;"></canvas>
+</div>
+<!-- Métricas -->
+<div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:10px;padding:12px;overflow-y:auto;max-height:280px;">
+<div style="font-weight:bold;font-size:12px;color:#333;margin-bottom:8px;">
+          📊 Calculations and Formulas
+        </div>
+<div id="ep0905_metrics" style="font-size:10px;line-height:1.8;">
+<!-- Gerado dinamicamente -->
+</div>
+</div>
+</div>
+<!-- Resumo final -->
+<div id="ep0905_summary" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:8px;padding:12px;font-family:monospace;font-size:14px;color:white;line-height:1.8;text-align:center;">
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function init(root){
+    if(!root || root.dataset.init) return;
+    root.dataset.init = "1";
+    
+    // Elementos DOM
+    var dimEl = root.querySelector('#ep0905_dim');
+    var dimvEl = root.querySelector('#ep0905_dim_v');
+    var exampleEl = root.querySelector('#ep0905_example');
+    var predGridEl = root.querySelector('#ep0905_pred_grid');
+    var refGridEl = root.querySelector('#ep0905_ref_grid');
+    var canvas = root.querySelector('#ep0905_canvas');
+    var ctx = canvas.getContext('2d');
+    var metricsEl = root.querySelector('#ep0905_metrics');
+    var summaryEl = root.querySelector('#ep0905_summary');
+    var clearBtn = root.querySelector('#ep0905_clear_btn');
+    var randomBtn = root.querySelector('#ep0905_random_btn');
+    
+    // Estado
+    var predMask = [];
+    var refMask = [];
+    var H = 5;
+    var W = 5;
+    
+    // Exemplos pré-definidos
+    var examples = {
+      quadrado: {
+        pred: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      deslocado: {
+        pred: [[0,0,0,0,0],[0,1,1,0,0],[0,1,1,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      perfeito: {
+        pred: [[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1]],
+        ref: [[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1]]
+      },
+      vazio: {
+        pred: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]
+      },
+      parcial: {
+        pred: [[0,0,0,0,0],[0,1,1,1,0],[0,1,1,1,0],[0,1,1,1,0],[0,0,0,0,0]],
+        ref: [[0,0,0,0,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,1,1,0],[0,0,0,0,0]]
+      }
+    };
+    
+    // Ajustar tamanho do canvas
+    function resizeCanvas() {
+      var rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    
+    // Carregar exemplo
+    function loadExample(name) {
+      var example = examples[name];
+      predMask = example.pred.map(function(row) { return row.slice(); });
+      refMask = example.ref.map(function(row) { return row.slice(); });
+      H = predMask.length;
+      W = predMask[0].length;
+      dimEl.value = H;
+      dimvEl.textContent = H + '×' + W;
+      generateGrids();
+      render();
+    }
+    
+    // Gerar grids clicáveis
+    function generateGrids() {
+      var predHTML = '<table style="border-collapse:collapse;">';
+      var refHTML = '<table style="border-collapse:collapse;">';
+      
+      for (var i = 0; i < H; i++) {
+        predHTML += '<tr>';
+        refHTML += '<tr>';
+        for (var j = 0; j < W; j++) {
+          predHTML += '<td data-type="pred" data-i="' + i + '" data-j="' + j + '" style="width:28px;height:28px;background:' + (predMask[i][j] ? '#4a90e2' : 'white') + ';border:1px solid #999;cursor:pointer;text-align:center;font-size:10px;color:' + (predMask[i][j] ? 'white' : '#999') + ';">' + (predMask[i][j] ? '1' : '0') + '</td>';
+          refHTML += '<td data-type="ref" data-i="' + i + '" data-j="' + j + '" style="width:28px;height:28px;background:' + (refMask[i][j] ? '#f5a623' : 'white') + ';border:1px solid #999;cursor:pointer;text-align:center;font-size:10px;color:' + (refMask[i][j] ? 'white' : '#999') + ';">' + (refMask[i][j] ? '1' : '0') + '</td>';
+        }
+        predHTML += '</tr>';
+        refHTML += '</tr>';
+      }
+      
+      predHTML += '</table>';
+      refHTML += '</table>';
+      
+      predGridEl.innerHTML = predHTML;
+      refGridEl.innerHTML = refHTML;
+      
+      // Adicionar event listeners
+      predGridEl.querySelectorAll('td[data-type="pred"]').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+          var i = parseInt(cell.getAttribute('data-i'));
+          var j = parseInt(cell.getAttribute('data-j'));
+          predMask[i][j] = predMask[i][j] ? 0 : 1;
+          generateGrids();
+          render();
+        });
+      });
+      
+      refGridEl.querySelectorAll('td[data-type="ref"]').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+          var i = parseInt(cell.getAttribute('data-i'));
+          var j = parseInt(cell.getAttribute('data-j'));
+          refMask[i][j] = refMask[i][j] ? 0 : 1;
+          generateGrids();
+          render();
+        });
+      });
+    }
+    
+    // Calcular métricas
+    function calculateMetrics() {
+      var TP = 0, FP = 0, FN = 0, TN = 0;
+      
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          var p = predMask[i][j] ? 1 : 0;
+          var r = refMask[i][j] ? 1 : 0;
+          
+          if (p && r) TP++;
+          else if (p && !r) FP++;
+          else if (!p && r) FN++;
+          else TN++;
+        }
+      }
+      
+      var intersection = TP;
+      var union = TP + FP + FN;
+      var predCount = TP + FP;
+      var refCount = TP + FN;
+      
+      var iou, dice;
+      
+      if (union === 0) {
+        iou = 1.0;
+        dice = 1.0;
+      } else {
+        iou = intersection / union;
+        dice = (predCount + refCount === 0) ? 1.0 : (2 * intersection) / (predCount + refCount);
+      }
+      
+      return { TP, FP, FN, TN, intersection, union, predCount, refCount, iou, dice };
+    }
+    
+    // Renderizar visualização
+    function render() {
+      resizeCanvas();
+      var m = calculateMetrics();
+      
+      // Limpar canvas
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      var cellSize = Math.min(35, (canvas.width - 40) / W);
+      var offsetX = (canvas.width - W * cellSize) / 2;
+      var offsetY = (canvas.height - H * cellSize) / 2;
+      
+      // Desenhar grid
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          var p = predMask[i][j] ? 1 : 0;
+          var r = refMask[i][j] ? 1 : 0;
+          
+          var color = '#f0f0f0';
+          if (p && r) color = '#4a90e2';
+          else if (p && !r) color = '#ff6b6b';
+          else if (!p && r) color = '#f5a623';
+          
+          var x = offsetX + j * cellSize;
+          var y = offsetY + i * cellSize;
+          
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+          ctx.strokeStyle = '#999';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+        }
+      }
+      
+      // Fórmulas e cálculos
+      var html = '';
+      html += '<div style="margin-bottom:6px;"><b>1. Contagem de pixels:</b></div>';
+      html += '<div style="color:#4a90e2;">TP (interseção) = ' + m.TP + '</div>';
+      html += '<div style="color:#ff6b6b;">FP (só predita) = ' + m.FP + '</div>';
+      html += '<div style="color:#f5a623;">FN (só referência) = ' + m.FN + '</div>';
+      html += '<div style="color:#999;">TN (fundo) = ' + m.TN + '</div>';
+      
+      html += '<div style="margin-top:8px;margin-bottom:4px;"><b>2. Interseção e União:</b></div>';
+      html += '<div>Interseção = TP = <b>' + m.intersection + '</b></div>';
+      html += '<div>União = TP + FP + FN = ' + m.TP + ' + ' + m.FP + ' + ' + m.FN + ' = <b>' + m.union + '</b></div>';
+      html += '<div>|P| = TP + FP = ' + m.TP + ' + ' + m.FP + ' = <b>' + m.predCount + '</b></div>';
+      html += '<div>|R| = TP + FN = ' + m.TP + ' + ' + m.FN + ' = <b>' + m.refCount + '</b></div>';
+      
+      html += '<div style="margin-top:8px;margin-bottom:4px;"><b>3. Fórmulas:</b></div>';
+      
+      if (m.union === 0) {
+        html += '<div style="color:#888;">IoU = 1.0 (máscaras vazias)</div>';
+        html += '<div style="color:#888;">Dice = 1.0 (máscaras vazias)</div>';
+      } else {
+        html += '<div>IoU = Interseção / União = ' + m.intersection + ' / ' + m.union + ' = <b style="color:#2980b9;">' + m.iou.toFixed(4) + '</b></div>';
+        html += '<div>Dice = 2·Interseção / (|P| + |R|) = 2·' + m.intersection + ' / (' + m.predCount + ' + ' + m.refCount + ') = ' + (2 * m.intersection) + ' / ' + (m.predCount + m.refCount) + ' = <b style="color:#50e3c2;">' + m.dice.toFixed(4) + '</b></div>';
+      }
+      
+      metricsEl.innerHTML = html;
+      
+      // Resumo final
+      summaryEl.innerHTML = '<b>IoU: ' + m.iou.toFixed(4) + '</b> &nbsp;&nbsp;|&nbsp;&nbsp; <b>Dice: ' + m.dice.toFixed(4) + '</b>';
+    }
+    
+    // Limpar máscaras
+    function clearMasks() {
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          predMask[i][j] = 0;
+          refMask[i][j] = 0;
+        }
+      }
+      generateGrids();
+      render();
+    }
+    
+    // Gerar máscaras aleatórias
+    function randomMasks() {
+      for (var i = 0; i < H; i++) {
+        for (var j = 0; j < W; j++) {
+          predMask[i][j] = Math.random() > 0.5 ? 1 : 0;
+          refMask[i][j] = Math.random() > 0.5 ? 1 : 0;
+        }
+      }
+      generateGrids();
+      render();
+    }
+    
+    // Event listeners
+    clearBtn.addEventListener('click', clearMasks);
+    randomBtn.addEventListener('click', randomMasks);
+    
+    dimEl.addEventListener('input', function() {
+      H = parseInt(dimEl.value);
+      W = H;
+      dimvEl.textContent = H + '×' + W;
+      
+      var newPred = [];
+      var newRef = [];
+      for (var i = 0; i < H; i++) {
+        newPred.push([]);
+        newRef.push([]);
+        for (var j = 0; j < W; j++) {
+          newPred[i].push(i < predMask.length && j < predMask[0].length ? predMask[i][j] : 0);
+          newRef[i].push(i < refMask.length && j < refMask[0].length ? refMask[i][j] : 0);
+        }
+      }
+      predMask = newPred;
+      refMask = newRef;
+      generateGrids();
+      render();
+    });
+    
+    exampleEl.addEventListener('change', function() {
+      loadExample(exampleEl.value);
+    });
+    
+    // Inicializar
+    loadExample('quadrado');
+  }
+  
+  function tryInit(){
+    var root = document.getElementById('sim-ep0905');
+    if(root) init(root); else setTimeout(tryInit, 200);
+  }
+  tryInit();
+})();
+
+</script>
+</div></div>
