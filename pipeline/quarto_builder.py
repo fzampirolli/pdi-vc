@@ -1827,7 +1827,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
         cwd=qdir,
         capture_output=True,
         text=True,
-        timeout=600,
+        timeout=3000,
         env=env,
     )
     if r.returncode != 0:
@@ -1879,7 +1879,7 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             cwd=qdir,
             capture_output=True,
             text=True,
-            timeout=1200,
+            timeout=3000,
             env=env,
         )
 
@@ -2486,7 +2486,7 @@ def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: b
                   cwd=qdir,
                   capture_output=not verbose,
                   text=True,
-                  timeout=600,
+                  timeout=3000,
                   env=env,
               )
               if r.returncode != 0:
