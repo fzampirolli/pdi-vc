@@ -201,7 +201,14 @@ def run_build(sources: list[Path], combos: list[Combo],
     for combo in combos:
         tag = '(base)' if combo.is_base() else ''
         print(f'\n── {combo.key} {tag}')
-        for nb_path in sources:
+        # A trilha C++ só foi portada/validada para o cap01 (7 funções de
+        # morph.py). Os demais capítulos usam cv2/skimage sem equivalente e,
+        # com error:false, uma célula quebrada aborta o render do combo cpp
+        # inteiro — inclusive o cap01. Ver CPP_VALIDATION_NOTE no índice.
+        combo_sources = sources
+        if combo.lang == 'cpp':
+            combo_sources = [s for s in sources if s.parent.name == 'cap01']
+        for nb_path in combo_sources:
             out = build_notebook(nb_path, combo, processor)
             print(f'  ✓ {out}')
 

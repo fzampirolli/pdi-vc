@@ -911,6 +911,12 @@ pre {
             for cap in caps:
                 if DEBUG_CAPS and cap not in DEBUG_CAPS:  # ← filtro
                     continue
+                # C++ só está portado/validado para o cap01 (ver
+                # CPP_VALIDATION_NOTE em index_builder). Não inclua os demais
+                # capítulos nos livros cpp mesmo que exista um .ipynb gerado
+                # (stale) — cv2/skimage sem equivalente quebram o render.
+                if combo.lang == 'cpp' and cap != 'cap01':
+                    continue
                 nb_name = f'{cap}.{combo.key}.ipynb'
                 if (nb_root / cap / nb_name).exists():
                     chaps.append(f'        - {cap}/{nb_name}')
