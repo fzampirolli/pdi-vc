@@ -123,6 +123,41 @@ class SectionNumbering:
 _section_numbering = SectionNumbering()
 
 # ---------------------------------------------------------------------------
+# Rótulos localizados (Figura/Tabela/Equação, cabeçalho de referências etc.)
+# ---------------------------------------------------------------------------
+# Este script gera esses rótulos ele mesmo (fora de qualquer notebook fonte),
+# ao resolver @fig-*/@tbl-*/@eq-* e ao injetar a lista de referências — por
+# isso não vêm traduzidos junto com o texto do capítulo (esse já chega
+# traduzido de gen/<lang>.<locale>/, ver run_batch). `_CURRENT_LOCALE` é
+# ajustado por run_batch no início do batch, de acordo com o locale do
+# combo sendo processado (--locale), antes de qualquer process_notebook.
+_CURRENT_LOCALE = "pt"
+
+_XREF_LABELS = {
+    "pt": {"fig": "Figura", "tbl": "Tabela", "eq": "Equação"},
+    "en": {"fig": "Figure", "tbl": "Table", "eq": "Equation"},
+    "fr": {"fig": "Figure", "tbl": "Tableau", "eq": "Équation"},
+}
+
+_REFERENCES_HEADING = {
+    "pt": "## Referências do Capítulo",
+    "en": "## Chapter References",
+    "fr": "## Références du Chapitre",
+}
+
+_REFERENCE_NOT_FOUND = {
+    "pt": "*Referência não encontrada para: {key}*",
+    "en": "*Reference not found for: {key}*",
+    "fr": "*Référence introuvable pour : {key}*",
+}
+
+
+def _xref_label(kind: str) -> str:
+    """Rótulo localizado (Figura/Figure, Tabela/Table/Tableau, Equação/Equation/Équation)."""
+    labels = _XREF_LABELS.get(_CURRENT_LOCALE, _XREF_LABELS["pt"])
+    return labels.get(kind, labels["fig"])
+
+# ---------------------------------------------------------------------------
 # 1. Parser BibTeX
 # ---------------------------------------------------------------------------
 
@@ -608,7 +643,7 @@ def resolve_crossrefs_to_html(text: str, elem_map: dict) -> str:
         if not info:
             return m.group(0)
         kind = info.get("kind", elem_id.split('-')[0])
-        prefix = "Tabela" if kind == "tbl" else "Figura" if kind == "fig" else "Equação"
+        prefix = _xref_label(kind)
         num = info.get("num_str", "")
         return f'<a href="#{elem_id}">{prefix} {num}</a>'
     return re.sub(r'@((fig|tbl|eq)-[\w-]+)', _replace, text)
@@ -964,9 +999,9 @@ def build_element_map(notebook: dict, nb_path: Path = None) -> dict:
         return f"{current_chapter}.{counters[kind]}"
 
     prefixes = {
-        "fig": "Figura",
-        "tbl": "Tabela",
-        "eq":  "Equacao",
+        "fig": _xref_label("fig"),
+        "tbl": _xref_label("tbl"),
+        "eq":  _xref_label("eq"),
     }
 
     for cell in notebook.get("cells", []):
@@ -1016,7 +1051,7 @@ def build_element_map(notebook: dict, nb_path: Path = None) -> dict:
                     }
                 else:
                     num_str = make_num_str(kind, elem_id)
-                    prefix = "Figura" if kind == "fig" else "Tabela"
+                    prefix = _xref_label(kind)
                     elem_map[elem_id] = {
                         "kind": kind,
                         "num_str": num_str,
@@ -1335,7 +1370,7 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict, numbering:
         if info:
             return render_tbl_markdown(tbl_body, elem_id, info["label_prefix"], info["caption"])
         else:
-            return render_tbl_markdown(tbl_body, elem_id, f"Tabela {_chapter_from_id(elem_id)}:", "")
+            return render_tbl_markdown(tbl_body, elem_id, f"{_xref_label('tbl')} {_chapter_from_id(elem_id)}:", "")
         
     text = TBL_MD_RE.sub(replace_tbl_md, text)
 
@@ -1347,7 +1382,7 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict, numbering:
         kind    = m.group(4)  # "fig" ou "tbl"
         info = elem_map.get(elem_id)
         label = info["label"] if info else \
-            ("Figura" if kind == "fig" else "Tabela") + \
+            _xref_label(kind) + \
             f" {_chapter_from_id(elem_id) or elem_id}"
         return render_img_element(alt, path, elem_id, label, kind)
 
@@ -1364,8 +1399,7 @@ def process_cell(source, key_to_num: dict, elem_map: dict, bib: dict, numbering:
         """Retorna o prefixo textual (Figura/Tabela/Equação)."""
         info = elem_map.get(elem_id)
         kind_raw = info["kind"] if info else elem_id.split('-')[0]
-        return "Tabela" if kind_raw == "tbl" else \
-            "Figura" if kind_raw == "fig" else "Equação"
+        return _xref_label(kind_raw)
 
     def replace_crossref_bracket(m):
         """[-@id] -> numero so;  [Texto @id] -> Texto numero."""
@@ -1692,20 +1726,22 @@ def build_reference_list(citations: list, bib: dict, intro_paragraph: str = "") 
     sorted_keys = sorted(valid_keys, key=get_sort_key)
 
     key_to_num = {}
-    lines = ["## Referências do Capítulo\n"]
+    heading = _REFERENCES_HEADING.get(_CURRENT_LOCALE, _REFERENCES_HEADING["pt"])
+    lines = [f"{heading}\n"]
 
     if intro_paragraph.strip():
         lines.append(intro_paragraph.strip())
-        
+
     # 4. Gera o texto das referências ordenadas
     for i, key in enumerate(sorted_keys, start=1):
         key_to_num[key] = i
         ref_text = format_entry(key, bib[key])
         lines.append(ref_text)
-    
+
     # Adiciona avisos para chaves não encontradas ao final (opcional)
+    not_found = _REFERENCE_NOT_FOUND.get(_CURRENT_LOCALE, _REFERENCE_NOT_FOUND["pt"])
     for key in missing_keys:
-        lines.append(f"*Referência não encontrada para: {key}*")
+        lines.append(not_found.format(key=key))
 
     return "\n\n".join(lines), key_to_num
 
@@ -2109,6 +2145,8 @@ def run_batch_epub(bib_path: str, out_dir: str):
 def run_batch(bib_path: str, out_dir: str,
               numbering: bool = True, target_lang: str = "py",
               locale: str = "pt"):
+    global _CURRENT_LOCALE
+    _CURRENT_LOCALE = locale
     bib = parse_bib(bib_path)
     out_root = Path(out_dir)
     EXCLUDE = ("_dist", "_executado", "_fixed")

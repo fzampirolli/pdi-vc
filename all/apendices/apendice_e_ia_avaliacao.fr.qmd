@@ -1,0 +1,324 @@
+# Utilisation de l'IA dans l'évaluation des étudiants : le projet vpl-ai-feedback {#apendice-llm-nq}
+
+Cette annexe décrit **vpl-ai-feedback**, un système *open source* développé pour appuyer la correction des soumissions de code envoyées au VPL (Moodle) grâce à un *feedback* généré par Intelligence Artificielle (IA). Contrairement à un correcteur automatique traditionnel — qui se contente de comparer les sorties aux cas de test —, **vpl-ai-feedback** envoie le code de l'étudiant, accompagné de la grille de correction de la question, à un modèle de langage (LLM), qui renvoie une analyse qualitative par critère, dans le style d'un ***feedback* socratique** : l'étudiant reçoit des commentaires indiquant ce qui a été fait correctement, ce qui peut être amélioré et pourquoi, aussi bien dans les activités **formatives** (exercices d'entraînement) que dans les activités **évaluatives** (simulacres d'examen) du VPL.
+
+Ce mécanisme de *feedback* socratique dans les activités VPL a été proposé par @zampirolli2026intelligent. L'étude décrit l'intégration de l'IA au processus d'évaluation d'exercices de programmation paramétrés dans VPL/Moodle, à l'aide d'un ensemble de sept LLM utilisés pour analyser le code des étudiants et générer un *feedback* automatisé à chaque demande de correction, avec des résultats préliminaires indiquant une perception positive des étudiants quant à la génération d'idées, à la clarté des explications et à l'autonomie d'apprentissage.
+
+Le reste de cette annexe détaille la mise en œuvre pratique de ces idées dans le projet **vpl-ai-feedback** — dont le code est disponible à l'adresse [https://github.com/fzampirolli/vpl-ai-feedback](https://github.com/fzampirolli/vpl-ai-feedback) — et décrit spécifiquement son utilisation dans les trois classes de PDI-VC entre mai et août 2026.
+
+::: {.callout-warning}
+### Attention : l'IA ne remplace pas le jugement de l'enseignant {.unnumbered}
+L'utilisation de l'IA pour **évaluer** les étudiants **n'est pas recommandée comme source unique de note**, car les modèles de langage peuvent **halluciner** — c'est-à-dire produire des évaluations, des critères ou des justifications plausibles mais incorrects, même face à un code correct ou incorrect. Un LLM peut attribuer une note élevée à un code comportant une erreur subtile, ou une note faible à un code correct mais écrit de façon inhabituelle, simplement parce que l'explication générée « paraît » cohérente. **L'IA doit être utilisée uniquement comme un complément à l'évaluation**, jamais comme un substitut à l'enseignant. L'[Annexe A](#apendice-mctest) et l'[Annexe B](#apendice-moodle) décrivent les mécanismes de correction objective (cas de test) qui restent la base de la note officielle ; cette annexe traite exclusivement de l'utilisation de l'IA comme couche supplémentaire de *feedback* qualitatif.
+:::
+
+## Contexte d'utilisation
+
+**vpl-ai-feedback** a été utilisé dans trois classes de la discipline **PDI-VC**, enseignée entre mai et août 2026, totalisant environ une centaine d'étudiants. Le *feedback* par IA a été employé de trois façons complémentaires :
+
+1. ***Feedback* continu dans les activités formatives** — exercices d'entraînement soumis au VPL tout au long du cours, où l'étudiant pouvait soumettre à nouveau son code autant de fois qu'il le souhaitait. À chaque soumission, il recevait un *feedback* qualitatif généré par IA, en plus de la correction objective effectuée par le VPL, décrite dans @zampirolli2026intelligent.
+
+2. ***Feedback* complémentaire lors des simulacres d'examen (activités évaluatives bonus)** — quatre simulacres réalisés au cours du trimestre, prévus dans le plan de cours comme activités bonus, chacun valant jusqu'à 5 % de la note finale. Appliqués environ 30 minutes avant la fin des séances pratiques bimensuelles en laboratoire, les simulacres utilisaient **vpl-ai-feedback** pour générer une grille d'évaluation individuelle, envoyée par e-mail avec un résumé comparatif entre la note attribuée par Moodle/VPL et l'évaluation produite par l'IA.
+
+3. ***Feedback* complémentaire lors des Examens 1 et 2 (évaluations officielles)** — les deux examens formels du trimestre, chacun valant une part plus importante de la note finale du cours, ont également commencé à utiliser **vpl-ai-feedback** après leur passation. Contrairement aux simulacres (bonus), la note officielle est ici déjà définie par la correction objective du VPL et/ou l'évaluation manuelle de l'enseignant avant la publication des résultats ; la grille générée par l'IA n'est envoyée à l'étudiant qu'ensuite, comme support pour la révision de sa propre performance — renforçant, y compris dans les évaluations à plus fort coefficient, la séparation entre *note officielle* et *feedback* complémentaire détaillée à la Section D.7.
+
+Une enquête d'opinion, à laquelle 102 étudiants ont répondu avant l'adoption du système, a indiqué une forte adhésion à la proposition. Seuls 2 étudiants ont attribué la note 1 (rejet) et 7 ont attribué la note 2 quant à l'intérêt de recevoir un *feedback* automatique de code par IA. 19 autres se sont déclarés indifférents (note 3), tandis que la majorité — 38 et 37 étudiants — a attribué les notes 4 et 5 (forte approbation), respectivement, totalisant les 102 répondants. Ce résultat a motivé l'adoption du système comme complément au processus formatif, et non comme substitut à la correction humaine.
+
+::: {.callout-important}
+### La note officielle n'a jamais été la note de l'IA {.unnumbered}
+Il est essentiel de souligner que, comme défini dans le plan de cours, **la note utilisée aussi bien pour le calcul du bonus de chaque simulacre que pour la note officielle des Examens 1 et 2 a toujours été la note attribuée par le VPL** (basée sur les cas de test) et/ou par l'évaluation manuelle de l'enseignant — et **non** la note suggérée par l'IA. La grille générée par **vpl-ai-feedback** a été envoyée à l'étudiant uniquement comme support d'apprentissage — jamais comme critère d'attribution de note, que ce soit dans les activités bonus ou dans les évaluations officielles. Cette séparation entre *note officielle* (VPL/enseignant) et *feedback complémentaire* (IA) est le principe central de cette annexe et a été reprise à la Section D.8.
+:::
+
+## Architecture du projet
+
+**vpl-ai-feedback** est un *script* Python asynchrone organisé de la façon suivante :
+
+```
+.
+├── config.yaml              ← configuration (identifiants, fournisseur, poids) — JAMAIS versionné
+├── config.yaml.example      ← modèle public de configuration
+├── main.py                  ← script principal (async), orchestre tout le processus
+├── run.sh                   ← wrapper d'exécution (bash run.sh config.yaml)
+├── gerar_relatorio.py       ← convertit le fichier consolidé *_ALL.txt en CSV
+├── enviar_email.py          ← envoie les grilles par e-mail à chaque étudiant
+├── providers/                ← clients des API de LLM
+│   ├── __init__.py          ← fabrique de clients (Factory)
+│   ├── base.py               ← logique de retry, backoff et repli entre modèles
+│   ├── groq.py
+│   ├── deepseek.py
+│   └── gemini.py
+├── core/                      ← logique métier
+│   ├── grader.py              ← identifie les fichiers par question, construit le prompt, appelle le LLM
+│   └── utils.py
+└── <dossier_de_la_classe>/    ← soumissions téléchargées depuis Moodle VPL
+    ├── Nom étudiant - login/
+    │   ├── <timestamp>/                 ← dernière soumission de l'étudiant
+    │   │   ├── Q1.py                    ← modèle pour les examens à plusieurs questions
+    │   │   ├── Q2.py
+    │   │   └── rubrica.txt              ← généré par le LLM (uniquement si l'évaluation est valide)
+    │   └── <timestamp>.ceg/
+    │       └── execution.txt            ← note/objective attribuée par le VPL
+    └── ...
+```
+
+Le système accepte trois fournisseurs de LLM — **Groq**, **DeepSeek** et **Gemini** — configurables dans `config.yaml` via la clé `llm.provider`. Chaque fournisseur peut avoir **plusieurs modèles** enregistrés ; à chaque appel, la liste est **mélangée**, répartissant la charge entre les étudiants traités en parallèle et réduisant le risque d'erreurs de limite de requêtes (HTTP 429). Lorsqu'un modèle échoue, le système réessaie jusqu'à trois fois avant de passer au suivant dans la liste, en respectant le délai d'attente suggéré par le fournisseur. Les erreurs d'authentification (401) ou de solde insuffisant (402) interrompent immédiatement la tentative auprès de ce fournisseur.
+
+Un aspect important du projet concerne la confidentialité des données. **Le nom, l'e-mail, le login, le numéro d'étudiant et le numéro d'identité nationale de l'étudiant ne sont jamais envoyés à l'API du LLM**. Ne sont transmis pour traitement que : le nom du fichier contenant le code source ; le code lui-même (sans les commentaires) ; le *prompt* de la grille — qui ne contient pas de données personnelles — ; et, lorsqu'ils sont disponibles dans le fichier `execution.txt` généré par le VPL, l'énoncé officiel de la question tirée pour cet étudiant et le résultat brut des cas de test réellement exécutés (entrée, sortie produite par le code et sortie attendue). Ces deux derniers éléments, bien qu'extraits d'un fichier spécifique à chaque étudiant, ne contiennent pas non plus d'identification personnelle — seulement le texte de la question et les valeurs d'entrée/sortie des tests automatiques —, et sont utilisés comme preuve objective pour réduire le risque que l'IA identifie incorrectement le type de question ou évalue la logique du code par simple lecture statique (Section D.3).
+
+Il n'en demeure pas moins important de reconnaître que les trois fournisseurs actuellement pris en charge — Groq, DeepSeek et Gemini — sont des services commerciaux exploités par des entreprises étrangères, dont les modèles s'exécutent sur une infrastructure située hors du pays et sont soumis à des politiques d'utilisation, de disponibilité et de coût qui échappent au contrôle de l'établissement d'enseignement. Cette dépendance à des fournisseurs externes comporte des risques qui vont au-delà de la simple correction ponctuelle de code : changements de prix, abandon de modèles, indisponibilité temporaire du service, modifications unilatérales des conditions d'utilisation et, dans les cas les plus sensibles, restrictions géopolitiques d'accès peuvent compromettre la continuité d'un système d'évaluation devenu structurellement dépendant de ces API. C'est pourquoi il est stratégique que des établissements d'enseignement supérieur comme l'UFABC investissent dans le développement et l'hébergement de **leurs propres fournisseurs d'IA** — par exemple, des modèles ouverts (*open-weight*) exécutés sur une infrastructure locale ou un cloud souverain —, réduisant la dépendance aux services externes, en particulier d'autres pays, et élargissant le contrôle institutionnel sur les coûts, la disponibilité, la confidentialité des données des étudiants et la continuité pédagogique à long terme. La conception de **vpl-ai-feedback** favorise déjà cette voie : l'architecture de `providers/` a été construite comme une fabrique (*factory*) extensible, dans laquelle un nouveau fournisseur — y compris un modèle hébergé localement par l'établissement lui-même, avec une interface compatible — peut être ajouté avec un faible effort d'intégration.
+
+## Le *prompt* universel et la grille en deux étapes
+
+Chaque type d'examen est décrit dans un fichier de *prompt* (par exemple, `Simulado4.txt`), référencé dans `grading.prompt_file` du `config.yaml`. Ce fichier indique au LLM d'effectuer l'évaluation en **deux étapes** :
+
+1. **Identification de la question** — le LLM détermine le type spécifique d'opération tiré pour cet étudiant (utile lorsqu'il existe des questions paramétrées tirées et mélangées par étudiant, comme décrit à l'[Annexe A](#apendice-mctest)) ;
+2. **Application de la grille correspondante** — le LLM évalue le code selon des critères notés, chacun avec un barème maximal de points, renvoyant à la fin une note au format `NOTE FINALE : X/POIDS`.
+
+Dans les examens paramétrés, le fichier de *prompt* contient généralement **plusieurs grilles parallèles**, une pour chaque type de question possible, délimitées par des marqueurs tels que `[START_RUBRICA_TIPO_A]` / `[END_RUBRICA_TIPO_A]`. Le LLM identifie d'abord quel type a été tiré pour cet étudiant et applique **uniquement** la grille correspondante, en ignorant les autres — ce qui évite que des critères d'un autre type ne contaminent la note.
+
+Lorsque l'examen comporte plusieurs questions par activité VPL, les fichiers de code doivent suivre le modèle `Q1.*`, `Q2.*`, etc. — un fichier par question, avec une extension libre selon le langage choisi par l'étudiant —, et chaque question a un poids configurable individuellement dans `grading.weights` du `config.yaml`. Lorsque l'examen ne comporte qu'une seule question et n'a pas été généré par MCTest, le système accepte n'importe quel nom de fichier avec une extension prise en charge, à condition qu'il soit le seul fichier de code présent dans le dossier de soumission.
+
+Dans le cas du Simulado 4 (sujet *Opérateurs morphologiques*), par exemple, l'un des types possibles définissait trois critères, pour un poids total de 100 points pour cette question :
+
+| Critère | Description | Note maximale |
+|---|---|---|
+| 1 — Entrée des données | Lecture de `H`, `W` et de la matrice binaire (`mm.readImg`) | 25 pts |
+| 2 — Traitement morphologique | Ouverture + Fermeture (`mm.sebox()`), `mm.measure`, tri par `bbox[0]`/`bbox[1]` et réattribution des identifiants | 50 pts |
+| 3 — Sortie et mise en forme | Affichage de l'image nettoyée (`mm.drawImg`) et tableau des mesures formaté | 25 pts |
+
+Le *prompt* exige également un **format de réponse obligatoire** (largeur de ligne, ordre des sections, marqueur `NOTE FINALE :`), ce qui rend l'extraction automatique de la note et la constitution du rapport consolidé plus fiables — bien que, comme discuté à la Section D.8, cela n'élimine pas le risque d'erreur sémantique dans l'évaluation du contenu.
+
+## Deux couches supplémentaires de preuves
+
+Pour réduire le risque que le LLM hallucine le type de question ou la justesse du code — le risque central discuté à la Section D.7 —, **vpl-ai-feedback** a commencé à fournir à l'IA deux sources de preuves objectives, extraites automatiquement du fichier `execution.txt` généré par le VPL, en plus du code source :
+
+- **Énoncé officiel de la question.** Comme les questions sont généralement tirées et mélangées par étudiant dans MCTest ([Annexe A](#apendice-mctest)), le `execution.txt` de chaque étudiant contient déjà, dans le champ « Résumé de la question », le texte exact de la question qui lui a été attribuée. Le système extrait automatiquement cet extrait et l'envoie au LLM comme preuve **primaire** pour identifier le type/la variante de la question — plus fiable que de se fier uniquement à une lecture statique du code, en particulier pour les soumissions incomplètes ou ambiguës entre deux types proches (par exemple, une érosion « plate » *versus* « pondérée »). Lorsque le code soumis diverge de ce que demande l'énoncé, le système n'ignore pas l'énoncé et ne « corrige » pas silencieusement la lecture : il conserve l'identification fondée sur l'énoncé, réduit le niveau de confiance de l'évaluation à « Faible » et explicite la divergence dans le *feedback* envoyé à l'étudiant.
+- **Résultat réel de l'exécution sur le VPL.** Lorsqu'ils sont disponibles, le système envoie aussi au LLM les cas de test effectivement exécutés sur ce code — entrée, sortie produite et sortie attendue — comme preuve objective de correction, à utiliser pour confirmer ou infirmer la lecture de la logique avant de noter les critères de traitement et de sortie, plutôt que de laisser l'IA se fier uniquement à une simulation mentale du code (ce qui est particulièrement défaillant dans les boucles avec `min`/`max`, les décalages d'indices ou le calcul du seuil d'Otsu, où des erreurs subtiles passent inaperçues lors d'une lecture statique).
+
+De plus, le LLM est instruit de déclarer explicitement son **niveau de confiance** (Élevé, Moyen ou Faible) dans l'identification de chaque type de question, avec justification lorsque la confiance n'est pas Élevée. Cette valeur est extraite automatiquement et alimente une colonne `Revisar_Manualmente` (à réviser manuellement) dans le rapport CSV consolidé (Section D.4), permettant à l'enseignant de prioriser exactement les cas où l'IA elle-même reconnaît une plus grande incertitude — plutôt que de traiter toutes les évaluations d'une classe comme également fiables.
+
+## Déroulement de l'exécution
+
+L'exécution type, effectuée via `bash run.sh config.yaml`, suit les étapes suivantes :
+
+1. Charge `config.yaml` et localise le dossier des soumissions (`paths.student_base_dir`) ;
+2. Pour chaque étudiant, identifie la **dernière soumission** (le dossier au *timestamp* le plus récent) ;
+3. Extrait la note objective de Moodle à partir de `*.ceg/execution.txt` ;
+4. Pour chaque question de l'examen, localise le fichier de code (`Q1.*`, `Q2.*`, ou le seul fichier, dans le cas d'un examen non généré par MCTest), construit le *prompt* (code + grille) et l'envoie à un modèle tiré de la liste configurée ;
+5. Traite tous les étudiants **en parallèle**, avec un contrôle de la concurrence ;
+6. Génère, pour chaque étudiant, le fichier `rubrica.txt` — **uniquement si l'IA renvoie au moins une évaluation valide** pour les questions comportant du code ; sinon, le fichier n'est pas enregistré, ce qui force une nouvelle tentative à l'exécution suivante ;
+7. Consolide tous les fichiers `rubrica.txt` en un seul `*_ALL.txt` et génère un rapport `*_relatorio.csv`, comparant la note Moodle, la note de l'IA et l'écart entre les deux, par question et au total.
+
+| Situation | `rubrica.txt` est-il enregistré ? |
+|---|---|
+| Toutes les questions avec code évaluées avec succès | ✅ Oui |
+| L'IA a échoué sur au moins une question avec code | ❌ Non — retraité à l'exécution suivante |
+| Étudiant n'ayant soumis aucun fichier de code | ❌ Non |
+| Type de question identifié comme INCONNU | ❌ Non |
+
+
+
+## Exemple illustratif : grille pour un examen à trois questions
+
+::: {.callout-note}
+### À propos de l'origine de cet exemple {.unnumbered}
+L'extrait suivant **ne reproduit le code d'aucun étudiant en particulier**. Il s'agit d'un exemple reconstruit par l'auteur, reproduisant un *schéma* d'erreur observé de façon répétée dans les classes de PDI-VC — la confusion entre une fonction morphologique 2D (`mm.ero`/`mm.ero0`) et une opération 1D sur des signaux — sans citer ni identifier aucune soumission réelle. Ce choix évite tout risque d'atteinte au droit d'auteur de l'étudiant sur son propre code source, même anonymisé, la paternité de l'œuvre restant celle de l'auteur original même lorsque le nom et le *login* sont retirés.
+:::
+
+L'extrait suivant illustre la sortie générée par **vpl-ai-feedback** pour un étudiant sur un examen à **trois questions** (Q1, Q2, Q3), avec le modèle `deepseek-chat`. Le résumé comparatif apparaît en haut du fichier, suivi de l'énoncé officiel de chaque question, du code soumis et de l'évaluation par critère.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ RÉSUMÉ — IA (deepseek-chat)  x  MOODLE                               │
+├─────────────────────────────────────────────────────────────────────┤
+│ Poids total : 100 pts                                                │
+│ ─────────────────────────────────────────────────────────────────── │
+│ Q1 (IA) :  3.3 / 33 pts                                              │
+│ Q2 (IA) :  6.7 / 33 pts                                              │
+│ Q3 (IA) : 33.3 / 34 pts                                              │
+│ ─────────────────────────────────────────────────────────────────── │
+│ Moodle : (Q1=33 + Q2=0 + Q3=34) = 67 pts                             │
+│ IA     : 43.3 / 100 pts                                              │
+│ ─────────────────────────────────────────────────────────────────── │
+│ Différence (IA - Moodle) : -23.7 pts                                 │
+│ ─────────────────────────────────────────────────────────────────── │
+│ Q1 : type identifié = B  | confiance = Faible (le code ne            │
+│   correspond pas à l'énoncé de la question) ⚠️ À RÉVISER             │
+│ Q2 : type identifié = A  | confiance = Élevée (l'énoncé officiel     │
+│   confirme le type et la variante)                                   │
+│ Q3 : type identifié = C1 | confiance = Élevée (l'énoncé officiel     │
+│   confirme une érosion 2D avec OpenCV intégrée)                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Q1 — le code ne correspond pas à l'énoncé (confiance faible) :** l'énoncé officiel de la question, extrait de `execution.txt`, demandait une érosion morphologique **1D** sur un signal (lecture de N, M, du signal et de l'élément structurant B, suivie du minimum des voisins actifs). Le code soumis, cependant, ne lit que deux entiers et appelle `mm.ero0` — une fonction d'érosion **2D** pour images, sans rapport avec l'opération demandée.
+
+```
+Type identifié : TYPE B (Érosion 1D — plate)
+Confiance : Faible — le code ne correspond pas à l'énoncé de la
+question (utilise mm.ero0, fonction d'érosion 2D, au lieu d'implémenter
+une érosion 1D plate sur un signal)
+
+Critère 1 - [3.33/10.00 pts] :
+- Le code lit deux entiers sur une seule ligne (qui correspondraient à
+  N et M), mais ne lit pas le signal ni l'élément structurant B comme
+  des vecteurs 1D. Il les traite plutôt tous les deux comme des images
+  via mm.readImg, ce qui ne correspond pas à la lecture attendue d'un
+  signal 1D et de B sur des lignes séparées.
+
+Critère 2 - [0.00/16.67 pts] :
+- L'opération appliquée est mm.ero0(img, element), une érosion 2D pour
+  images, et non l'érosion 1D de signaux demandée dans l'énoncé. La
+  logique du minimum des voisins actifs avec rognage aux bords n'est
+  pas implémentée.
+
+Critère 3 - [0.00/6.67 pts] :
+- La sortie est une image 2D via mm.drawImg, et non le signal 1D
+  résultant sur une seule ligne avec des valeurs entières séparées par
+  des espaces, comme requis.
+
+NOTE FINALE : 3.33/33.33
+
+Commentaires pour l'étudiant : le code présenté ne correspond pas à ce
+que demande l'énoncé. La question tirée demande une érosion
+morphologique 1D sur un signal unidimensionnel ; le code utilise une
+fonction d'érosion 2D pour images. Relisez attentivement l'énoncé tiré
+avant de choisir l'implémentation.
+```
+
+**Q2 — une erreur de syntaxe empêche l'exécution (confiance élevée, note faible due à un véritable échec) :** ici, l'IA a correctement identifié le type (seuillage avec Otsu), en s'appuyant sur l'énoncé officiel, mais le code contenait une erreur d'indentation qui empêchait l'exécution — mise en évidence à la fois par la lecture statique et par l'absence de sortie valide dans les tests du VPL.
+
+```
+Type identifié : TYPE A (Seuillage — T manuel + Otsu)
+Confiance : Élevée — l'énoncé officiel confirme le type et la variante
+
+Critère 1 - [6.67/10.00 pts] :
+- Lit correctement les trois paramètres L, C et T sur des lignes
+  séparées ainsi que l'image d'entrée. Cependant, la définition d'une
+  fonction auxiliaire de seuillage est mal indentée dans la portée
+  globale, provoquant une erreur d'indentation qui empêche l'exécution
+  complète du programme.
+
+Critère 2 - [0.00/16.67 pts] :
+- La binarisation avec un seuil fixe T est correctement structurée,
+  mais le calcul du seuil d'Otsu dépend de la fonction auxiliaire mal
+  formée, qui référence une variable hors de portée. L'erreur
+  d'indentation empêche tout traitement.
+
+Critère 3 - [0.00/6.67 pts] :
+- En raison de l'erreur d'indentation, aucune sortie n'est produite.
+
+NOTE FINALE : 6.67/33.33
+
+Commentaires pour l'étudiant : la structure générale est correcte
+(lecture de L, C, T et de l'image), mais il y a une erreur
+d'indentation qui empêche l'exécution. Révisez la syntaxe Python avant
+de soumettre et testez le code localement avant l'envoi au VPL.
+```
+
+**Q3 — divergence de fonction, mais équivalence fonctionnelle confirmée par une preuve réelle (confiance élevée, note juste) :** l'énoncé demandait explicitement l'utilisation de `mm.ero` (version intégrée à OpenCV), mais le code utilise `mm.ero0` (version plate implémentée manuellement). Comme `execution.txt` montrait les 10 cas de test du VPL réussis intégralement, l'IA n'a pas pénalisé la divergence de fonction — elle a reconnu l'équivalence fonctionnelle démontrée par les tests réels, tout en consignant l'observation dans le *feedback*.
+
+```
+Type identifié : TYPE C1 (Érosion 2D — plate sans poids)
+Confiance : Élevée — l'énoncé officiel confirme une érosion 2D avec
+OpenCV intégrée (mm.ero), et le code implémente une érosion plate via
+mm.ero0
+
+Critère 1 - [10.00/10.00 pts] :
+- Lit correctement la hauteur, la largeur, la matrice de l'image ainsi
+  que les dimensions et valeurs de l'élément structurant B.
+
+Critère 2 - [16.67/16.67 pts] :
+- L'énoncé demandait l'utilisation de mm.ero (OpenCV intégrée), mais le
+  code utilise mm.ero0 (plate, sans poids). Malgré la divergence de
+  fonction, l'opération a été correctement implémentée avec l'élément
+  structurant lu : les 10 tests exécutés sur le VPL ont réussi
+  intégralement (10/10), confirmant l'équivalence fonctionnelle pour
+  les cas testés.
+
+Critère 3 - [6.67/6.67 pts] :
+- Affiche l'image résultante dans le format correct ; les tests ont
+  confirmé la sortie correcte.
+
+NOTE FINALE : 33.34/33.33
+
+Commentaires pour l'étudiant : le code est correct et fonctionnel, avec
+les 10 tests réussis. Remarque : l'énoncé demandait explicitement
+mm.ero (version OpenCV), mais vous avez utilisé mm.ero0 (version
+plate). Bien que les résultats aient été équivalents dans les tests,
+suivez exactement la fonction demandée dans l'énoncé lors des prochains
+examens.
+```
+
+Notez que, dans ce cas composite, l'IA a attribué **23,7 points de moins** que la note objective du VPL, principalement à cause de Q1. L'écart agrégé constituerait déjà à lui seul un signal justifiant une investigation (Section D.7), mais le système fournit lui-même à l'enseignant la cause probable de chaque question : la colonne `Revisar_Manualmente` du CSV est marquée « OUI » chaque fois qu'au moins une question de l'étudiant reçoit une confiance faible, avec le motif spécifique consigné dans la colonne de confiance correspondante — réduisant le temps que l'enseignant doit consacrer à repérer, parmi une centaine d'étudiants, les rares cas qui méritent réellement une attention manuelle avant l'attribution de la note officielle. Le cas de Q3, quant à lui, illustre la précaution inverse : la divergence entre l'énoncé et le code **n'a pas** entraîné de pénalisation indue, car la preuve réelle d'exécution a confirmé l'équivalence fonctionnelle — exactement le comportement que décrit la Section D.3 pour ces deux couches de preuves.
+
+
+## Envoi du *feedback* par e-mail
+
+Après la génération des grilles, le *script* `enviar_email.py` envoie à chaque étudiant un e-mail avec `rubrica.txt` en pièce jointe. Le corps de l'e-mail est défini dans `config.yaml`, sous `templates.corpo`, et est interpolé avec `{nome_pasta}` et `{login}` :
+
+```yaml
+email:
+  smtp_server: smtp.ufabc.edu.br
+  smtp_port: 587
+  from_address: professor@ufabc.edu.br
+  password: "VOTRE_MOT_DE_PASSE_ICI"     # ne jamais versionner de vrais identifiants
+  use_tls: true
+
+templates:
+  assunto: "Grilles et corrections générées par LLM - Simulacre - {login}@aluno.ufabc.edu.br"
+  corpo: |
+    Cher/Chère {nome_pasta},
+    ...
+```
+
+::: {.callout-important}
+### Sécurité des identifiants {.unnumbered}
+Le `config.yaml` contient de véritables secrets (mot de passe SMTP, clés d'API). Il doit figurer dans le `.gitignore` du projet et **ne jamais** être publié, partagé ou versionné — y compris en pièce jointe d'e-mail, en capture d'écran ou dans des dépôts publics.
+:::
+
+Un exemple réel d'e-mail envoyé à un étudiant (données **anonymisées**, avec nom et login remplacés par un cas fictif) est reproduit ci-dessous, pour illustrer le ton pédagogique et les réserves explicitées à l'étudiant :
+
+::: {.callout-important title="Exemple de message individuel (anonymisé)"}
+Cher/Chère [Nom de l'étudiant] - [login],
+
+Votre note du Simulado 4 est disponible sur Moodle.
+
+Je vous transmets ci-dessous les compétences évaluées ainsi qu'une correction détaillée de votre code, générée automatiquement par Intelligence Artificielle (IA).
+
+La pièce jointe « rubrica.txt » contient le retour complet de l'IA (je recommande de la télécharger et de l'ouvrir avec un éditeur de texte ou le bloc-notes).
+
+Je souligne que cette correction générée par IA PEUT contenir des imprécisions ou des erreurs, mais elle constitue un excellent support pour votre processus d'apprentissage dans le cours.
+
+Une suggestion pédagogique consiste à soumettre votre code (contenu dans ce fichier), avec la GRILLE ci-dessous, à d'autres modèles de LLM pour comparaison. Cela peut aider à identifier d'éventuelles divergences, en plus d'offrir différentes perspectives sur votre code et sur les critères d'évaluation.
+
+Si vous avez des questions ou remarquez une incohérence flagrante dans la correction présentée sur Moodle, je reste à votre disposition pour des éclaircissements.
+
+Cordialement,
+
+Prof. Francisco Zampirolli
+
+PS. : Explication du processus : la dernière version de votre code enregistrée sur Moodle a été jointe au prompt et envoyée à l'un des LLM choisis de façon intégrée par notre système d'évaluation (modèles = ("deepseek-chat")). Le processus est répété jusqu'à l'obtention d'une réponse avec une note valide (entre 0 et 100).
+:::
+
+Trois éléments pédagogiques méritent d'être soulignés dans ce texte : (i) l'avertissement explicite selon lequel la correction **peut contenir des erreurs** ; (ii) l'invitation faite à l'étudiant lui-même à **confronter l'évaluation à d'autres LLM**, transformant l'IA en un outil d'étude actif plutôt qu'en un verdict passif ; et (iii) l'explication transparente du processus automatisé, incluant le ou les modèles utilisés et la politique de retraitement jusqu'à l'obtention d'une note valide.
+
+
+## Risques, limites éthiques et responsabilité de l'enseignant
+
+::: {.callout-important}
+### L'enseignant ne peut pas simplement adopter la note de l'IA {.unnumbered}
+C'est le point central de cette annexe : **en aucun cas la note suggérée par l'IA ne doit être automatiquement attribuée à l'étudiant comme note officielle**. Les modèles de langage peuvent halluciner — attribuer des points à des critères non satisfaits, « inventer » qu'une fonction a été appelée correctement alors qu'elle ne l'a pas été, ou pénaliser un code correct en raison d'une mauvaise interprétation de la grille. La note finale de toute activité évaluative doit **toujours** résulter d'une évaluation manuelle de l'enseignant (ou de la correction objective par cas de test, comme dans VPL/MCTest), l'IA jouant tout au plus le rôle de **première lecture** ou de **support pour l'étudiant**, jamais celui d'instance décisionnelle.
+:::
+
+Quelques précautions pratiques adoptées dans l'utilisation de **vpl-ai-feedback**, recommandées à tout enseignant souhaitant adapter le système :
+
+- **Séparation claire entre la note officielle et le feedback de l'IA.** Dans le cas rapporté, la note du bonus des simulacres provenait toujours du VPL, jamais de l'IA (Section D.1). La grille de l'IA a été communiquée à l'étudiant comme support d'apprentissage, avec un avertissement explicite indiquant qu'elle peut contenir des erreurs.
+- **Transparence envers l'étudiant.** L'e-mail envoyé (Section D.6) précise explicitement que l'évaluation a été générée par IA, indique le ou les modèles utilisés et invite l'étudiant à comparer avec d'autres LLM — réduisant l'asymétrie d'information et encourageant la pensée critique vis-à-vis de la correction reçue.
+- **Retraitement plutôt qu'un *cache* invalide.** Le système n'enregistre `rubrica.txt` que lorsqu'il obtient une évaluation valide (Section D.4) ; cela évite qu'une réponse malformée, incomplète ou visiblement incohérente de l'IA soit présentée à l'étudiant comme définitive.
+- **Suivi des divergences.** Le rapport CSV consolidé (colonne `Diferenca = Total_IA - Total_Moodle`) permet à l'enseignant d'identifier rapidement les cas où l'IA et la correction objective divergent le plus — comme dans l'exemple de la Section D.5 (+20 points) —, en priorisant ces cas pour une révision manuelle.
+- **Canal ouvert pour contestation.** L'e-mail final offre explicitement à l'étudiant la possibilité de signaler des incohérences, l'enseignant restant l'autorité finale sur la note.
+- **Données personnelles hors du *prompt*.** Comme décrit à la Section D.2, le nom, l'e-mail, le login, le numéro d'étudiant et le numéro d'identité nationale ne sont jamais envoyés à l'API du LLM, réduisant les risques pour la confidentialité lors de l'utilisation de fournisseurs d'IA externes.
+
+## Remarques finales
+
+**vpl-ai-feedback** montre comment l'IA peut enrichir le cycle de *feedback* dans les cours de programmation à fort volume de soumissions, en offrant à chaque étudiant une lecture qualitative et individualisée de son propre code — quelque chose d'impossible à faire manuellement pour une centaine d'étudiants, sur plusieurs questions et examens tout au long du trimestre. L'enquête d'opinion citée à la Section D.1 suggère que ce type de retour est bien accueilli par les étudiants. Néanmoins, l'utilisation responsable du système repose sur un principe non négociable, réaffirmé tout au long de cette annexe : **l'IA complète, mais ne remplace pas, l'évaluation de l'enseignant**, et la note officielle de toute activité évaluative doit continuer à être définie par une correction objective (VPL/MCTest, [Annexes A](#apendice-mctest) et [B](#apendice-moodle)) et/ou un jugement humain — jamais par la note brute renvoyée par un modèle de langage.

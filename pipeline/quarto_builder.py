@@ -204,9 +204,18 @@ def _apendice_entries() -> list[Path]:
     """
     if not APENDICES_ROOT.exists():
         return []
+    # Sufixos de override de idioma (ex.: apendice_a_mctest.en.qmd) não são
+    # apêndices próprios — são a variante localizada de um arquivo base, lida
+    # por `_read_apendice_qmd` na mesma convenção usada pelas imagens (ver
+    # `_symlink_imagens_locale_aware`) e pelos screenshots dos simuladores
+    # (ver `_resolve_screenshot_png`). Sem esse filtro, cada override viraria
+    # um apêndice extra e duplicado no sumário.
+    locale_suffixes = tuple(f'.{loc}.qmd' for loc in LOCALES if loc != BASE_LOCALE)
     entries: list[Path] = []
     for p in sorted(APENDICES_ROOT.iterdir()):
         if p.is_file() and p.suffix == '.qmd':
+            if p.name.endswith(locale_suffixes):
+                continue
             entries.append(p)
         elif p.is_dir() and next(p.glob('*.ipynb'), None) is not None:
             entries.append(p)
@@ -215,8 +224,15 @@ def _apendice_entries() -> list[Path]:
 def _read_apendice_qmd(path: Path, combo: Combo) -> Optional[str]:
     """
     Lê um apêndice .qmd de all/apendices/<arquivo>, aplicando substituição i18n.
-    Retorna None se o arquivo não existir.
+    Se existir uma variante localizada `<nome>.<locale>.qmd` ao lado do
+    arquivo base (mesma convenção de `_symlink_imagens_locale_aware`), ela é
+    usada no lugar para locales != BASE_LOCALE. Retorna None se nem o arquivo
+    localizado nem o base existirem.
     """
+    if combo.locale != BASE_LOCALE:
+        localized = path.with_name(f'{path.stem}.{combo.locale}{path.suffix}')
+        if localized.exists():
+            path = localized
     if not path.exists():
         return None
     content = path.read_text(encoding='utf-8')
@@ -1156,7 +1172,7 @@ format:
           \\usepackage{{fancyhdr}}
           \\pagestyle{{fancy}}
           \\fancyhf{{}}
-          \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{PDI \& VC}}}}}}
+          \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{{UI_STRINGS[combo.locale]['brand_tag']}}}}}}}
           \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
           \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
           \\fancyfoot[R]{{\\thepage}}
@@ -1164,7 +1180,7 @@ format:
           \\renewcommand{{\\footrulewidth}}{{0.4pt}}
           \\fancypagestyle{{plain}}{{
             \\fancyhf{{}}
-            \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{PDI \& VC}}}}}}
+            \\fancyhead[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{{UI_STRINGS[combo.locale]['brand_tag']}}}}}}}
             \\fancyhead[R]{{\\small\\href{{https://github.com/fzampirolli/pdi-vc}}{{github.com/fzampirolli/pdi-vc}}}}
             \\fancyfoot[L]{{\\small\\textcolor{{darkblue}}{{\\textit{{UFABC}}}}}}
             \\fancyfoot[R]{{\\thepage}}
@@ -1916,26 +1932,15 @@ def _render_pdf_with_patched_tex(qdir: Path, env: dict):
             if line.strip():
                 print(f'      {line}')
 
-    # Remove primeiras páginas em branco do PDF gerado
-    pdf_files = list(output_dir.glob('*.pdf'))
-    if pdf_files:
-        pdf_path = max(pdf_files, key=lambda p: p.stat().st_mtime)
-        try:
-            from pypdf import PdfReader, PdfWriter
-            import platform
-            os_release = Path('/etc/os-release').read_text() if Path('/etc/os-release').exists() else ''
-
-            reader = PdfReader(str(pdf_path))
-            writer = PdfWriter()
-            start_page = 2
-            for page in reader.pages[start_page:]:  # pula páginas (em branco)
-                writer.add_page(page)
-            with open(str(pdf_path), 'wb') as f:
-                writer.write(f)
-            print(f'  ✓ Página em branco removida: {pdf_path.name}')
-                
-        except Exception as e:
-            print(f'  ⚠ Falha ao remover página em branco: {e}')
+    # Removido o corte automático "pula as 2 primeiras páginas" que existia
+    # aqui: era um remendo para 3 bugs reais na raiz (LaTeX) — comando
+    # \KOMAoption órfão vazando texto literal na p.1, \fvset com chave só
+    # do fvextra (não carregado) travando logo no \begin{document}, e
+    # \newgeometry na capa despachando uma p.1 em branco por causa do seu
+    # \clearpage embutido. Cortar sempre 2 páginas escondia isso em pt/en
+    # mas desalinhava fr (contagem de página crua diferente por locale).
+    # Com as 3 causas corrigidas na fonte, o PDF já sai com a paginação
+    # certa sem precisar remendar depois.
 
     _rename_pdf(qdir, combo_name, file_key)
 
@@ -1946,9 +1951,15 @@ def _fix_tex_cover(qdir: Path):
     # ═════════════════════════════════════════════════════════════
     combo_name = qdir.name
     _combo = parse_combo(combo_name)
-    _cover_title = UI_STRINGS[_combo.locale]['title']
+    # UI_STRINGS['fr']['title'] tem um "&" literal (e outros locales podem
+    # ganhar um no futuro) — escapa pra LaTeX antes de injetar no
+    # cover_block (LaTeX puro, não passa pelo escaping automático do
+    # Pandoc como o \title{} que ele mesmo gera). Sem isso o "&" já vazio
+    # some silenciosamente da folha de rosto em vez de dar erro óbvio.
+    _cover_title = UI_STRINGS[_combo.locale]['title'].replace('&', r'\&')
     _cover_subtitle = (UI_STRINGS[_combo.locale]['pdf_subtitle']
-                       .format(lang_label=LANGUAGES[_combo.lang].label))
+                       .format(lang_label=LANGUAGES[_combo.lang].label)
+                       .replace('&', r'\&'))
 
 
     def _replace_sim_with_link(match):
@@ -2041,9 +2052,20 @@ def _fix_tex_cover(qdir: Path):
         ficha_tex = ficha_match.group(0)
         content = content.replace(ficha_tex, '', 1)
         
-        # Remove a casca do capítulo vazio gerada pelo Quarto no corpo do .tex:
+        # Remove a casca do capítulo vazio gerada pelo Quarto no corpo do .tex.
+        # O título renderizado depende do locale (ver UI_STRINGS[locale]['cip_title']
+        # e includes/ficha_catalografica_<locale>.qmd) — sem cobrir todas as
+        # variantes, o capítulo residual só era removido em pt, sobrando um
+        # "Cataloging-in-Publication (CIP) Data" duplicado no corpo do en/fr.
+        # `\s+` (não um espaço literal) entre as palavras: o pandoc quebra
+        # títulos longos em várias linhas dentro do próprio \chapter{...},
+        # então "(CIP)" e "Data" acabam separados por uma quebra de linha,
+        # não um espaço — um espaço literal no regex não bate com \n.
+        cip_title_re = r'\s+'.join(
+            re.escape(w) for w in UI_STRINGS[_combo.locale]['cip_title'].split(' ')
+        )
         content = re.sub(
-            r'\\chapter\*?\{Ficha Catalogr[aá]fica\}.*?(?=\\chapter|\\part|\\bookmarksetup|\Z)',
+            r'\\chapter\*?\{' + cip_title_re + r'\}.*?(?=\\chapter|\\part|\\bookmarksetup|\Z)',
             '',
             content,
             flags=re.DOTALL
@@ -2076,6 +2098,14 @@ def _fix_tex_cover(qdir: Path):
         flags=re.DOTALL
     )
     content = re.sub(r'\\KOMAoptions\{.*?\}', '', content, flags=re.DOTALL)
+    # \KOMAoption{...}{...} (singular, dois argumentos) é outro comando do
+    # KOMA-script que o Pandoc também emite (ex.: \KOMAoption{captions}
+    # {tableheading}) e que o regex acima (plural, um argumento) não pega.
+    # Como trocamos a classe pra `book` puro (não-KOMA) alguns parágrafos
+    # abaixo, esse comando fica indefinido — em vez de erro, o LaTeX larga
+    # os argumentos como texto literal na página ("captionstableheading"),
+    # que sobrava bem no topo da primeira página do livro.
+    content = re.sub(r'\\KOMAoption\{.*?\}\{.*?\}', '', content, flags=re.DOTALL)
     content = re.sub(r'\\setkomafont\{.*?\}\{.*?\}', '', content)
     print('  ✓ Classe de página e KOMA ajustados')
 
@@ -2101,6 +2131,17 @@ def _fix_tex_cover(qdir: Path):
 
     # ── 3. Preparação dos Blocos de Injeção (Preâmbulo e Capa) ─────────
     custom_header = r"""
+% ─────────────────────────────────────────────────────────────
+% fvextra — precisa vir cedo: \AtBeginDocument mais abaixo chama
+% \fvset{breaksymbolleft=...}, uma chave que só existe no fvextra (extensão
+% do fancyvrb), não no fancyvrb puro que o Pandoc já carrega sozinho. Sem
+% isso, \fvset falha logo em \begin{document} com "Package keyval Error:
+% breaksymbolleft undefined" — e a tentativa do LaTeX de se recuperar do
+% erro comia parte do conteúdo seguinte, incluindo a capa (por isso as
+% páginas em branco no início do PDF, mesmo depois de corrigido o
+% \KOMAoption e a estrutura de titlepage).
+\usepackage{fvextra}
+\usepackage{eso-pic}
 % ─────────────────────────────────────────────────────────────
 % Layout geral e Cores
 % ─────────────────────────────────────────────────────────────
@@ -2134,7 +2175,7 @@ def _fix_tex_cover(qdir: Path):
 % LE (Par / Esquerda - Borda Externa): Número da página
 \fancyhead[LE]{\small\bfseries\textcolor{darkblue}{\thepage}}
 % RE (Par / Direita - Borda Interna): Título Geral do Livro
-\fancyhead[RE]{\small\textcolor{darkblue}{\textsc{PDI \& VC}}}
+\fancyhead[RE]{\small\textcolor{darkblue}{\textsc{BRAND_TAG_PLACEHOLDER}}}
 
 % LO (Ímpar / Esquerda - Borda Interna): Capítulo Atual
 \fancyhead[LO]{\small\textcolor{gray}{\nouppercase{\leftmark}}}
@@ -2157,7 +2198,7 @@ def _fix_tex_cover(qdir: Path):
   \renewcommand{\headrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \headrulewidth\hfill}}
   \renewcommand{\footrule}{\hbox to\headwidth{\color{lightblue}\leaders\hrule height \footrulewidth\hfill}}
   \fancyhead[LE]{\small\bfseries\textcolor{darkblue}{\thepage}}
-  \fancyhead[RE]{\small\textcolor{darkblue}{\textsc{PDI \& VC}}}
+  \fancyhead[RE]{\small\textcolor{darkblue}{\textsc{BRAND_TAG_PLACEHOLDER}}}
   \fancyhead[LO]{\small\textcolor{gray}{\nouppercase{\leftmark}}}
   \fancyhead[RO]{\small\bfseries\textcolor{darkblue}{\thepage}}
   \fancyfoot[LE]{\small\textcolor{gray}{Francisco de Assis Zampirolli}}
@@ -2193,16 +2234,27 @@ def _fix_tex_cover(qdir: Path):
 % ─────────────────────────────────────────────────────────────
 % Idioma e Tradução Global
 % ─────────────────────────────────────────────────────────────
-%\usepackage[brazilian]{babel}
-\usepackage[portuguese]{babel}
-\babelprovide[main, import]{portuguese}
-\renewcommand{\contentsname}{Sumário}
-\renewcommand{\listfigurename}{Lista de Figuras}
-\renewcommand{\listtablename}{Lista de Tabelas}
-\renewcommand{\figurename}{Figura}
-\renewcommand{\tablename}{Tabela}
-\renewcommand{\chaptername}{Capítulo}
-\renewcommand{\partname}{Parte}
+\usepackage[BABEL_LANG_PLACEHOLDER]{babel}
+\babelprovide[main, import]{BABEL_LANG_PLACEHOLDER}
+% O \AtBeginDocument do próprio Pandoc (que reaplica \contentsname etc. a
+% partir da tradução do babel) é registrado ANTES deste ponto no .tex —
+% \renewcommand direto aqui roda na hora (durante o preâmbulo, antes de
+% \begin{document}), então o hook do Pandoc, que só dispara em
+% \begin{document}, rodaria DEPOIS e desfaria nossos nomes (pt virava
+% "Índice" de novo mesmo com isto setado pra "Sumário"). Hooks de
+% \AtBeginDocument disparam na ordem de registro — colocando o nosso
+% também em \AtBeginDocument, e depois do bloco do Pandoc no arquivo,
+% garante que o nosso rode por último e vença.
+\AtBeginDocument{
+\renewcommand{\contentsname}{CONTENTS_NAME_PLACEHOLDER}
+\renewcommand{\listfigurename}{LIST_FIGURES_NAME_PLACEHOLDER}
+\renewcommand{\listtablename}{LIST_TABLES_NAME_PLACEHOLDER}
+\renewcommand{\figurename}{FIGURE_NAME_PLACEHOLDER}
+\renewcommand{\tablename}{TABLE_NAME_PLACEHOLDER}
+\renewcommand{\chaptername}{CHAPTER_NAME_PLACEHOLDER}
+\renewcommand{\partname}{PART_NAME_PLACEHOLDER}
+\renewcommand{\appendixname}{APPENDIX_NAME_PLACEHOLDER}
+}
 
 \usepackage{emoji}
 \setemojifont{EMOJI_FONT_PLACEHOLDER}
@@ -2214,27 +2266,52 @@ def _fix_tex_cover(qdir: Path):
   \renewenvironment{verbatim}{\VerbatimEnvironment\begin{tcolorbox}[pdioutput]\begin{Verbatim}[breaklines=true,breaksymbol={}]}{\end{Verbatim}\end{tcolorbox}}
   
 }
-""".replace('EMOJI_FONT_PLACEHOLDER', EMOJI_FONT)
+""".replace('EMOJI_FONT_PLACEHOLDER', EMOJI_FONT) \
+    .replace('BRAND_TAG_PLACEHOLDER', UI_STRINGS[_combo.locale]['brand_tag']) \
+    .replace('BABEL_LANG_PLACEHOLDER', UI_STRINGS[_combo.locale]['babel_lang']) \
+    .replace('CONTENTS_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['contents_name']) \
+    .replace('LIST_FIGURES_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['list_figures_name']) \
+    .replace('LIST_TABLES_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['list_tables_name']) \
+    .replace('FIGURE_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['figure_name']) \
+    .replace('TABLE_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['table_name']) \
+    .replace('CHAPTER_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['chapter_name']) \
+    .replace('PART_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['part_name']) \
+    .replace('APPENDIX_NAME_PLACEHOLDER', UI_STRINGS[_combo.locale]['appendix_name'])
 
     cover_block = rf"""
-\frontmatter
+% NOTA: \begin{{titlepage}}...\end{{titlepage}} do LaTeX faz \newpage (e
+% \setcounter{{page}}{{1}}) já no \begin — usado como primeiro elemento do
+% documento (nada ainda foi despachado), esse \newpage força uma página
+% em branco extra antes do conteúdo aparecer. Por isso as 3 seções abaixo
+% (capa, verso em branco, folha de rosto) usam \thispagestyle{{empty}} +
+% \clearpage manualmente, sem o ambiente titlepage, evitando a página
+% fantasma. \frontmatter também foi trocado por só \pagenumbering{{roman}}
+% (mais abaixo) pelo mesmo motivo: seu \cleardoublepage embutido, chamado
+% antes de qualquer conteúdo existir, também gera uma página em branco.
+
 % ── 1. Imagem da Capa (Página 1 - Ímpar / Frente) ─────────────────
-\begin{{titlepage}}
+% \newgeometry (usado antes pra zerar a margem só na capa) tem um
+% \clearpage embutido. Chamado logo no \begin{{document}}, antes de
+% qualquer conteúdo existir na página, esse \clearpage despachava uma
+% página 1 EM BRANCO (nada acumulado ainda pra "descarregar") antes da
+% capa aparecer só na página 2 — a real origem da página em branco no
+% início do PDF (o \KOMAoption e o fvextra, corrigidos acima, eram
+% bugs reais mas não este). eso-pic evita o problema: desenha a capa
+% como imagem de fundo em posição absoluta, sem precisar mudar a
+% geometria da página (logo sem o \clearpage embutido do \newgeometry).
+\AddToShipoutPictureBG*{{%
+  \put(0,0){{\includegraphics[width=\paperwidth, height=\paperheight]{{{cover_abs}}}}}%
+}}
 \thispagestyle{{empty}}
-\newgeometry{{margin=0pt}}
-\noindent
-\includegraphics[width=\paperwidth, height=\paperheight]{{{cover_abs}}}
-\restoregeometry
-\end{{titlepage}}
+\mbox{{}}
+\clearpage
 
 % ── 2. Verso da Capa (Página 2 - Par / Página em Branco) ──────────
-\clearpage
 \thispagestyle{{empty}}
 \null
 \clearpage
 
 % ── 3. Folha de Rosto (Página 3 - Ímpar / Frente) ─────────────────
-\begin{{titlepage}}
 \thispagestyle{{empty}}
 \vspace*{{3cm}}
 \begin{{center}}
@@ -2248,13 +2325,14 @@ def _fix_tex_cover(qdir: Path):
 \vspace{{0.5cm}}
 {{\large \today\par}}
 \end{{center}}
-\end{{titlepage}}
+\clearpage
 
 % ── 4. Ficha catalográfica (Página 4 - Par / Verso da folha de rosto) ──
 {ficha_tex}
 
 % ── Ajustes do Sumário e Início do Texto ────────────────────────
 \cleardoublepage
+\pagenumbering{{roman}}
 \pagestyle{{plain}}
 \makeatother
 \tableofcontents
@@ -2285,19 +2363,11 @@ def _fix_tex_cover(qdir: Path):
     )
     print('  ✓ Preâmbulo e Capa injetados com sucesso')
 
-    # Sobrescreve nomes em inglês do Pandoc
-    content = re.sub(r'\\renewcommand\*?\\contentsname\{Table of contents\}',
-                    r'\\renewcommand*\\contentsname{Sumário}', content)
-    content = re.sub(r'\\renewcommand\*?\\listfigurename\{List of Figures\}',
-                    r'\\renewcommand*\\listfigurename{Lista de Figuras}', content)
-    content = re.sub(r'\\renewcommand\*?\\listtablename\{List of Tables\}',
-                    r'\\renewcommand*\\listtablename{Lista de Tabelas}', content)
-    content = re.sub(r'\\renewcommand\*?\\figurename\{Figure\}',
-                    r'\\renewcommand*\\figurename{Figura}', content)
-    content = re.sub(r'\\renewcommand\*?\\tablename\{Table\}',
-                    r'\\renewcommand*\\tablename{Tabela}', content)
-
-    print('  ✓ Nomes em português')
+    # Nomes de Sumário/Lista de Figuras/Lista de Tabelas/etc. já saem no
+    # idioma certo via custom_header (UI_STRINGS[_combo.locale]) — o bloco
+    # que existia aqui sobrescrevia esses nomes para português de forma
+    # incondicional (resquício de quando o livro era só em pt), quebrando
+    # os nomes corretos que o próprio Pandoc já gera para en/fr.
 
 
     # ── Contracapa ───────────────────────────────────────────────
