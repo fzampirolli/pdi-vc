@@ -1212,18 +1212,32 @@ def fix_textcolor_inline(text: str) -> str:
     text = re.sub(r'\$\$[\s\S]*?\$\$', hide_math, text)
     text = re.sub(r'\$[^\$\n]+\$', hide_math, text)
 
-    # NOVO: Tratar badges/botões com links e width (ex: Colab/GitHub)
-    # Transforma [![](img){width="16%"}] -> [<img src="img" width="16%">]
+    # Tratar badges/botões com links (ex: Colab/GitHub). Aceita atributo
+    # {width="16%"}, {height="20px"} ou {height="20px" style="..."} — e com
+    # ou sem espaço entre `}` e `(url)`. Transforma em <a><img style=...>.
+    def _badge_attr_to_style(attr: str) -> str:
+        # attr é o miolo de {...}: pode ter width=, height= e/ou style=
+        m_style = re.search(r'style="([^"]*)"', attr)
+        style = m_style.group(1).rstrip('; ') if m_style else ''
+        for prop in ('height', 'width'):
+            m = re.search(rf'\b{prop}="([^"]+)"', attr)
+            if m and prop not in style:
+                style = f'{prop}:{m.group(1)}; ' + style
+        if 'vertical-align' not in style:
+            style = style.rstrip('; ') + '; vertical-align:middle;'
+        return style.strip()
+
+    _badge_attr = r'((?:[^}]*\b(?:width|height)="[^"]+"[^}]*))'
     text = re.sub(
-        r'\[\!\[\]\(([^)]+)\)\{width="([^"]+)"\}\] \(([^)]+)\)',
-        r'<a href="\3"><img src="\1" style="width:\2; vertical-align:middle;"></a>',
+        r'\[\!\[\]\(([^)]+)\)\{' + _badge_attr + r'\}\]\s*\(([^)]+)\)',
+        lambda m: f'<a href="{m.group(3)}"><img src="{m.group(1)}" style="{_badge_attr_to_style(m.group(2))}"></a>',
         text
     )
-    
-    # Caso o badge não tenha link, apenas limpa a sintaxe de width para HTML
+
+    # Caso o badge não tenha link, apenas converte a sintaxe de atributo p/ HTML
     text = re.sub(
-        r'\!\[\]\(([^)]+)\)\{width="([^"]+)"\}',
-        r'<img src="\1" style="width:\2; vertical-align:middle;">',
+        r'\!\[\]\(([^)]+)\)\{' + _badge_attr + r'\}',
+        lambda m: f'<img src="{m.group(1)}" style="{_badge_attr_to_style(m.group(2))}">',
         text
     )
 

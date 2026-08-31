@@ -1072,9 +1072,14 @@ class LLMTextTranslator(Translator):
 
         result = _call_llm_retrying_if_unchanged(system, user, masked_source)
         if result.strip() == masked_source.strip():
+            # O modelo só ecoou o texto-fonte (incidente de API / eco de cache
+            # do servidor persistindo mesmo com o nonce). NÃO cacheia: um eco
+            # gravado no cache vira Português "congelado" no livro fr/en/it/es
+            # pra sempre. Deixar o cache vazio faz o próximo build tentar de
+            # novo — o eco se auto-corrige em vez de exigir --promote-edits.
             print(f'  ⚠ Tradução pt→{self.tgt_key} voltou idêntica ao original '
-                  f'mesmo após retry — cacheando assim mesmo (revisar/corrigir '
-                  f'depois com dev.py --promote-edits).')
+                  f'mesmo após retry — NÃO cacheada; o próximo build tenta de novo.')
+            return _unmask_protected_tokens(result, tokens)
         result = _unmask_protected_tokens(result, tokens)
         self.cache.set(source, self.kind, self.src_key, self.tgt_key, result)
         return result
