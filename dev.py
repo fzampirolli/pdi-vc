@@ -23,6 +23,10 @@ Uso:
   # (ver README § Editando o conteúdo gerado) — não gera nem builda nada
   python dev.py --promote-edits --langs cpp --locales en
 
+  # Auditar o cache: aponta entradas cuja fonte não existe mais (correções
+  # manuais órfãs viram aviso alto). --prune-cache remove as LLM órfãs.
+  python dev.py --audit-cache [--prune-cache]
+
 Atalhos de teclado durante o watch:
   r  → rebuild tudo agora
   q  → sair
@@ -181,7 +185,18 @@ def promote_edits(sources: list[Path], combos: list[Combo],
                 # o valor cacheado é só o corpo do arquivo, sem esse header.
                 m = _WRITEFILE_HEAD_RE.match(disk_src)
                 editable = disk_src[m.end():] if m else disk_src
-                if cache.set_raw(ck, editable):
+                meta = {
+                    'kind': 'manual',
+                    'combo': combo.key,
+                    'chapter': nb_path.parent.name,
+                    'cell': i,
+                    'preview': ' '.join(editable.split())[:160],
+                }
+                if cache.set_raw(ck, editable, meta=meta):
+                    if promoted == 0:
+                        bak = cache.backup()
+                        if bak:
+                            print(f'  💾 backup do cache anterior em {bak}')
                     promoted += 1
                     print(f'  ✏ promovido: {gen_path.relative_to(DIR_GEN)} célula {i}')
     cache.save()
@@ -190,6 +205,77 @@ def promote_edits(sources: list[Path], combos: list[Combo],
               f'Rode o build normal de novo pra conferir.')
     else:
         print('\nNenhuma edição nova encontrada (nada promovido).')
+
+
+def audit_cache(sources: list[Path], combos: list[Combo],
+                processor: NotebookProcessor, cache: TranslationCache,
+                prune: bool = False) -> None:
+    """
+    Confronta as chaves de `.cache/translations.json` com as chaves que o
+    conjunto atual de fontes (all/) × combos realmente produz. Uma chave é
+    endereçada por conteúdo (hash da célula-fonte); se a fonte mudar, a
+    chave antiga vira órfã e nunca mais é consultada — o build re-traduz o
+    texto novo via LLM sem avisar que havia uma tradução (ou uma correção
+    manual) para o texto anterior.
+
+    - Correções MANUAIS órfãs → aviso alto: dizem qual combo/capítulo/célula
+      e o trecho da correção que será perdido.
+    - Traduções LLM órfãs → só contagem; com `prune=True`, remove (após
+      backup automático).
+
+    Não chama a API: as chaves saem de `processor.process()` (que aqui roda
+    todo em cache hit, ou dry-run) e independem da tradução real.
+    """
+    live: set[str] = set()
+    for combo in combos:
+        for nb_path in sources:
+            try:
+                ref_nb = processor.process(str(nb_path), combo)
+            except Exception as e:  # noqa: BLE001 — combo/capítulo problemático não deve abortar o audit
+                print(f'  ⚠ pulei {nb_path.parent.name}/{combo.key}: {e}')
+                continue
+            for cell in ref_nb.cells:
+                ck = cell.get('metadata', {}).get('pdi', {}).get('ck')
+                if ck:
+                    live.add(ck)
+
+    all_keys = cache.keys()
+    orphans = all_keys - live
+    manual_orphans = sorted(k for k in orphans if cache.is_manual(k))
+    llm_orphans = sorted(orphans - set(manual_orphans))
+
+    st = cache.stats()
+    print(f'\n📊 cache: {st["entries"]} entradas ({st["manual"]} manuais), '
+          f'{len(live)} vivas em {[c.key for c in combos]}.')
+
+    if manual_orphans:
+        print(f'\n⚠ {len(manual_orphans)} correção(ões) MANUAL(is) órfã(s) — a '
+              f'fonte mudou; a correção NÃO será aplicada no próximo build:')
+        for k in manual_orphans:
+            m = cache.meta_for(k) or {}
+            print(f'  • {m.get("combo","?")}/{m.get("chapter","?")} '
+                  f'célula {m.get("cell","?")} (promovida {m.get("promoted_at","?")})')
+            if m.get('preview'):
+                print(f'      correção: "{m["preview"]}"')
+            print(f'      → reveja gen/{m.get("combo","?")}/{m.get("chapter","?")}/*.ipynb, '
+                  f'reaplique a correção e rode --promote-edits de novo')
+    else:
+        print('\n✅ nenhuma correção manual órfã.')
+
+    if llm_orphans:
+        print(f'\nℹ {len(llm_orphans)} tradução(ões) LLM órfã(s) '
+              f'(fonte antiga, sem correção manual).')
+        if prune:
+            bak = cache.backup()
+            if bak:
+                print(f'  💾 backup em {bak}')
+            n = cache.drop(llm_orphans)
+            cache.save()
+            print(f'  🧹 {n} entrada(s) removida(s).')
+        else:
+            print('  Rode com --prune-cache pra removê-las (backup automático).')
+    else:
+        print('\n✅ nenhuma tradução LLM órfã.')
 
 
 def run_build(sources: list[Path], combos: list[Combo],
@@ -293,6 +379,12 @@ def main():
     parser.add_argument('--promote-edits', action='store_true',
                         help='Grava no cache as edições manuais feitas em gen/*.ipynb '
                              '(não gera nem builda nada — ver README § Editando o conteúdo gerado)')
+    parser.add_argument('--audit-cache', action='store_true',
+                        help='Aponta entradas do cache que a fonte atual não produz mais '
+                             '(correções manuais órfãs viram aviso alto). Não chama a API.')
+    parser.add_argument('--prune-cache', action='store_true',
+                        help='Com --audit-cache: remove as traduções LLM órfãs (backup automático). '
+                             'Nunca remove correção manual.')
     parser.add_argument('--dry-run', action='store_true',
                         help='Sem chamadas à API — usa placeholders')
     parser.add_argument('--interval', type=float, default=2.0,
@@ -312,18 +404,31 @@ def main():
         if lo not in LOCALES:
             parser.error(f"Idioma desconhecido: '{lo}'. Disponíveis: {list(LOCALES)}")
 
-    combos = [Combo(l, lo) for l in langs for lo in locales]
+    # O audit varre o cache inteiro — precisa do conjunto COMPLETO de combos
+    # e de todas as fontes, senão entradas legítimas (outros combos) parecem
+    # órfãs. Ignora --langs/--locales/sources e nunca deixa podar num recorte.
+    if args.audit_cache:
+        combos = [Combo(l, lo) for l in LANGUAGES for lo in LOCALES]
+        if args.sources:
+            parser.error('--audit-cache varre tudo; não passe arquivos específicos.')
+    else:
+        combos = [Combo(l, lo) for l in langs for lo in locales]
 
     # ── Inicializar dependências ───────────────────────────────────────────────
     bib       = parse_bib(args.bib)
     cache     = TranslationCache(Path(args.cache))
-    factory   = TranslatorFactory(cache, dry_run=args.dry_run)
+    # Audit não deve gastar API: as chaves independem da tradução real.
+    factory   = TranslatorFactory(cache, dry_run=args.dry_run or args.audit_cache)
     processor = NotebookProcessor(factory, bib)
     builder   = QuartoBuilder()
 
     sources = find_sources(args.sources or None)
     if not sources:
         sys.exit(f'Nenhum notebook encontrado em {DIR_ALL}/')
+
+    if args.audit_cache:
+        audit_cache(sources, combos, processor, cache, prune=args.prune_cache)
+        return
 
     if args.promote_edits:
         promote_edits(sources, combos, processor, cache)

@@ -363,8 +363,16 @@ make publish    # build + docs/ + git push
 ```bash
 make clean          # apaga gen/, docs/ e .cache/
 make clean-cache    # apaga só .cache/translations.json
-make clean-gen      # apaga só gen/ e docs/
+make clean-gen      # apaga só gen/ e docs/   ← use este na rotina de rebuild
 ```
+
+> ⚠️ `.cache/translations.json` é **ativo insubstituível** (traduções de LLM
+> já pagas + correções manuais promovidas — ver § "Editando o conteúdo
+> gerado"). Para limpar antes de um rebuild use **`make clean-gen`**, nunca
+> `make clean`/`make clean-cache`. Se precisar mesmo apagar o cache, ele está
+> versionado no git (`git checkout -- .cache/translations.json` restaura) e
+> `dev.py` guarda backups datados em `.cache/backups/` antes de cada
+> promoção/prune.
 
 ---
 
@@ -407,30 +415,82 @@ próximo `dev.py`. Ainda assim é possível corrigir um erro pontual (um C++
 traduzido errado, um trecho de texto mal traduzido) sem esperar o LLM
 acertar sozinho:
 
-**Código e texto:**
+**Código e texto — passo a passo (`--promote-edits`):**
 
 ```bash
 # 1. Gerar (ou já ter gerado) o combo com o erro
 python dev.py --once --langs cpp --locales en
 
-# 2. Abrir gen/cpp.en/cap01/cap01.cpp.en.ipynb (Jupyter/VS Code) e corrigir
-#    a célula errada direto no notebook. Salvar.
+# 2. Abrir o notebook gerado (Jupyter/VS Code), p.ex.
+#    gen/cpp.en/cap01/cap01.cpp.en.ipynb, corrigir a(s) célula(s) errada(s)
+#    direto no notebook e SALVAR. Não mexer em número/ordem de células,
+#    só no conteúdo. Em célula %%writefile, editar só o corpo — a linha
+#    `%%writefile tmp/xxx.cpp` é ignorada na promoção automaticamente.
 
-# 3. Promover a correção pro cache — não gera nem builda nada, só grava
-#    a edição na mesma chave de cache da célula original
+# 3. Promover as edições pro cache de tradução. NÃO gera nem builda nada,
+#    NÃO chama LLM (logo não precisa de API key): só compara o notebook em
+#    disco com o que o pipeline geraria e grava as células diferentes na
+#    mesma chave de cache (metadata.pdi.ck) da célula original.
 python dev.py --promote-edits --langs cpp --locales en
+#   → "  ✏ promovido: cpp.en/cap01/cap01.cpp.en.ipynb célula 2"
+#   → "✅ 1 célula(s) promovida(s) pro cache. Rode o build normal de novo."
 
-# 4. Rebuildar normalmente — a correção volta sem chamar o LLM de novo
-python dev.py --once --langs cpp --locales en --render html
+# 4. Conferir: apagar o .ipynb gerado e rebuildar (mesmo comando do passo 1).
+#    A correção tem que voltar sozinha (agora vem do cache, sem LLM).
+#    Acrescente `--render html` no fim se quiser ver o livro renderizado.
+rm gen/cpp.en/cap01/cap01.cpp.en.ipynb
+python dev.py --once --langs cpp --locales en
+
+# 5. Commitar .cache/translations.json (versionado de propósito) pra a
+#    correção valer em outras máquinas / no publish_all.sh.
+git add .cache/translations.json && git commit -m "fix: corrige tradução cél. X cap01 cpp.en"
 ```
 
-Só células que passaram por tradução real (marcadas internamente com
-`metadata.pdi.ck`) podem ser promovidas — células `role: common`, EPs
-vazios e referências Python não-traduzidas não têm o que promover. Rodar
-`--promote-edits` sem ter editado nada é seguro (não faz nada, só relata
-"nenhuma edição encontrada"). **Limitação:** se a célula-fonte em `all/`
-mudar depois de uma promoção, a correção antiga fica órfã no cache (não
-suja nada, só some silenciosamente na próxima tradução daquela célula).
+Detalhes confirmados na prática:
+
+- **O que pode ser promovido:** só células que passaram por tradução real
+  (marcadas internamente com `metadata.pdi.ck`) — markdown traduzido e
+  código traduzido/expandido pra outra linguagem, inclusive células
+  `%%writefile`. Células `role: common`, EPs vazios e referências Python
+  não-traduzidas não têm chave e são ignoradas.
+- **Idempotente / seguro:** rodar `--promote-edits` sem ter editado nada
+  não faz nada (`Nenhuma edição nova encontrada (nada promovido).`).
+- **Se você mudou a fonte em `all/`:** quando o número de células do
+  notebook em disco não bate com o que o pipeline geraria, aquele combo é
+  pulado com um aviso (`número de células mudou … — rode o build normal de
+  novo antes de promover`). Rebuilde primeiro, reedite, então promova.
+- **Correção órfã:** se a célula-fonte em `all/` mudar *depois* de uma
+  promoção, a chave de cache muda junto e a correção antiga fica órfã no
+  cache — não quebra nada, só deixa de ser aplicada e aquela célula volta
+  a ser traduzida pelo LLM na próxima. Cada promoção grava a proveniência
+  (combo/capítulo/célula/data) num bloco `__meta__` do JSON, então
+  `python dev.py --audit-cache` consegue **listar** as correções manuais
+  órfãs (com o trecho que seria perdido) em vez de você descobrir só pelo
+  build. O audit varre os 20 combos (não chama a API) e é lento (~2 min).
+
+### Auditar e limpar o cache
+
+```bash
+python dev.py --audit-cache               # relatório: entradas vivas × órfãs
+python dev.py --audit-cache --prune-cache  # + remove as traduções LLM órfãs
+```
+
+`--audit-cache` confronta `.cache/translations.json` com as chaves que as
+fontes atuais de `all/` produzem em **todos** os combos. Reporta:
+correções **manuais** órfãs (aviso alto, nunca removidas automaticamente) e
+traduções **LLM** órfãs (fonte antiga, sem correção manual). Com
+`--prune-cache` as LLM órfãs são apagadas — sempre precedido de backup
+automático em `.cache/backups/translations.<timestamp>.json` (rotação: 10
+mais recentes). Git continua sendo o histórico real do cache.
+
+**Salvaguardas do `.cache/translations.json`** (ativo insubstituível —
+traduções pagas + correções promovidas): escrita **atômica** (`.tmp` +
+`os.replace`, nunca trunca numa interrupção); **backup datado** antes de
+toda promoção/prune; e, se o JSON estiver corrompido, `dev.py` **falha
+explicitamente** (`CacheCorruptError`) e põe o arquivo inválido em
+quarentena (`translations.json.corrupt-<timestamp>`) em vez de seguir com
+cache vazio e re-traduzir tudo. Recuperação: `git checkout --
+.cache/translations.json` ou copiar o backup mais recente.
 
 **Imagens** (ex.: uma figura com texto em português que precisa de versão
 em inglês): adicionar um arquivo com sufixo de locale ao lado do original,
