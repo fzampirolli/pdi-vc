@@ -19,6 +19,7 @@ O LLM é chamado apenas quando não há cache.
 from __future__ import annotations
 
 import ast
+import difflib
 import io
 import json
 import os
@@ -1071,14 +1072,19 @@ class LLMTextTranslator(Translator):
         user = f"Translate this Markdown from Portuguese to {locale_label}:\n\n{masked_source}"
 
         result = _call_llm_retrying_if_unchanged(system, user, masked_source)
-        if result.strip() == masked_source.strip():
-            # O modelo só ecoou o texto-fonte (incidente de API / eco de cache
-            # do servidor persistindo mesmo com o nonce). NÃO cacheia: um eco
-            # gravado no cache vira Português "congelado" no livro fr/en/it/es
-            # pra sempre. Deixar o cache vazio faz o próximo build tentar de
-            # novo — o eco se auto-corrige em vez de exigir --promote-edits.
-            print(f'  ⚠ Tradução pt→{self.tgt_key} voltou idêntica ao original '
-                  f'mesmo após retry — NÃO cacheada; o próximo build tenta de novo.')
+        # Eco: o modelo devolveu o texto-fonte (incidente de API / eco de cache
+        # do servidor persistindo mesmo com o nonce). Detecta eco APROXIMADO —
+        # o DeepSeek às vezes devolve o Português com perturbações mínimas
+        # (pontuação, espaço) que passariam por uma comparação exata e seriam
+        # cacheadas como "tradução", congelando Português no livro fr/en/it/es
+        # pra sempre. NÃO cacheia: cache vazio faz o próximo build tentar de
+        # novo — o eco se auto-corrige, sem precisar de --promote-edits.
+        echo_ratio = difflib.SequenceMatcher(
+            None, result.strip(), masked_source.strip()).ratio()
+        if echo_ratio >= 0.92:
+            print(f'  ⚠ Tradução pt→{self.tgt_key} voltou ~idêntica ao original '
+                  f'(similaridade {echo_ratio:.0%}) mesmo após retry — NÃO '
+                  f'cacheada; o próximo build tenta de novo.')
             return _unmask_protected_tokens(result, tokens)
         result = _unmask_protected_tokens(result, tokens)
         self.cache.set(source, self.kind, self.src_key, self.tgt_key, result)
