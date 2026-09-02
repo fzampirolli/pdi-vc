@@ -43,6 +43,59 @@ RE_CAP_SIM = re.compile(r'(?:sim|fig)[-_]?(?:ep)?(\d{2})', re.IGNORECASE)
 
 STOP_WORDS = {"sim", "fig", "ep", "cap", "cap01", "cap02", "cap03", "cap04", "cap05", "cap06", "cap07", "cap08", "cap09", "1d", "2d", "3d", "pixels", "imagem", "imagens"}
 
+# ── Internacionalização da moldura (header/footer/índice) ────────────────────
+_CC = '<a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a>'
+I18N = {
+    "pt": {
+        "subtitle":      "Processamento Digital de Imagens e Visão Computacional",
+        "university":     "Universidade Federal do ABC (UFABC)",
+        "license_line":   f"Material didático aberto sob licença {_CC}",
+        "chapter":        "Capítulo",
+        "back_to_book":   "📖 Voltar para o Livro",
+        "view_book":      "📖 Ver livro",
+        "index_general":  "📂 Índice geral",
+        "index_title":    "Simuladores Interativos | PDI+VC",
+        "index_h1":       "PDI+VC · Simuladores Interativos",
+        "eyebrow":        "PDI+VC · Simulador Interativo",
+        "description":    "Descrição:",
+    },
+    "en": {
+        "subtitle":      "Digital Image Processing and Computer Vision",
+        "university":     "Federal University of ABC (UFABC)",
+        "license_line":   f"Open educational material under {_CC} license",
+        "chapter":        "Chapter",
+        "back_to_book":   "📖 Back to the Book",
+        "view_book":      "📖 View the book",
+        "index_general":  "📂 General index",
+        "index_title":    "Interactive Simulators | PDI+VC",
+        "index_h1":       "PDI+VC · Interactive Simulators",
+        "eyebrow":        "PDI+VC · Interactive Simulator",
+        "description":    "Description:",
+    },
+    "fr": {
+        "subtitle":      "Traitement Numérique d'Images et Vision par Ordinateur",
+        "university":     "Université Fédérale de l'ABC (UFABC)",
+        "license_line":   f"Matériel pédagogique ouvert sous licence {_CC}",
+        "chapter":        "Chapitre",
+        "back_to_book":   "📖 Retour au Livre",
+        "view_book":      "📖 Voir le livre",
+        "index_general":  "📂 Index général",
+        "index_title":    "Simulateurs Interactifs | PDI+VC",
+        "index_h1":       "PDI+VC · Simulateurs Interactifs",
+        "eyebrow":        "PDI+VC · Simulateur Interactif",
+        "description":    "Description :",
+    },
+}
+
+def t(lang: str, key: str) -> str:
+    base = (lang or "pt").split("-")[0].lower()
+    table = I18N.get(base, I18N["pt"])
+    return table.get(key, I18N["pt"].get(key, key))
+
+def book_url(versao: str) -> str:
+    versao = (versao or "py.pt").strip("/")
+    return f"https://fzampirolli.github.io/pdi-vc/{versao}"
+
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="{lang}">
@@ -251,14 +304,14 @@ HTML_TEMPLATE = """\
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="sim-frame-header">
   <div class="sim-frame-brand">
-    <span class="sim-frame-eyebrow">PDI+VC · Simulador Interativo</span>
+    <span class="sim-frame-eyebrow">{eyebrow}</span>
     <h1 class="sim-frame-title" title="{full_title}">{sim_title}</h1>
   </div>
   <nav class="sim-frame-nav">
     {prev_btn}
     {next_btn}
-    <a href="../" class="sim-btn sim-btn-outline">📂 Índice geral</a>
-    <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank" class="sim-btn sim-btn-outline">📖 Ver livro</a>
+    <a href="../" class="sim-btn sim-btn-outline">{index_general}</a>
+    <a href="{book_url}" target="_blank" class="sim-btn sim-btn-outline">{view_book}</a>
     <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="sim-btn sim-btn-primary">💻 GitHub</a>
   </nav>
 </header>
@@ -274,9 +327,9 @@ HTML_TEMPLATE = """\
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="sim-frame-footer">
   <p>
-    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
-    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
-    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
+    {license_line} ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
   </p>
 </footer>
@@ -288,11 +341,11 @@ HTML_TEMPLATE = """\
 
 INDEX_TEMPLATE = """\
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="{lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simuladores Interativos | PDI+VC</title>
+  <title>{index_title}</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -409,17 +462,17 @@ INDEX_TEMPLATE = """\
 </head>
 <body>
   <header>
-    <h1>PDI+VC · Simuladores Interativos</h1>
-    <p>Processamento Digital de Imagens e Visão Computacional</p>
+    <h1>{index_h1}</h1>
+    <p>{subtitle}</p>
   </header>
   <main>
     {chapters_html}
   </main>
   <footer>
     <p>
-      <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
-      © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
-      <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank">📖 Voltar para o Livro</a>
+      <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+      © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
+      <a href="{book_url}" target="_blank">{back_to_book}</a>
     </p>
   </footer>
 </body>
@@ -595,12 +648,13 @@ def find_sim_blocks(soup: BeautifulSoup, html_file: Path) -> list[dict]:
     return sims
 
 def build_sim_html(
-    sim: dict, 
-    styles: str, 
-    head_scripts: str, 
+    sim: dict,
+    styles: str,
+    head_scripts: str,
     lang: str,
     prev_entry: dict | None = None,
-    next_entry: dict | None = None
+    next_entry: dict | None = None,
+    versao: str = "py.pt"
 ) -> str:
     content = str(sim["element"])
     all_scripts = head_scripts + "\n" + sim["scripts"]
@@ -609,7 +663,7 @@ def build_sim_html(
     if sim["full_caption"]:
         caption_html = (
             f'<div class="sim-caption-below">'
-            f'  <strong>Descrição:</strong> {sim["full_caption"]}'
+            f'  <strong>{t(lang, "description")}</strong> {sim["full_caption"]}'
             f'</div>'
         )
     else:
@@ -639,6 +693,13 @@ def build_sim_html(
         caption_html=caption_html,
         prev_btn=prev_btn,
         next_btn=next_btn,
+        eyebrow=t(lang, "eyebrow"),
+        index_general=t(lang, "index_general"),
+        view_book=t(lang, "view_book"),
+        book_url=book_url(versao),
+        subtitle=t(lang, "subtitle"),
+        university=t(lang, "university"),
+        license_line=t(lang, "license_line"),
     )
 
 def collect_html_files(input_path: Path) -> list[tuple[Path, Path]]:
@@ -707,6 +768,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
                 "styles": styles,
                 "head_scripts": head_scripts,
                 "lang": lang,
+                "versao": sample_versao,
                 "html_file": html_file
             })
 
@@ -757,6 +819,8 @@ def cmd_extrair(args: argparse.Namespace) -> None:
     total_sims: list[str] = []
     chapters_index_html = []
 
+    idx_lang = final_sim_entries[0]["lang"] if final_sim_entries else "pt"
+
     for cap_folder in sorted(cap_groups.keys()):
         # 📌 ORDENAÇÃO: EPs primeiro (sim-ep...), depois os conceituais unificados
         group_entries = sorted(
@@ -782,7 +846,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
                 target_dir.mkdir(parents=True, exist_ok=True)
                 html_content = build_sim_html(
                     sim, entry["styles"], entry["head_scripts"], entry["lang"],
-                    prev_entry=prev_entry, next_entry=next_entry
+                    prev_entry=prev_entry, next_entry=next_entry, versao=entry["versao"]
                 )
                 out_file.write_text(html_content, encoding="utf-8")
                 size_kb = out_file.stat().st_size / 1024
@@ -794,7 +858,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             # 🌟 DESTAQUE PARA O NOME DO SIMULADOR EM NEGRITO PRIMEIRO, SEGUIDO DO ID
             chapter_items_html += f'<li><a href="{cap_folder}/{sim_id}.html" title="{sim["sim_title"]}"><strong>{sim["sim_title"]}</strong> <span style="opacity:0.6; font-size:0.9em;">({sim_id})</span></a></li>\n'
 
-        cap_display_name = cap_folder.replace("cap", "Capítulo ").upper()
+        cap_display_name = cap_folder.replace("cap", t(idx_lang, "chapter") + " ").upper()
         chapters_index_html.append(f"""\
         <div class="chapter-card">
           <h2>{cap_display_name}</h2>
@@ -808,7 +872,16 @@ def cmd_extrair(args: argparse.Namespace) -> None:
     if not args.dry_run and total_sims:
         index_file = default_out_dir / "index.html"
         default_out_dir.mkdir(parents=True, exist_ok=True)
-        index_content = INDEX_TEMPLATE.format(chapters_html="\n".join(chapters_index_html))
+        index_content = INDEX_TEMPLATE.format(
+            chapters_html="\n".join(chapters_index_html),
+            lang=idx_lang,
+            index_title=t(idx_lang, "index_title"),
+            index_h1=t(idx_lang, "index_h1"),
+            subtitle=t(idx_lang, "subtitle"),
+            university=t(idx_lang, "university"),
+            back_to_book=t(idx_lang, "back_to_book"),
+            book_url=book_url(sample_versao),
+        )
         index_file.write_text(index_content, encoding="utf-8")
         if verbose:
             print(f"📁 Índice gerado: {index_file}")

@@ -48,6 +48,68 @@ RE_WRITEFILE = re.compile(r'%%writefile\s+(EP\d{2}_\d{2}\.py)')
 RE_CAP_FILE = re.compile(r'cap(\d{2})', re.IGNORECASE)
 
 
+# ── Internacionalização da moldura (header/footer/índice) ────────────────────
+_CC = '<a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a>'
+I18N = {
+    "pt": {
+        "subtitle":     "Processamento Digital de Imagens e Visão Computacional",
+        "university":    "Universidade Federal do ABC (UFABC)",
+        "license_line":  f"Material didático aberto sob licença {_CC}",
+        "chapter":       "Capítulo",
+        "back_to_book":  "📖 Voltar para o Livro",
+        "view_book":     "📖 Ver livro",
+        "index_general": "📂 Índice geral",
+        "index_title":   "Exercícios de Programação (EPs) | PDI+VC",
+        "index_h1":      "PDI+VC · Exercícios de Programação (EPs)",
+        "eyebrow":       "PDI+VC · Exercício de Programação",
+        "moodle_math_version": "Versão com fórmulas matemáticas:",
+        "moodle_math_note":    "(Fórmulas renderizadas pelo MathJax — abrir em nova aba)",
+    },
+    "en": {
+        "subtitle":     "Digital Image Processing and Computer Vision",
+        "university":    "Federal University of ABC (UFABC)",
+        "license_line":  f"Open educational material under {_CC} license",
+        "chapter":       "Chapter",
+        "back_to_book":  "📖 Back to the Book",
+        "view_book":     "📖 View the book",
+        "index_general": "📂 General index",
+        "index_title":   "Programming Exercises (EPs) | PDI+VC",
+        "index_h1":      "PDI+VC · Programming Exercises (EPs)",
+        "eyebrow":       "PDI+VC · Programming Exercise",
+        "moodle_math_version": "Version with mathematical formulas:",
+        "moodle_math_note":    "(Formulas rendered by MathJax — open in a new tab)",
+    },
+    "fr": {
+        "subtitle":     "Traitement Numérique d'Images et Vision par Ordinateur",
+        "university":    "Université Fédérale de l'ABC (UFABC)",
+        "license_line":  f"Matériel pédagogique ouvert sous licence {_CC}",
+        "chapter":       "Chapitre",
+        "back_to_book":  "📖 Retour au Livre",
+        "view_book":     "📖 Voir le livre",
+        "index_general": "📂 Index général",
+        "index_title":   "Exercices de Programmation (EPs) | PDI+VC",
+        "index_h1":      "PDI+VC · Exercices de Programmation (EPs)",
+        "eyebrow":       "PDI+VC · Exercice de Programmation",
+        "moodle_math_version": "Version avec formules mathématiques :",
+        "moodle_math_note":    "(Formules rendues par MathJax — ouvrir dans un nouvel onglet)",
+    },
+}
+
+def versao_lang(name: str) -> str:
+    """Extrai o idioma (pt/en/fr) do nome de uma versão como 'py.en' ou 'cpp.pt'."""
+    parts = (name or "").split(".")
+    return parts[-1].lower() if len(parts) > 1 else "pt"
+
+def t(lang: str, key: str) -> str:
+    base = (lang or "pt").split("-")[0].lower()
+    table = I18N.get(base, I18N["pt"])
+    return table.get(key, I18N["pt"].get(key, key))
+
+def book_url(versao: str) -> str:
+    versao = (versao or "py.pt").strip("/")
+    return f"https://fzampirolli.github.io/pdi-vc/{versao}"
+
+
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="{lang}">
@@ -233,14 +295,14 @@ HTML_TEMPLATE = """\
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="ep-frame-header">
   <div class="ep-frame-brand">
-    <span class="ep-frame-eyebrow">PDI+VC · Exercício de Programação</span>
+    <span class="ep-frame-eyebrow">{eyebrow}</span>
     <h1 class="ep-frame-title">{ep_id} — {title}</h1>
   </div>
   <nav class="ep-frame-nav">
     {prev_btn}
     {next_btn}
-    <a href="./index.html" class="ep-btn ep-btn-outline">📂 Índice geral</a>
-    <a href="https://fzampirolli.github.io/pdi-vc/" target="_blank" class="ep-btn ep-btn-outline">📖 Ver livro</a>
+    <a href="./index.html" class="ep-btn ep-btn-outline">{index_general}</a>
+    <a href="{book_url}" target="_blank" class="ep-btn ep-btn-outline">{view_book}</a>
     <a href="https://github.com/fzampirolli/pdi-vc" target="_blank" class="ep-btn ep-btn-primary">💻 GitHub</a>
   </nav>
 </header>
@@ -257,9 +319,9 @@ HTML_TEMPLATE = """\
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
-    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
-    Material didático aberto sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> · 
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+    © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">{university}</a>.<br>
+    {license_line} ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
   </p>
 </footer>
@@ -271,11 +333,11 @@ HTML_TEMPLATE = """\
 
 INDEX_TEMPLATE = """\
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="{lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exercícios de Programação (EPs) | PDI+VC</title>
+  <title>{index_title}</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -393,17 +455,17 @@ INDEX_TEMPLATE = """\
 </head>
 <body>
   <header>
-    <h1>PDI+VC · Exercícios de Programação (EPs)</h1>
-    <p>Processamento Digital de Imagens e Visão Computacional</p>
+    <h1>{index_h1}</h1>
+    <p>{subtitle}</p>
   </header>
   <main>
     {chapters_html}
   </main>
   <footer>
     <p>
-      <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Processamento Digital de Imagens e Visão Computacional</a></strong><br>
-      © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Universidade Federal do ABC (UFABC)</a>.<br>
-      <a href="https://fzampirolli.github.io/pdi-vc/py.pt" target="_blank">📖 Voltar para o Livro</a>
+      <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+      © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
+      <a href="{book_url}" target="_blank">{back_to_book}</a>
     </p>
   </footer>
 </body>
@@ -529,10 +591,10 @@ def elements_to_html(elements: list[Tag]) -> str:
     return "\n".join(str(el) for el in elements)
 
 
-def build_ep_html(ep: dict, styles: str, scripts: str, lang: str, prev_id: str | None = None, next_id: str | None = None) -> str:
+def build_ep_html(ep: dict, styles: str, scripts: str, lang: str, prev_id: str | None = None, next_id: str | None = None, versao: str = "py.pt") -> str:
     content = elements_to_html(ep["elements"])
     favicon_tag = '<link rel="icon" type="image/x-icon" href="../../favicon.ico">'
-    
+
     prev_btn = f'<a href="{prev_id}.html" class="ep-btn ep-btn-nav">← {prev_id}</a>' if prev_id else ''
     next_btn = f'<a href="{next_id}.html" class="ep-btn ep-btn-nav">{next_id} →</a>' if next_id else ''
 
@@ -546,6 +608,13 @@ def build_ep_html(ep: dict, styles: str, scripts: str, lang: str, prev_id: str |
         content=content,
         prev_btn=prev_btn,
         next_btn=next_btn,
+        eyebrow=t(lang, "eyebrow"),
+        index_general=t(lang, "index_general"),
+        view_book=t(lang, "view_book"),
+        book_url=book_url(versao),
+        subtitle=t(lang, "subtitle"),
+        university=t(lang, "university"),
+        license_line=t(lang, "license_line"),
     )
 
 
@@ -602,6 +671,8 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             book_root = versao_dir.parent
             out_dir = book_root / "eps" / versao_name
 
+        versao = versao_dir.name if versao_dir.name != "book" else "py.pt"
+
         for ep in eps:
             cap_folder = detect_chapter_folder(html_file, ep["ep_id"])
             all_ep_entries.append({
@@ -611,6 +682,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
                 "styles": styles,
                 "scripts": scripts,
                 "lang": lang,
+                "versao": versao,
                 "html_file": html_file
             })
 
@@ -625,6 +697,8 @@ def cmd_extrair(args: argparse.Namespace) -> None:
 
     total_eps: list[str] = []
     chapters_index_html = []
+
+    idx_lang = all_ep_entries[0]["lang"] if all_ep_entries else "pt"
 
     for cap_folder in sorted(cap_groups.keys()):
         group_entries = sorted(cap_groups[cap_folder], key=lambda x: x["ep"]["ep_id"])
@@ -647,8 +721,8 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             else:
                 out_dir.mkdir(parents=True, exist_ok=True)
                 html_content = build_ep_html(
-                    ep, entry["styles"], entry["scripts"], entry["lang"], 
-                    prev_id=prev_id, next_id=next_id
+                    ep, entry["styles"], entry["scripts"], entry["lang"],
+                    prev_id=prev_id, next_id=next_id, versao=entry["versao"]
                 )
                 out_file.write_text(html_content, encoding="utf-8")
                 size_kb = out_file.stat().st_size / 1024
@@ -659,7 +733,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
             total_eps.append(ep_id)
             chapter_items_html += f'<li><a href="{ep_id}.html" title="{ep["title"]}"><code>{ep_id}</code> — {ep["title"]}</a></li>\n'
 
-        cap_display_name = cap_folder.replace("cap", "Capítulo ").upper()
+        cap_display_name = cap_folder.replace("cap", t(idx_lang, "chapter") + " ").upper()
         chapters_index_html.append(f"""\
         <div class="chapter-card">
           <h2>{cap_display_name}</h2>
@@ -675,9 +749,19 @@ def cmd_extrair(args: argparse.Namespace) -> None:
         book_root = pairs[0][1].parent if pairs[0][1].name != "book" else pairs[0][1]
         default_out_dir = book_root / "eps" / sample_versao if not args.out_dir else Path(args.out_dir)
         
+        idx_versao = all_ep_entries[0]["versao"] if all_ep_entries else "py.pt"
         index_file = default_out_dir / "index.html"
         default_out_dir.mkdir(parents=True, exist_ok=True)
-        index_content = INDEX_TEMPLATE.format(chapters_html="\n".join(chapters_index_html))
+        index_content = INDEX_TEMPLATE.format(
+            chapters_html="\n".join(chapters_index_html),
+            lang=idx_lang,
+            index_title=t(idx_lang, "index_title"),
+            index_h1=t(idx_lang, "index_h1"),
+            subtitle=t(idx_lang, "subtitle"),
+            university=t(idx_lang, "university"),
+            back_to_book=t(idx_lang, "back_to_book"),
+            book_url=book_url(idx_versao),
+        )
         index_file.write_text(index_content, encoding="utf-8")
         if verbose:
             print(f"📁 Índice geral gerado: {index_file}")
@@ -1031,20 +1115,20 @@ def moodle_sanitize(fragment: str) -> str:
     fragment = sanitize_scripts(fragment)
     return fragment
 
-def _make_link_banner(ep_name: str, base_url: str) -> str:
+def _make_link_banner(ep_name: str, base_url: str, lang: str = "pt") -> str:
     url = base_url.rstrip('/') + '/' + ep_name + '.html'
     lines = [
         '<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;'
         'padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">',
-        '📐 <strong>Versão com fórmulas matemáticas:</strong> '
+        '📐 <strong>' + t(lang, "moodle_math_version") + '</strong> '
         '<a href="' + url + '" target="_blank" style="color:#2980b9;">' + url + '</a>',
         '<br><span style="font-size:11px;color:#555;">'
-        '(Fórmulas renderizadas pelo MathJax — abrir em nova aba)</span>',
+        + t(lang, "moodle_math_note") + '</span>',
         '</div>',
     ]
     return '\n'.join(lines)
 
-def process_ep_file(path: Path, outdir: Path, base_url: str = '') -> bool:
+def process_ep_file(path: Path, outdir: Path, base_url: str = '', lang: str = "pt") -> bool:
     html = path.read_text(encoding='utf-8', errors='replace')
     span = find_container_span(html)
     if not span:
@@ -1056,7 +1140,7 @@ def process_ep_file(path: Path, outdir: Path, base_url: str = '') -> bool:
 
     if base_url:
         ep_name = path.stem
-        banner = _make_link_banner(ep_name, base_url)
+        banner = _make_link_banner(ep_name, base_url, lang)
         insert_at = fragment.find('>') + 1
         fragment = fragment[:insert_at] + '\n' + banner + fragment[insert_at:]
 
@@ -1089,15 +1173,17 @@ def cmd_limpar(args: argparse.Namespace) -> None:
 
     outdir.mkdir(parents=True, exist_ok=True)
     base_url = getattr(args, 'base_url', '') or ''
+    lang = versao_lang(indir.name)
     print(f"Entrada  : {indir}")
     print(f"Saída    : {outdir}")
+    print(f"Idioma   : {lang}")
     if base_url:
         print(f"Base URL : {base_url}")
     print()
 
     ok, fail = 0, 0
     for f in sorted(indir.glob("EP*.html")):
-        if process_ep_file(f, outdir, base_url=base_url):
+        if process_ep_file(f, outdir, base_url=base_url, lang=lang):
             ok += 1
         else:
             fail += 1
