@@ -36,6 +36,12 @@ LANGUAGES: dict[str, Language] = {
 
 BASE_LANG = 'py'   # fonte canônico — editar apenas em Python
 
+# Capítulos com trilha C++ portada e validada (morph/cpp/morph.hpp). Os
+# demais usam cv2/skimage sem equivalente e, com error:false, uma célula
+# quebrada abortaria o render do combo cpp inteiro — por isso o build só
+# gera/inclui cpp para estes. Ver CPP_VALIDATION_NOTE em index_builder.
+CPP_CHAPTERS = {'cap01', 'cap02'}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Registro de idiomas (locales)
 # ─────────────────────────────────────────────────────────────────────────────

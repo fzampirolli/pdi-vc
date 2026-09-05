@@ -285,14 +285,33 @@ class LLMCodeTranslator(Translator):
                   mm::Image mm::threshold(const mm::Image&, std::optional<int> limiar=std::nullopt)  // Otsu if omitted
                   int       mm::otsu(const mm::Image&)                  // Otsu threshold value T (same T mm::threshold uses)
                   std::string mm::drawImg(const mm::Image&)
+                  void      mm::drawImgPlt(const mm::Image&, std::string out_path, int scale=40)  // pass MM_OUT as out_path, like mm::show
+                  mm::Image mm::resize(const mm::Image&, double factor, std::string method="bilinear")      // method: "nearest" | "bilinear"
+                  mm::Image mm::resize(const mm::Image&, int out_w, int out_h, std::string method="bilinear")
+                  mm::Image mm::translate(const mm::Image&, double tx, double ty)
+                  mm::Image mm::rotate(const mm::Image&, double angle_deg, double scale=1.0, std::string interp="bilinear")
+                  mm::Image mm::shear(const mm::Image&, double shx=0.0, double shy=0.0, std::string method="bilinear")
+                  mm::Image mm::secross(int n=0)                        // 3x3 cross (4-neighborhood) as a 0/1 Image
+                  mm::Image mm::crop(const mm::Image&, int y0, int y1, int x0, int x1)  // == numpy img[y0:y1, x0:x1]
+                  mm::Image mm::subsample(const mm::Image&, int f)      // == numpy img[::f, ::f]
 
                 Rules:
                 - `mm::Image` already holds raw pixel data; there is no
                   `pil=` concept in Python's mm.read(url, pil=True) — drop it.
-                - For every call to mm::show(...), pass the literal macro
-                  token MM_OUT as the out_path argument (a
-                  #define MM_OUT "..." line will be prepended for you
-                  automatically) — never invent a filename yourself.
+                - For every call to mm::show(...) AND mm::drawImgPlt(...),
+                  pass the literal macro token MM_OUT as the out_path
+                  argument (a #define MM_OUT "..." line will be prepended
+                  for you automatically) — never invent a filename yourself.
+                - mm.show(...) keyword args that have no C++ equivalent
+                  (figsize=, dpi=, axis=, scale=, rows=) are simply DROPPED.
+                  Both title= and titles= map to the same trailing
+                  std::vector<std::string> argument. mm.show with a list of
+                  images -> the std::vector<mm::Image> overload.
+                - mm.resize(img, N) or size_or_factor=N with a bare number
+                  -> mm::resize(img, (double)N, method); mm.resize(img,
+                  (w, h)) with a tuple -> mm::resize(img, w, h, method).
+                - mm.rotate(img, angle, interp='bilinear') -> pass scale
+                  positionally first: mm::rotate(img, angle, 1.0, "bilinear").
                 - Do NOT use OpenCV. Do NOT #include anything beyond
                   "morph.hpp" and the C++ standard library. In particular,
                   `T, bin = cv2.threshold(img, 0, 255, THRESH_BINARY+THRESH_OTSU)`
@@ -313,13 +332,30 @@ class LLMCodeTranslator(Translator):
                   creation and indexing map directly onto mm::Image, which
                   is already zero-initialized:
                     np.zeros((h, w), dtype='uint8')   ->  mm::Image img(h, w);
+                    np.zeros((h, w, c), dtype='uint8') -> mm::Image img(h, w, c);
+                    np.dstack([rgb, alpha])           -> mm::Image out(rgb.h, rgb.w, rgb.channels + 1); loop y,x: copy rgb.at(y,x,k) into out.at(y,x,k) for k<rgb.channels, then out.at(y,x,rgb.channels) = alpha.at(y,x);
+                    a[:, :, k] = b[:, :, k]           -> for (y,x): a.at(y,x,k) = b.at(y,x,k);
+                    a[:, x, k] = <scalar>             -> for (y):   a.at(y,x,k) = <scalar>;
                     np.ones((h, w), dtype='uint8')*255 -> mm::Image img(h, w); std::fill(img.data.begin(), img.data.end(), 255);
                     img[y, x] = v                     ->  img.at(y, x) = v;
                     img[y, x, ch] / img[y, x][ch]     ->  img.at(y, x, ch)   (ch: 0=R,1=G,2=B)
+                    img[y0:y1, x0:x1]                 ->  mm::crop(img, y0, y1, x0, x1)
+                    img[::f, ::f]                     ->  mm::subsample(img, f)
+                    img.shape[0] / img.shape[1]       ->  img.h / img.w
+                    img.nbytes                        ->  (img.h * img.w * img.channels)  // 1 byte/amostra (uint8)
                     img.copy()                        ->  mm::Image c = img;  (mm::Image tem semântica de valor)
                 - `img.at(...)` devolve `unsigned char` — para IMPRIMIR o
                   valor numérico, faça o cast: `std::cout << (int)img.at(y,x)`
                   (sem o cast, o std::cout imprime o caractere, não o número).
+                - Channel count is the 3rd constructor arg: `mm::Image img(h, w, 3)`.
+                  On an image with C channels, ONLY `.at(y, x, c)` with
+                  0 <= c < C is valid — `.at(y, x, 1)` on a 1-channel image
+                  writes out of bounds and corrupts the heap. When in doubt,
+                  keep the original channel count.
+                - mm::show(...) and mm::drawImgPlt(...) already handle
+                  1-channel (grayscale) images directly. Do NOT expand a
+                  grayscale result to 3 channels just to display it — pass it
+                  as-is.
                 - Python keyword arguments (e.g. maxValue=255) have no C++
                   equivalent here — pass the value positionally instead
                   (e.g. mm::randomImage(4, 6, 255)), in the same parameter
@@ -334,10 +370,13 @@ class LLMCodeTranslator(Translator):
                     'difference: the variables below will be assigned a '
                     'valid value by a line inserted automatically as the '
                     'VERY FIRST statement inside your `int main() {` — as if '
-                    'they were already initialized right there. Do NOT '
-                    'declare or initialize them yourself, do NOT call '
-                    'mm::read/mm::gray/etc. to obtain them, just reference '
-                    'them directly in your logic as already-valid variables:\n'
+                    'they were already initialized right there. Do NOT emit '
+                    'ANY declaration line for them — no `mm::Image x;`, no '
+                    '`mm::Image x = mm::read("...");`, no placeholder path, '
+                    'nothing. Do NOT call mm::read/mm::gray/etc. to obtain '
+                    'them. Just reference them directly in your logic as '
+                    'already-valid variables (a redeclaration is a compile '
+                    'error and the whole translation is discarded):\n'
                     + '\n'.join(f'  - {v} (mm::Image)' for v in sorted(external_vars))
                 )
             if persisted_vars:

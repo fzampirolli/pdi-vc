@@ -243,6 +243,16 @@ class mm:
         return np.random.randint(maxValue + 1, size=(h, w)).astype('uint8')
 
     @staticmethod
+    def crop(img, y0, y1, x0, x1):
+        """Recorte retangular img[y0:y1, x0:x1] (equivalente ao fatiamento NumPy)."""
+        return img[y0:y1, x0:x1]
+
+    @staticmethod
+    def subsample(img, f):
+        """Subamostragem por fatiamento com passo f: img[::f, ::f]."""
+        return img[::f, ::f]
+
+    @staticmethod
     def resize(img, size_or_factor, method='bilinear'):
         """Redimensiona imagem via OpenCV integrado ao mm: nearest, bilinear, bicubic."""
         cv2 = mm._get_cv2()

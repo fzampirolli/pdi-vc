@@ -170,7 +170,9 @@ def _ep_testsuite_call_name(src: str) -> Optional[str]:
 # precisa ser garantida por construção, não por o modelo ter obedecido o
 # prompt.
 
-_MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'otsu', 'drawImg'}
+_MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'otsu',
+                 'drawImg', 'drawImgPlt', 'resize', 'translate', 'rotate', 'shear',
+                 'secross', 'crop', 'subsample'}
 _CV2_RE   = re.compile(r'\bcv2\.(\w+)')
 # Símbolos cv2 que a cheat-sheet de tradução sabe mapear pra morph.hpp
 # (cv2.threshold(..., THRESH_OTSU) -> mm::threshold + mm::otsu pro valor T).
@@ -179,6 +181,10 @@ _CV2_WHITELIST = {'threshold', 'THRESH_BINARY', 'THRESH_BINARY_INV', 'THRESH_OTS
 _PLT_RE   = re.compile(r'\bplt\.')
 _MM_CALL_RE = re.compile(r'\bmm\.(\w+)\s*\(')
 _MM_SHOW_RE = re.compile(r'\bmm\.show\s*\(')
+# Funções mm que gravam um PNG em disco e portanto precisam do #define MM_OUT
+# prefixado e de uma célula-cola que exibe o PNG (mesmo tratamento de mm.show,
+# mas sem o parsing de painéis/títulos — drawImgPlt recebe uma imagem só).
+_MM_GLUE_RE = re.compile(r'\bmm\.(?:show|drawImgPlt)\s*\(')
 _LABEL_RE   = re.compile(r'^#\|\s*label:\s*(\S+)', re.MULTILINE)
 _FIG_OPTION_RE = re.compile(r'^#\|\s*(label|fig-cap):', re.MULTILINE)
 # Mesmo padrão usado em quarto_builder.py (HTML_TRIPLE_RE) pra achar células
@@ -217,8 +223,11 @@ def _is_eligible_for_foreign_expansion(src: str) -> bool:
 # (state/<var>_<producer_idx>.png), injetada mecanicamente (nunca pelo LLM).
 
 # Subconjunto de _MM_WHITELIST que de fato PRODUZ um mm::Image (mm.show/
-# mm.write retornam void, mm.drawImg retorna string — nunca são produtoras).
-_MM_IMAGE_PRODUCING_FNS = {'read', 'gray', 'randomImage', 'threshold'}
+# mm.write/mm.drawImgPlt retornam void, mm.drawImg retorna string — nunca
+# são produtoras).
+_MM_IMAGE_PRODUCING_FNS = {'read', 'gray', 'randomImage', 'threshold',
+                           'resize', 'translate', 'rotate', 'shear',
+                           'secross', 'crop', 'subsample'}
 
 _AST_SCOPE_BOUNDARY = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
 
@@ -848,7 +857,7 @@ class NotebookProcessor:
 
         ext = LANGUAGES[combo.lang].extension
         base = _cell_base_name(src, ctx)
-        needs_glue = bool(_MM_SHOW_RE.search(src))
+        needs_glue = bool(_MM_GLUE_RE.search(src))
         # `mm.show([v1, v2, ...], titles=[...])` — exibir os painéis
         # individualmente na glue (com título/eixo) em vez do composto
         # achatado do mm::show C++. None → composto único (comportamento

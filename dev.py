@@ -44,7 +44,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from pipeline.config import LANGUAGES, LOCALES, Combo
+from pipeline.config import LANGUAGES, LOCALES, Combo, CPP_CHAPTERS
 from pipeline.cache import TranslationCache
 from pipeline.bib import parse_bib
 from pipeline.translators import TranslatorFactory
@@ -288,13 +288,13 @@ def run_build(sources: list[Path], combos: list[Combo],
     for combo in combos:
         tag = '(base)' if combo.is_base() else ''
         print(f'\n── {combo.key} {tag}')
-        # A trilha C++ só foi portada/validada para o cap01 (7 funções de
-        # morph.py). Os demais capítulos usam cv2/skimage sem equivalente e,
-        # com error:false, uma célula quebrada aborta o render do combo cpp
-        # inteiro — inclusive o cap01. Ver CPP_VALIDATION_NOTE no índice.
+        # A trilha C++ só está portada/validada para os capítulos em
+        # CPP_CHAPTERS (morph/cpp/morph.hpp). Os demais usam cv2/skimage sem
+        # equivalente e, com error:false, uma célula quebrada abortaria o
+        # render do combo cpp inteiro. Ver CPP_VALIDATION_NOTE no índice.
         combo_sources = sources
         if combo.lang == 'cpp':
-            combo_sources = [s for s in sources if s.parent.name == 'cap01']
+            combo_sources = [s for s in sources if s.parent.name in CPP_CHAPTERS]
         for nb_path in combo_sources:
             out = build_notebook(nb_path, combo, processor)
             print(f'  ✓ {out}')

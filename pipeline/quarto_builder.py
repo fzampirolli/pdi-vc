@@ -65,7 +65,7 @@ from nbclient import NotebookClient
 from playwright.sync_api import sync_playwright
 
 from .config import (
-    Combo, UI_STRINGS, LOCALES, LANGUAGES,
+    Combo, UI_STRINGS, LOCALES, LANGUAGES, CPP_CHAPTERS,
     BASE_LANG, BASE_LOCALE, parse_combo,
 )
 
@@ -182,6 +182,29 @@ def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
 # sobrescreve a config do livro pra essa página específica.
 _NO_CODE_TOOLS_FM = '---\ncode-tools: false\n---\n\n'
 
+# Regex do bloco de front-matter YAML no INÍCIO de um .qmd (--- ... ---).
+_LEADING_FM_RE = re.compile(r'\A---\n(.*?)\n---\n', re.DOTALL)
+
+
+def _with_no_code_tools(content: str) -> str:
+    """
+    Garante `code-tools: false` no front-matter de `content` SEM criar um
+    segundo bloco `--- ... ---`. Se o arquivo já começa com um front-matter
+    (caso da ficha catalográfica, que traz `unnumbered: true`), a chave é
+    inserida DENTRO desse bloco; senão, um bloco novo é prefixado.
+
+    Prefixar cegamente `_NO_CODE_TOOLS_FM` num arquivo que já tinha
+    front-matter fazia o Pandoc ler só o 1º bloco e renderizar o 2º como
+    texto — no caso da ficha, um heading espúrio e NUMERADO ("unnumbered:
+    true"), que empurrava a numeração de todos os capítulos em +1.
+    """
+    m = _LEADING_FM_RE.match(content)
+    if m:
+        if re.search(r'^\s*code-tools\s*:', m.group(1), re.MULTILINE):
+            return content
+        return f'---\n{m.group(1)}\ncode-tools: false\n---\n' + content[m.end():]
+    return _NO_CODE_TOOLS_FM + content
+
 
 def _prefacio_qmd(combo: Combo) -> str:
     """
@@ -199,7 +222,7 @@ def _prefacio_qmd(combo: Combo) -> str:
         '\\mainmatter\n'
         '```\n'
     )
-    return _NO_CODE_TOOLS_FM + content
+    return _with_no_code_tools(content)
 
 APENDICES_ROOT = Path('all/apendices')
 
@@ -255,7 +278,7 @@ def _read_apendice_qmd(path: Path, combo: Combo) -> Optional[str]:
     content = content.replace('{{lang_label}}', lang_label)
     locale_label = LOCALES[combo.locale].label
     content = content.replace('{{locale_label}}', locale_label)
-    return _NO_CODE_TOOLS_FM + content
+    return _with_no_code_tools(content)
 
 def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
     """
@@ -263,11 +286,11 @@ def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
     Retorna None se o arquivo não existir (nesse caso, a página não é incluída).
     """
     content = _read_include_qmd('ficha_catalografica.qmd', combo)
-    return None if content is None else _NO_CODE_TOOLS_FM + content
+    return None if content is None else _with_no_code_tools(content)
 
 def _refs_qmd(combo: Combo) -> str:
     title = UI_STRINGS[combo.locale].get('references_title', 'Referências')
-    return _NO_CODE_TOOLS_FM + f'# {title} {{.unnumbered}}\n\n::: {{#refs}}\n:::\n'
+    return _with_no_code_tools(f'# {title} {{.unnumbered}}\n\n::: {{#refs}}\n:::\n')
 
 
 def _process_attachments(combo: Combo, nb_root: Path, qdir: Path, all_root: Path):
@@ -454,6 +477,14 @@ class QuartoBuilder:
 
     def _symlink_caps(self, combo: Combo, qdir: Path, nb_root: Path):
         morph_cpp_dir = self.root / 'morph' / 'cpp'
+        # morph.py / testsuite.py da árvore de trabalho, ao lado de cada
+        # capítulo: `config.setup` só baixa do GitHub master `if not
+        # os.path.exists(f)`, então sem isto uma build usaria a versão
+        # publicada (defasada) — ex.: `mm.crop`/`mm.subsample` novas quebram
+        # com AttributeError até serem commitadas+push. O symlink local
+        # vence o download.
+        morph_py_files = [self.root / 'morph' / 'morph.py',
+                          self.root / 'morph' / 'testsuite.py']
         for cap in self.CAPS_PART1 + self.CAPS_PART2:
             cap_dir = nb_root / cap
             if cap_dir.exists():
@@ -482,6 +513,10 @@ class QuartoBuilder:
 
                 for f in cap_dir.iterdir():
                     self._symlink(dest / f.name, f)      # symlinks apenas dos arquivos
+
+                for f in morph_py_files:
+                    if f.exists():
+                        self._symlink(dest / f.name, f)
 
                 # combos cpp: os headers de morph.hpp (+ stb vendorizadas)
                 # precisam estar ao lado do .cpp gerado pra `!g++` achar via
@@ -947,11 +982,11 @@ pre {
             for cap in caps:
                 if DEBUG_CAPS and cap not in DEBUG_CAPS:  # ← filtro
                     continue
-                # C++ só está portado/validado para o cap01 (ver
-                # CPP_VALIDATION_NOTE em index_builder). Não inclua os demais
-                # capítulos nos livros cpp mesmo que exista um .ipynb gerado
-                # (stale) — cv2/skimage sem equivalente quebram o render.
-                if combo.lang == 'cpp' and cap != 'cap01':
+                # C++ só está portado/validado para os capítulos em
+                # CPP_CHAPTERS (ver CPP_VALIDATION_NOTE em index_builder). Não
+                # inclua os demais nos livros cpp mesmo que exista um .ipynb
+                # gerado (stale) — cv2/skimage sem equivalente quebram o render.
+                if combo.lang == 'cpp' and cap not in CPP_CHAPTERS:
                     continue
                 nb_name = f'{cap}.{combo.key}.ipynb'
                 if (nb_root / cap / nb_name).exists():

@@ -139,6 +139,27 @@ def find_main_body_span(cpp_src: str):
     return None
 
 
+def strip_assumed_var_decls(cpp_src: str, var_names) -> str:
+    """
+    Remove linhas em que o LLM declarou/atribuiu uma variável que o prompt
+    mandou tratar como JÁ disponível (ver `external_vars`/`persisted_vars`
+    em translate()). Sem isso, a injeção mecânica de
+    `mm::Image <var> = ...` logo depois colide com a do LLM
+    (`redeclaration of 'mm::Image <var>'`) e derruba a tradução inteira pra
+    referência. Casa a linha inteira: `mm::Image v;`, `mm::Image v = ...;`,
+    `auto v = ...;` (com comentário opcional no fim).
+    """
+    names = [re.escape(v) for v in var_names]
+    if not names:
+        return cpp_src
+    pat = re.compile(
+        r'^[ \t]*(?:const\s+)?(?:mm::Image|auto)\s*&?\s*'
+        r'(?:' + '|'.join(names) + r')\s*(?:=[^;]*)?;[ \t]*(?://[^\n]*)?\n',
+        re.MULTILINE,
+    )
+    return pat.sub('', cpp_src)
+
+
 def inject_consumer_reads(cpp_src: str, records: list):
     """
     Insere, logo após `int main() {`, um
@@ -147,6 +168,7 @@ def inject_consumer_reads(cpp_src: str, records: list):
     ver `notebook_processor._detect_cross_cell_mm_vars`). Devolve None se
     `main` não for localizado.
     """
+    cpp_src = strip_assumed_var_decls(cpp_src, [r['var_name'] for r in records])
     span = find_main_body_span(cpp_src)
     if span is None:
         return None
@@ -257,6 +279,7 @@ def inject_stub_declares(cpp_src: str, var_names: list):
     troca este stub por `inject_consumer_reads(...)` de verdade. Devolve
     None se `main` não for localizado.
     """
+    cpp_src = strip_assumed_var_decls(cpp_src, var_names)
     span = find_main_body_span(cpp_src)
     if span is None:
         return None
