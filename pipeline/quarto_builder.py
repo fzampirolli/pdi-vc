@@ -381,6 +381,16 @@ class QuartoBuilder:
         self._symlink_caps(combo, qdir, nb_root)
         _process_attachments(combo, nb_root, qdir, all_root)
 
+        # morph.py / testsuite.py da árvore de trabalho também na RAIZ do
+        # qdir: dependendo do `execute-dir` do Quarto, o notebook roda com
+        # cwd = raiz do projeto, não a pasta do capítulo — sem isto o
+        # `import morph` cairia na versão publicada (defasada) baixada por
+        # `config.setup`. Ver o symlink equivalente em `_symlink_caps`.
+        for f in (self.root / 'morph' / 'morph.py',
+                  self.root / 'morph' / 'testsuite.py'):
+            if f.exists():
+                self._symlink(qdir / f.name, f)
+
         self._symlink(qdir / 'references.bib', self.root / 'references.bib')
         self._merge_includes_dir(qdir, combo)
 
@@ -517,6 +527,13 @@ class QuartoBuilder:
                 for f in morph_py_files:
                     if f.exists():
                         self._symlink(dest / f.name, f)
+                        # Também ao lado do .ipynb REAL (nb_root/cap): o
+                        # Quarto executa o notebook resolvendo o symlink, com
+                        # cwd = diretório do arquivo real, não o do symlink
+                        # em qdir/cap. Sem isto, `config.setup` baixaria a
+                        # morph.py publicada (sem mm.crop/subsample).
+                        if cap_dir.is_dir():
+                            self._symlink(cap_dir / f.name, f)
 
                 # combos cpp: os headers de morph.hpp (+ stb vendorizadas)
                 # precisam estar ao lado do .cpp gerado pra `!g++` achar via

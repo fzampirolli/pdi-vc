@@ -1,10 +1,11 @@
-// morph.hpp — v0.3
+// morph.hpp — v0.4
 //
 // Equivalente C++ didático da morph.py. Header-only, pensado pra compilar
 // com um `g++ arquivo.cpp -o arquivo` simples: o núcleo (read, gray,
-// randomImage, show, write, threshold, drawImg) não depende de OpenCV —
-// usa stb_image/stb_image_write (vendorizadas ao lado, ver
-// THIRD_PARTY_LICENSES.md) pra ler/escrever PNG/JPEG.
+// randomImage, show, write, threshold, drawImg, drawImgPlt, e as
+// transformações geométricas resize/translate/rotate/shear + secross)
+// não depende de OpenCV — usa stb_image/stb_image_write (vendorizadas ao
+// lado, ver THIRD_PARTY_LICENSES.md) pra ler/escrever PNG/JPEG.
 //
 // Morfologia (dil/dil0/dil1, ero/ero0/ero1) segue a convenção de nomes da
 // morph.py: sufixo 0 = didática planar, sufixo 1 = didática com pesos, sem
@@ -495,6 +496,215 @@ inline void show(const std::vector<Image>& imgs, const std::string& out_path,
                     canvas.at(offY + y, offX + x, ch) = v;
                 }
     }
+    write(canvas, out_path);
+}
+
+// ── Transformações geométricas ───────────────────────────────────────────
+//
+// Equivalentes header-only de mm.resize/translate/rotate/shear da morph.py
+// (que na versão Python são wrappers finos de cv2.resize/cv2.warpAffine).
+// Sem OpenCV: o mapeamento inverso é feito à mão, com amostragem nearest ou
+// bilinear e preenchimento de borda com 0 (mesma convenção BORDER_CONSTANT
+// do cv2). Critério v0: resultado plausível, não bit-a-bit idêntico.
+
+enum class Interp { NEAREST, BILINEAR };
+
+inline Interp _interp_from(const std::string& s) {
+    return (s == "nearest") ? Interp::NEAREST : Interp::BILINEAR;
+}
+
+// Amostra src em coordenada contínua (sx, sy); fora dos limites → 0.
+inline unsigned char _sample(const Image& src, double sx, double sy, int c, Interp mode) {
+    if (mode == Interp::NEAREST) {
+        int ix = (int)std::lround(sx), iy = (int)std::lround(sy);
+        if (ix < 0 || ix >= src.w || iy < 0 || iy >= src.h) return 0;
+        return src.at(iy, ix, c);
+    }
+    int x0 = (int)std::floor(sx), y0 = (int)std::floor(sy);
+    double fx = sx - x0, fy = sy - y0;
+    auto px = [&](int yy, int xx) -> double {
+        if (xx < 0 || xx >= src.w || yy < 0 || yy >= src.h) return 0.0;
+        return src.at(yy, xx, c);
+    };
+    double top = px(y0, x0) * (1 - fx) + px(y0, x0 + 1) * fx;
+    double bot = px(y0 + 1, x0) * (1 - fx) + px(y0 + 1, x0 + 1) * fx;
+    double v = top * (1 - fy) + bot * fy;
+    return (unsigned char)std::lround(std::min(255.0, std::max(0.0, v)));
+}
+
+// warpAffine estilo cv2 (sem WARP_INVERSE_MAP): M é o mapa DIRETO src→dst,
+// invertido aqui pra varrer o destino. M = {a,b,c, d,e,f}.
+inline Image _warp_affine(const Image& src, const double M[6],
+                          int out_w, int out_h, Interp mode) {
+    double a = M[0], b = M[1], c = M[2], d = M[3], e = M[4], f = M[5];
+    double det = a * e - b * d;
+    if (std::abs(det) < 1e-12) throw std::runtime_error("warp_affine: matriz singular");
+    double ia =  e / det, ib = -b / det;
+    double id = -d / det, ie =  a / det;
+    double ic  = -(ia * c + ib * f);
+    double if_ = -(id * c + ie * f);
+
+    Image out(out_h, out_w, src.channels);
+    for (int y = 0; y < out_h; ++y)
+        for (int x = 0; x < out_w; ++x) {
+            double sx = ia * x + ib * y + ic;
+            double sy = id * x + ie * y + if_;
+            for (int ch = 0; ch < src.channels; ++ch)
+                out.at(y, x, ch) = _sample(src, sx, sy, ch, mode);
+        }
+    return out;
+}
+
+inline Image _resize_to(const Image& src, int out_w, int out_h, Interp mode) {
+    out_w = std::max(1, out_w); out_h = std::max(1, out_h);
+    double sxr = (double)src.w / out_w, syr = (double)src.h / out_h;
+    Image out(out_h, out_w, src.channels);
+    for (int y = 0; y < out_h; ++y)
+        for (int x = 0; x < out_w; ++x) {
+            double sx = (x + 0.5) * sxr - 0.5;
+            double sy = (y + 0.5) * syr - 0.5;
+            for (int ch = 0; ch < src.channels; ++ch)
+                out.at(y, x, ch) = _sample(src, sx, sy, ch, mode);
+        }
+    return out;
+}
+
+// mm.resize(img, fator) — escala uniforme.
+inline Image resize(const Image& src, double factor, const std::string& method = "bilinear") {
+    return _resize_to(src, (int)std::round(src.w * factor),
+                      (int)std::round(src.h * factor), _interp_from(method));
+}
+
+// mm.resize(img, (w, h)) — tamanho alvo explícito.
+inline Image resize(const Image& src, int out_w, int out_h,
+                    const std::string& method = "bilinear") {
+    return _resize_to(src, out_w, out_h, _interp_from(method));
+}
+
+inline Image translate(const Image& src, double tx, double ty) {
+    double M[6] = {1, 0, tx, 0, 1, ty};
+    return _warp_affine(src, M, src.w, src.h, Interp::BILINEAR);
+}
+
+inline Image shear(const Image& src, double shx = 0.0, double shy = 0.0,
+                   const std::string& method = "bilinear") {
+    double M[6] = {1, shx, 0, shy, 1, 0};
+    return _warp_affine(src, M, src.w, src.h, _interp_from(method));
+}
+
+// mm.rotate(img, angle) — graus, sentido anti-horário, em torno do centro
+// (w/2, h/2) com divisão inteira; mesma matriz de cv2.getRotationMatrix2D.
+inline Image rotate(const Image& src, double angle_deg, double scale = 1.0,
+                    const std::string& interp = "bilinear") {
+    double cx = src.w / 2, cy = src.h / 2;   // int / int — casa com morph.py (w//2)
+    double rad = angle_deg * 3.14159265358979323846 / 180.0;
+    double alpha = scale * std::cos(rad), beta = scale * std::sin(rad);
+    double M[6] = {
+        alpha, beta,  (1 - alpha) * cx - beta * cy,
+        -beta, alpha, beta * cx + (1 - alpha) * cy
+    };
+    return _warp_affine(src, M, src.w, src.h, _interp_from(interp));
+}
+
+// Recorte retangular [y0:y1, x0:x1] — equivalente ao fatiamento numpy
+// img[y0:y1, x0:x1]. Índices são clampados aos limites da imagem.
+inline Image crop(const Image& src, int y0, int y1, int x0, int x1) {
+    y0 = std::max(0, std::min(y0, src.h)); y1 = std::max(y0, std::min(y1, src.h));
+    x0 = std::max(0, std::min(x0, src.w)); x1 = std::max(x0, std::min(x1, src.w));
+    Image out(y1 - y0, x1 - x0, src.channels);
+    for (int y = 0; y < out.h; ++y)
+        for (int x = 0; x < out.w; ++x)
+            for (int ch = 0; ch < src.channels; ++ch)
+                out.at(y, x, ch) = src.at(y0 + y, x0 + x, ch);
+    return out;
+}
+
+// mm.subsample(img, f) — subamostragem por passo f (numpy img[::f, ::f]).
+inline Image subsample(const Image& src, int f) {
+    f = std::max(1, f);
+    Image out((src.h + f - 1) / f, (src.w + f - 1) / f, src.channels);
+    for (int y = 0; y < out.h; ++y)
+        for (int x = 0; x < out.w; ++x)
+            for (int ch = 0; ch < src.channels; ++ch)
+                out.at(y, x, ch) = src.at(y * f, x * f, ch);
+    return out;
+}
+
+// mm.secross() — elemento estruturante em cruz 3x3 (vizinhança-4) como
+// matriz 0/1. Retorna Image (não SE): no livro é usada só pra visualização
+// com drawImgPlt, igual à morph.py.
+inline Image secross(int = 0) {
+    Image s(3, 3, 1);
+    const int cross[9] = {0,1,0, 1,1,1, 0,1,0};
+    for (int i = 0; i < 9; ++i) s.data[i] = (unsigned char)cross[i];
+    return s;
+}
+
+// Mini-fonte 3x5 (dígitos 0-9 e '-') pra rotular células em drawImgPlt —
+// morph.hpp não linka nenhuma lib de fontes.
+inline void _blit_int(Image& canvas, char ch, int ox, int oy, int px) {
+    static const char* F[] = {
+        "111101101101111", "010110010010111", "111001111100111",
+        "111001111001111", "101101111001001", "111100111001111",
+        "111100111101111", "111001010010010", "111101111101111",
+        "111101111001111", "000000111000000"
+    };
+    int gi;
+    if (ch >= '0' && ch <= '9') gi = ch - '0';
+    else if (ch == '-')         gi = 10;
+    else                        return;
+    const char* g = F[gi];
+    for (int r = 0; r < 5; ++r)
+        for (int cc = 0; cc < 3; ++cc)
+            if (g[r * 3 + cc] == '1')
+                for (int dy = 0; dy < px; ++dy)
+                    for (int dx = 0; dx < px; ++dx) {
+                        int yy = oy + r * px + dy, xx = ox + cc * px + dx;
+                        if (yy < 0 || yy >= canvas.h || xx < 0 || xx >= canvas.w) continue;
+                        for (int k = 0; k < canvas.channels; ++k) canvas.at(yy, xx, k) = 0;
+                    }
+}
+
+// mm.drawImgPlt(f, scale) — grade textual no stdout + PNG com a matriz
+// ampliada, linhas de grade vermelhas e o valor de cada célula rotulado.
+inline void drawImgPlt(const Image& f, const std::string& out_path, int scale = 40) {
+    std::cout << drawImg(f);
+    int cell = std::max(24, scale);
+    int pad  = cell / 2;
+    int W = f.w * cell + 2 * pad, H = f.h * cell + 2 * pad;
+    Image canvas(H, W, 3);
+    std::fill(canvas.data.begin(), canvas.data.end(), (unsigned char)255);
+
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            unsigned char v = f.at(y, x);
+            for (int dy = 0; dy < cell; ++dy)
+                for (int dx = 0; dx < cell; ++dx)
+                    for (int k = 0; k < 3; ++k)
+                        canvas.at(pad + y * cell + dy, pad + x * cell + dx, k) = v;
+        }
+
+    auto hline = [&](int yy){ for (int x = 0; x < W; ++x){ canvas.at(yy,x,0)=255; canvas.at(yy,x,1)=0; canvas.at(yy,x,2)=0; } };
+    auto vline = [&](int xx){ for (int y = 0; y < H; ++y){ canvas.at(y,xx,0)=255; canvas.at(y,xx,1)=0; canvas.at(y,xx,2)=0; } };
+    for (int i = 0; i <= f.w; ++i) vline(std::min(W - 1, pad + i * cell));
+    for (int j = 0; j <= f.h; ++j) hline(std::min(H - 1, pad + j * cell));
+
+    int px = std::max(1, cell / 10);
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x) {
+            std::string s = std::to_string((int)f.at(y, x));
+            int tw = (int)s.size() * 4 * px, th = 5 * px;
+            int ox = pad + x * cell + (cell - tw) / 2;
+            int oy = pad + y * cell + (cell - th) / 2;
+            for (int by = -1; by <= th; ++by)
+                for (int bx = -1; bx <= tw; ++bx) {
+                    int yy = oy + by, xx = ox + bx;
+                    if (yy < 0 || yy >= H || xx < 0 || xx >= W) continue;
+                    canvas.at(yy, xx, 0) = canvas.at(yy, xx, 1) = canvas.at(yy, xx, 2) = 255;
+                }
+            for (size_t ci = 0; ci < s.size(); ++ci)
+                _blit_int(canvas, s[ci], ox + (int)ci * 4 * px, oy, px);
+        }
     write(canvas, out_path);
 }
 
