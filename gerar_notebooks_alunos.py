@@ -1997,16 +1997,30 @@ def process_notebook(nb_path: Path, bib: dict, out_path: Path,
 # 13. Copia imagens
 # ---------------------------------------------------------------------------
 
+def _locale_override(path: Path) -> Path:
+    """
+    Mesma convenção de all/capXX/imagens/ usada pelo pipeline do livro
+    (pipeline/quarto_builder.py::_locale_asset / _symlink_imagens_locale_aware):
+    se existir <nome>.<locale><ext> ao lado do arquivo pedido, usa esse;
+    senão usa o arquivo pt (base) mesmo. Sem isso, os notebooks de aluno
+    en/fr saiam sempre com a imagem em português.
+    """
+    if _CURRENT_LOCALE == "pt":
+        return path
+    localized = path.parent / f"{path.stem}.{_CURRENT_LOCALE}{path.suffix}"
+    return localized if localized.exists() else path
+
+
 def copy_images(nb_source_dir: Path, out_dir: Path, image_paths: list):
     for img_rel in image_paths:
-        src = nb_source_dir / img_rel
+        src = _locale_override(nb_source_dir / img_rel)
         dst = out_dir / img_rel
         if src.exists() and src.resolve() != dst.resolve():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
             print(f"  -> Imagem: {img_rel}")
         elif not src.exists():
-            alt_src = Path(img_rel)
+            alt_src = _locale_override(Path(img_rel))
             if alt_src.exists() and alt_src.resolve() != dst.resolve():
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(alt_src, dst)
@@ -2158,16 +2172,23 @@ def run_batch_epub(bib_path: str, out_dir: str):
 
 def run_batch(bib_path: str, out_dir: str,
               numbering: bool = True, target_lang: str = "py",
-              locale: str = "pt"):
+              locale: str = "pt", cap_filter: str | None = None):
     global _CURRENT_LOCALE
     _CURRENT_LOCALE = locale
     bib = parse_bib(bib_path)
     out_root = Path(out_dir)
     EXCLUDE = ("_dist", "_executado", "_fixed")
     notebooks = _find_notebooks(EXCLUDE)
-    
+
+    if cap_filter:
+        # Filtra pra 1 capítulo (build rápido, ex.: `make cap01 cpp.pt`) — o
+        # nome do diretório-pai é o próprio capítulo (all/capXX/capXX.ipynb),
+        # então isso também exclui apêndices sem precisar de lógica à parte.
+        notebooks = [p for p in notebooks if p.parent.name == cap_filter]
+
     if not notebooks:
-        print("Nenhum notebook encontrado com os padroes: "
+        alvo = f" para '{cap_filter}'" if cap_filter else ""
+        print(f"Nenhum notebook encontrado{alvo} com os padroes: "
               "all/cap*/cap*.ipynb , all/apendices/*/*.ipynb")
         return
 
@@ -2330,6 +2351,8 @@ def main():
                         help="Locale do conteúdo (pt, en, fr) — lê de gen/<lang>.<locale>/")
     parser.add_argument("--lang", default="py",
                     help="Linguagem alvo para filtro #[lang]# (padrão: py)")
+    parser.add_argument("--cap", default=None,
+                    help="Só este capítulo no modo --batch (ex.: cap01) — build rápido de 1 capítulo")
 
     parser.add_argument("bib", help="Caminho para o references.bib")
     parser.add_argument("--output", "-o", help="Saida do .ipynb no modo unico")
@@ -2341,7 +2364,8 @@ def main():
     if args.epub:
         run_batch_epub(args.bib, args.out_dir)
     elif args.batch:
-        run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang, locale=args.locale)
+        run_batch(args.bib, args.out_dir, numbering=numbering, target_lang=args.lang,
+                  locale=args.locale, cap_filter=args.cap)
     else:
         if not args.notebook:
             parser.error("Informe o notebook ou use --batch ou --epub")

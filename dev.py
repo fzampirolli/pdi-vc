@@ -280,7 +280,8 @@ def audit_cache(sources: list[Path], combos: list[Combo],
 
 def run_build(sources: list[Path], combos: list[Combo],
               processor: NotebookProcessor, quarto_builder: QuartoBuilder,
-              render_fmt: str | None, verbose: bool) -> dict[str, Path]:
+              render_fmt: str | None, verbose: bool,
+              include_apendices: bool = True) -> dict[str, Path]:
     """Executa build completo; retorna {combo.key: quarto_dir}."""
     quarto_dirs: dict[str, Path] = {}
 
@@ -298,7 +299,7 @@ def run_build(sources: list[Path], combos: list[Combo],
             out = build_notebook(nb_path, combo, processor)
             print(f'  ✓ {out}')
 
-        qdir = quarto_builder.build(combo)
+        qdir = quarto_builder.build(combo, include_apendices=include_apendices)
         quarto_dirs[combo.key] = qdir
 
         if render_fmt:
@@ -376,6 +377,8 @@ def main():
                         help='Renderizar Quarto após build (padrão: apenas gera notebooks)')
     parser.add_argument('--once', action='store_true',
                         help='Build único, sem entrar no loop de watch')
+    parser.add_argument('--no-apendices', action='store_true',
+                        help='Não inclui os apêndices no livro (build rápido de 1 capítulo)')
     parser.add_argument('--promote-edits', action='store_true',
                         help='Grava no cache as edições manuais feitas em gen/*.ipynb '
                              '(não gera nem builda nada — ver README § Editando o conteúdo gerado)')
@@ -443,7 +446,8 @@ def main():
 
     # ── Build inicial ─────────────────────────────────────────────────────────
     quarto_dirs = run_build(sources, combos, processor, builder,
-                            args.render, args.verbose)
+                            args.render, args.verbose,
+                            include_apendices=not args.no_apendices)
     cache.save()
 
     if args.once:

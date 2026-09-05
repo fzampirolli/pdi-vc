@@ -531,12 +531,23 @@ def _extract_comment_spans(source: str) -> list[tuple[int, int, str]]:
     try:
         for tok in tokenize.generate_tokens(io.StringIO(source).readline):
             if tok.type == tokenize.COMMENT:
-                # `#| label: fig-...` é o identificador de cross-reference
-                # Quarto — nunca pode mudar por locale (usado por @fig-...
-                # no texto, e pelo pareamento de nome de arquivo em
-                # _symlink_imagens_locale_aware/_screenshot_png_path). Só
-                # `#| fig-cap: "..."` (a legenda) deve mesmo ser traduzida.
-                if re.match(r'#\|\s*label\s*:', tok.string):
+                # Diretivos de célula Quarto (`#| chave: valor`) são, por
+                # padrão, dados de máquina — não texto — e nunca podem
+                # passar pelo LLM: `label:` é o identificador de
+                # cross-reference (usado por @fig-... e pelo pareamento de
+                # nome de arquivo em _symlink_imagens_locale_aware /
+                # _screenshot_png_path); `echo:`/`eval:`/`output:`/
+                # `quarto-raw:` são booleanos literais (`true`/`false`) que
+                # o Quarto exige inalterados — um build fr real pegou
+                # `quarto-raw: true` virando `quarto-raw: vrai`, quebrando o
+                # parser de fenced div (só aparece em locales onde "true"
+                # tem tradução; en mascarava o bug por coincidência).
+                # `out-width:` é um valor numérico/percentual. Só
+                # `fig-cap:`/`tbl-cap:` (a legenda) têm texto de verdade e
+                # devem mesmo ser traduzidos — protege por padrão, com essas
+                # duas exceções, em vez de tentar listar cada diretivo de
+                # dado que possa aparecer no futuro.
+                if re.match(r'#\|\s*[a-zA-Z_-]+\s*:', tok.string) and not re.match(r'#\|\s*(fig-cap|tbl-cap)\s*:', tok.string):
                     continue
                 spans.append((_offset(*tok.start), _offset(*tok.end), tok.string))
     except (tokenize.TokenError, IndentationError, SyntaxError):

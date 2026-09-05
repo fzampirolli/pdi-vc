@@ -11,6 +11,24 @@
 LANGS   ?= py
 LOCALES ?= pt
 
+# ── Atalho de combo "lang.locale" (ex.: make build cpp.pt) ────────────────────
+# Qualquer argumento extra no formato lang.locale (contém um ".") vira LANGS/
+# LOCALES automaticamente, valendo pra qualquer target abaixo — equivalente a
+# escrever LANGS=cpp LOCALES=pt na mão. Múltiplos combos (ex.: "cpp.pt py.en")
+# combinam em produto cartesiano de LANGS×LOCALES (mesmo comportamento de
+# LANGS=cpp,py LOCALES=pt,en — não são pares exatos); um único combo não tem
+# essa ambiguidade.
+empty :=
+SPACE := $(empty) $(empty)
+COMMA := ,
+COMBO_GOALS := $(strip $(foreach g,$(MAKECMDGOALS),$(if $(findstring .,$(g)),$(g))))
+ifneq ($(COMBO_GOALS),)
+LANGS   := $(subst $(SPACE),$(COMMA),$(sort $(foreach c,$(COMBO_GOALS),$(firstword $(subst ., ,$(c))))))
+LOCALES := $(subst $(SPACE),$(COMMA),$(sort $(foreach c,$(COMBO_GOALS),$(word 2,$(subst ., ,$(c))))))
+$(COMBO_GOALS):
+	@:
+endif
+
 PY      = python dev.py
 
 # TinyTeX na frente do PATH para garantir lualatex correto
@@ -30,6 +48,20 @@ pdf:
 .PHONY: all-formats
 all-formats:
 	$(PY) --langs $(LANGS) --locales $(LOCALES) --render all
+
+# ── Build rápido de 1 capítulo ────────────────────────────────────────────────
+# HTML do capítulo pedido (+ EPs dele, se existir) + notebook do aluno — sem
+# tocar all/ (nenhum rename de pasta), sem apêndices e sem eps-all/moodle-all/
+# sims-all/index (que varrem TODOS os capítulos de TODOS os combos já gerados
+# em gen/book/, não só este). Uso:
+#   make cap01 cpp.pt
+#   make cap03            (usa LANGS/LOCALES default ou já setados)
+cap%:
+	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html --no-apendices \
+		all/cap$*/cap$*.ipynb \
+		$(wildcard all/cap$*/cap$*.EPs.ipynb)
+	python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos \
+		--lang $(LANGS) --locale $(LOCALES) --cap cap$*
 
 # ── Build único ───────────────────────────────────────────────────────────────
 .PHONY: build
@@ -223,3 +255,8 @@ help:
 	@echo ""
 	@echo "  💡 Overrides: make build LANGS=cpp LOCALES=en"
 	@echo "                make moodle BASE_URL=https://meusite.com/eps/py.en"
+	@echo "  💡 Atalho:    make build cpp.pt   (== LANGS=cpp LOCALES=pt)"
+	@echo "                make html cpp.pt"
+	@echo ""
+	@echo "  ⚡ Build de 1 capítulo (rápido, sem eps/moodle/sims/index):"
+	@echo "  make cap01 cpp.pt        → só HTML do cap01 (+ EPs dele)"

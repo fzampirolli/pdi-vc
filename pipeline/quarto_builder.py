@@ -169,6 +169,20 @@ def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
 #     content = content.replace('{{locale_label}}', locale_label)
 #     return content
 
+# Override de front-matter YAML por página, pra desligar `code-tools` em
+# páginas sem NENHUMA célula de código executável (prefácio, ficha
+# catalográfica, referências, apêndices estáticos). Achado real: com
+# `code-tools: true` ligado no nível do livro (format.html), o Quarto quebra
+# o parsing de fenced div (`::: {.callout-*}`) especificamente em páginas
+# .qmd puras sem código — o `:::` vaza como texto literal em vez de virar a
+# caixa colorida. Confirmado com um book mínimo reproduzível (1 página, 1
+# callout, só `code-tools: true`) — não depende de tradução, filtro custom
+# ou include-in-header; reproduz até em pt. Não afeta os capítulos (vêm de
+# .ipynb, sempre têm células de código). Front-matter por documento
+# sobrescreve a config do livro pra essa página específica.
+_NO_CODE_TOOLS_FM = '---\ncode-tools: false\n---\n\n'
+
+
 def _prefacio_qmd(combo: Combo) -> str:
     """
     Lê o prefácio do arquivo includes/prefacio.qmd e acrescenta o gatilho
@@ -185,7 +199,7 @@ def _prefacio_qmd(combo: Combo) -> str:
         '\\mainmatter\n'
         '```\n'
     )
-    return content
+    return _NO_CODE_TOOLS_FM + content
 
 APENDICES_ROOT = Path('all/apendices')
 
@@ -241,18 +255,19 @@ def _read_apendice_qmd(path: Path, combo: Combo) -> Optional[str]:
     content = content.replace('{{lang_label}}', lang_label)
     locale_label = LOCALES[combo.locale].label
     content = content.replace('{{locale_label}}', locale_label)
-    return content
+    return _NO_CODE_TOOLS_FM + content
 
 def _ficha_catalografica_qmd(combo: Combo) -> Optional[str]:
     """
     Lê a ficha catalográfica de includes/ficha_catalografica.qmd.
     Retorna None se o arquivo não existir (nesse caso, a página não é incluída).
     """
-    return _read_include_qmd('ficha_catalografica.qmd', combo)
+    content = _read_include_qmd('ficha_catalografica.qmd', combo)
+    return None if content is None else _NO_CODE_TOOLS_FM + content
 
 def _refs_qmd(combo: Combo) -> str:
     title = UI_STRINGS[combo.locale].get('references_title', 'Referências')
-    return f'# {title} {{.unnumbered}}\n\n::: {{#refs}}\n:::\n'
+    return _NO_CODE_TOOLS_FM + f'# {title} {{.unnumbered}}\n\n::: {{#refs}}\n:::\n'
 
 
 def _process_attachments(combo: Combo, nb_root: Path, qdir: Path, all_root: Path):
@@ -311,7 +326,8 @@ class QuartoBuilder:
     def __init__(self, project_root: Path = Path('.')):
         self.root = project_root.resolve()
 
-    def build(self, combo: Combo, nb_root: Optional[Path] = None, all_root: Optional[Path] = None) -> Path:
+    def build(self, combo: Combo, nb_root: Optional[Path] = None, all_root: Optional[Path] = None,
+              include_apendices: bool = True) -> Path:
         nb_root = nb_root or (self.root / DIR_GEN / combo.key)
         all_root = all_root or (self.root / 'all')
         qdir    = self.root / DIR_GEN / 'quarto' / combo.key
@@ -329,7 +345,11 @@ class QuartoBuilder:
         (qdir / 'referencias.qmd').write_text(_refs_qmd(combo), encoding='utf-8')
 
         # ── Apêndices do livro (all/apendices/apendice_a_*.qmd, .../apendice_f/, ...) ──
-        apendice_files = self._write_apendice_entries(qdir, combo, nb_root)
+        # Puláveis via include_apendices=False (ex.: build rápido de 1 capítulo,
+        # `make capNN`) — não fazem parte do capítulo pedido e alguns são
+        # notebooks executáveis, custando tempo de render à toa nesse caso.
+        apendice_files = (self._write_apendice_entries(qdir, combo, nb_root)
+                           if include_apendices else [])
 
         (qdir / 'mainmatter.qmd').write_text(_mainmatter_qmd(), encoding='utf-8')
 
