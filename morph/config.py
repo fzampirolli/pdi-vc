@@ -1,7 +1,32 @@
 """Configuração do ambiente (OpenCV, morph.py e, opcionalmente, testsuite.py)."""
-import os, sys, subprocess, importlib, urllib.request
+import os, sys, subprocess, importlib, shutil, urllib.request
 
 BASE_URL = "https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph"
+
+# Timeout (segundos) de cada download. `urllib.request.urlretrieve` NÃO
+# aceita timeout e, sem ele, um `raw.githubusercontent.com` inacessível
+# deixa a célula pendurada pra sempre, sem erro nem saída — foi exatamente
+# o que travou o bootstrap C++ quando as cópias locais de morph.py/
+# testsuite.py não estavam presentes. Com timeout, falha rápido e claro.
+DOWNLOAD_TIMEOUT = 20
+
+
+def _fetch(url, dest, timeout=DOWNLOAD_TIMEOUT):
+    """
+    Baixa `url` para `dest` com timeout de conexão/leitura. Substitui
+    `urllib.request.urlretrieve`, que ignora timeout. Escreve num arquivo
+    temporário e só renomeia no fim, pra nunca deixar um `dest` truncado
+    se a conexão cair no meio.
+    """
+    tmp = f"{dest}.part"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp, open(tmp, "wb") as out:
+            shutil.copyfileobj(resp, out)
+        os.replace(tmp, dest)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
 
 OPENCV_PACKAGE = "opencv-contrib-python"   # antes: "opencv-python" — Haar/HOG (CascadeClassifier)
 OPENCV_VERSION = "5.0.0.93"                # foram movidos para opencv_contrib no OpenCV 5.0
@@ -177,7 +202,7 @@ def setup(testsuite=False, demo=False, cpp=False):
     for f in files:
         if not os.path.exists(f):
             try:
-                urllib.request.urlretrieve(f"{BASE_URL}/{f}", f)
+                _fetch(f"{BASE_URL}/{f}", f)
             except Exception as e:
                 if not os.path.exists(f):
                     raise RuntimeError(_msg("download_fail", file=f)) from e
@@ -189,7 +214,7 @@ def setup(testsuite=False, demo=False, cpp=False):
         for f in ["morph.hpp", "stb_image.h", "stb_image_write.h"]:
             if not os.path.exists(f):
                 try:
-                    urllib.request.urlretrieve(f"{BASE_URL}/cpp/{f}", f)
+                    _fetch(f"{BASE_URL}/cpp/{f}", f)
                 except Exception as e:
                     if not os.path.exists(f):
                         raise RuntimeError(_msg("download_fail", file=f)) from e
