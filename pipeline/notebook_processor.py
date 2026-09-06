@@ -211,6 +211,37 @@ def _is_eligible_for_foreign_expansion(src: str) -> bool:
     return True
 
 
+# Bloco `HTML(""" ... """)` inteiro (aspas triplas, prefixo r/f opcional),
+# pra checar o que sobra de código FORA da string do widget.
+_HTML_WIDGET_BLOCK_RE = re.compile(
+    r'HTML\(\s*[a-zA-Z]{0,2}("""|\'\'\')(?:.|\n)*?\1\s*\)'
+)
+
+
+def _is_pure_html_widget(src: str) -> bool:
+    """
+    True se a célula só monta um simulador interativo via
+    `IPython.display.HTML` com string de aspas triplas — sem nenhuma lógica
+    matplotlib/cv2/mm FORA da string do widget (imports e o próprio
+    `HTML(...)` não contam).
+
+    É apresentação pura: roda idêntica no kernel python3 de QUALQUER combo,
+    então nunca deve virar `_reference_only_cell` (que carimba
+    `#| eval: false`). Sem executar, o widget não gera figura, o float
+    `#| label:` fica órfão e todo `@fig-...-sim-...` do texto vira
+    referência quebrada (`?fig-...`) no livro C++. Ver
+    `_passthrough_widget_cell`.
+    """
+    if not _HTML_TRIPLE_RE.search(src):
+        return False
+    residual = _HTML_WIDGET_BLOCK_RE.sub('', src)
+    if _PLT_RE.search(residual) or _CV2_RE.search(residual):
+        return False
+    if _MM_CALL_RE.search(residual):
+        return False
+    return True
+
+
 # ── Estado mm::Image entre células (combos cpp) ─────────────────────────────
 #
 # Cada célula elegível vira um programa C++ standalone (`!g++ ... && ./...`),
@@ -753,6 +784,19 @@ class NotebookProcessor:
         _set_source(ref_cell, final_src)
         return [ref_cell]
 
+    def _passthrough_widget_cell(self, cell, src: str, combo: Combo):
+        """
+        Simulador HTML puro (ver `_is_pure_html_widget`): mantém a célula
+        Python EXECUTÁVEL, só com os textos no locale do combo (mesmo
+        mecanismo py→py de `_reference_only_cell`), mas SEM `#| eval: false`
+        e SEM cabeçalho de "não portado" — o widget precisa executar pra a
+        figura `#| label:` existir e `@fig-...-sim-...` resolver no livro C++.
+        """
+        out = copy.deepcopy(cell)
+        py_tr = self._factory.code_translator(BASE_LANG, combo.locale)
+        _set_source(out, py_tr.translate(src))
+        return [out]
+
     def _iter_foreign_candidate_cells(self, nb, combo: Combo) -> list:
         """
         Replica, sem produzir saída, os mesmos filtros que o loop principal
@@ -853,6 +897,8 @@ class NotebookProcessor:
         entre células) e em snuggly-wishing-origami.md pro desenho original.
         """
         if not _is_eligible_for_foreign_expansion(src):
+            if _is_pure_html_widget(src):
+                return self._passthrough_widget_cell(cell, src, combo)
             return self._reference_only_cell(cell, src, combo)
 
         ext = LANGUAGES[combo.lang].extension

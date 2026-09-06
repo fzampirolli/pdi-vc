@@ -147,7 +147,7 @@ docs/
     │                          #   py.fr, cpp.pt, cpp.en, cpp.fr}
     ├── book-latex/            # Fontes .tex, PDFs e figuras geradas via LaTeX
     ├── livro.<locale>.<lang>.pdf   # PDF do combo
-    ├── cap01/ … cap09/        # Capítulos em HTML (cpp: só cap01)
+    ├── cap01/ … cap09/        # Capítulos em HTML (cpp: só cap01 e cap02)
     └── site_libs/             # Bibliotecas estáticas (Bootstrap, Quarto Search…)
 ```
 
@@ -385,18 +385,18 @@ Diferente de uma tradução decorativa, o combo `cpp` já **compila e executa de
 1. **Elegibilidade** (`pipeline/notebook_processor.py::_is_eligible_for_foreign_expansion`) — calculada sempre sobre o **código Python original**, nunca sobre a saída do LLM. Uma célula só é candidata se não usar `cv2.*`/`matplotlib` diretamente, não montar `HTML("""...""")` (simulador interativo — não faz sentido em C++ e travaria esperando `stdin`), e só chamar funções `mm.*` da lista com equivalente em C++.
 2. **Tradução** (`pipeline/translators.py::LLMCodeTranslator`) — o LLM recebe uma *cheat-sheet* da API real de `morph.hpp`, com regra explícita de nunca inventar função fora da lista.
 3. **Validação por compilação** (`pipeline/exec_validate.py::compile_check`) — a tradução só é aceita e cacheada se **compilar de verdade** (`g++` num diretório temporário). Nenhuma tradução quebrada é publicada; falhas nunca são cacheadas (tentam de novo no próximo build, caso um ajuste de prompt/biblioteca resolva).
-4. **Fallback seguro**: célula inelegível ou que não compilou vira uma única célula de referência — o Python original, com `#| eval: false` (nunca executada) e um comentário deixando claro que é conceitual, não a fonte da figura ao lado.
+4. **Fallback seguro**: célula inelegível ou que não compilou vira uma única célula de referência — o Python original, com `#| eval: false` (nunca executada) e um comentário deixando claro que é conceitual, não a fonte da figura ao lado. **Exceção**: célula que só monta um simulador `HTML(...)` (sem lógica `mm`/`cv2`/`plt` fora da string) passa executável, sem `#| eval: false` — senão o float `#| label:` fica órfão e todo `@fig-…-sim-…` do texto vira referência quebrada (`_is_pure_html_widget`/`_passthrough_widget_cell` em `notebook_processor.py`).
 
-**`morph/cpp/morph.hpp`** é a porta mínima da `morph.py` pra C++ — só as 7 funções usadas no cap01: `read` (com download por URL via `fork`/`execlp`, sem shell), `gray`, `randomImage`, `show`, `write`, `threshold` (com Otsu quando o limiar é omitido), `drawImg`. Usa `stb_image`/`stb_image_write` vendorizadas (`morph/cpp/THIRD_PARTY_LICENSES.md`) — sem depender de OpenCV, então `g++ arquivo.cpp -o arquivo` compila sem `apt install` adicional.
+**`morph/cpp/morph.hpp`** é a porta mínima da `morph.py` pra C++. Núcleo do cap01: `read` (com download por URL via `fork`/`execlp`, sem shell), `gray`, `randomImage`, `show`, `write`, `threshold` (com Otsu quando o limiar é omitido), `drawImg`. Cap02 acrescenta as transformações geométricas e utilitários de amostragem: `resize`, `translate`, `rotate`, `shear`, `crop`, `subsample`, `secross`, `drawImgPlt` (e a família `dil`/`ero` já está no header, mas é conteúdo do cap04, ainda fora de escopo). Usa `stb_image`/`stb_image_write` vendorizadas (`morph/cpp/THIRD_PARTY_LICENSES.md`) — sem depender de OpenCV, então `g++ arquivo.cpp -o arquivo` compila sem `apt install` adicional.
 
-**Escopo atual (v0):** só cap01, só essas 7 funções. **Limitação estrutural conhecida:** cada célula compila como programa C++ isolado (mesmo modelo do EP01_01) — uma célula que reusa uma variável definida numa célula Python anterior (ex.: `img`) não enxerga esse estado e cai em referência não-executada.
+**Escopo atual (v0):** cap01 e cap02 (ver `CPP_CHAPTERS` em `pipeline/config.py`). **Limitação estrutural conhecida:** cada célula compila como programa C++ isolado (mesmo modelo do EP01_01); a reutilização de uma variável `mm::Image` de uma célula anterior é reinjetada mecanicamente via round-trip em disco (`state/<var>_<idx>.png`), e casos fora desse padrão caem em referência não-executada. Simuladores interativos (`HTML(...)`) são apresentação pura e passam sem tradução (executam no kernel Python de qualquer combo); células que dependem de `cv2`/`skimage` sem equivalente no `morph.hpp` permanecem como referência Python.
 
 ```bash
 # Gerar o capítulo 1 em C++ (PT), HTML apenas
 python dev.py --once --langs cpp --locales pt --render html
 
 # Build completo dos 6 combos em produção: py × pt,en,fr (9 caps) e
-# cpp × pt,en,fr (só cap01), HTML+PDF
+# cpp × pt,en,fr (só cap01 e cap02), HTML+PDF
 ./utils/rebuild.sh py,cpp pt,en,fr
 ```
 

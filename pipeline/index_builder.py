@@ -567,19 +567,21 @@ class IndexBuilder:
     }
 
     # Nota extra só para os combos C++: a portabilidade ainda é parcial —
-    # apenas o cap01 passou pela validação de ponta a ponta (as células de
-    # código C++ compilam e executam de verdade via g++). Prependida à dica
-    # genérica, no idioma da própria versão.
+    # só os capítulos em CPP_CHAPTERS (pipeline/config.py) passaram pela
+    # validação de ponta a ponta (as células de código C++ compilam e
+    # executam de verdade via g++). Prependida à dica genérica, no idioma
+    # da própria versão. Manter em sincronia com CPP_CHAPTERS.
     CPP_VALIDATION_NOTE: Dict[str, str] = {
-        'pt': ('⚙️ C++: por enquanto só o Capítulo 1 foi validado — nele as '
-               'células de código C++ compilam e executam de verdade (g++). '
-               'Os demais capítulos ainda não foram portados para C++.\n\n'),
-        'en': ('⚙️ C++: for now only Chapter 1 has been validated — there its '
-               'C++ code cells really compile and run (g++). The remaining '
-               'chapters have not been ported to C++ yet.\n\n'),
-        'fr': ('⚙️ C++ : pour l\'instant seul le chapitre 1 a été validé — ses '
-               'cellules de code C++ compilent et s\'exécutent réellement (g++). '
-               'Les autres chapitres n\'ont pas encore été portés en C++.\n\n'),
+        'pt': ('⚙️ C++: por enquanto só os Capítulos 1 e 2 foram validados — '
+               'neles as células de código C++ compilam e executam de verdade '
+               '(g++). Os demais capítulos ainda não foram portados para C++.\n\n'),
+        'en': ('⚙️ C++: for now only Chapters 1 and 2 have been validated — '
+               'there the C++ code cells really compile and run (g++). The '
+               'remaining chapters have not been ported to C++ yet.\n\n'),
+        'fr': ('⚙️ C++ : pour l\'instant seuls les chapitres 1 et 2 ont été '
+               'validés — leurs cellules de code C++ compilent et s\'exécutent '
+               'réellement (g++). Les autres chapitres n\'ont pas encore été '
+               'portés en C++.\n\n'),
     }
 
     def _build_validation_hint(self, v: Dict) -> str:
