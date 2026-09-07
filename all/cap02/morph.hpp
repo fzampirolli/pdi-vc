@@ -233,6 +233,18 @@ inline Image _read_state(const std::string& path) {
 
 inline Image gray(const Image& img) {
     if (img.channels == 1) return img;
+#ifdef MM_USE_OPENCV
+    // cv::cvtColor usa ponto-fixo Q14 com arredondamento — bate bit a bit
+    // com o cv2.cvtColor(COLOR_RGB2GRAY) da trilha py. Sem o macro, o loop
+    // abaixo (float truncado) difere ~±1 em ~metade dos pixels.
+    cv::Mat m(img.h, img.w, img.channels == 3 ? CV_8UC3 : CV_8UC4,
+              const_cast<unsigned char*>(img.data.data()));
+    cv::Mat o;
+    cv::cvtColor(m, o, img.channels == 3 ? cv::COLOR_RGB2GRAY : cv::COLOR_RGBA2GRAY);
+    Image out(img.h, img.w, 1);
+    std::memcpy(out.data.data(), o.data, out.data.size());
+    return out;
+#else
     Image out(img.h, img.w, 1);
     for (int y = 0; y < img.h; ++y)
         for (int x = 0; x < img.w; ++x) {
@@ -242,6 +254,7 @@ inline Image gray(const Image& img) {
             out.at(y, x) = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
         }
     return out;
+#endif
 }
 
 inline Image randomImage(int h, int w, int maxValue = 9) {
@@ -1008,11 +1021,19 @@ inline Image equalize(const Image& img, int B = 8) {
 //   4. por pixel: interpolação bilinear entre as 4 LUTs de bloco vizinhas,
 //      com o mesmo mapeamento de coordenadas do OpenCV (x/tw − 0.5, floor,
 //      pesos antes do clamp dos índices de bloco).
-// Não é bit-idêntico ao cv2 (arredondamento interno e ordem de redistribuição
-// do resíduo diferem), mas fica dentro de ±1 na esmagadora maioria dos pixels
-// e o T* de Otsu resultante coincide.
+// Sem MM_USE_OPENCV NÃO é bit-idêntico ao cv2 (arredondamento interno e ordem
+// de redistribuição do resíduo diferem), mas fica dentro de ±1 na esmagadora
+// maioria dos pixels e o T* de Otsu resultante coincide. COM MM_USE_OPENCV
+// delega a cv::createCLAHE → idêntico à trilha py.
 inline Image clahe(const Image& img, double clipLimit = 2.0, int tiles = 8) {
     Image src = (img.channels == 1) ? img : gray(img);
+#ifdef MM_USE_OPENCV
+    cv::Mat m(src.h, src.w, CV_8UC1, src.data.data()), out;
+    cv::createCLAHE(clipLimit, cv::Size(std::max(tiles, 1), std::max(tiles, 1)))->apply(m, out);
+    Image r(src.h, src.w, 1);
+    std::memcpy(r.data.data(), out.data, r.data.size());
+    return r;
+#else
     const int H = src.h, W = src.w;
     const int tilesX = std::max(tiles, 1), tilesY = std::max(tiles, 1);
 
@@ -1091,6 +1112,7 @@ inline Image clahe(const Image& img, double clipLimit = 2.0, int tiles = 8) {
         }
     }
     return out;
+#endif
 }
 
 // mm.histImg — renderiza o histograma 256-bin como PNG de barras (para mm::show).
@@ -1335,14 +1357,21 @@ inline Image blackhat(const Image& f, SE b = SE::box(3)) { return subm(close(f, 
 // seq: "OC" | "CO" | "OCO" | "COC"; n passes com SE crescente (Minkowski).
 inline SE _se_grow(SE b, int times) {
     if (times <= 0) return b;
+    // "dentro do SE" = peso não é NP_NONE (fora) NEM 0 (planar-fora). Antes
+    // testava só `!= NP_NONE`, o que incluía os 0s do SE planar (sedisk/
+    // secross vêm de Image → vals ∈ {0,1}) e inflava a semente pra uma caixa
+    // cheia — divergia da soma de Minkowski da trilha py (mm.sesum).
     Image m(b.h, b.w, 1);
-    for (int i = 0; i < b.h * b.w; ++i) m.data[i] = (unsigned char)(b.at(i / b.w, i % b.w) != SE::NP_NONE);
+    for (int i = 0; i < b.h * b.w; ++i) {
+        int v = b.at(i / b.w, i % b.w);
+        m.data[i] = (unsigned char)(v != SE::NP_NONE && v != 0);
+    }
     for (int t = 0; t < times; ++t) {
         int ph = b.h / 2, pw = b.w / 2;
         Image p(m.h + 2 * ph, m.w + 2 * pw, 1);
         for (int y = 0; y < m.h; ++y)
             for (int x = 0; x < m.w; ++x) p.at(y + ph, x + pw) = m.at(y, x);
-        m = dil0(p, SE(m.h ? b : SE::box(3)));
+        m = dil0(p, b);
     }
     return SE(m);
 }
@@ -1379,11 +1408,123 @@ inline Image cero(const Image& f, const Image& g, SE b = SE::box(3), int n = 1) 
     }
     return y;
 }
+// Reconstrução geodésica RÁPIDA (Vincent 1993, algoritmo híbrido: varredura
+// raster + anti-raster + fila FIFO), 8-conexo. O(H·W) em vez do laço
+// "dilata a imagem toda até convergir" (que é O(diâmetro·H·W) — 10 s numa
+// imagem full-res). Usado quando o SE é uma caixa pequena (≤ 3×3), que é o
+// único caso em cap04 (infrec/suprec/clohole/edgeoff usam SE::box(3)).
+inline Image _recdil8(Image y, const Image& g) {          // reconstrução por dilatação
+    const int H = y.h, W = y.w;
+    auto Y = y.data.data(); auto G = g.data.data();
+    for (int r = 0; r < H; ++r)
+        for (int c = 0; c < W; ++c) {
+            size_t p = (size_t)r * W + c;
+            unsigned char m = Y[p];
+            if (r > 0) {
+                if (c > 0)     m = std::max(m, Y[p - W - 1]);
+                m = std::max(m, Y[p - W]);
+                if (c < W - 1) m = std::max(m, Y[p - W + 1]);
+            }
+            if (c > 0)         m = std::max(m, Y[p - 1]);
+            Y[p] = std::min(m, G[p]);
+        }
+    std::vector<size_t> q; q.reserve((size_t)H * W / 4);
+    for (int r = H - 1; r >= 0; --r)
+        for (int c = W - 1; c >= 0; --c) {
+            size_t p = (size_t)r * W + c;
+            unsigned char m = Y[p];
+            if (r < H - 1) {
+                if (c < W - 1) m = std::max(m, Y[p + W + 1]);
+                m = std::max(m, Y[p + W]);
+                if (c > 0)     m = std::max(m, Y[p + W - 1]);
+            }
+            if (c < W - 1)     m = std::max(m, Y[p + 1]);
+            Y[p] = std::min(m, G[p]);
+            bool push = false;
+            auto chk = [&](size_t nb){ if (Y[nb] < Y[p] && Y[nb] < G[nb]) push = true; };
+            if (r < H - 1) {
+                if (c < W - 1) chk(p + W + 1);
+                chk(p + W);
+                if (c > 0)     chk(p + W - 1);
+            }
+            if (c < W - 1)     chk(p + 1);
+            if (push) q.push_back(p);
+        }
+    for (size_t qi = 0; qi < q.size(); ++qi) {
+        size_t p = q[qi];
+        int r = (int)(p / W), c = (int)(p % W);
+        auto prop = [&](size_t nb){
+            if (Y[nb] < Y[p] && G[nb] != Y[nb]) { Y[nb] = std::min(Y[p], G[nb]); q.push_back(nb); }
+        };
+        if (r > 0)     { if (c > 0) prop(p - W - 1); prop(p - W); if (c < W - 1) prop(p - W + 1); }
+        if (c > 0)     prop(p - 1);
+        if (c < W - 1) prop(p + 1);
+        if (r < H - 1) { if (c > 0) prop(p + W - 1); prop(p + W); if (c < W - 1) prop(p + W + 1); }
+    }
+    return y;
+}
+inline Image _recero8(Image y, const Image& g) {          // reconstrução por erosão (dual)
+    const int H = y.h, W = y.w;
+    auto Y = y.data.data(); auto G = g.data.data();
+    for (int r = 0; r < H; ++r)
+        for (int c = 0; c < W; ++c) {
+            size_t p = (size_t)r * W + c;
+            unsigned char m = Y[p];
+            if (r > 0) {
+                if (c > 0)     m = std::min(m, Y[p - W - 1]);
+                m = std::min(m, Y[p - W]);
+                if (c < W - 1) m = std::min(m, Y[p - W + 1]);
+            }
+            if (c > 0)         m = std::min(m, Y[p - 1]);
+            Y[p] = std::max(m, G[p]);
+        }
+    std::vector<size_t> q; q.reserve((size_t)H * W / 4);
+    for (int r = H - 1; r >= 0; --r)
+        for (int c = W - 1; c >= 0; --c) {
+            size_t p = (size_t)r * W + c;
+            unsigned char m = Y[p];
+            if (r < H - 1) {
+                if (c < W - 1) m = std::min(m, Y[p + W + 1]);
+                m = std::min(m, Y[p + W]);
+                if (c > 0)     m = std::min(m, Y[p + W - 1]);
+            }
+            if (c < W - 1)     m = std::min(m, Y[p + 1]);
+            Y[p] = std::max(m, G[p]);
+            bool push = false;
+            auto chk = [&](size_t nb){ if (Y[nb] > Y[p] && Y[nb] > G[nb]) push = true; };
+            if (r < H - 1) {
+                if (c < W - 1) chk(p + W + 1);
+                chk(p + W);
+                if (c > 0)     chk(p + W - 1);
+            }
+            if (c < W - 1)     chk(p + 1);
+            if (push) q.push_back(p);
+        }
+    for (size_t qi = 0; qi < q.size(); ++qi) {
+        size_t p = q[qi];
+        int r = (int)(p / W), c = (int)(p % W);
+        auto prop = [&](size_t nb){
+            if (Y[nb] > Y[p] && G[nb] != Y[nb]) { Y[nb] = std::max(Y[p], G[nb]); q.push_back(nb); }
+        };
+        if (r > 0)     { if (c > 0) prop(p - W - 1); prop(p - W); if (c < W - 1) prop(p - W + 1); }
+        if (c > 0)     prop(p - 1);
+        if (c < W - 1) prop(p + 1);
+        if (r < H - 1) { if (c > 0) prop(p + W - 1); prop(p + W); if (c < W - 1) prop(p + W + 1); }
+    }
+    return y;
+}
+inline bool _is_small_box(const SE& b) {
+    if (b.h > 3 || b.w > 3) return false;
+    for (int v : b.vals) if (v != 1) return false;
+    return true;
+}
 // infrec: dilata o marcador (f ∧ g) sob a máscara g até convergir.
 inline Image infrec(const Image& f, const Image& g, SE b = SE::box(3)) {
     Image y = f;
     for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
         y.data[k] = std::min(y.data[k], g.data[k]);
+    if (_is_small_box(b))
+        return _recdil8(std::move(y), g);
     while (true) {
         Image prev = y;
         Image d = dil(y, b);
@@ -1399,6 +1540,8 @@ inline Image suprec(const Image& f, const Image& g, SE b = SE::box(3)) {
     Image y = f;
     for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
         y.data[k] = std::max(y.data[k], g.data[k]);
+    if (_is_small_box(b))
+        return _recero8(std::move(y), g);
     while (true) {
         Image prev = y;
         Image e = ero(y, b);

@@ -42,12 +42,23 @@ BASE_LANG = 'py'   # fonte canônico — editar apenas em Python
 # gera/inclui cpp para estes. Ver CPP_VALIDATION_NOTE em index_builder.
 CPP_CHAPTERS = {'cap01', 'cap02', 'cap03', 'cap04'}  # cap05: infra OpenCV pronta (CPP_OPENCV_CHAPTERS), port em iteração
 
-# Subconjunto de CPP_CHAPTERS cujas células C++ compilam COM OpenCV
-# (`-DMM_USE_OPENCV` + `pkg-config opencv4`). cap01-04 são header-only puro
-# (morph.hpp + stb); cap05-08 dependem de cv::dft/HoughLines/ORB/ml/... sem
-# equivalente header-only, então a tradução tem acesso à API `cv::` do C++.
-# Requer libopencv-dev no ambiente (config.setup(cpp=True, cpp_opencv=True)).
+# Capítulos cujas células C++ são TRADUZIDAS para `cv::` puro: cap05-08
+# dependem de cv::dft/HoughLines/ORB/ml/... sem equivalente na morph.hpp, então
+# o cheat-sheet do tradutor libera a API `cv::` do C++.
 CPP_OPENCV_CHAPTERS = {'cap05', 'cap06', 'cap07', 'cap08'}
+
+# Capítulos que mantêm a API `mm::` (header-only) MAS compilam com
+# `-DMM_USE_OPENCV` + `pkg-config opencv4` só para o BACKEND acelerado:
+# mm::dil/ero delegam a cv::dilate/erode (validado 2026-09-05), e
+# open/close/asf/gradm/tophat/blackhat herdam isso automaticamente. Assim o
+# cap04 roda a morfologia full-res (sem downscale 0.25x) em milissegundos e
+# bit-idêntico à trilha py (mesmo OpenCV nas duas). O tradutor continua com o
+# cheat-sheet `mm::`; só as flags de compilação/link mudam.
+# Requer libopencv-dev no ambiente.
+CPP_MM_OPENCV_CHAPTERS = {'cap04'}
+
+# União: qualquer capítulo cujo `!g++` das células C++ leva `-DMM_USE_OPENCV`.
+CPP_OPENCV_LINK_CHAPTERS = CPP_OPENCV_CHAPTERS | CPP_MM_OPENCV_CHAPTERS
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Registro de idiomas (locales)

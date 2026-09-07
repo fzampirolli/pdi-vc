@@ -515,7 +515,11 @@ class QuartoBuilder:
                 # mesmo cenário.
                 all_imagens = self.root / 'all' / cap / 'imagens'
                 gen_imagens = nb_root / cap / 'imagens'
-                if all_imagens.exists() and not gen_imagens.exists():
+                # Sempre re-sincroniza (não só quando gen_imagens não existe):
+                # `_symlink` é idempotente e um arquivo NOVO em all/capXX/
+                # imagens/ (ex.: coins.png adicionado depois) precisa aparecer
+                # aqui — senão o notebook que o referencia falha em silêncio.
+                if all_imagens.exists():
                     gen_imagens.mkdir(parents=True, exist_ok=True)
                     self._symlink_imagens_locale_aware(
                         all_imagens, gen_imagens, combo.locale
@@ -1049,19 +1053,16 @@ pre {
 
         custom_filename = f"livro.{combo.file_key}"
 
-        # TODOS os combos chegam com outputs/execution_count limpos
-        # (NotebookProcessor._clean_cell para não-base; strip na fonte
-        # all/capNN/*.ipynb para o base) — sem `enabled: true` explícito, o
+        # Combos não-base chegam com outputs/execution_count limpos
+        # (NotebookProcessor._clean_cell) — sem `enabled: true` explícito, o
         # engine ipynb do Quarto trata "outputs já presentes (mesmo vazios)"
         # como "já executado" e só exibe o código-fonte, sem rodar nada
         # (confirmado: só `quarto render --execute` força a execução; sem a
-        # flag, nenhuma figura é gerada). Antes o base (py.pt) preservava os
-        # outputs do autor e NÃO tinha a flag — mas isso servia figuras
-        # congeladas de execuções antigas do Jupyter (ex.: erro salvo de
-        # `mm.circle` antes da função existir). Agora o base também executa
-        # fresco. Reverter: `'' if combo.is_base() else '  enabled: true\n'`
-        # + restaurar outputs em all/capNN/*.ipynb.
-        execute_enabled = '  enabled: true\n'
+        # flag, nenhuma figura é gerada para combos não-base). O combo base
+        # (py.pt) NÃO é reexecutado no render: tem células muito lentas que o
+        # autor roda uma vez no Jupyter e versiona os outputs em
+        # all/capNN/*.ipynb; o Quarto só renderiza esses outputs salvos.
+        execute_enabled = '' if combo.is_base() else '  enabled: true\n'
 
         # NOTA: A capa do PDF é gerada via capa.tex (include-before-body).
         # NÃO use \AtBeginDocument no include-in-header para isso — o Quarto/Pandoc

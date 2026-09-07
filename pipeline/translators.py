@@ -224,7 +224,7 @@ class LLMCodeTranslator(Translator):
     def translate(self, source: str, output_image_path: Optional[str] = None,
                   external_vars: Optional[list[str]] = None,
                   persisted_vars: Optional[list[str]] = None,
-                  opencv: bool = False, **_) -> str:
+                  opencv: bool = False, opencv_link: bool = False, **_) -> str:
         """
         `output_image_path`: quando a célula original chama mm.show(...), o
         chamador (NotebookProcessor) já sabe o nome do PNG (derivado do
@@ -248,9 +248,12 @@ class LLMCodeTranslator(Translator):
         if not source.strip():
             return source
 
-        # `opencv=True` (capítulos em CPP_OPENCV_CHAPTERS) usa outra
-        # cheat-sheet e outro comando de compilação — chave de cache distinta
-        # pra não colidir com a tradução header-only da mesma célula.
+        # `opencv=True` (CPP_OPENCV_CHAPTERS) usa outra cheat-sheet (traduz p/
+        # `cv::` puro) — chave de cache `+cv` separada. `opencv_link=True` sem
+        # `opencv` (cap04) compartilha a chave header-only (`cpp`): as células
+        # `mm::` puras traduzem IGUAL com ou sem o link OpenCV (reaproveita o
+        # cache); as poucas com `cv2.*` sem equivalente nunca tiveram entrada
+        # e ganham a tradução nova com o fallback do cheat-sheet.
         cache_tgt = self.tgt_key + ('+cv' if opencv else '')
 
         # Cache hit?
@@ -553,6 +556,40 @@ class LLMCodeTranslator(Translator):
                       target locale.
                 """).strip()
 
+            if opencv_link and not opencv:
+                # cap04 (CPP_MM_OPENCV_CHAPTERS): usa `mm::` para o núcleo
+                # didático de morfologia, MAS a célula linka OpenCV — então
+                # o que não tem equivalente em morph.hpp (anotação, contornos,
+                # rotulagem com stats, cores aleatórias) sai em `cv::`.
+                mm_cheatsheet += '\n\n' + textwrap.dedent("""
+                    OpenCV C++ IS LINKED for this cell (`#include
+                    <opencv2/opencv.hpp>`, `-DMM_USE_OPENCV`, link flags all
+                    added automatically). Keep every `mm::` call above as
+                    `mm::` (that is the point of the chapter). ONLY for what
+                    morph.hpp has NO equivalent, use `cv::` directly with the
+                    SAME arguments as the Python `cv2` call:
+                      cv2.cvtColor / putText / circle / rectangle / line /
+                      drawContours / findContours / contourArea / arcLength /
+                      boundingRect / minEnclosingCircle / moments /
+                      connectedComponentsWithStats  -> the identical cv:: fn
+                      cv2.FONT_HERSHEY_* / cv2.LINE_AA / cv2.RETR_* /
+                      cv2.CHAIN_APPROX_* / cv2.COLOR_*  -> cv:: enum, same name
+                      np.random.randint / np.random.seed -> cv::RNG rng(seed);
+                                          rng.uniform(lo, hi)  (per element)
+                    Bridge mm::Image <-> cv::Mat by wrapping the SAME buffer
+                    (no copy needed for read-only use):
+                      cv::Mat M(img.h, img.w, img.channels==1?CV_8UC1:CV_8UC3,
+                                img.data.data());
+                      // build result as cv::Mat, then copy back:
+                      mm::Image out(M.rows, M.cols, M.channels());
+                      std::memcpy(out.data.data(), M.data, out.data.size());
+                    Still finish with `mm::show(..., MM_OUT)` /
+                    `mm::show(std::vector<mm::Image>{...}, MM_OUT, {...}, cols)`.
+                    A cell whose ONLY output is a `plt.*` figure must not have
+                    reached you — if it did, translate what you can and keep
+                    the image; never emit matplotlib.
+                """).strip()
+
             if external_vars:
                 mm_cheatsheet += '\n\n' + (
                     'Still write a COMPLETE, self-contained program exactly '
@@ -627,7 +664,7 @@ class LLMCodeTranslator(Translator):
                     tgt = _isd(tgt, external_vars)
                     if tgt is None:
                         return False, 'sem int main() para stubar external_vars'
-                return _cc('cpp', tgt, opencv=opencv)
+                return _cc('cpp', tgt, opencv=(opencv or opencv_link))
 
             ok, err = _validates(result)
             # Até 2 re-tentativas: um erro mecânico (tipo `mm::Image` omitido
@@ -680,7 +717,7 @@ class LLMCodeTranslator(Translator):
                 if check_target is None:
                     print('  ⚠ Não achei int main() pra stubar external_vars; mantendo código original.')
                     return source
-            ok, err = compile_check('cpp', check_target, opencv=opencv)
+            ok, err = compile_check('cpp', check_target, opencv=(opencv or opencv_link))
             if not ok:
                 print(f'  ⚠ Compilação C++ falhou; mantendo código original.\n{err[:800]}')
                 return source

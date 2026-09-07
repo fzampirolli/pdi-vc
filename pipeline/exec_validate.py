@@ -27,14 +27,41 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MORPH_CPP_INCLUDE = REPO_ROOT / 'morph' / 'cpp'
 
 
-def _opencv_cxxflags() -> list[str]:
-    """`pkg-config --cflags --libs opencv4` como lista; [] se indisponível."""
+def _pkgconfig_opencv(*args: str) -> list[str]:
     try:
-        out = subprocess.run(['pkg-config', '--cflags', '--libs', 'opencv4'],
+        out = subprocess.run(['pkg-config', *args, 'opencv4'],
                              capture_output=True, text=True, timeout=5)
         return out.stdout.split() if out.returncode == 0 else []
     except Exception:
         return []
+
+
+def _opencv_cxxflags() -> list[str]:
+    """`pkg-config --cflags --libs opencv4` como lista; [] se indisponível.
+    OK para `g++ ... fonte.cpp ... <estas flags>` (fonte ANTES das -l)."""
+    return _pkgconfig_opencv('--cflags', '--libs')
+
+
+def _opencv_cflags() -> list[str]:
+    """Só `--cflags` (-I/-D): vão ANTES do arquivo-fonte no comando g++."""
+    return _pkgconfig_opencv('--cflags')
+
+
+def _opencv_libs() -> list[str]:
+    """Só `--libs` (-L/-l): vão DEPOIS do arquivo-fonte (ordem do linker
+    GNU: quem precisa do símbolo vem antes da -l que o provê)."""
+    return _pkgconfig_opencv('--libs')
+
+
+def _opencv_libs_min() -> list[str]:
+    """Subconjunto mínimo p/ CPP_MM_OPENCV_CHAPTERS (cap04): mm::dil/ero →
+    cv::dilate/erode, cv::createCLAHE, connectedComponents, findContours,
+    putText/rectangle/circle/cvtColor, cv::RNG — tudo em core + imgproc.
+    Linkar os ~45 .so do `pkg-config --libs opencv4` cheio custa ~60 s por
+    célula e estoura o timeout do Quarto; aqui são 2-3. Mantém o `-L` do
+    pkg-config (diretório das libs) e troca a lista de `-l`."""
+    dirs = [f for f in _pkgconfig_opencv('--libs-only-L') if f.startswith('-L')]
+    return dirs + ['-lopencv_imgproc', '-lopencv_imgcodecs', '-lopencv_core']
 
 # Extensão de arquivo por linguagem-alvo suportada aqui (só as que têm etapa
 # de compilação real — .py/.js/.r não passam por este módulo).

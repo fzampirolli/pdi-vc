@@ -51,7 +51,7 @@ except ImportError:
     raise ImportError("pip install nbformat")
 
 from .config import (BASE_LANG, BASE_LOCALE, LANGUAGES, LOCALES, Combo,
-                     CPP_OPENCV_CHAPTERS)
+                     CPP_OPENCV_CHAPTERS, CPP_OPENCV_LINK_CHAPTERS)
 from .translators import TranslatorFactory
 from .bib import resolve_citations, resolve_bibliography
 from .exec_validate import (inject_consumer_reads, inject_panel_writes,
@@ -204,21 +204,25 @@ _FIG_OPTION_RE = re.compile(r'^#\|\s*(label|fig-cap):', re.MULTILINE)
 # que montam HTML/JS embutido (simuladores interativos via IPython.display.HTML).
 _HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
 
-def _is_eligible_for_foreign_expansion(src: str, opencv: bool = False) -> bool:
+def _is_eligible_for_foreign_expansion(src: str, opencv: bool = False,
+                                       opencv_link: bool = False) -> bool:
     """
-    Header-only (opencv=False): True só se `src` não usa matplotlib nem
-    HTML/JS embutido, todo `cv2.*` está em _CV2_WHITELIST e todo `mm.*` está
-    na lista com equivalente em morph.hpp.
+    Header-only (opencv=False, opencv_link=False): True só se `src` não usa
+    matplotlib nem HTML/JS embutido, todo `cv2.*` está em _CV2_WHITELIST e
+    todo `mm.*` está na lista com equivalente em morph.hpp.
 
-    OpenCV (opencv=True, capítulos cap05-08): a célula compila com `cv::`, então
-    `cv2.*`, `np.fft.*`, `scipy.*` e `skimage.*` são todos aceitos — só
-    matplotlib e simuladores HTML continuam barrados (não há como reproduzir
-    um plot mpl nem a interação de um widget em C++). `mm.*` ainda restrito à
-    whitelist (as funções sem equivalente ficariam sem símbolo).
+    OpenCV puro (opencv=True, cap05-08): compila com `cv::`, então `cv2.*`,
+    `np.fft.*`, `scipy.*` e `skimage.*` são aceitos — só matplotlib e
+    simuladores HTML barrados.
+
+    mm:: + OpenCV linkado (opencv_link=True, sem opencv — cap04): mantém `mm::`
+    para o núcleo mas a célula linka OpenCV, então `cv2.*` fora da whitelist
+    também é aceito (traduz p/ `cv::`). `mm.*` continua restrito à whitelist.
     """
     if _PLT_RE.search(src) or _HTML_TRIPLE_RE.search(src):
         return False
-    if not opencv and any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
+    cv2_ok = opencv or opencv_link
+    if not cv2_ok and any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
         return False
     for m in _MM_CALL_RE.finditer(src):
         if m.group(1) not in _MM_WHITELIST:
@@ -837,7 +841,8 @@ class NotebookProcessor:
         _set_source(out, py_tr.translate(src))
         return [out]
 
-    def _iter_foreign_candidate_cells(self, nb, combo: Combo, opencv: bool = False) -> list:
+    def _iter_foreign_candidate_cells(self, nb, combo: Combo, opencv: bool = False,
+                                     opencv_link: bool = False) -> list:
         """
         Replica, sem produzir saída, os mesmos filtros que o loop principal
         de `process()` aplica antes de chamar `_expand_foreign_code_cell` —
@@ -863,12 +868,13 @@ class NotebookProcessor:
                 continue
             if _ep_testsuite_call_name(src) is not None:
                 continue
-            if not _is_eligible_for_foreign_expansion(src, opencv):
+            if not _is_eligible_for_foreign_expansion(src, opencv, opencv_link):
                 continue
             out.append((idx, src))
         return out
 
-    def _detect_cross_cell_mm_vars(self, nb, combo: Combo, opencv: bool = False) -> dict:
+    def _detect_cross_cell_mm_vars(self, nb, combo: Combo, opencv: bool = False,
+                                  opencv_link: bool = False) -> dict:
         """
         Varre as células elegíveis pra expansão em combo.lang, em ordem, e
         detecta variáveis `mm::Image` atribuídas numa célula e referenciadas
@@ -885,7 +891,7 @@ class NotebookProcessor:
         by_consumer_idx: dict = {}
         active_producers: dict = {}  # nome -> producer_idx mais recente
 
-        for cell_idx, src in self._iter_foreign_candidate_cells(nb, combo, opencv):
+        for cell_idx, src in self._iter_foreign_candidate_cells(nb, combo, opencv, opencv_link):
             try:
                 tree = ast.parse(src)
             except SyntaxError:
@@ -937,6 +943,9 @@ class NotebookProcessor:
         entre células) e em snuggly-wishing-origami.md pro desenho original.
         """
         opencv = bool(ctx.get('opencv'))
+        # opencv_link: passa `-DMM_USE_OPENCV` ao g++/compile_check mas mantém a
+        # tradução em `mm::` (cap04 — backend acelerado, sem reescrever p/ cv::).
+        opencv_link = bool(ctx.get('opencv_link', opencv))
 
         cross = ctx.get('cross_cell_vars') or {
             'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {},
@@ -955,7 +964,7 @@ class NotebookProcessor:
             failed_producers.update(produced_keys)
             return self._reference_only_cell(cell, src, combo)
 
-        if not _is_eligible_for_foreign_expansion(src, opencv):
+        if not _is_eligible_for_foreign_expansion(src, opencv, opencv_link):
             if _is_pure_html_widget(src):
                 return self._passthrough_widget_cell(cell, src, combo)
             return _to_reference()
@@ -995,7 +1004,7 @@ class NotebookProcessor:
             src, output_image_path=png_name if needs_glue else None,
             external_vars=external_vars or None,
             persisted_vars=persisted_vars or None,
-            opencv=opencv,
+            opencv=opencv, opencv_link=opencv_link,
         )
         if translated == src:
             # LLMCodeTranslator devolve o Python original quando a
@@ -1017,7 +1026,7 @@ class NotebookProcessor:
             ok = mutated is not None
             if ok:
                 from .exec_validate import compile_check
-                ok, err = compile_check('cpp', mutated, opencv=opencv)
+                ok, err = compile_check('cpp', mutated, opencv=opencv_link)
                 if not ok:
                     print(f'  ⚠ Injeção state/ falhou ao compilar; célula cai para referência.\n{err[:800]}')
             if not ok:
@@ -1033,7 +1042,7 @@ class NotebookProcessor:
             panel_mut = inject_panel_writes(translated, panels['names'], base)
             ok = panel_mut is not None
             if ok:
-                ok, err = compile_check('cpp', panel_mut, opencv=opencv)
+                ok, err = compile_check('cpp', panel_mut, opencv=opencv_link)
                 if not ok:
                     print(f'  ⚠ Injeção de painéis não compilou; usando '
                           f'composto único.\n{err[:400]}')
@@ -1053,14 +1062,24 @@ class NotebookProcessor:
         # pelo `!` do IPython) pra nenhuma linha passar de ~90 colunas e
         # estourar a margem direita no PDF.
         _cxx = '!g++ -I. -std=c++17'
-        if opencv:
+        _libs = ''
+        if opencv_link:
             # Flags do OpenCV expandidas AGORA (não `$(pkg-config ...)` na
             # célula — o shell do kernel Jupyter pode não ter pkg-config no
-            # PATH, o que faria o link cair silenciosamente).
-            from .exec_validate import _opencv_cxxflags
-            _cxx += ' -DMM_USE_OPENCV ' + ' '.join(_opencv_cxxflags())
+            # PATH, o que faria o link cair silenciosamente). ORDEM DO LINKER
+            # GNU: `--cflags` (-I/-D) ANTES do .cpp; `--libs` (-l) DEPOIS do
+            # `-o bin` (senão `undefined reference to cv::Mat::~Mat()` etc.).
+            from .exec_validate import (_opencv_cflags, _opencv_libs,
+                                        _opencv_libs_min)
+            _cxx += ' -DMM_USE_OPENCV ' + ' '.join(_opencv_cflags())
+            # cap04 (mm:: + link): só core/imgproc — linkar os ~45 .so do
+            # OpenCV cheio estoura o timeout de célula do Quarto. cap05-08
+            # (cv:: puro: dft/ml/features2d/dnn/...) precisam de tudo.
+            _libs = ' ' + ' '.join(
+                _opencv_libs_min() if (opencv_link and not opencv)
+                else _opencv_libs())
         run_parts = [
-            f'{_cxx} {TMP_DIR}/{base}{ext} -o {TMP_DIR}/{base}',
+            f'{_cxx} {TMP_DIR}/{base}{ext} -o {TMP_DIR}/{base}{_libs}',
             f'./{TMP_DIR}/{base}',
         ]
         if needs_glue:
@@ -1106,8 +1125,13 @@ class NotebookProcessor:
 
         _cap_name = Path(nb_path).parent.name          # ex.: 'cap01'
         _is_eps = '.EPs.' in Path(nb_path).name
-        # cap05-08: células C++ compilam COM OpenCV (`cv::`), não só morph.hpp.
+        # _opencv: cap05-08 — tradução vai para `cv::` puro (cheat-sheet OpenCV,
+        #          elegibilidade permissiva a cv2/np.fft/scipy/skimage).
+        # _opencv_link: _opencv + cap04 — o `!g++` das células leva
+        #          `-DMM_USE_OPENCV` (backend acelerado do mm::dil/ero). O cap04
+        #          mantém o cheat-sheet `mm::`; só linka OpenCV.
         _opencv = (combo.lang == 'cpp' and _cap_name in CPP_OPENCV_CHAPTERS)
+        _opencv_link = (combo.lang == 'cpp' and _cap_name in CPP_OPENCV_LINK_CHAPTERS)
 
         code_tr = self._factory.code_translator(combo.lang, combo.locale)
         text_tr = self._factory.text_translator(combo.locale)
@@ -1116,10 +1140,11 @@ class NotebookProcessor:
         out_cells = []
         # Só custa a varredura AST quando de fato pode haver mm::Image
         # cruzando células (combos cpp) — ver _detect_cross_cell_mm_vars.
-        cross_cell_vars = (self._detect_cross_cell_mm_vars(nb, combo, _opencv)
+        cross_cell_vars = (self._detect_cross_cell_mm_vars(nb, combo, _opencv, _opencv_link)
                             if combo.lang == 'cpp' else
                             {'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {}})
-        expand_ctx: dict = {'cross_cell_vars': cross_cell_vars, 'opencv': _opencv}
+        expand_ctx: dict = {'cross_cell_vars': cross_cell_vars,
+                            'opencv': _opencv, 'opencv_link': _opencv_link}
 
         for cell_idx, cell in enumerate(nb.cells):
             cell = copy.deepcopy(cell)
