@@ -26,16 +26,30 @@ from morph.testsuite import compile_run_table
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MORPH_CPP_INCLUDE = REPO_ROOT / 'morph' / 'cpp'
 
+
+def _opencv_cxxflags() -> list[str]:
+    """`pkg-config --cflags --libs opencv4` como lista; [] se indisponível."""
+    try:
+        out = subprocess.run(['pkg-config', '--cflags', '--libs', 'opencv4'],
+                             capture_output=True, text=True, timeout=5)
+        return out.stdout.split() if out.returncode == 0 else []
+    except Exception:
+        return []
+
 # Extensão de arquivo por linguagem-alvo suportada aqui (só as que têm etapa
 # de compilação real — .py/.js/.r não passam por este módulo).
 _EXT_BY_LANG = {'cpp': '.cpp', 'java': '.java', 'c': '.c'}
 
 
 def compile_check(lang: str, source: str, name: str = 'snippet',
-                   timeout: int = 15) -> tuple[bool, str]:
+                   timeout: int = 15, opencv: bool = False) -> tuple[bool, str]:
     """
     Escreve `source` num diretório temporário e tenta compilar (nunca
     executar) via o comando de `compile_run_table`. Devolve (ok, stderr).
+
+    `opencv=True` (capítulos em CPP_OPENCV_CHAPTERS): compila com
+    `-DMM_USE_OPENCV` + flags do `pkg-config opencv4`, dando à célula acesso
+    à API `cv::` do C++. Linkar OpenCV é lento — o timeout sobe.
 
     Linguagens sem etapa de compilação registrada aqui (ainda não têm um
     tradutor real usando este gate) devolvem ok=True sem fazer nada.
@@ -57,6 +71,12 @@ def compile_check(lang: str, source: str, name: str = 'snippet',
             # -I pro morph.hpp (Fase 4) — inofensivo se o snippet não incluir
             # nada de lá, ou se o header ainda não existir.
             cmd = [cmd[0], f'-I{MORPH_CPP_INCLUDE}', *cmd[1:]]
+            if opencv:
+                flags = _opencv_cxxflags()
+                if not flags:
+                    return False, 'pkg-config opencv4 indisponível (libopencv-dev não instalado)'
+                cmd += ['-DMM_USE_OPENCV', *flags]
+                timeout = max(timeout, 60)
 
         try:
             result = subprocess.run(
@@ -178,7 +198,10 @@ def inject_consumer_reads(cpp_src: str, records: list):
     for record in sorted(records, key=lambda r: r['var_name']):
         var = record['var_name']
         producer_idx = record['producer_idx']
-        lines.append(f'mm::Image {var} = mm::read("{STATE_DIR}/{var}_{producer_idx}.png");')
+        # _read_state preserva o nº de canais real do PNG (grayscale volta
+        # 1-canal); mm::read forçaria 3, e a morfologia do cap04 lança em
+        # imagem != 1 canal.
+        lines.append(f'mm::Image {var} = mm::_read_state("{STATE_DIR}/{var}_{producer_idx}.png");')
     lines.append(STATE_IO_END)
     block = '\n' + '\n'.join(lines) + '\n'
 

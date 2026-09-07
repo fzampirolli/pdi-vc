@@ -223,7 +223,8 @@ class LLMCodeTranslator(Translator):
 
     def translate(self, source: str, output_image_path: Optional[str] = None,
                   external_vars: Optional[list[str]] = None,
-                  persisted_vars: Optional[list[str]] = None, **_) -> str:
+                  persisted_vars: Optional[list[str]] = None,
+                  opencv: bool = False, **_) -> str:
         """
         `output_image_path`: quando a célula original chama mm.show(...), o
         chamador (NotebookProcessor) já sabe o nome do PNG (derivado do
@@ -247,8 +248,13 @@ class LLMCodeTranslator(Translator):
         if not source.strip():
             return source
 
+        # `opencv=True` (capítulos em CPP_OPENCV_CHAPTERS) usa outra
+        # cheat-sheet e outro comando de compilação — chave de cache distinta
+        # pra não colidir com a tradução header-only da mesma célula.
+        cache_tgt = self.tgt_key + ('+cv' if opencv else '')
+
         # Cache hit?
-        cached = self.cache.get(source, self.kind, self.src_key, self.tgt_key)
+        cached = self.cache.get(source, self.kind, self.src_key, cache_tgt)
         if cached is not None:
             if self._tgt_lang == 'cpp':
                 return _apply_mm_out(cached, output_image_path)
@@ -295,6 +301,62 @@ class LLMCodeTranslator(Translator):
                   mm::Image mm::crop(const mm::Image&, int y0, int y1, int x0, int x1)  // == numpy img[y0:y1, x0:x1]
                   mm::Image mm::subsample(const mm::Image&, int f)      // == numpy img[::f, ::f]
 
+                cap03 — intensity, histogram and spatial filtering:
+                  struct mm::Kernel { int h, w; std::vector<double> vals; double at(y,x); double sum(); };
+                  mm::Kernel{{0,1,0},{1,-4,1},{0,1,0}}                  // brace-init from a 2D numpy-like literal
+                  mm::Kernel::ones(int n) / mm::Kernel::mean(int n) / mm::Kernel::gaussian(int n, double sigma=0)
+                  enum class mm::Border { REFLECT101, REPLICATE, CONSTANT, KEEP };   // CONSTANT = zero
+                  mm::Image mm::addm(const mm::Image&, const mm::Image&)   // saturating; also mm::addm(img, int c)
+                  mm::Image mm::subm(const mm::Image&, const mm::Image&)   // saturating; also mm::subm(img, int c)
+                  mm::Image mm::blend(const mm::Image&, const mm::Image&, double alpha=0.5)
+                  mm::Image mm::band / mm::bor / mm::bxor (const mm::Image&, const mm::Image&);  mm::bnot(const mm::Image&)
+                  std::vector<int> mm::hist(const mm::Image&, int B=8)     // size 2^B (256); H[i], H.size()
+                  mm::Image mm::histImg(const mm::Image&)                  // renders the histogram as a bar-chart PNG
+                  mm::Image mm::equalize(const mm::Image&, int B=8)
+                  mm::Image mm::clahe(const mm::Image&, double clipLimit=2.0, int tiles=8)   // == cv2.createCLAHE(clipLimit,(tiles,tiles)).apply(img)
+                  mm::Kernel mm::gaussKernel(int N=3, double sigma=0)      // 2D normalized Gaussian kernel
+                  mm::Image mm::conv (const mm::Image&, const mm::Kernel&, mm::Border=mm::Border::REFLECT101)
+                  mm::Image mm::conv0(const mm::Image&, const mm::Kernel&, mm::Border=mm::Border::KEEP)
+                  mm::Image mm::blur(const mm::Image&, int N=3)
+                  mm::Image mm::gaussian(const mm::Image&, int N=3, double sigma=0)
+                  mm::Image mm::laplacian(const mm::Image&, const mm::Kernel& B=<default 4-neighborhood>)
+                  mm::Image mm::laplacian_viz(const mm::Image&, const mm::Kernel& B=<default>)   // |lap| normalized to [0,255]
+                  mm::Image mm::sobel(const mm::Image&)                   // gradient magnitude, clipped; borders 0
+                  mm::Image mm::prewitt(const mm::Image&)                 // gradient magnitude, clipped; borders 0
+                  mm::Image mm::usm(const mm::Image&, double k=1.0)       // unsharp masking
+                  mm::Image mm::median(const mm::Image&, int ksize=3)
+                  mm::Image mm::canny(const mm::Image&, int t_low=50, int t_high=150, int ksize=5, double sigma=0)
+                  mm::Image mm::circle (const mm::Image&, int cx, int cy, int radius, unsigned char color, int thickness=-1)  // thickness<0 = filled
+                  mm::Image mm::circle0(...)  // same signature, didactic
+                  mm::Image mm::pad (const mm::Image&, int b, mm::Border=mm::Border::CONSTANT)
+                  void      mm::drawImgKernel(const mm::Image&, const mm::Kernel&, int cx, int cy, std::string out_path, int scale=40)  // pass MM_OUT
+
+                cap04 — mathematical morphology (all on 1-channel images):
+                  struct mm::SE;  mm::SE::box(n) / ::cross(n) / ::disk(n) / ::zeros(n)
+                  mm::SE{{mm::SE_OUT,-1,mm::SE_OUT},{-1,0,-1},{mm::SE_OUT,-1,mm::SE_OUT}}  // weight literal; SE_OUT = "outside"
+                  mm::Image mm::sebox(int n=0)      // flat box, side 3+2n  (Minkowski)
+                  mm::Image mm::sedisk(int n=3)     // ellipse SE as image
+                  // mm::secross() already returns a 3x3 cross Image; all three
+                  // (secross/sebox/sedisk) convert implicitly to mm::SE where an SE is expected.
+                  mm::Image mm::dil / mm::ero (const mm::Image&, mm::SE=mm::SE::box(3))   // classic (planar)
+                  mm::Image mm::dil0 / mm::ero0 / mm::dil1 / mm::ero1 (const mm::Image&, mm::SE)  // 0 = planar, 1 = weighted
+                  mm::Image mm::neg(const mm::Image&)                     // 255 - f
+                  mm::Image mm::open / mm::close (const mm::Image&, mm::SE=mm::SE::box(3))
+                  mm::Image mm::gradm / mm::tophat / mm::blackhat (const mm::Image&, mm::SE=mm::SE::box(3))
+                  mm::Image mm::asf(const mm::Image&, std::string seq="OC", mm::SE=mm::SE::box(3), int n=1)  // seq: "OC"|"CO"|"OCO"|"COC"
+                  mm::Image mm::cdil / mm::cero (const mm::Image& f, const mm::Image& g, mm::SE=mm::SE::box(3), int n=1)  // geodesic
+                  mm::Image mm::infrec / mm::suprec (const mm::Image& f, const mm::Image& g, mm::SE=mm::SE::box(3))       // reconstruction
+                  mm::Image mm::frame(const mm::Image&, int border=5)
+                  mm::Image mm::edgeoff(const mm::Image&, mm::SE=mm::SE::box(3), int border=1)
+                  mm::Image mm::clohole(const mm::Image&, mm::SE=mm::SE::box(3))
+                  mm::Image mm::label0(const mm::Image&, mm::SE=mm::SE::box(3))   // labels 1..255 (uint8)
+                  mm::Image mm::dist(const mm::Image&)                    // L2 (chamfer), uint8
+                  mm::Image mm::dist1(const mm::Image&, mm::SE)           // distance by iterated erosion (weight SE)
+                  mm::Image mm::gdist(const mm::Image& mask, const mm::Image& marker, mm::SE=mm::SE::box(3))  // geodesic (step count)
+                  mm::Image mm::watershed / mm::watershed0 / mm::watershedB
+                        (const mm::Image& markers, mm::Image mask=mm::Image(), std::string op="region", mm::SE=mm::SE::box(3))
+                        // op "region" -> labeled image; anything else -> binary watershed lines
+
                 Rules:
                 - `mm::Image` already holds raw pixel data; there is no
                   `pil=` concept in Python's mm.read(url, pil=True) — drop it.
@@ -312,6 +374,29 @@ class LLMCodeTranslator(Translator):
                   (w, h)) with a tuple -> mm::resize(img, w, h, method).
                 - mm.rotate(img, angle, interp='bilinear') -> pass scale
                   positionally first: mm::rotate(img, angle, 1.0, "bilinear").
+                - cap04 structuring elements: `mm.secross()` -> `mm::secross()`,
+                  `mm.sebox(n)` -> `mm::sebox(n)`, `mm.sedisk(n)` -> `mm::sedisk(n)`
+                  (all return an Image that converts to mm::SE automatically —
+                  pass them straight into mm::dil/ero/open/close/label0/etc.).
+                  `np.ones((k,k), np.uint8)` used as an SE -> `mm::sebox((k-3)/2)`
+                  if k is odd >= 3, else `mm::SE::box(k)`. A plain 0/1 array
+                  used as an SE (e.g. `B_L = np.array([[1,0,0],[1,1,0],[1,1,0]])`)
+                  -> `mm::SE{{1,0,0},{1,1,0},{1,1,0}}` (values verbatim; for
+                  dil0/ero0, 0 = outside, non-zero = inside). `np.flip(B)` of
+                  such an array -> write the 180°-rotated literal directly.
+                  A weighted SE array with `-np.inf` entries (e.g. the cross
+                  for mm.dist1):
+                    np.array([[-inf,-1,-inf],[-1,0,-1],[-inf,-1,-inf]])
+                    -> mm::SE{{mm::SE_OUT,-1,mm::SE_OUT},{-1,0,-1},{mm::SE_OUT,-1,mm::SE_OUT}}
+                - cap04 keyword args map positionally: `mm.watershed(m, mask=x,
+                  op='region')` -> `mm::watershed(m, x, "region")`;
+                  `mm.asf(f, 'OC', b, n=2)` -> `mm::asf(f, "OC", b, 2)`;
+                  `mm.cdil(f, g, n=3)` -> `mm::cdil(f, g, mm::SE::box(3), 3)`.
+                - `np.minimum(a, b)` / `np.maximum(a, b)` on two images (common
+                  in hand-written reconstruction loops) -> a per-pixel loop
+                  `for i: o.data[i] = std::min(a.data[i], b.data[i]);`.
+                - `np.unique(labels)` for counting regions -> collect distinct
+                  non-zero values with a `std::set<int>` over the image data.
                 - Do NOT use OpenCV. Do NOT #include anything beyond
                   "morph.hpp" and the C++ standard library. In particular,
                   `T, bin = cv2.threshold(img, 0, 255, THRESH_BINARY+THRESH_OTSU)`
@@ -360,7 +445,114 @@ class LLMCodeTranslator(Translator):
                   equivalent here — pass the value positionally instead
                   (e.g. mm::randomImage(4, 6, 255)), in the same parameter
                   order as the signatures above.
+                - cap03 kernels: a 2D numpy array passed as the *kernel*
+                  argument of mm.conv/conv0/laplacian/laplacian_viz/usm
+                  becomes an `mm::Kernel` brace-literal, NOT an mm::Image:
+                    w = np.array([[0,1,2],[0,0,0],[0,0,0]], dtype=np.float32)
+                    mm.conv(img, w, border="constant")
+                    ->  mm::Kernel w{{0,1,2},{0,0,0},{0,0,0}};
+                        mm::Image corr = mm::conv(img, w, mm::Border::CONSTANT);
+                  `np.ones((n,n), np.float32)/(n*n)`  -> `mm::Kernel::mean(n)`.
+                  `np.ones((n,n))`                    -> `mm::Kernel(n, n, 1.0)`.
+                  `mm.gaussKernel(N, s)`              -> `mm::Kernel::gaussian(N, (double)s)`.
+                  border="constant"/"replicate"/"reflect101"/"keep"
+                    -> mm::Border::CONSTANT / REPLICATE / REFLECT101 / KEEP.
+                - mm.hist(img) returns `std::vector<int>` (size 256): `H[i]`
+                  stays `H[i]`, `len(H)` -> `H.size()`, `H.sum()` ->
+                  `std::accumulate(H.begin(), H.end(), 0)`.
+                - mm.histImg(img) returns an mm::Image — use it directly as
+                  one of the images passed to mm::show.
+                - mm.circle(np.zeros((h,w), 'uint8'), (cx,cy), r, 255, -1)
+                  -> mm::Image mask(h, w); mask = mm::circle(mask, cx, cy, r, 255, -1);
+                  (the center tuple is split into two int args cx, cy).
+                - mm.subm(img, 80) / mm.addm(img, 80) with a bare number ->
+                  mm::subm(img, 80) / mm::addm(img, 80) (the scalar overload).
+                - The Python "download once, cache locally" idiom
+                    if not os.path.exists(path):
+                        os.makedirs("imagens", exist_ok=True)
+                        mm.write(mm.read(url), path)
+                    img = mm.read(path)
+                  has no clean C++ form — collapse the WHOLE thing to one
+                  line: `mm::Image img = mm::read("<url>");`. `mm::read`
+                  takes a URL directly; do NOT emit `#include <filesystem>`,
+                  `std::filesystem::*`, `os`, `system("mkdir ...")`, or any
+                  existence check. Keep the `import os` line out entirely.
+                - Negative slice bounds count from the end:
+                    img[250:-300, 100:-200]
+                    -> mm::crop(img, 250, img.h - 300, 100, img.w - 200)
+                - Lines starting with `#|` are Quarto cell options, NOT
+                  Python — reproduce them VERBATIM as `//|` C++ comments at
+                  the very top of the file (the pipeline turns them back
+                  into `#|`). NEVER leave a bare `#|` line in C++ (it is an
+                  invalid preprocessor directive) and never drop them.
+                - EVERY translation is a COMPLETE program: the `#include`
+                  lines, then `int main() {` ... `return 0; }` wrapping ALL
+                  statements. Never emit a statement (an `mm::show(...)`, a
+                  `std::cout`, a loop) at file scope.
             """).strip()
+
+            if opencv:
+                # Capítulos cap05-08: a célula compila COM OpenCV
+                # (`-DMM_USE_OPENCV` + pkg-config opencv4). O tradutor pode
+                # usar `cv::` livremente; morph.hpp continua disponível para
+                # o núcleo (read/gray/show/write).
+                mm_cheatsheet = textwrap.dedent("""
+                    This cell compiles WITH OpenCV C++ (`#include
+                    <opencv2/opencv.hpp>` is available; link flags are added
+                    automatically). Translate to idiomatic C++ using `cv::`
+                    for everything the Python used from cv2 / numpy.fft /
+                    scipy.fft / scipy.signal / skimage — NOT a from-scratch
+                    reimplementation.
+
+                    `#include "morph.hpp"` is still available for the basics:
+                      mm::Image mm::read(std::string path_or_url)   // -> use cv::imread instead when the cell already uses cv2
+                      void      mm::show(const mm::Image&, std::string out_path)          // 1 image
+                      void      mm::show(const std::vector<mm::Image>&, std::string out_path,
+                                          std::vector<std::string> titles={}, int cols=3) // grid
+                      mm::Image mm::gray(const mm::Image&)
+                    An `mm::Image` has `.h .w .channels` and a flat
+                    `std::vector<unsigned char> data` (row-major, interleaved).
+                    Convert to/from `cv::Mat` when needed:
+                      cv::Mat m(img.h, img.w, img.channels==1?CV_8UC1:CV_8UC3, img.data.data());
+                      // and back: mm::Image out(m.rows, m.cols, m.channels());
+                      //           std::memcpy(out.data.data(), m.data, out.data.size());
+
+                    Mappings (Python -> C++):
+                      np.fft.fft2 / scipy.fft.fft2          -> cv::dft(src32f, dst, cv::DFT_COMPLEX_OUTPUT)
+                      np.fft.ifft2 / scipy.fft.ifft2        -> cv::idft(..., cv::DFT_SCALE | cv::DFT_REAL_OUTPUT)
+                      np.fft.fftshift                       -> swap quadrants of the spectrum by hand (write a small helper)
+                      magnitude spectrum                    -> cv::split -> cv::magnitude -> (optional) cv::log
+                      scipy.fft.dctn / dct (2D)             -> cv::dct(src32f, dst) on a CV_32F matrix
+                      cv2.normalize(x, None, 0, 255, NORM_MINMAX) -> cv::normalize(x, dst, 0, 255, cv::NORM_MINMAX, CV_8U)
+                      cv2.filter2D / sepFilter2D / bilateralFilter / GaussianBlur / Canny / HoughLines /
+                      findContours / getPerspectiveTransform / warpPerspective / ORB_create / BFMatcher /
+                      findHomography / connectedComponentsWithStats / distanceTransform / watershed
+                                                            -> the identical `cv::` function (same args)
+                      cv2.PSNR(a, b)                        -> cv::PSNR(a, b)
+                      SSIM / skimage.metrics.structural_similarity -> implement the standard windowed SSIM with
+                                                              cv::GaussianBlur (Wang et al.); ~20 lines, keep it inline
+                      skimage.feature.hog                  -> cv::HOGDescriptor
+                      sklearn KNeighbors / RandomForest    -> cv::ml::KNearest / cv::ml::RTrees
+                    Display: build the final image(s) as `mm::Image` (or
+                    convert from cv::Mat) and call `mm::show(..., MM_OUT)` /
+                    `mm::show(std::vector<mm::Image>{...}, MM_OUT, {...}, cols)`
+                    exactly like the header-only chapters. A `#define MM_OUT
+                    "..."` line is prepended for you — pass the token MM_OUT,
+                    never invent a filename.
+
+                    Rules:
+                    - `#| ...` lines -> `//| ...` verbatim at the top; never a
+                      bare `#|` line (invalid preprocessor directive).
+                    - matplotlib is NOT available — a cell whose ONLY output
+                      is a `plt.*` plot should not have reached you; if the
+                      cell builds an image AND a plt figure, keep only the
+                      image path.
+                    - COMPLETE program: all `#include`s, one `int main() {
+                      ... return 0; }` wrapping every statement.
+                    - Preserve comments, translating their text into the
+                      target locale.
+                """).strip()
+
             if external_vars:
                 mm_cheatsheet += '\n\n' + (
                     'Still write a COMPLETE, self-contained program exactly '
@@ -415,13 +607,49 @@ class LLMCodeTranslator(Translator):
 
         user = f"Convert this Python code to {lang_label}:\n\n{source}"
 
-        result = _call_llm_retrying_if_unchanged(system, user, source)
-        # Strip markdown fences if LLM added them
-        result = re.sub(r'^```\w*\n?', '', result, flags=re.MULTILINE)
-        result = re.sub(r'\n?```$', '', result, flags=re.MULTILINE)
-        result = result.strip()
+        def _clean(raw: str) -> str:
+            raw = re.sub(r'^```\w*\n?', '', raw, flags=re.MULTILINE)
+            raw = re.sub(r'\n?```$', '', raw, flags=re.MULTILINE)
+            return self._filter_lang_directives(raw.strip(), self._tgt_lang)
 
-        result = self._filter_lang_directives(result, self._tgt_lang)
+        result = _clean(_call_llm_retrying_if_unchanged(system, user, source))
+
+        # cpp: se a validação de compilação falhar, uma única re-tentativa com
+        # o erro do compilador anexado ao prompt costuma consertar erros
+        # mecânicos (include faltando, statement fora do main, kwarg que não
+        # existe). Um LLM que erra o mesmo snippet duas vezes cai no fallback.
+        if self._tgt_lang == 'cpp':
+            from .exec_validate import compile_check as _cc, inject_stub_declares as _isd
+
+            def _validates(cand: str):
+                tgt = _apply_mm_out(cand, output_image_path)
+                if external_vars:
+                    tgt = _isd(tgt, external_vars)
+                    if tgt is None:
+                        return False, 'sem int main() para stubar external_vars'
+                return _cc('cpp', tgt, opencv=opencv)
+
+            ok, err = _validates(result)
+            # Até 2 re-tentativas: um erro mecânico (tipo `mm::Image` omitido
+            # na 1ª atribuição, include faltando, statement fora do main) some
+            # quase sempre na 1ª volta; a 2ª cobre a azarada dupla-falha do LLM
+            # antes de a célula cair no fallback de referência.
+            for _ in range(2):
+                if ok:
+                    break
+                retry_user = (
+                    f"{user}\n\nYour previous C++ translation failed to "
+                    f"compile with g++:\n\n{err[:1200]}\n\nReturn a corrected, "
+                    f"COMPLETE self-contained program: every #include line, a "
+                    f"single int main() wrapping every statement, and an "
+                    f"explicit type on every declaration (e.g. "
+                    f"`mm::Image x = ...;`, never a bare `x = ...;` on first "
+                    f"use). Output only the C++ code."
+                )
+                retry = _clean(_call_llm(system, retry_user))
+                ok, err = _validates(retry)
+                if ok:
+                    result = retry
 
         if self._tgt_lang == 'cpp':
             # `#define MM_OUT` entra só pro compile_check abaixo e no
@@ -452,12 +680,12 @@ class LLMCodeTranslator(Translator):
                 if check_target is None:
                     print('  ⚠ Não achei int main() pra stubar external_vars; mantendo código original.')
                     return source
-            ok, err = compile_check('cpp', check_target)
+            ok, err = compile_check('cpp', check_target, opencv=opencv)
             if not ok:
                 print(f'  ⚠ Compilação C++ falhou; mantendo código original.\n{err[:800]}')
                 return source
 
-        self.cache.set(source, self.kind, self.src_key, self.tgt_key, result)
+        self.cache.set(source, self.kind, self.src_key, cache_tgt, result)
 
         if self._tgt_lang == 'cpp':
             return _apply_mm_out(result, output_image_path)
@@ -1007,6 +1235,14 @@ class LLMCommentTranslator(Translator):
             cursor = end
         out.append(source[cursor:])
         result = ''.join(out)
+
+        # Guard de prefixo de diretiva: o LLM às vezes "normaliza" o
+        # espaçamento do comentário e devolve `# | fig-cap:` (com espaço
+        # depois do `#`) no lugar de `#| fig-cap:`. Isso descaracteriza a
+        # linha como diretiva do Quarto — a legenda some e o `@fig-...`
+        # correspondente renderiza como `?@fig-...`. Renormaliza `#␣+|` →
+        # `#|` no início de qualquer linha antes do guard de fig-cap.
+        result = re.sub(r'(?m)^(\s*)#[ \t]+\|', r'\1#|', result)
 
         # Guard de `#| fig-cap:`: algumas traduções (sobretudo fr) trocam as
         # aspas "..." do valor por guillemets « … » e/ou adicionam um espaço

@@ -1049,15 +1049,19 @@ pre {
 
         custom_filename = f"livro.{combo.file_key}"
 
-        # Combos não-base chegam com outputs/execution_count limpos
-        # (NotebookProcessor._clean_cell) — sem `enabled: true` explícito, o
+        # TODOS os combos chegam com outputs/execution_count limpos
+        # (NotebookProcessor._clean_cell para não-base; strip na fonte
+        # all/capNN/*.ipynb para o base) — sem `enabled: true` explícito, o
         # engine ipynb do Quarto trata "outputs já presentes (mesmo vazios)"
         # como "já executado" e só exibe o código-fonte, sem rodar nada
         # (confirmado: só `quarto render --execute` força a execução; sem a
-        # flag, nenhuma figura é gerada para combos não-base). O combo base
-        # (py.pt) mantém os outputs originais do autor — não force reexecução
-        # aqui para não mudar esse comportamento já validado.
-        execute_enabled = '' if combo.is_base() else '  enabled: true\n'
+        # flag, nenhuma figura é gerada). Antes o base (py.pt) preservava os
+        # outputs do autor e NÃO tinha a flag — mas isso servia figuras
+        # congeladas de execuções antigas do Jupyter (ex.: erro salvo de
+        # `mm.circle` antes da função existir). Agora o base também executa
+        # fresco. Reverter: `'' if combo.is_base() else '  enabled: true\n'`
+        # + restaurar outputs em all/capNN/*.ipynb.
+        execute_enabled = '  enabled: true\n'
 
         # NOTA: A capa do PDF é gerada via capa.tex (include-before-body).
         # NÃO use \AtBeginDocument no include-in-header para isso — o Quarto/Pandoc

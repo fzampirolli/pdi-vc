@@ -492,6 +492,38 @@ class mm:
     def bnot(f):      return mm._get_cv2().bitwise_not(f)
 
     @staticmethod
+    def circle(img, center, radius, color, thickness=-1):
+        """Desenha um círculo em img (wrapper de cv2.circle). thickness=-1 = preenchido.
+        Não altera o original: opera sobre uma cópia."""
+        out = img.copy()
+        mm._get_cv2().circle(out, tuple(int(c) for c in center), int(radius),
+                             color, int(thickness))
+        return out
+
+    @staticmethod
+    def circle0(img, center, radius, color, thickness=-1):
+        """Círculo didático (sem cv2): teste r^2 pixel a pixel. thickness=-1 =
+        preenchido; qualquer valor > 0 desenha só o anel dessa espessura."""
+        np = mm._get_np()
+        out = img.copy()
+        cx, cy = int(center[0]), int(center[1])
+        r = int(radius)
+        H, W = img.shape[:2]
+        y0, y1 = max(0, cy - r - 1), min(H, cy + r + 2)
+        x0, x1 = max(0, cx - r - 1), min(W, cx + r + 2)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                d2 = (x - cx) ** 2 + (y - cy) ** 2
+                if thickness < 0:
+                    hit = d2 <= r * r
+                else:
+                    ri = max(0, r - thickness)
+                    hit = ri * ri <= d2 <= r * r
+                if hit:
+                    out[y, x] = color
+        return out
+
+    @staticmethod
     def threshold(img, limiar=None):
         """Limiarização binária. Se limiar for None, utiliza o método de Otsu."""
         cv2 = mm._get_cv2()
@@ -560,6 +592,16 @@ class mm:
         return lut[image]
 
     @staticmethod
+    def clahe(img, clipLimit=2.0, tiles=8):
+        """CLAHE — equalização adaptativa com limite de contraste.
+
+        Encapsula cv2.createCLAHE(clipLimit, (tiles, tiles)). Espelha
+        mm::clahe da morph.hpp (reimplementação header-only fiel ao OpenCV)."""
+        cv2 = mm._get_cv2()
+        return cv2.createCLAHE(clipLimit=float(clipLimit),
+                               tileGridSize=(int(tiles), int(tiles))).apply(img)
+
+    @staticmethod
     def equalizacao(image):
         """Equalização pelo valor máximo."""
         np = mm._get_np()
@@ -623,25 +665,77 @@ class mm:
     # ── FILTROS / CORRELAÇÃO ─────────────────────────────────────────────────
 
     @staticmethod
-    def conv(f, w):
-        """Correlação vetorizada via cv2.filter2D (eficiente)."""
+    def _border_flag(border):
+        """Mapeia nome de borda -> flag do OpenCV (usado por conv/pad)."""
+        cv2 = mm._get_cv2()
+        return {
+            "reflect101": cv2.BORDER_REFLECT_101,
+            "replicate":  cv2.BORDER_REPLICATE,
+            "constant":   cv2.BORDER_CONSTANT,
+            "reflect":    cv2.BORDER_REFLECT,
+        }[border]
+
+    @staticmethod
+    def conv(f, w, border="reflect101"):
+        """Correlação vetorizada via cv2.filter2D (eficiente).
+
+        border: 'reflect101' (padrão do cv2), 'replicate', 'constant' (zero) ou
+        'reflect'."""
         cv2 = mm._get_cv2()
         np = mm._get_np()
-        return cv2.filter2D(f, -1, w.astype(np.float32))
-    
+        return cv2.filter2D(f, -1, w.astype(np.float32),
+                            borderType=mm._border_flag(border))
+
     @staticmethod
-    def conv0(f, w):
-        """Correlação didática (laços explícitos) — bordas mantidas como original."""
+    def conv0(f, w, border="keep"):
+        """Correlação didática (laços explícitos).
+
+        border: 'keep' (bordas mantidas com o valor original, padrão) ou
+        'constant' (zero fora da imagem — resultado completo)."""
         np = mm._get_np()
         f  = f.astype(np.float32)
         a, b = w.shape[0]//2, w.shape[1]//2
         H, W = f.shape
         g = f.copy()
-        for y in range(a, H-a):
-            for x in range(b, W-b):
-                viz = f[y-a:y+a+1, x-b:x+b+1]
-                g[y,x] = (w * viz).sum()
+        if border == "constant":
+            fp = np.pad(f, ((a, a), (b, b)), mode="constant")
+            for y in range(H):
+                for x in range(W):
+                    viz = fp[y:y+2*a+1, x:x+2*b+1]
+                    g[y, x] = (w * viz).sum()
+        else:
+            for y in range(a, H-a):
+                for x in range(b, W-b):
+                    viz = f[y-a:y+a+1, x-b:x+b+1]
+                    g[y, x] = (w * viz).sum()
         return np.clip(g, 0, 255).astype(np.uint8)
+
+    @staticmethod
+    def gaussKernel(N=3, sigma=0):
+        """Kernel Gaussiano 2D N×N normalizado (soma = 1).
+
+        sigma <= 0 → fórmula do cv2.getGaussianKernel. Espelha
+        mm::Kernel::gaussian da morph.hpp."""
+        cv2 = mm._get_cv2()
+        k = cv2.getGaussianKernel(N, sigma)
+        w = k @ k.T
+        return w / w.sum()
+
+    @staticmethod
+    def pad(img, b, border="constant"):
+        """Preenchimento de borda de largura b (wrapper de cv2.copyMakeBorder).
+
+        border: 'constant' (zero), 'replicate', 'reflect101' ou 'reflect'."""
+        cv2 = mm._get_cv2()
+        return cv2.copyMakeBorder(img, b, b, b, b, mm._border_flag(border), value=0)
+
+    @staticmethod
+    def pad0(img, b, border="constant"):
+        """Preenchimento de borda didático (np.pad), mesmos modos de mm.pad."""
+        np = mm._get_np()
+        modo = {"constant": "constant", "replicate": "edge",
+                "reflect101": "reflect", "reflect": "symmetric"}[border]
+        return np.pad(img, ((b, b), (b, b)), mode=modo).astype(img.dtype)
 
     @staticmethod
     def blur0(f, N=3):

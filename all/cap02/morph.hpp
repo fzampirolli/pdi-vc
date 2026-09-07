@@ -100,6 +100,24 @@ struct SE {
         return s;
     }
 
+    SE() = default;
+    // De um literal de pesos: mm::SE{{SE_OUT,-1,SE_OUT},{-1,0,-1},{SE_OUT,-1,SE_OUT}}
+    // (SE_OUT == NP_NONE == "fora do SE"; usado por dil1/ero1/dist1).
+    SE(std::initializer_list<std::initializer_list<int>> rows) {
+        h = (int)rows.size();
+        w = h ? (int)rows.begin()->size() : 0;
+        vals.clear(); vals.reserve((size_t)h * w);
+        for (const auto& r : rows) for (int v : r) vals.push_back(v);
+    }
+    // De uma Image "planar" (0 = fora, != 0 = dentro) — deixa
+    // mm::secross()/sebox()/sedisk() (que devolvem Image) servirem como SE
+    // planar para dil0/ero0/dil/ero (que testam `bv != 0`).
+    SE(const Image& m) {
+        h = m.h; w = m.w;
+        vals.assign((size_t)h * w, 0);
+        for (size_t i = 0; i < m.data.size(); ++i) if (m.data[i]) vals[i] = 1;
+    }
+
     static SE box(int n = 3) {           // np.ones((n,n)) — default de dil0/ero0
         SE s; s.h = s.w = n; s.vals.assign((size_t)n * n, 1); return s;
     }
@@ -114,6 +132,9 @@ struct SE {
     }
     static SE disk(int n = 3);           // elipse — definição depende de MM_USE_OPENCV
 };
+
+// Alias legível para os literais mm::SE{{ ... }} (posição "fora do SE").
+inline constexpr int SE_OUT = SE::NP_NONE;
 
 // ── download sem shell (execlp direto, sem risco de injeção via URL) ───────
 inline bool _download(const std::string& url, const std::string& out_path) {
@@ -191,6 +212,21 @@ inline Image read(const std::string& path_or_url, bool grayscale = false) {
 
     Image img(h, w, desired);
     std::copy(data, data + (size_t)w * h * desired, img.data.begin());
+    stbi_image_free(data);
+    return img;
+}
+
+// Leitura de PNG de estado entre células (combos cpp): preserva o nº de
+// canais REAL do arquivo — um PNG grayscale volta 1-canal, ao contrário de
+// mm::read, que força 3. Usada só pela injeção mecânica de state/ do
+// pipeline (inject_consumer_reads); morfologia/filtragem exigem 1 canal.
+inline Image _read_state(const std::string& path) {
+    int w, h, ch;
+    unsigned char* data = stbi_load(path.c_str(), &w, &h, &ch, 0);
+    if (!data)
+        throw std::runtime_error("mm::_read_state: falha ao decodificar '" + path + "'");
+    Image img(h, w, ch);
+    std::copy(data, data + (size_t)w * h * ch, img.data.begin());
     stbi_image_free(data);
     return img;
 }
@@ -373,30 +409,36 @@ inline cv::Mat _se_kernel(const SE& b) {
     cv::Mat k(b.h, b.w, CV_8UC1);
     for (int i = 0; i < b.h; ++i)
         for (int j = 0; j < b.w; ++j)
-            k.at<unsigned char>(i, j) = (b.at(i, j) == SE::NP_NONE) ? 0 : 1;
+            k.at<unsigned char>(i, j) =
+                (b.at(i, j) == SE::NP_NONE || b.at(i, j) == 0) ? 0 : 1;
     return k;
 }
 #endif
 
-inline Image dil(const Image& f, SE Bc = SE::zeros(3)) {
+// mm::dil / mm::ero — morfologia clássica (planar). Com MM_USE_OPENCV usa
+// cv::dilate/erode; sem o macro, delega a dil0/ero0 (PLANAR: `bv != 0` = no
+// SE), que a validação de 2026-09-05 confirmou bater com cv::dilate para SE
+// planar tipo box/cross/disk. SEs de forma (SE::box/cross/disk, ou SE(Image))
+// são planares e seguros aqui.
+inline Image dil(const Image& f, SE Bc = SE::box(3)) {
     _require_gray(f, "dil");
 #ifdef MM_USE_OPENCV
     cv::Mat out;
     cv::dilate(_to_mat(f), out, _se_kernel(Bc));
     return _from_mat(out);
 #else
-    return dil1(f, Bc);
+    return dil0(f, Bc);
 #endif
 }
 
-inline Image ero(const Image& f, SE Bc = SE::zeros(3)) {
+inline Image ero(const Image& f, SE Bc = SE::box(3)) {
     _require_gray(f, "ero");
 #ifdef MM_USE_OPENCV
     cv::Mat out;
     cv::erode(_to_mat(f), out, _se_kernel(Bc));
     return _from_mat(out);
 #else
-    return ero1(f, Bc);
+    return ero0(f, Bc);
 #endif
 }
 
@@ -667,45 +709,887 @@ inline void _blit_int(Image& canvas, char ch, int ox, int oy, int px) {
 
 // mm.drawImgPlt(f, scale) — grade textual no stdout + PNG com a matriz
 // ampliada, linhas de grade vermelhas e o valor de cada célula rotulado.
+// mm.drawImgPlt(f, scale) — réplica do drawImagePlt/_plot_grid da morph.py:
+// grade em tons de cinza NORMALIZADOS (como imshow(f,'gray') do matplotlib,
+// que estica [min,max]→[preto,branco]), linhas vermelhas ENTRE as células e
+// rótulos de eixo (0,1,2,...) no topo e à esquerda. Sem dígitos dentro das
+// células — os valores vão pro stdout via drawImg(f).
 inline void drawImgPlt(const Image& f, const std::string& out_path, int scale = 40) {
     std::cout << drawImg(f);
+    Image src = (f.channels == 1) ? f : gray(f);
     int cell = std::max(24, scale);
-    int pad  = cell / 2;
-    int W = f.w * cell + 2 * pad, H = f.h * cell + 2 * pad;
+    int fp   = std::max(2, cell / 12);              // px do mini-font dos rótulos
+    int LM   = 8 * fp, TM = 8 * fp;                 // margens p/ os rótulos de eixo
+
+    int mn = 255, mx = 0;
+    for (auto v : src.data) { mn = std::min(mn, (int)v); mx = std::max(mx, (int)v); }
+    int rng = std::max(1, mx - mn);
+
+    int W = LM + src.w * cell + 4, H = TM + src.h * cell + 4;
     Image canvas(H, W, 3);
     std::fill(canvas.data.begin(), canvas.data.end(), (unsigned char)255);
 
-    for (int y = 0; y < f.h; ++y)
-        for (int x = 0; x < f.w; ++x) {
-            unsigned char v = f.at(y, x);
+    for (int y = 0; y < src.h; ++y)
+        for (int x = 0; x < src.w; ++x) {
+            unsigned char v = (unsigned char)(((int)src.at(y, x) - mn) * 255 / rng);
             for (int dy = 0; dy < cell; ++dy)
                 for (int dx = 0; dx < cell; ++dx)
                     for (int k = 0; k < 3; ++k)
-                        canvas.at(pad + y * cell + dy, pad + x * cell + dx, k) = v;
+                        canvas.at(TM + y * cell + dy, LM + x * cell + dx, k) = v;
         }
 
-    auto hline = [&](int yy){ for (int x = 0; x < W; ++x){ canvas.at(yy,x,0)=255; canvas.at(yy,x,1)=0; canvas.at(yy,x,2)=0; } };
-    auto vline = [&](int xx){ for (int y = 0; y < H; ++y){ canvas.at(y,xx,0)=255; canvas.at(y,xx,1)=0; canvas.at(y,xx,2)=0; } };
-    for (int i = 0; i <= f.w; ++i) vline(std::min(W - 1, pad + i * cell));
-    for (int j = 0; j <= f.h; ++j) hline(std::min(H - 1, pad + j * cell));
+    auto hline = [&](int yy){ if (yy < 0 || yy >= H) return;
+        for (int x = LM; x < LM + src.w * cell; ++x) { canvas.at(yy,x,0)=255; canvas.at(yy,x,1)=0; canvas.at(yy,x,2)=0; } };
+    auto vline = [&](int xx){ if (xx < 0 || xx >= W) return;
+        for (int y = TM; y < TM + src.h * cell; ++y) { canvas.at(y,xx,0)=255; canvas.at(y,xx,1)=0; canvas.at(y,xx,2)=0; } };
+    for (int i = 1; i < src.w; ++i) vline(LM + i * cell);
+    for (int j = 1; j < src.h; ++j) hline(TM + j * cell);
 
-    int px = std::max(1, cell / 10);
-    for (int y = 0; y < f.h; ++y)
-        for (int x = 0; x < f.w; ++x) {
-            std::string s = std::to_string((int)f.at(y, x));
-            int tw = (int)s.size() * 4 * px, th = 5 * px;
-            int ox = pad + x * cell + (cell - tw) / 2;
-            int oy = pad + y * cell + (cell - th) / 2;
-            for (int by = -1; by <= th; ++by)
-                for (int bx = -1; bx <= tw; ++bx) {
-                    int yy = oy + by, xx = ox + bx;
-                    if (yy < 0 || yy >= H || xx < 0 || xx >= W) continue;
-                    canvas.at(yy, xx, 0) = canvas.at(yy, xx, 1) = canvas.at(yy, xx, 2) = 255;
-                }
-            for (size_t ci = 0; ci < s.size(); ++ci)
-                _blit_int(canvas, s[ci], ox + (int)ci * 4 * px, oy, px);
-        }
+    // rótulos de eixo: números no topo (x) e à esquerda (y)
+    for (int x = 0; x < src.w; ++x) {
+        std::string s = std::to_string(x);
+        int ox = LM + x * cell + (cell - (int)s.size() * 4 * fp) / 2;
+        for (size_t c = 0; c < s.size(); ++c)
+            _blit_int(canvas, s[c], ox + (int)c * 4 * fp, TM - 6 * fp, fp);
+    }
+    for (int y = 0; y < src.h; ++y) {
+        std::string s = std::to_string(y);
+        int oy = TM + y * cell + (cell - 5 * fp) / 2;
+        for (size_t c = 0; c < s.size(); ++c)
+            _blit_int(canvas, s[c], LM - 6 * fp + (int)c * 4 * fp, oy, fp);
+    }
     write(canvas, out_path);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  cap03 — nível de intensidade, histograma e filtragem espacial
+//
+//  Equivalentes header-only das operações que a morph.py implementa via
+//  numpy/OpenCV. Sem paridade bit-a-bit (bordas e arredondamento podem
+//  diferir do cv2); critério: "compila e produz imagem plausível".
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Kernel (máscara de convolução) ──────────────────────────────────────────
+// Construção próxima de um literal numpy:
+//   mm::Kernel w{{0,1,0},{1,-4,1},{0,1,0}};
+struct Kernel {
+    int h = 0, w = 0;
+    std::vector<double> vals;
+
+    Kernel() = default;
+    Kernel(int h_, int w_, double fill = 0.0)
+        : h(h_), w(w_), vals((size_t)h_ * w_, fill) {}
+    Kernel(std::initializer_list<std::initializer_list<double>> rows) {
+        h = (int)rows.size();
+        w = h ? (int)rows.begin()->size() : 0;
+        vals.reserve((size_t)h * w);
+        for (const auto& r : rows) {
+            if ((int)r.size() != w)
+                throw std::runtime_error("mm::Kernel: linhas de tamanhos diferentes");
+            for (double v : r) vals.push_back(v);
+        }
+    }
+    double& at(int y, int x)       { return vals[(size_t)y * w + x]; }
+    double  at(int y, int x) const { return vals[(size_t)y * w + x]; }
+    double  sum() const { double s = 0; for (double v : vals) s += v; return s; }
+
+    static Kernel ones(int n) { return Kernel(n, n, 1.0); }
+    static Kernel mean(int n) { return Kernel(n, n, 1.0 / ((double)n * n)); }
+    // Kernel Gaussiano n×n separável; sigma<=0 → fórmula do cv2.getGaussianKernel.
+    static Kernel gaussian(int n, double sigma = 0.0) {
+        if (sigma <= 0.0) sigma = 0.3 * ((n - 1) * 0.5 - 1) + 0.8;
+        std::vector<double> k1(n);
+        int c = n / 2;
+        double s = 0.0;
+        for (int i = 0; i < n; ++i) {
+            k1[i] = std::exp(-(double)(i - c) * (i - c) / (2.0 * sigma * sigma));
+            s += k1[i];
+        }
+        for (double& v : k1) v /= s;
+        Kernel k(n, n);
+        for (int y = 0; y < n; ++y)
+            for (int x = 0; x < n; ++x) k.at(y, x) = k1[y] * k1[x];
+        return k;
+    }
+};
+
+enum class Border { REFLECT101, REPLICATE, CONSTANT, KEEP };  // CONSTANT = zero
+
+// Índice de origem para uma coordenada fora de [0, n): espelha/replica/zera.
+inline int _border_idx(int i, int n, Border b) {
+    if (i >= 0 && i < n) return i;
+    switch (b) {
+        case Border::REPLICATE: return i < 0 ? 0 : n - 1;
+        case Border::REFLECT101: {                 // fedcb|abcdefgh|gfedc
+            if (n == 1) return 0;
+            int period = 2 * (n - 1);
+            int m = ((i % period) + period) % period;
+            return m < n ? m : period - m;
+        }
+        default: return -1;                        // ZERO/KEEP: amostra = 0
+    }
+}
+
+// Correlação 2D (NÃO gira o kernel — igual cv2.filter2D). Acumula em double.
+// Border::KEEP copia o pixel original nas bordas (largura = metade do kernel).
+inline std::vector<double> _correlate(const Image& img, const Kernel& k, Border b) {
+    Image src = (img.channels == 1) ? img : gray(img);
+    int H = src.h, W = src.w, kh = k.h, kw = k.w, ay = kh / 2, ax = kw / 2;
+    std::vector<double> out((size_t)H * W, 0.0);
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+            bool border = (y < ay || y >= H - ay || x < ax || x >= W - ax);
+            if (b == Border::KEEP && border) {
+                out[(size_t)y * W + x] = src.at(y, x);
+                continue;
+            }
+            double acc = 0.0;
+            for (int j = 0; j < kh; ++j)
+                for (int i = 0; i < kw; ++i) {
+                    int sy = _border_idx(y + j - ay, H, b);
+                    int sx = _border_idx(x + i - ax, W, b);
+                    double pv = (sy < 0 || sx < 0) ? 0.0 : (double)src.at(sy, sx);
+                    acc += pv * k.at(j, i);
+                }
+            out[(size_t)y * W + x] = acc;
+        }
+    return out;
+}
+
+inline unsigned char _sat8(double v) {
+    if (v <= 0.0) return 0;
+    if (v >= 255.0) return 255;
+    return (unsigned char)std::lround(v);
+}
+
+inline Image _from_buf(const std::vector<double>& buf, int h, int w) {
+    Image out(h, w, 1);
+    for (size_t i = 0; i < buf.size(); ++i) out.data[i] = _sat8(buf[i]);
+    return out;
+}
+
+// ── Operações aritméticas / lógicas (saturadas em [0,255]) ─────────────────
+//
+// Combina f e g pixel a pixel, por canal. Se um dos operandos tem 1 canal e o
+// outro tem C, o de 1 canal é replicado (broadcast) sobre os C — mesma
+// semântica de máscara do cv2.bitwise_and/add. Tamanho de saída = interseção
+// (min h, min w) e o maior nº de canais.
+template <class Op>
+inline Image _pixop(const Image& f, const Image& g, Op op) {
+    int H = std::min(f.h, g.h), W = std::min(f.w, g.w);
+    int C = std::max(f.channels, g.channels);
+    Image o(H, W, C);
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+            for (int c = 0; c < C; ++c) {
+                int fc = (f.channels == 1) ? 0 : c;
+                int gc = (g.channels == 1) ? 0 : c;
+                o.at(y, x, c) = op((int)f.at(y, x, fc), (int)g.at(y, x, gc));
+            }
+    return o;
+}
+
+inline Image addm(const Image& f, const Image& g) {
+    return _pixop(f, g, [](int a, int b) -> unsigned char { return (unsigned char)std::min(255, a + b); });
+}
+inline Image subm(const Image& f, const Image& g) {
+    return _pixop(f, g, [](int a, int b) -> unsigned char { return (unsigned char)std::max(0, a - b); });
+}
+inline Image addm(const Image& f, int c) {
+    Image o = f;
+    for (auto& v : o.data) v = (unsigned char)std::clamp((int)v + c, 0, 255);
+    return o;
+}
+inline Image subm(const Image& f, int c) {
+    Image o = f;
+    for (auto& v : o.data) v = (unsigned char)std::clamp((int)v - c, 0, 255);
+    return o;
+}
+inline Image blend(const Image& f, const Image& g, double alpha = 0.5) {
+    return _pixop(f, g, [alpha](int a, int b) -> unsigned char {
+        return _sat8(alpha * a + (1.0 - alpha) * b);
+    });
+}
+inline Image band(const Image& f, const Image& g) {
+    return _pixop(f, g, [](int a, int b) -> unsigned char { return (unsigned char)(a & b); });
+}
+inline Image bor(const Image& f, const Image& g) {
+    return _pixop(f, g, [](int a, int b) -> unsigned char { return (unsigned char)(a | b); });
+}
+inline Image bxor(const Image& f, const Image& g) {
+    return _pixop(f, g, [](int a, int b) -> unsigned char { return (unsigned char)(a ^ b); });
+}
+inline Image bnot(const Image& f) {
+    Image o = f;
+    for (auto& v : o.data) v = (unsigned char)(~v);
+    return o;
+}
+
+// mm.circle0 — círculo didático (teste r² pixel a pixel, sem cv2).
+// thickness < 0 = preenchido; > 0 = só o anel dessa espessura.
+inline Image circle0(const Image& img, int cx, int cy, int radius,
+                     unsigned char color, int thickness = -1) {
+    Image out = img;
+    int r = radius;
+    int y0 = std::max(0, cy - r - 1), y1 = std::min(img.h, cy + r + 2);
+    int x0 = std::max(0, cx - r - 1), x1 = std::min(img.w, cx + r + 2);
+    for (int y = y0; y < y1; ++y)
+        for (int x = x0; x < x1; ++x) {
+            int d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+            bool hit;
+            if (thickness < 0) hit = d2 <= r * r;
+            else { int ri = std::max(0, r - thickness); hit = (ri * ri <= d2 && d2 <= r * r); }
+            if (hit)
+                for (int c = 0; c < out.channels; ++c) out.at(y, x, c) = color;
+        }
+    return out;
+}
+// mm.circle — entrada "clássica" (no lado Python chama cv2.circle); header-only,
+// delega a circle0 (mesmo padrão de dil()→dil1()).
+inline Image circle(const Image& img, int cx, int cy, int radius,
+                    unsigned char color, int thickness = -1) {
+    return circle0(img, cx, cy, radius, color, thickness);
+}
+
+// mm.pad0 / mm.pad — preenchimento de borda de largura b.
+// mode: CONSTANT (zero), REPLICATE, REFLECT101.
+inline Image pad0(const Image& img, int b, Border mode = Border::CONSTANT) {
+    int H = img.h, W = img.w, C = img.channels;
+    Image out(H + 2 * b, W + 2 * b, C);
+    for (int y = 0; y < out.h; ++y)
+        for (int x = 0; x < out.w; ++x) {
+            int sy = _border_idx(y - b, H, mode);
+            int sx = _border_idx(x - b, W, mode);
+            for (int c = 0; c < C; ++c)
+                out.at(y, x, c) = (sy < 0 || sx < 0) ? 0 : img.at(sy, sx, c);
+        }
+    return out;
+}
+inline Image pad(const Image& img, int b, Border mode = Border::CONSTANT) {
+    return pad0(img, b, mode);
+}
+
+// ── Histograma / equalização ──────────────────────────────────────────────
+// mm.hist(img, B=8) — vetor de 2^B posições (256 por padrão).
+inline std::vector<int> hist(const Image& img, int B = 8) {
+    Image src = (img.channels == 1) ? img : gray(img);
+    std::vector<int> H((size_t)1 << B, 0);
+    int L = (int)H.size();
+    for (auto v : src.data)
+        if ((int)v < L) H[v]++;
+    return H;
+}
+
+// mm.equalize — LUT pela CDF: s_k = round((L-1) * CDF(r_k)).
+inline Image equalize(const Image& img, int B = 8) {
+    Image src = (img.channels == 1) ? img : gray(img);
+    std::vector<int> h = hist(src, B);
+    int Lmax = 1 << B;
+    double total = (double)src.data.size();
+    std::vector<unsigned char> lut(h.size());
+    double cum = 0.0;
+    for (size_t i = 0; i < h.size(); ++i) {
+        cum += h[i] / total;
+        lut[i] = (unsigned char)std::lround(cum * (Lmax - 1));
+    }
+    Image out(src.h, src.w, 1);
+    for (size_t i = 0; i < src.data.size(); ++i) out.data[i] = lut[src.data[i]];
+    return out;
+}
+
+// mm.clahe — CLAHE (equalização adaptativa com limite de contraste).
+// Reimplementa cv2.createCLAHE(clipLimit, {tiles,tiles}).apply(img) fielmente
+// ao algoritmo do OpenCV (imgproc/src/clahe.cpp), para imagem 8 bits 1 canal:
+//   1. se W/H não divisível por `tiles`, estende com REFLECT_101 até divisível
+//      (LUTs no estendido; interpolação no tamanho original — como o OpenCV);
+//   2. por bloco: histograma → clip em `clipLimit·área/256` (mín. 1) e
+//      redistribuição uniforme da massa cortada (+ resíduo em passo fixo);
+//   3. LUT do bloco pela CDF, escala (256-1)/área;
+//   4. por pixel: interpolação bilinear entre as 4 LUTs de bloco vizinhas,
+//      com o mesmo mapeamento de coordenadas do OpenCV (x/tw − 0.5, floor,
+//      pesos antes do clamp dos índices de bloco).
+// Não é bit-idêntico ao cv2 (arredondamento interno e ordem de redistribuição
+// do resíduo diferem), mas fica dentro de ±1 na esmagadora maioria dos pixels
+// e o T* de Otsu resultante coincide.
+inline Image clahe(const Image& img, double clipLimit = 2.0, int tiles = 8) {
+    Image src = (img.channels == 1) ? img : gray(img);
+    const int H = src.h, W = src.w;
+    const int tilesX = std::max(tiles, 1), tilesY = std::max(tiles, 1);
+
+    const int EW = (W % tilesX) ? W + (tilesX - W % tilesX) : W;
+    const int EH = (H % tilesY) ? H + (tilesY - H % tilesY) : H;
+    std::vector<unsigned char> ext((size_t)EW * EH);
+    for (int y = 0; y < EH; ++y) {
+        int sy = _border_idx(y, H, Border::REFLECT101);
+        for (int x = 0; x < EW; ++x)
+            ext[(size_t)y * EW + x] =
+                src.data[(size_t)sy * W + _border_idx(x, W, Border::REFLECT101)];
+    }
+
+    const int tw = EW / tilesX, th = EH / tilesY;
+    const int area = tw * th;
+    const float lutScale = 255.0f / (float)area;
+    int clip = 0;
+    if (clipLimit > 0.0) {
+        clip = (int)(clipLimit * area / 256.0);
+        if (clip < 1) clip = 1;
+    }
+
+    // LUTs: tilesY*tilesX planos de 256 entradas
+    std::vector<unsigned char> lut((size_t)tilesX * tilesY * 256);
+    int hb[256];
+    for (int ty = 0; ty < tilesY; ++ty)
+        for (int tx = 0; tx < tilesX; ++tx) {
+            std::fill(hb, hb + 256, 0);
+            for (int j = 0; j < th; ++j) {
+                const unsigned char* row = &ext[(size_t)(ty * th + j) * EW + tx * tw];
+                for (int i = 0; i < tw; ++i) ++hb[row[i]];
+            }
+            if (clip > 0) {
+                int clipped = 0;
+                for (int i = 0; i < 256; ++i)
+                    if (hb[i] > clip) { clipped += hb[i] - clip; hb[i] = clip; }
+                const int batch = clipped / 256;
+                int residual = clipped - batch * 256;
+                for (int i = 0; i < 256; ++i) hb[i] += batch;
+                if (residual != 0) {
+                    int step = std::max(256 / residual, 1);
+                    for (int i = 0; i < 256 && residual > 0; i += step, --residual)
+                        ++hb[i];
+                }
+            }
+            unsigned char* plane = &lut[((size_t)ty * tilesX + tx) * 256];
+            int sum = 0;
+            for (int i = 0; i < 256; ++i) {
+                sum += hb[i];
+                long v = (long)std::nearbyintf(sum * lutScale);
+                plane[i] = (unsigned char)(v < 0 ? 0 : (v > 255 ? 255 : v));
+            }
+        }
+
+    Image out(H, W, 1);
+    for (int y = 0; y < H; ++y) {
+        float tyf = y * (1.0f / th) - 0.5f;
+        int ty1 = (int)std::floor(tyf), ty2 = ty1 + 1;
+        float ya = tyf - ty1, ya1 = 1.0f - ya;
+        ty1 = std::max(ty1, 0);
+        ty2 = std::min(ty2, tilesY - 1);
+        for (int x = 0; x < W; ++x) {
+            float txf = x * (1.0f / tw) - 0.5f;
+            int tx1 = (int)std::floor(txf), tx2 = tx1 + 1;
+            float xa = txf - tx1, xa1 = 1.0f - xa;
+            tx1 = std::max(tx1, 0);
+            tx2 = std::min(tx2, tilesX - 1);
+            const int v = src.data[(size_t)y * W + x];
+            const float p11 = lut[((size_t)ty1 * tilesX + tx1) * 256 + v];
+            const float p12 = lut[((size_t)ty1 * tilesX + tx2) * 256 + v];
+            const float p21 = lut[((size_t)ty2 * tilesX + tx1) * 256 + v];
+            const float p22 = lut[((size_t)ty2 * tilesX + tx2) * 256 + v];
+            float res = (p11 * xa1 + p12 * xa) * ya1 + (p21 * xa1 + p22 * xa) * ya;
+            long r = (long)std::nearbyintf(res);
+            out.data[(size_t)y * W + x] = (unsigned char)(r < 0 ? 0 : (r > 255 ? 255 : r));
+        }
+    }
+    return out;
+}
+
+// mm.histImg — renderiza o histograma 256-bin como PNG de barras (para mm::show).
+inline Image histImg(const Image& img, int cr = 70, int cg = 130, int cb = 180) {
+    std::vector<int> H = hist(img, 8);
+    int maxc = 1;
+    for (int c : H) maxc = std::max(maxc, c);
+    const int BW = 2, PH = 200, PAD = 10;
+    int W = 256 * BW + 2 * PAD, Hgt = PH + 2 * PAD;
+    Image cv(Hgt, W, 3);
+    std::fill(cv.data.begin(), cv.data.end(), (unsigned char)255);
+    for (int b = 0; b < 256; ++b) {
+        int barh = (int)std::lround((double)H[b] / maxc * PH);
+        for (int yy = 0; yy < barh; ++yy)
+            for (int xx = 0; xx < BW; ++xx) {
+                int px = PAD + b * BW + xx;
+                int py = PAD + PH - 1 - yy;
+                cv.at(py, px, 0) = (unsigned char)cr;
+                cv.at(py, px, 1) = (unsigned char)cg;
+                cv.at(py, px, 2) = (unsigned char)cb;
+            }
+    }
+    return cv;
+}
+
+// ── Filtragem espacial ────────────────────────────────────────────────────
+// mm.conv  — correlação vetorizada (borda REFLECT_101, como cv2.filter2D).
+// mm.conv0 — correlação didática: bordas mantidas com o valor original.
+inline Image conv(const Image& f, const Kernel& w, Border border = Border::REFLECT101) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    return _from_buf(_correlate(src, w, border), src.h, src.w);
+}
+inline Image conv0(const Image& f, const Kernel& w, Border border = Border::KEEP) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    return _from_buf(_correlate(src, w, border), src.h, src.w);
+}
+inline Image blur(const Image& f, int N = 3) { return conv(f, Kernel::mean(N)); }
+inline Image gaussian(const Image& f, int N = 3, double sigma = 0.0) {
+    return conv(f, Kernel::gaussian(N, sigma));
+}
+
+inline Kernel _lap_default() { return Kernel{{0, 1, 0}, {1, -4, 1}, {0, 1, 0}}; }
+
+// mm.laplacian — realce: g = clip(f - conv(f, B)).
+inline Image laplacian(const Image& f, const Kernel& B = _lap_default()) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    auto lap = _correlate(src, B, Border::REFLECT101);
+    std::vector<double> out(lap.size());
+    for (size_t i = 0; i < lap.size(); ++i) out[i] = (double)src.data[i] - lap[i];
+    return _from_buf(out, src.h, src.w);
+}
+// mm.laplacian_viz — |lap| normalizado para [0,255].
+inline Image laplacian_viz(const Image& f, const Kernel& B = _lap_default()) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    auto lap = _correlate(src, B, Border::REFLECT101);
+    double mx = 1e-9;
+    for (double v : lap) mx = std::max(mx, std::fabs(v));
+    std::vector<double> out(lap.size());
+    for (size_t i = 0; i < lap.size(); ++i) out[i] = std::fabs(lap[i]) / mx * 255.0;
+    return _from_buf(out, src.h, src.w);
+}
+
+// Magnitude do gradiente com kernels Bx/By; bordas ficam 0 (igual sobel0).
+inline Image _gradmag(const Image& f, const Kernel& Bx, const Kernel& By) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    int H = src.h, W = src.w;
+    Image out(H, W, 1);
+    for (int y = 1; y < H - 1; ++y)
+        for (int x = 1; x < W - 1; ++x) {
+            double gx = 0.0, gy = 0.0;
+            for (int j = -1; j <= 1; ++j)
+                for (int i = -1; i <= 1; ++i) {
+                    double p = src.at(y + j, x + i);
+                    gx += p * Bx.at(j + 1, i + 1);
+                    gy += p * By.at(j + 1, i + 1);
+                }
+            out.at(y, x) = _sat8(std::sqrt(gx * gx + gy * gy));
+        }
+    return out;
+}
+inline Image sobel(const Image& f,
+                   const Kernel& Bx = Kernel{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}},
+                   const Kernel& By = Kernel{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}}) {
+    return _gradmag(f, Bx, By);
+}
+inline Image prewitt(const Image& f,
+                     const Kernel& Bx = Kernel{{-1, 0, 1}, {-1, 0, 1}, {-1, 0, 1}},
+                     const Kernel& By = Kernel{{-1, -1, -1}, {0, 0, 0}, {1, 1, 1}}) {
+    return _gradmag(f, Bx, By);
+}
+
+// mm.usm — Unsharp Masking: g = clip(round(f + k*(f - blur(f)))).
+inline Image usm(const Image& f, double k = 1.0, const Kernel& w = Kernel::mean(3)) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    auto fbar = _correlate(src, w, Border::REFLECT101);
+    std::vector<double> out(fbar.size());
+    for (size_t i = 0; i < fbar.size(); ++i)
+        out[i] = (double)src.data[i] + k * ((double)src.data[i] - fbar[i]);
+    return _from_buf(out, src.h, src.w);
+}
+
+// mm.canny — porta do canny0 didático: suavização Gaussiana → gradiente de
+// Sobel → supressão de não-máximos (4 direções) → histerese por conexão
+// 8-vizinhos (forte propaga pelos fracos).
+inline Image canny(const Image& f, int t_low = 50, int t_high = 150,
+                   int ksize = 5, double sigma = 0.0) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    int H = src.h, W = src.w;
+    long N = (long)H * W;
+
+    auto sbuf = _correlate(src, Kernel::gaussian(ksize, sigma), Border::REFLECT101);
+    Image s(H, W, 1);
+    for (long i = 0; i < N; ++i) s.data[i] = _sat8(sbuf[i]);
+
+    Kernel Bx{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+    Kernel By{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+    auto gx = _correlate(s, Bx, Border::REFLECT101);
+    auto gy = _correlate(s, By, Border::REFLECT101);
+
+    std::vector<double> mag(N), ang(N);
+    for (long i = 0; i < N; ++i) {
+        mag[i] = std::sqrt(gx[i] * gx[i] + gy[i] * gy[i]);
+        double a = std::atan2(gy[i], gx[i]) * 180.0 / 3.14159265358979323846;
+        a = std::fmod(a, 180.0);
+        if (a < 0) a += 180.0;
+        ang[i] = a;
+    }
+
+    std::vector<double> nms(N, 0.0);
+    auto M = [&](int y, int x) { return mag[(long)y * W + x]; };
+    for (int y = 1; y < H - 1; ++y)
+        for (int x = 1; x < W - 1; ++x) {
+            double a = ang[(long)y * W + x], n1, n2;
+            if (a < 22.5 || a >= 157.5) { n1 = M(y, x - 1);     n2 = M(y, x + 1); }
+            else if (a < 67.5)          { n1 = M(y - 1, x + 1); n2 = M(y + 1, x - 1); }
+            else if (a < 112.5)         { n1 = M(y - 1, x);     n2 = M(y + 1, x); }
+            else                        { n1 = M(y - 1, x - 1); n2 = M(y + 1, x + 1); }
+            double c = M(y, x);
+            if (c >= n1 && c >= n2) nms[(long)y * W + x] = c;
+        }
+
+    std::vector<unsigned char> out(N, 0);
+    std::vector<long> stack;
+    for (long i = 0; i < N; ++i)
+        if (nms[i] >= t_high) { out[i] = 255; stack.push_back(i); }
+    while (!stack.empty()) {
+        long p = stack.back();
+        stack.pop_back();
+        int py = (int)(p / W), px = (int)(p % W);
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx) {
+                int ny = py + dy, nx = px + dx;
+                if (ny < 0 || ny >= H || nx < 0 || nx >= W) continue;
+                long q = (long)ny * W + nx;
+                if (!out[q] && nms[q] >= t_low) { out[q] = 255; stack.push_back(q); }
+            }
+    }
+    Image res(H, W, 1);
+    res.data.assign(out.begin(), out.end());
+    return res;
+}
+
+// mm.median(f, ksize=3) — filtro da mediana (janela ksize×ksize, borda copiada).
+inline Image median(const Image& f, int ksize = 3) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    int H = src.h, W = src.w, r = ksize / 2;
+    Image out = src;
+    std::vector<unsigned char> win;
+    win.reserve((size_t)ksize * ksize);
+    for (int y = r; y < H - r; ++y)
+        for (int x = r; x < W - r; ++x) {
+            win.clear();
+            for (int j = -r; j <= r; ++j)
+                for (int i = -r; i <= r; ++i) win.push_back(src.at(y + j, x + i));
+            std::nth_element(win.begin(), win.begin() + win.size() / 2, win.end());
+            out.at(y, x) = win[win.size() / 2];
+        }
+    return out;
+}
+
+// mm.drawImg(kernel) — mesma grade textual do drawImg(Image), mas para os
+// coeficientes (double) de um mm::Kernel. Inteiros saem sem casa decimal.
+inline std::string drawImg(const Kernel& k) {
+    bool all_int = true;
+    for (double v : k.vals)
+        if (v != std::floor(v)) { all_int = false; break; }
+    std::ostringstream oss;
+    for (int y = 0; y < k.h; ++y) {
+        for (int x = 0; x < k.w; ++x) {
+            if (all_int) oss << std::setw(4) << (long)std::llround(k.at(y, x));
+            else         oss << std::setw(9) << std::fixed << std::setprecision(4) << k.at(y, x);
+            oss << ' ';
+        }
+        oss << '\n';
+    }
+    return oss.str();
+}
+
+// mm.drawImgKernel(f, B, x, y) — grade ampliada (drawImgPlt) + qual janela do
+// kernel está sendo processada, no stdout.
+inline void drawImgKernel(const Image& f, const Kernel& B, int cx, int cy,
+                          const std::string& out_path, int scale = 40) {
+    std::cout << "Processando pixel (x,y)=(" << cx << "," << cy << ")"
+              << "  |  janela do kernel " << B.h << "x" << B.w << std::endl;
+    drawImgPlt(f, out_path, scale);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  cap04 — morfologia matemática (composições, reconstrução geodésica,
+//  distância, rotulagem, watershed). Tudo sobre imagem 1-canal.
+//  dil/ero/dil0/ero0/dil1/ero1 + struct SE já definidos acima.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Elementos estruturantes com os nomes da morph.py (devolvem Image, que
+//    vira SE planar por conversão implícita — mm.secross já existe acima) ──
+inline Image sebox(int n = 0) {                 // Minkowski: lado 3 + 2n
+    int s = 3 + 2 * std::max(0, n);
+    Image m(s, s, 1);
+    std::fill(m.data.begin(), m.data.end(), (unsigned char)1);
+    return m;
+}
+inline Image sedisk(int n = 3) {                // elipse, como SE::disk / cv2
+    SE s = SE::disk(n);
+    Image m(s.h, s.w, 1);
+    for (int i = 0; i < s.h * s.w; ++i) m.data[i] = (unsigned char)(s.vals[i] ? 1 : 0);
+    return m;
+}
+
+// ── Operações básicas ────────────────────────────────────────────────────
+inline Image neg(const Image& f) {
+    Image o = f;
+    for (auto& v : o.data) v = (unsigned char)(255 - v);
+    return o;
+}
+inline Image open(const Image& f, SE b = SE::box(3))  { return dil(ero(f, b), b); }
+inline Image close(const Image& f, SE b = SE::box(3)) { return ero(dil(f, b), b); }
+inline Image gradm(const Image& f, SE b = SE::box(3))    { return subm(dil(f, b), ero(f, b)); }
+inline Image tophat(const Image& f, SE b = SE::box(3))   { return subm(f, open(f, b)); }
+inline Image blackhat(const Image& f, SE b = SE::box(3)) { return subm(close(f, b), f); }
+
+// ── Filtro sequencial alternado ─────────────────────────────────────────
+// seq: "OC" | "CO" | "OCO" | "COC"; n passes com SE crescente (Minkowski).
+inline SE _se_grow(SE b, int times) {
+    if (times <= 0) return b;
+    Image m(b.h, b.w, 1);
+    for (int i = 0; i < b.h * b.w; ++i) m.data[i] = (unsigned char)(b.at(i / b.w, i % b.w) != SE::NP_NONE);
+    for (int t = 0; t < times; ++t) {
+        int ph = b.h / 2, pw = b.w / 2;
+        Image p(m.h + 2 * ph, m.w + 2 * pw, 1);
+        for (int y = 0; y < m.h; ++y)
+            for (int x = 0; x < m.w; ++x) p.at(y + ph, x + pw) = m.at(y, x);
+        m = dil0(p, SE(m.h ? b : SE::box(3)));
+    }
+    return SE(m);
+}
+inline Image asf(const Image& f, const std::string& seq = "OC", SE b = SE::box(3), int n = 1) {
+    Image y = (f.channels == 1) ? f : gray(f);
+    for (int i = 0; i < n; ++i) {
+        SE bi = _se_grow(b, i);
+        for (char op : seq)
+            if (op == 'O' || op == 'o') y = open(y, bi);
+            else if (op == 'C' || op == 'c') y = close(y, bi);
+    }
+    return y;
+}
+
+// ── Reconstrução geodésica ─────────────────────────────────────────────
+// cdil/cero: dilatação/erosão geodésica de f condicionada por g, n vezes.
+inline Image cdil(const Image& f, const Image& g, SE b = SE::box(3), int n = 1) {
+    Image y = f;
+    for (int i = 0; i < n; ++i) {
+        Image d = dil(y, b);
+        for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
+            d.data[k] = std::min(d.data[k], g.data[k]);
+        y = d;
+    }
+    return y;
+}
+inline Image cero(const Image& f, const Image& g, SE b = SE::box(3), int n = 1) {
+    Image y = f;
+    for (int i = 0; i < n; ++i) {
+        Image e = ero(y, b);
+        for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
+            e.data[k] = std::max(e.data[k], g.data[k]);
+        y = e;
+    }
+    return y;
+}
+// infrec: dilata o marcador (f ∧ g) sob a máscara g até convergir.
+inline Image infrec(const Image& f, const Image& g, SE b = SE::box(3)) {
+    Image y = f;
+    for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
+        y.data[k] = std::min(y.data[k], g.data[k]);
+    while (true) {
+        Image prev = y;
+        Image d = dil(y, b);
+        for (size_t k = 0; k < d.data.size() && k < g.data.size(); ++k)
+            d.data[k] = std::min(d.data[k], g.data[k]);
+        y = d;
+        if (y.data == prev.data) break;
+    }
+    return y;
+}
+// suprec: erode o marcador (f ∨ g) sobre a máscara g até convergir.
+inline Image suprec(const Image& f, const Image& g, SE b = SE::box(3)) {
+    Image y = f;
+    for (size_t k = 0; k < y.data.size() && k < g.data.size(); ++k)
+        y.data[k] = std::max(y.data[k], g.data[k]);
+    while (true) {
+        Image prev = y;
+        Image e = ero(y, b);
+        for (size_t k = 0; k < e.data.size() && k < g.data.size(); ++k)
+            e.data[k] = std::max(e.data[k], g.data[k]);
+        y = e;
+        if (y.data == prev.data) break;
+    }
+    return y;
+}
+
+inline Image frame(const Image& f, int border = 5) {
+    Image g(f.h, f.w, 1);
+    std::fill(g.data.begin(), g.data.end(), (unsigned char)255);
+    for (int y = border; y < f.h - border; ++y)
+        for (int x = border; x < f.w - border; ++x) g.at(y, x) = 0;
+    return g;
+}
+// edgeoff: remove objetos que tocam a borda (reconstrução a partir da moldura).
+inline Image edgeoff(const Image& f, SE b = SE::box(3), int border = 1) {
+    Image fr = frame(f, border);
+    Image marcador(f.h, f.w, 1);
+    for (size_t k = 0; k < f.data.size(); ++k) marcador.data[k] = (unsigned char)(fr.data[k] & f.data[k]);
+    return subm(f, infrec(marcador, f, b));
+}
+// clohole: preenche buracos (reconstrução do complemento a partir da moldura).
+inline Image clohole(const Image& f, SE b = SE::box(3)) {
+    Image fr = frame(f, 1), nf = neg(f);
+    Image marcador(f.h, f.w, 1);
+    for (size_t k = 0; k < f.data.size(); ++k) marcador.data[k] = (unsigned char)(fr.data[k] & nf.data[k]);
+    return neg(infrec(marcador, nf, b));
+}
+
+// ── Rotulagem por flood-fill (rótulos 1..255; satura em 255) ────────────
+inline Image label0(const Image& f, SE b = SE::box(3)) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    int H = src.h, W = src.w;
+    Image g(H, W, 1);
+    int cor = 0;
+    std::vector<int> stack;
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+            if (src.at(y, x) && !g.at(y, x)) {
+                if (cor < 255) ++cor;
+                g.at(y, x) = (unsigned char)cor;
+                stack.clear(); stack.push_back(y * W + x);
+                while (!stack.empty()) {
+                    int p = stack.back(); stack.pop_back();
+                    int py = p / W, px = p % W;
+                    _viz(src, b, py, px, [&](int vy, int vx, int bv) {
+                        if (bv != SE::NP_NONE && bv != 0 && src.at(vy, vx) && !g.at(vy, vx)) {
+                            g.at(vy, vx) = (unsigned char)cor;
+                            stack.push_back(vy * W + vx);
+                        }
+                    });
+                }
+            }
+    return g;
+}
+
+// ── Transformada de distância ──────────────────────────────────────────
+// dist: L2 aproximada (chamfer 2 passes, pesos 1 / √2). Satura em 255.
+inline Image dist(const Image& f) {
+    Image src = (f.channels == 1) ? f : gray(f);
+    int H = src.h, W = src.w;
+    const double INF = 1e12, a = 1.0, d = std::sqrt(2.0);
+    std::vector<double> m((size_t)H * W);
+    for (int i = 0; i < H * W; ++i) m[i] = src.data[i] ? INF : 0.0;
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+            double& v = m[(size_t)y * W + x];
+            if (v == 0.0) continue;
+            if (y > 0)             v = std::min(v, m[(size_t)(y - 1) * W + x] + a);
+            if (x > 0)             v = std::min(v, m[(size_t)y * W + x - 1] + a);
+            if (y > 0 && x > 0)    v = std::min(v, m[(size_t)(y - 1) * W + x - 1] + d);
+            if (y > 0 && x < W - 1)v = std::min(v, m[(size_t)(y - 1) * W + x + 1] + d);
+        }
+    for (int y = H - 1; y >= 0; --y)
+        for (int x = W - 1; x >= 0; --x) {
+            double& v = m[(size_t)y * W + x];
+            if (v == 0.0) continue;
+            if (y < H - 1)             v = std::min(v, m[(size_t)(y + 1) * W + x] + a);
+            if (x < W - 1)             v = std::min(v, m[(size_t)y * W + x + 1] + a);
+            if (y < H - 1 && x < W - 1)v = std::min(v, m[(size_t)(y + 1) * W + x + 1] + d);
+            if (y < H - 1 && x > 0)    v = std::min(v, m[(size_t)(y + 1) * W + x - 1] + d);
+        }
+    Image out(H, W, 1);
+    for (int i = 0; i < H * W; ++i) out.data[i] = (unsigned char)std::min(255.0, std::round(m[i]));
+    return out;
+}
+// dist1: distância por erosões sucessivas com SE de pesos (b passado pelo usuário).
+inline Image dist1(const Image& f, SE b) {
+    Image g = (f.channels == 1) ? f : gray(f);
+    while (true) {
+        Image prev = g;
+        g = ero1(g, b);
+        if (g.data == prev.data) break;
+    }
+    return g;
+}
+// gdist: distância geodésica (nº de passos) do marcador dentro da máscara f.
+inline Image gdist(const Image& f, const Image& marker, SE b = SE::box(3)) {
+    Image mask = (f.channels == 1) ? f : gray(f);
+    int H = mask.h, W = mask.w;
+    const int INF = 1 << 29;
+    std::vector<int> dd((size_t)H * W, INF);
+    std::vector<int> q;
+    for (int i = 0; i < H * W && i < (int)marker.data.size(); ++i)
+        if (marker.data[i] && mask.data[i]) { dd[i] = 0; q.push_back(i); }
+    size_t head = 0;
+    while (head < q.size()) {
+        int p = q[head++], py = p / W, px = p % W, dp = dd[p];
+        _viz(mask, b, py, px, [&](int vy, int vx, int bv) {
+            if (bv == SE::NP_NONE || bv == 0) return;
+            int qi = vy * W + vx;
+            if (mask.data[qi] && dd[qi] == INF) { dd[qi] = dp + 1; q.push_back(qi); }
+        });
+    }
+    Image out(H, W, 1);
+    for (int i = 0; i < H * W; ++i) out.data[i] = (dd[i] == INF) ? 0 : (unsigned char)std::min(255, dd[i]);
+    return out;
+}
+
+// ── Watershed ──────────────────────────────────────────────────────────
+// f = marcadores (binário/rotulado); mask (opcional) limita a expansão;
+// op = "region" (imagem rotulada) ou outra coisa → "line" (gradm das regiões).
+inline Image watershed0(const Image& f, Image mask = Image(),
+                        const std::string& op = "region", SE b = SE::box(3)) {
+    Image lab = label0(f, b);
+    Image g = lab;
+    int H = lab.h, W = lab.w;
+    bool hm = (mask.h == H && mask.w == W);
+    auto inzone = [&](int y, int x) { return !hm || mask.at(y, x); };
+    for (int iter = 0; iter < H * W; ++iter) {
+        Image snap = g;
+        bool mudou = false;
+        for (int y = 0; y < H; ++y)
+            for (int x = 0; x < W; ++x) {
+                if (g.at(y, x) != 0 || !inzone(y, x)) continue;
+                int best = 0;
+                _viz(snap, b, y, x, [&](int vy, int vx, int bv) {
+                    if (bv != SE::NP_NONE && bv != 0 && (int)snap.at(vy, vx) > best) best = snap.at(vy, vx);
+                });
+                if (best > 0) { g.at(y, x) = (unsigned char)best; mudou = true; }
+            }
+        if (!mudou) break;
+        bool anyzero = false;
+        for (int y = 0; y < H && !anyzero; ++y)
+            for (int x = 0; x < W; ++x)
+                if (!g.at(y, x) && inzone(y, x)) { anyzero = true; break; }
+        if (!anyzero) break;
+    }
+    if (op == "region") return g;
+    Image ln = gradm(g, SE::cross(3));   // fronteiras entre rótulos
+    for (auto& v : ln.data) v = v ? 255 : 0;
+    return ln;
+}
+inline Image watershedB(const Image& f, Image mask = Image(),
+                        const std::string& op = "region", SE b = SE::box(3)) {
+    Image m = label0(f, b);
+    int H = m.h, W = m.w;
+    bool hm = (mask.h == H && mask.w == W);
+    auto inzone = [&](int y, int x) { return !hm || mask.at(y, x); };
+    std::vector<int> q;
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+            if (m.at(y, x) > 0) {
+                bool front = false;
+                _viz(m, b, y, x, [&](int vy, int vx, int bv) {
+                    if (bv != SE::NP_NONE && bv != 0 && m.at(vy, vx) == 0 && inzone(vy, vx)) front = true;
+                });
+                if (front) q.push_back(y * W + x);
+            }
+    size_t head = 0;
+    while (head < q.size()) {
+        int p = q[head++], py = p / W, px = p % W;
+        unsigned char cor = m.at(py, px);
+        _viz(m, b, py, px, [&](int vy, int vx, int bv) {
+            if (bv == SE::NP_NONE || bv == 0) return;
+            if (m.at(vy, vx) == 0 && inzone(vy, vx)) { m.at(vy, vx) = cor; q.push_back(vy * W + vx); }
+        });
+    }
+    if (op == "region") return m;
+    Image ln = gradm(m, SE::cross(3));   // fronteiras entre rótulos
+    for (auto& v : ln.data) v = v ? 255 : 0;
+    return ln;
+}
+// mm::watershed — na trilha cpp, equivale ao watershedB (flooding por BFS).
+inline Image watershed(const Image& f, Image mask = Image(),
+                       const std::string& op = "region", SE b = SE::box(3)) {
+    return watershedB(f, mask, op, b);
 }
 
 }  // namespace mm

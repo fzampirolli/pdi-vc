@@ -50,7 +50,8 @@ try:
 except ImportError:
     raise ImportError("pip install nbformat")
 
-from .config import BASE_LANG, BASE_LOCALE, LANGUAGES, LOCALES, Combo
+from .config import (BASE_LANG, BASE_LOCALE, LANGUAGES, LOCALES, Combo,
+                     CPP_OPENCV_CHAPTERS)
 from .translators import TranslatorFactory
 from .bib import resolve_citations, resolve_bibliography
 from .exec_validate import (inject_consumer_reads, inject_panel_writes,
@@ -172,7 +173,19 @@ def _ep_testsuite_call_name(src: str) -> Optional[str]:
 
 _MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'otsu',
                  'drawImg', 'drawImgPlt', 'resize', 'translate', 'rotate', 'shear',
-                 'secross', 'crop', 'subsample'}
+                 'secross', 'crop', 'subsample',
+                 # cap03 — nível de intensidade, histograma e filtragem espacial
+                 'addm', 'subm', 'blend', 'band', 'bor', 'bxor', 'bnot',
+                 'hist', 'histImg', 'equalize', 'clahe', 'gaussKernel',
+                 'conv', 'conv0', 'blur', 'gaussian', 'laplacian', 'laplacian_viz',
+                 'sobel', 'prewitt', 'usm', 'median', 'canny',
+                 'circle', 'circle0', 'pad', 'pad0', 'drawImgKernel',
+                 # cap04 — morfologia matemática
+                 'dil', 'dil0', 'dil1', 'ero', 'ero0', 'ero1',
+                 'sebox', 'sedisk', 'neg', 'open', 'close', 'gradm', 'tophat',
+                 'blackhat', 'asf', 'cdil', 'cero', 'infrec', 'suprec', 'frame',
+                 'edgeoff', 'clohole', 'label0', 'dist', 'dist1', 'gdist',
+                 'watershed', 'watershed0', 'watershedB'}
 _CV2_RE   = re.compile(r'\bcv2\.(\w+)')
 # Símbolos cv2 que a cheat-sheet de tradução sabe mapear pra morph.hpp
 # (cv2.threshold(..., THRESH_OTSU) -> mm::threshold + mm::otsu pro valor T).
@@ -184,26 +197,28 @@ _MM_SHOW_RE = re.compile(r'\bmm\.show\s*\(')
 # Funções mm que gravam um PNG em disco e portanto precisam do #define MM_OUT
 # prefixado e de uma célula-cola que exibe o PNG (mesmo tratamento de mm.show,
 # mas sem o parsing de painéis/títulos — drawImgPlt recebe uma imagem só).
-_MM_GLUE_RE = re.compile(r'\bmm\.(?:show|drawImgPlt)\s*\(')
+_MM_GLUE_RE = re.compile(r'\bmm\.(?:show|drawImgPlt|drawImgKernel)\s*\(')
 _LABEL_RE   = re.compile(r'^#\|\s*label:\s*(\S+)', re.MULTILINE)
 _FIG_OPTION_RE = re.compile(r'^#\|\s*(label|fig-cap):', re.MULTILINE)
 # Mesmo padrão usado em quarto_builder.py (HTML_TRIPLE_RE) pra achar células
 # que montam HTML/JS embutido (simuladores interativos via IPython.display.HTML).
 _HTML_TRIPLE_RE = re.compile(r'HTML\(\s*[a-zA-Z]{0,2}["\']{3}')
 
-def _is_eligible_for_foreign_expansion(src: str) -> bool:
+def _is_eligible_for_foreign_expansion(src: str, opencv: bool = False) -> bool:
     """
-    True só se `src` não usa matplotlib diretamente, não monta HTML/JS
-    embutido (simuladores interativos — não fazem sentido em C++, e uma
-    "tradução" que tente simular a interação via stdin pode travar esperando
-    entrada que nunca chega), todo `cv2.*` usado está em _CV2_WHITELIST e
-    todo `mm.*` chamado está na lista de funções com equivalente em
-    morph.hpp. Fora disso, a célula fica como referência Python
-    não-executada (nunca tenta traduzir).
+    Header-only (opencv=False): True só se `src` não usa matplotlib nem
+    HTML/JS embutido, todo `cv2.*` está em _CV2_WHITELIST e todo `mm.*` está
+    na lista com equivalente em morph.hpp.
+
+    OpenCV (opencv=True, capítulos cap05-08): a célula compila com `cv::`, então
+    `cv2.*`, `np.fft.*`, `scipy.*` e `skimage.*` são todos aceitos — só
+    matplotlib e simuladores HTML continuam barrados (não há como reproduzir
+    um plot mpl nem a interação de um widget em C++). `mm.*` ainda restrito à
+    whitelist (as funções sem equivalente ficariam sem símbolo).
     """
     if _PLT_RE.search(src) or _HTML_TRIPLE_RE.search(src):
         return False
-    if any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
+    if not opencv and any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
         return False
     for m in _MM_CALL_RE.finditer(src):
         if m.group(1) not in _MM_WHITELIST:
@@ -254,11 +269,23 @@ def _is_pure_html_widget(src: str) -> bool:
 # (state/<var>_<producer_idx>.png), injetada mecanicamente (nunca pelo LLM).
 
 # Subconjunto de _MM_WHITELIST que de fato PRODUZ um mm::Image (mm.show/
-# mm.write/mm.drawImgPlt retornam void, mm.drawImg retorna string — nunca
-# são produtoras).
+# mm.write/mm.drawImgPlt/mm.drawImgKernel retornam void, mm.drawImg retorna
+# string, mm.hist retorna std::vector<int>, mm.gaussKernel retorna
+# mm::Kernel — nenhuma dessas é produtora de mm::Image).
 _MM_IMAGE_PRODUCING_FNS = {'read', 'gray', 'randomImage', 'threshold',
                            'resize', 'translate', 'rotate', 'shear',
-                           'secross', 'crop', 'subsample'}
+                           'secross', 'crop', 'subsample',
+                           'addm', 'subm', 'blend', 'band', 'bor', 'bxor', 'bnot',
+                           'histImg', 'equalize', 'clahe',
+                           'conv', 'conv0', 'blur', 'gaussian', 'laplacian',
+                           'laplacian_viz', 'sobel', 'prewitt', 'usm', 'median',
+                           'canny', 'circle', 'circle0', 'pad', 'pad0',
+                           'dil', 'dil0', 'dil1', 'ero', 'ero0', 'ero1',
+                           'sebox', 'sedisk', 'neg', 'open', 'close', 'gradm',
+                           'tophat', 'blackhat', 'asf', 'cdil', 'cero', 'infrec',
+                           'suprec', 'frame', 'edgeoff', 'clohole', 'label0',
+                           'dist', 'dist1', 'gdist',
+                           'watershed', 'watershed0', 'watershedB'}
 
 _AST_SCOPE_BOUNDARY = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
 
@@ -624,6 +651,19 @@ def postprocess_markdown(src: str, bib: dict, used_keys: set) -> str:
     return src
 
 
+# Nas células de texto COMPARTILHADAS (sem marcador #[py]#/#[cpp]#), as chamadas
+# à lib aparecem na notação Python `mm.foo(...)`. No combo cpp, a mesma prosa
+# deve mostrar `mm::foo(...)` pra bater com o código C++ logo abaixo. Só troca
+# `mm.` → `mm::` DENTRO de spans de código inline (entre crases) — nunca no
+# texto corrido nem em blocos cercados (```), onde a conversão não bastaria.
+_MM_DOT_IN_SPAN_RE = re.compile(r'`[^`\n]*`')
+
+def _cppify_prose(src: str) -> str:
+    def fix_span(m):
+        return re.sub(r'\bmm\.(?=[A-Za-z_])', 'mm::', m.group(0))
+    return _MM_DOT_IN_SPAN_RE.sub(fix_span, src)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Processador principal
 # ─────────────────────────────────────────────────────────────────────────────
@@ -797,7 +837,7 @@ class NotebookProcessor:
         _set_source(out, py_tr.translate(src))
         return [out]
 
-    def _iter_foreign_candidate_cells(self, nb, combo: Combo) -> list:
+    def _iter_foreign_candidate_cells(self, nb, combo: Combo, opencv: bool = False) -> list:
         """
         Replica, sem produzir saída, os mesmos filtros que o loop principal
         de `process()` aplica antes de chamar `_expand_foreign_code_cell` —
@@ -823,12 +863,12 @@ class NotebookProcessor:
                 continue
             if _ep_testsuite_call_name(src) is not None:
                 continue
-            if not _is_eligible_for_foreign_expansion(src):
+            if not _is_eligible_for_foreign_expansion(src, opencv):
                 continue
             out.append((idx, src))
         return out
 
-    def _detect_cross_cell_mm_vars(self, nb, combo: Combo) -> dict:
+    def _detect_cross_cell_mm_vars(self, nb, combo: Combo, opencv: bool = False) -> dict:
         """
         Varre as células elegíveis pra expansão em combo.lang, em ordem, e
         detecta variáveis `mm::Image` atribuídas numa célula e referenciadas
@@ -845,7 +885,7 @@ class NotebookProcessor:
         by_consumer_idx: dict = {}
         active_producers: dict = {}  # nome -> producer_idx mais recente
 
-        for cell_idx, src in self._iter_foreign_candidate_cells(nb, combo):
+        for cell_idx, src in self._iter_foreign_candidate_cells(nb, combo, opencv):
             try:
                 tree = ast.parse(src)
             except SyntaxError:
@@ -896,10 +936,29 @@ class NotebookProcessor:
         plano em giggly-wandering-squirrel.md pra desenho completo (state/
         entre células) e em snuggly-wishing-origami.md pro desenho original.
         """
-        if not _is_eligible_for_foreign_expansion(src):
+        opencv = bool(ctx.get('opencv'))
+
+        cross = ctx.get('cross_cell_vars') or {
+            'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {},
+        }
+        records = cross['records']
+        produced_keys = cross['by_producer_idx'].get(cell_idx, [])
+        consumed_keys = cross['by_consumer_idx'].get(cell_idx, [])
+        failed_producers = ctx.setdefault('failed_producers', set())
+
+        def _to_reference():
+            # Toda queda pra referência PRECISA propagar: as variáveis que
+            # esta célula produziria nunca vão gerar seu state/<var>_<idx>.png
+            # em tempo de execução, então qualquer consumidor à frente também
+            # tem que cair — senão ele emite um mm::_read_state(...) pendente
+            # e o FileNotFoundError derruba o render do Quarto inteiro.
+            failed_producers.update(produced_keys)
+            return self._reference_only_cell(cell, src, combo)
+
+        if not _is_eligible_for_foreign_expansion(src, opencv):
             if _is_pure_html_widget(src):
                 return self._passthrough_widget_cell(cell, src, combo)
-            return self._reference_only_cell(cell, src, combo)
+            return _to_reference()
 
         ext = LANGUAGES[combo.lang].extension
         base = _cell_base_name(src, ctx)
@@ -916,21 +975,13 @@ class NotebookProcessor:
         # também inject_producer_writes/inject_consumer_reads.
         png_name = f'{TMP_DIR}/{base}.png'
 
-        cross = ctx.get('cross_cell_vars') or {
-            'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {},
-        }
-        records = cross['records']
-        produced_keys = cross['by_producer_idx'].get(cell_idx, [])
-        consumed_keys = cross['by_consumer_idx'].get(cell_idx, [])
-
         # Dependência de EXECUÇÃO, não só de compilação: se o produtor de
         # alguma variável consumida aqui já caiu pra referência, o arquivo
         # state/... nunca vai existir em tempo de execução — essa célula
         # também precisa cair, senão mm::read lançaria em runtime e
         # derrubaria o render do Quarto inteiro (não só essa figura).
-        failed_producers = ctx.setdefault('failed_producers', set())
         if consumed_keys and any(k in failed_producers for k in consumed_keys):
-            return self._reference_only_cell(cell, src, combo)
+            return _to_reference()
 
         external_vars = sorted({records[k]['var_name'] for k in consumed_keys})
         persisted_vars = sorted({records[k]['var_name'] for k in produced_keys})
@@ -944,12 +995,13 @@ class NotebookProcessor:
             src, output_image_path=png_name if needs_glue else None,
             external_vars=external_vars or None,
             persisted_vars=persisted_vars or None,
+            opencv=opencv,
         )
         if translated == src:
             # LLMCodeTranslator devolve o Python original quando a
             # compilação de validação falha (Fase 3) — rede de segurança:
             # nunca expandir em cima de uma tradução ruim.
-            return self._reference_only_cell(cell, src, combo)
+            return _to_reference()
 
         if produced_keys or consumed_keys:
             # Injeção mecânica de state/<var>_<idx>.png (nunca pelo LLM) —
@@ -965,12 +1017,11 @@ class NotebookProcessor:
             ok = mutated is not None
             if ok:
                 from .exec_validate import compile_check
-                ok, err = compile_check('cpp', mutated)
+                ok, err = compile_check('cpp', mutated, opencv=opencv)
                 if not ok:
                     print(f'  ⚠ Injeção state/ falhou ao compilar; célula cai para referência.\n{err[:800]}')
             if not ok:
-                failed_producers.update(produced_keys)
-                return self._reference_only_cell(cell, src, combo)
+                return _to_reference()
             translated = mutated
 
         if panels is not None:
@@ -982,7 +1033,7 @@ class NotebookProcessor:
             panel_mut = inject_panel_writes(translated, panels['names'], base)
             ok = panel_mut is not None
             if ok:
-                ok, err = compile_check('cpp', panel_mut)
+                ok, err = compile_check('cpp', panel_mut, opencv=opencv)
                 if not ok:
                     print(f'  ⚠ Injeção de painéis não compilou; usando '
                           f'composto único.\n{err[:400]}')
@@ -1001,8 +1052,15 @@ class NotebookProcessor:
         # Quebrado em várias linhas com `\` (continuação de shell, aceita
         # pelo `!` do IPython) pra nenhuma linha passar de ~90 colunas e
         # estourar a margem direita no PDF.
+        _cxx = '!g++ -I. -std=c++17'
+        if opencv:
+            # Flags do OpenCV expandidas AGORA (não `$(pkg-config ...)` na
+            # célula — o shell do kernel Jupyter pode não ter pkg-config no
+            # PATH, o que faria o link cair silenciosamente).
+            from .exec_validate import _opencv_cxxflags
+            _cxx += ' -DMM_USE_OPENCV ' + ' '.join(_opencv_cxxflags())
         run_parts = [
-            f'!g++ -I. {TMP_DIR}/{base}{ext} -o {TMP_DIR}/{base}',
+            f'{_cxx} {TMP_DIR}/{base}{ext} -o {TMP_DIR}/{base}',
             f'./{TMP_DIR}/{base}',
         ]
         if needs_glue:
@@ -1048,6 +1106,8 @@ class NotebookProcessor:
 
         _cap_name = Path(nb_path).parent.name          # ex.: 'cap01'
         _is_eps = '.EPs.' in Path(nb_path).name
+        # cap05-08: células C++ compilam COM OpenCV (`cv::`), não só morph.hpp.
+        _opencv = (combo.lang == 'cpp' and _cap_name in CPP_OPENCV_CHAPTERS)
 
         code_tr = self._factory.code_translator(combo.lang, combo.locale)
         text_tr = self._factory.text_translator(combo.locale)
@@ -1056,10 +1116,10 @@ class NotebookProcessor:
         out_cells = []
         # Só custa a varredura AST quando de fato pode haver mm::Image
         # cruzando células (combos cpp) — ver _detect_cross_cell_mm_vars.
-        cross_cell_vars = (self._detect_cross_cell_mm_vars(nb, combo)
+        cross_cell_vars = (self._detect_cross_cell_mm_vars(nb, combo, _opencv)
                             if combo.lang == 'cpp' else
                             {'records': {}, 'by_producer_idx': {}, 'by_consumer_idx': {}})
-        expand_ctx: dict = {'cross_cell_vars': cross_cell_vars}
+        expand_ctx: dict = {'cross_cell_vars': cross_cell_vars, 'opencv': _opencv}
 
         for cell_idx, cell in enumerate(nb.cells):
             cell = copy.deepcopy(cell)
@@ -1130,6 +1190,8 @@ class NotebookProcessor:
                 self._tag_cache_key(cell, src, text_tr)
                 if not combo.is_base():
                     translated = postprocess_markdown(translated, self._bib, used_keys)
+                if combo.lang == 'cpp':
+                    translated = _cppify_prose(translated)
                 _set_source(cell, translated)
 
             elif role == 'common' and cell.cell_type == 'code' and combo.locale != BASE_LOCALE:
