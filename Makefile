@@ -209,7 +209,30 @@ sims-all:
 sims-dry:
 	python sim_tools.py extrair --input gen/book --dry-run
 
-    
+
+# ── Checks de consistência entre combos ──────────────────────────────────────
+# check-combos        → os dois checks (usa CPP_CHAPTERS por padrão)
+# check-combos-locale → só estrutura pt vs en vs fr (mesma linguagem)
+# check-combos-parity → só py vs cpp (mesmo idioma, pt): labels e refs
+# Falha (exit != 0) se alguma inconsistência estrutural for encontrada.
+# Ex.: make check-combos CHAPTERS=cap01,cap02   LOCALE=pt
+
+CHAPTERS ?=
+LOCALE   ?= pt
+
+.PHONY: check-combos
+check-combos:
+	python check_combos.py $(if $(CHAPTERS),--chapters $(CHAPTERS),) --locale $(LOCALE)
+
+.PHONY: check-combos-locale
+check-combos-locale:
+	python check_combos.py --locale-consistency $(if $(CHAPTERS),--chapters $(CHAPTERS),)
+
+.PHONY: check-combos-parity
+check-combos-parity:
+	python check_combos.py --lang-parity --locale $(LOCALE) $(if $(CHAPTERS),--chapters $(CHAPTERS),)
+
+
 # ── Ajuda ─────────────────────────────────────────────────────────────────────
 .PHONY: help
 help:
@@ -235,6 +258,12 @@ help:
 	@echo "  make render-single FILE=all/cap01/cap01.ipynb  → renderiza HTML sem publicar"
 	@echo "  make publish-single FILE=all/cap01/cap01.ipynb → HTML + git push do arquivo"
 	@echo "  make render-single FILE=all/apendices/apendice_f/apendice_f.ipynb → idem, para apêndice"
+	@echo ""
+	@echo "  ✅ Checks (exit != 0 se inconsistente):"
+	@echo "  make check-combos          → estrutura pt/en/fr + paridade py/cpp"
+	@echo "  make check-combos-locale   → só estrutura pt vs en vs fr (mesma linguagem)"
+	@echo "  make check-combos-parity   → só py vs cpp (labels, refs, xrefs)"
+	@echo "     opções: CHAPTERS=cap01,cap02  LOCALE=pt"
 	@echo ""
 	@echo "  🧹 Limpeza:"
 	@echo "  make clean         → apaga gen/, docs/ e .cache/"
