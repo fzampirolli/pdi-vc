@@ -119,9 +119,9 @@ publish-fast:
 	./publish_all.sh --langs $(LANGS) --locales $(LOCALES) --skip-render
 
 # ── Publicação com render PARALELO de todos os combos ─────────────────────────
-# Renderiza cada combo (lang.locale) num processo próprio, ao MESMO TEMPO —
-# são independentes (cada um em gen/quarto/<combo>/) — e só então gera índice
-# + deploy. Tempo de parede ≈ combo mais lento, não a soma.
+# Renderiza em 2 ONDAS: 1ª os combos .pt (aquecem o cache de tradução, que é
+# locale-independente p/ código C++), 2ª os demais locales em paralelo. Evita a
+# race de cache que quebra cpp.en/cpp.fr. Tempo ≈ (pior .pt) + (pior não-.pt).
 #
 #   make publish-parallel                 # padrão: py,cpp × pt,en,fr (livro inteiro)
 #   make publish-parallel PUB_LANGS=cpp PUB_LOCALES=pt     # subconjunto
@@ -140,19 +140,23 @@ _PUB_LOCALES := $(if $(COMBO_GOALS),$(LOCALES),$(PUB_LOCALES))
 .PHONY: publish-parallel
 publish-parallel: sync-morph
 	@set -e; mkdir -p gen/_publog; T0=$$(date +%s); \
-	combos=$$(for L in $(subst $(COMMA),$(SPACE),$(_PUB_LANGS)); do \
-	            for O in $(subst $(COMMA),$(SPACE),$(_PUB_LOCALES)); do echo $$L.$$O; done; \
-	          done); \
-	echo ">> [$$(date +%H:%M:%S)] render paralelo (JOBS=$(or $(JOBS),ilimitado)):" $$combos; \
-	printf '%s\n' $$combos | xargs -P $(or $(JOBS),0) -I{} sh -c ' \
-	  c="{}"; L=$${c%.*}; O=$${c#*.}; s=$$(date +%s); \
+	all=$$(for L in $(subst $(COMMA),$(SPACE),$(_PUB_LANGS)); do \
+	         for O in $(subst $(COMMA),$(SPACE),$(_PUB_LOCALES)); do echo $$L.$$O; done; \
+	       done); \
+	RUN1='c="{}"; L=$${c%.*}; O=$${c#*.}; s=$$(date +%s); \
 	  python dev.py --once $(INCREMENTAL) --langs $$L --locales $$O --render all \
 	    > gen/_publog/$$c.log 2>&1; \
 	  rc=$$?; e=$$(date +%s); echo "$$rc $$((e-s))" > gen/_publog/$$c.rc; \
-	  [ $$rc = 0 ] && echo "  ✓ [$$(date +%H:%M:%S)] $$c  ($$((e-s))s)" \
-	              || echo "  ✗ [$$(date +%H:%M:%S)] $$c (rc=$$rc, $$((e-s))s) — gen/_publog/$$c.log"'; \
+	  [ $$rc = 0 ] && echo "  ✓ [$$(date +%H:%M:%S)] $$c ($$((e-s))s)" \
+	              || echo "  ✗ [$$(date +%H:%M:%S)] $$c rc=$$rc ($$((e-s))s) gen/_publog/$$c.log"'; \
+	w1=$$(printf '%s\n' $$all | grep -E "\.pt$$"  || true); \
+	w2=$$(printf '%s\n' $$all | grep -Ev "\.pt$$" || true); \
+	if [ -n "$$w1" ]; then echo ">> [$$(date +%H:%M:%S)] onda 1 (base .pt, aquece cache):" $$w1; \
+	  printf '%s\n' $$w1 | xargs -P $(or $(JOBS),0) -I{} sh -c "$$RUN1"; fi; \
+	if [ -n "$$w2" ]; then echo ">> [$$(date +%H:%M:%S)] onda 2 (demais locales):" $$w2; \
+	  printf '%s\n' $$w2 | xargs -P $(or $(JOBS),0) -I{} sh -c "$$RUN1"; fi; \
 	fail=0; echo ">> tempos por combo:"; \
-	for c in $$combos; do \
+	for c in $$all; do \
 	  read rc dt < gen/_publog/$$c.rc 2>/dev/null || { rc=1; dt=0; }; \
 	  printf '   %-8s %s  %ss\n' "$$c" "$$([ $$rc = 0 ] && echo OK || echo FALHA)" "$$dt"; \
 	  [ "$$rc" = 0 ] || fail=1; done; \
