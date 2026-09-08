@@ -2341,10 +2341,13 @@ inline Image jpegCompress(const Image& img, int quality) {
 // Substitui os gráficos matplotlib nas células da trilha C++. `xs[k]`/`ys[k]`
 // são a k-ésima curva; `colors` em BGR (ciclo padrão se vazio); `labels` para
 // a legenda (opcional). Devolve uma imagem BGR pronta para mm::show.
-inline Image lineChart(const std::vector<std::vector<double>>& xs,
+// Núcleo — NÃO chamar direto; use `mm::lineChart` (overloads abaixo). Ordem
+// dos parâmetros: labels ANTES de colors (é o que o código traduzido produz
+// naturalmente a partir de `mm.lineChart(x, ys, labels=[...])`).
+inline Image _lineChartCore(const std::vector<std::vector<double>>& xs,
                        const std::vector<std::vector<double>>& ys,
-                       std::vector<cv::Scalar> colors = {},
                        std::vector<std::string> labels = {},
+                       std::vector<cv::Scalar> colors = {},
                        const std::string& title = "",
                        const std::string& xlabel = "",
                        const std::string& ylabel = "",
@@ -2478,50 +2481,39 @@ inline void wavefun(const std::string& name, int level,
     for (int i = 0; i < n; ++i) x[i] = n > 1 ? span * i / (n - 1) : 0.0;
 }
 
-// Overload: um único eixo x compartilhado por todas as curvas de `ys`.
-inline Image lineChart(const std::vector<double>& x,
-                       const std::vector<std::vector<double>>& ys,
-                       std::vector<cv::Scalar> colors = {},
-                       std::vector<std::string> labels = {},
-                       const std::string& title = "",
-                       const std::string& xlabel = "",
-                       const std::string& ylabel = "",
-                       int width = 760, int height = 420,
-                       bool logx = false, bool logy = false) {
-    std::vector<std::vector<double>> xs(ys.size(), x);
-    return lineChart(xs, ys, std::move(colors), std::move(labels),
-                     title, xlabel, ylabel, width, height, logx, logy);
-}
-
-// Overloads genéricos: aceitam vetores de QUALQUER tipo numérico (ex.:
-// std::vector<int> para tamanhos de kernel). Convertem para double e delegam.
-template <class Tx, class Ty>
-inline Image lineChart(const std::vector<Tx>& x,
-                       const std::vector<std::vector<Ty>>& ys,
-                       std::vector<cv::Scalar> colors = {},
-                       std::vector<std::string> labels = {},
-                       const std::string& title = "", const std::string& xlabel = "",
-                       const std::string& ylabel = "", int width = 760, int height = 420,
-                       bool logx = false, bool logy = false) {
-    std::vector<double> xd(x.begin(), x.end());
-    std::vector<std::vector<double>> yd;
-    for (const auto& v : ys) yd.emplace_back(v.begin(), v.end());
-    return lineChart(xd, yd, std::move(colors), std::move(labels),
-                     title, xlabel, ylabel, width, height, logx, logy);
-}
-template <class Tx, class Ty>
-inline Image lineChart(const std::vector<std::vector<Tx>>& xs,
-                       const std::vector<std::vector<Ty>>& ys,
-                       std::vector<cv::Scalar> colors = {},
-                       std::vector<std::string> labels = {},
+// ── mm::lineChart — API pública. `labels` é o 3º parâmetro (o mais usado),
+// `colors` o 4º (opcional). Ambos os overloads são templates sobre o tipo
+// numérico (aceita int/float/double), sem colisão de `{}` entre eles porque
+// o 1º arg distingue: `vector<vector<T>>` (uma curva por posição) vs
+// `vector<T>` (eixo x único compartilhado por todas as curvas de `ys`).
+template <class TX, class TY>
+inline Image lineChart(const std::vector<std::vector<TX>>& xs,
+                       const std::vector<std::vector<TY>>& ys,
+                       const std::vector<std::string>& labels = {},
+                       const std::vector<cv::Scalar>& colors = {},
                        const std::string& title = "", const std::string& xlabel = "",
                        const std::string& ylabel = "", int width = 760, int height = 420,
                        bool logx = false, bool logy = false) {
     std::vector<std::vector<double>> xd, yd;
     for (const auto& v : xs) xd.emplace_back(v.begin(), v.end());
     for (const auto& v : ys) yd.emplace_back(v.begin(), v.end());
-    return lineChart(xd, yd, std::move(colors), std::move(labels),
-                     title, xlabel, ylabel, width, height, logx, logy);
+    return _lineChartCore(xd, yd, labels, colors, title, xlabel, ylabel,
+                          width, height, logx, logy);
+}
+template <class TX, class TY>
+inline Image lineChart(const std::vector<TX>& x,
+                       const std::vector<std::vector<TY>>& ys,
+                       const std::vector<std::string>& labels = {},
+                       const std::vector<cv::Scalar>& colors = {},
+                       const std::string& title = "", const std::string& xlabel = "",
+                       const std::string& ylabel = "", int width = 760, int height = 420,
+                       bool logx = false, bool logy = false) {
+    std::vector<double> xd(x.begin(), x.end());
+    std::vector<std::vector<double>> yd;
+    for (const auto& v : ys) yd.emplace_back(v.begin(), v.end());
+    std::vector<std::vector<double>> xs(yd.size(), xd);
+    return _lineChartCore(xs, yd, labels, colors, title, xlabel, ylabel,
+                          width, height, logx, logy);
 }
 
 // PSNR entre duas imagens (dB) — espelha cv::PSNR. Harmoniza canais/tamanho

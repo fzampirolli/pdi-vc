@@ -2208,7 +2208,7 @@ class mm:
         return np.clip(out, 0, 255).astype(np.uint8)
 
     @staticmethod
-    def lineChart(xs, ys, colors=None, labels=None, title="", xlabel="", ylabel="",
+    def lineChart(xs, ys, labels=None, colors=None, title="", xlabel="", ylabel="",
                   width=760, height=420, logx=False, logy=False):
         """Gráfico de linhas header-only (substitui matplotlib na trilha C++).
         `xs[k]`/`ys[k]` = k-ésima curva; `colors` em BGR. Espelha mm::lineChart."""

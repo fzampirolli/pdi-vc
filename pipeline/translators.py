@@ -558,16 +558,17 @@ class LLMCodeTranslator(Translator):
                       //   Python `x, phi, psi = mm.wavefun("db4", 6)` ->
                       //   `std::vector<double> x, phi, psi; mm::wavefun("db4", 6, x, phi, psi);`
                       mm::Image mm::lineChart(
-                          const std::vector<std::vector<double>>& xs,          // uma curva por posição k
+                          const std::vector<std::vector<double>>& xs,   // uma curva por posição k
                           const std::vector<std::vector<double>>& ys,
-                          std::vector<cv::Scalar> colors = {},                 // BGR; ciclo padrão se vazio
-                          std::vector<std::string> labels = {},
+                          const std::vector<std::string>& labels = {},  // 3º arg — legenda
+                          const std::vector<cv::Scalar>& colors = {},   // 4º arg — BGR; ciclo se vazio
                           const std::string& title = "", const std::string& xlabel = "",
                           const std::string& ylabel = "", int width = 760, int height = 420,
                           bool logx = false, bool logy = false);
-                    mm::lineChart tem overload com um eixo x compartilhado:
-                      mm::lineChart(const std::vector<double>& x,
-                                    const std::vector<std::vector<double>>& ys, ...)
+                    // labels vem ANTES de colors. Só passe `colors` se a chamada
+                    // Python passar `colors=`; senão pare em `labels`.
+                    // Overload eixo x único: 1º arg `const std::vector<double>& x`.
+                    // xs/ys aceitam vector<int> (ex.: [K,K,K]).
                     `img_gray.shape` (Python) -> use `img_gray.h` / `img_gray.w`.
                     Keyword arg `highpass=True` -> positional `true`. Uma curva
                     única -> `ys = {{...}}` (vetor de 1 vetor).
@@ -581,7 +582,9 @@ class LLMCodeTranslator(Translator):
                       pywt.dwt2(x, w)                       -> mm::Subbands s = mm::dwt2(x_cvmat, "haar"|"db4"|"sym4"|"bior2.2");
                                                               // s.LL / s.LH / s.HL / s.HH are CV_64F cv::Mat, same as pywt's (LL,(LH,HL,HH))
                       pywt.idwt2((LL,(LH,HL,HH)), w)        -> mm::idwt2({LL,LH,HL,HH}, w)
-                      pywt.wavedec2(x, w, level=n)          -> mm::WaveDec2 c = mm::wavedec2(x_cvmat, w, n);  // c.LL, c.detail[j] = {LH,HL,HH}
+                      pywt.wavedec2(x, w, level=n)          -> mm::WaveDec2 c = mm::wavedec2(x_cvmat, w, n);
+                        // c.LL = cv::Mat ; c.detail[j] é std::vector<cv::Mat> de 3 (LH,HL,HH),
+                        // NÃO mm::Subbands. Use: auto& d = c.detail[j]; d[0]/d[1]/d[2].
                       pywt.waverec2(coeffs, w)              -> mm::waverec2(c, w)
                       pywt.threshold(sb, t, mode='hard')    -> mm::wave_threshold(sb, t, "hard")
                       pywt.Wavelet(w).wavefun(...)          -> não portável (gráfico de linha de ψ) — não deveria chegar aqui
