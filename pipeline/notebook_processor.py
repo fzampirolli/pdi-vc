@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
 import re
 from pathlib import Path
 from typing import Optional
@@ -173,6 +174,7 @@ def _ep_testsuite_call_name(src: str) -> Optional[str]:
 
 _MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'otsu',
                  'drawImg', 'drawImgPlt', 'resize', 'translate', 'rotate', 'shear',
+                 'perspective_transform', 'getPerspectiveTransform', 'warpPerspective',
                  'secross', 'crop', 'subsample',
                  # cap03 — nível de intensidade, histograma e filtragem espacial
                  'addm', 'subm', 'blend', 'band', 'bor', 'bxor', 'bnot',
@@ -185,7 +187,11 @@ _MM_WHITELIST = {'read', 'gray', 'randomImage', 'show', 'write', 'threshold', 'o
                  'sebox', 'sedisk', 'neg', 'open', 'close', 'gradm', 'tophat',
                  'blackhat', 'asf', 'cdil', 'cero', 'infrec', 'suprec', 'frame',
                  'edgeoff', 'clohole', 'label0', 'dist', 'dist1', 'gdist',
-                 'watershed', 'watershed0', 'watershedB'}
+                 'watershed', 'watershed0', 'watershedB',
+                 # cap05 — domínio da frequência (morph.hpp, #ifdef MM_USE_OPENCV)
+                 'distCenter', 'freqFilter', 'spectrumMag', 'dct2', 'idct2',
+                 'gaussFilter', 'idealFilter', 'butterFilter',
+                 'jpegCompress', 'lineChart', 'spatialKernel', 'wavefun', 'psnr'}
 _CV2_RE   = re.compile(r'\bcv2\.(\w+)')
 # Símbolos cv2 que a cheat-sheet de tradução sabe mapear pra morph.hpp
 # (cv2.threshold(..., THRESH_OTSU) -> mm::threshold + mm::otsu pro valor T).
@@ -220,6 +226,12 @@ def _is_eligible_for_foreign_expansion(src: str, opencv: bool = False,
     também é aceito (traduz p/ `cv::`). `mm.*` continua restrito à whitelist.
     """
     if _PLT_RE.search(src) or _HTML_TRIPLE_RE.search(src):
+        return False
+    # pywt / scipy.fft / scipy.signal: sem equivalente na trilha compilada —
+    # não tentar traduzir (o LLM inventaria uma DWT/FFT que não compila e a
+    # célula acabaria como referência morta). Uma FIGURA assim vira passthrough
+    # (ver _is_viz_only_figure no chamador); o resto vira referência.
+    if _VIZ_ONLY_RE.search(src):
         return False
     cv2_ok = opencv or opencv_link
     if not cv2_ok and any(sym not in _CV2_WHITELIST for sym in _CV2_RE.findall(src)):
@@ -261,6 +273,39 @@ def _is_pure_html_widget(src: str) -> bool:
     return True
 
 
+# Bibliotecas de visualização/transformadas sem equivalente na trilha
+# compilada (matplotlib para gráficos de linha; PyWavelets; scipy.fft/signal
+# usados só para o gráfico). Uma FIGURA que só depende disso é ilustração
+# pedagógica: nos capítulos OpenCV o kernel é Python nas duas trilhas, então
+# ela roda como passthrough (igual aos simuladores HTML) em vez de virar
+# referência não-executada — senão a figura some e todo `@fig-...` que a
+# cita quebra no livro C++.
+# `pywt` NÃO entra mais aqui: morph.hpp ganhou mm::dwt2/idwt2/wavedec2/
+# waverec2/wave_threshold (Haar/db4/sym4/bior2.2, verificado contra pywt).
+# O cheat-sheet mapeia pywt.* → mm::*; se ainda assim não compilar/rodar, o
+# run-check degrada pra passthrough. `pywt.Wavelet(...).wavefun()` (gráfico de
+# linha da ψ) é pego pelo `plt.` da própria célula.
+_VIZ_ONLY_RE = re.compile(
+    r'(?:\bplt\.|\bmatplotlib\b'
+    r'|\bscipy\.signal\b|from\s+scipy\.signal\b)',
+    re.M)
+
+
+def _is_viz_only_figure(src: str) -> bool:
+    """True se `src` é uma célula de FIGURA (`#| label:`/`#| fig-cap:`) cuja
+    única parte não-portável é visualização/transformada Python-only
+    (matplotlib, pywt, scipy.fft/signal). Não vale se a célula persiste
+    `mm::Image` para outras células (mm.write) — aí o passthrough Python
+    quebraria a cadeia de estado da trilha compilada."""
+    if not _FIG_OPTION_RE.search(src):
+        return False
+    if not _VIZ_ONLY_RE.search(src):
+        return False
+    if 'mm.write(' in src or 'mm.imwrite(' in src:
+        return False
+    return True
+
+
 # ── Estado mm::Image entre células (combos cpp) ─────────────────────────────
 #
 # Cada célula elegível vira um programa C++ standalone (`!g++ ... && ./...`),
@@ -289,7 +334,11 @@ _MM_IMAGE_PRODUCING_FNS = {'read', 'gray', 'randomImage', 'threshold',
                            'tophat', 'blackhat', 'asf', 'cdil', 'cero', 'infrec',
                            'suprec', 'frame', 'edgeoff', 'clohole', 'label0',
                            'dist', 'dist1', 'gdist',
-                           'watershed', 'watershed0', 'watershedB'}
+                           'watershed', 'watershed0', 'watershedB',
+                           # cap05 — freqFilter/spectrumMag/jpegCompress devolvem
+                           # mm::Image; lineChart devolve imagem BGR (cv::Mat/ndarray)
+                           # (distCenter/dct2/idct2/spatialKernel/wavefun -> cv::Mat/tupla)
+                           'freqFilter', 'spectrumMag', 'jpegCompress', 'lineChart'}
 
 _AST_SCOPE_BOUNDARY = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
 
@@ -343,6 +392,26 @@ def _detect_mm_image_produced(tree) -> dict:
                 and value.args[0].id in produced):
             produced[target] = node.lineno
     return produced
+
+
+def _data_bindings(tree) -> set:
+    """Só nomes ligados por ATRIBUIÇÃO ou def/class no nível da célula — i.e.
+    dados/funções que precisariam atravessar de célula pra célula. Exclui
+    imports, alvos de for/with/comprehension (não são "estado" carregável).
+    Usado pra decidir se uma célula depende de algo produzido só num
+    passthrough Python (aí ela também tem que ser passthrough)."""
+    out: set = set()
+    for node in _walk_restricted(tree):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                for n in ast.walk(t):
+                    if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
+                        out.add(n.id)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and isinstance(node.target, ast.Name):
+            out.add(node.target.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            out.add(node.name)
+    return out
 
 
 def _locally_bound_names(tree) -> set:
@@ -869,7 +938,14 @@ class NotebookProcessor:
             if _ep_testsuite_call_name(src) is not None:
                 continue
             if not _is_eligible_for_foreign_expansion(src, opencv, opencv_link):
-                continue
+                # Célula de passthrough (widget HTML / figura viz-only) também
+                # entra: pode produzir/consumir imagem de outra célula, e a
+                # ponte state/<var>_<idx>.png em Python precisa desse par
+                # produtor→consumidor no mapa (ver _expand_foreign_code_cell).
+                is_widget = _is_pure_html_widget(src)
+                is_viz = (opencv or opencv_link) and _is_viz_only_figure(src)
+                if not (is_widget or is_viz):
+                    continue
             out.append((idx, src))
         return out
 
@@ -890,6 +966,15 @@ class NotebookProcessor:
         by_producer_idx: dict = {}
         by_consumer_idx: dict = {}
         active_producers: dict = {}  # nome -> producer_idx mais recente
+        # Última célula que ligou cada nome de nível de célula, e se ela é
+        # passthrough. Uma célula posterior que referencia (livre) um nome cuja
+        # ligação MAIS RECENTE veio de uma célula passthrough NÃO pode virar
+        # C++ — não há como levar uma função / array arbitrário a um programa
+        # isolado (ex.: fig-05-filtros-passa-alta usa `aplicar_filtro_freq` e
+        # `H_gauss` de fig-05-filtros-freq). Rastrear por "última ligação"
+        # (não acumular tudo) evita falso-positivo em nomes genéricos (M, K…).
+        last_binder_pt: dict = {}   # nome -> True/False (ligado por passthrough?)
+        needs_py: set = set()
 
         for cell_idx, src in self._iter_foreign_candidate_cells(nb, combo, opencv, opencv_link):
             try:
@@ -906,6 +991,16 @@ class NotebookProcessor:
                 node.id for node in ast.walk(tree)
                 if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
             }
+
+            is_pt = (_is_pure_html_widget(src)
+                     or ((opencv or opencv_link) and _is_viz_only_figure(src)))
+            # nome referenciado SEM ligação local nesta célula → veio de fora.
+            free_names = referenced - locally_bound - _NON_VAR_NAMES
+            if any(last_binder_pt.get(n) for n in free_names):
+                needs_py.add(cell_idx)
+                is_pt = True   # transitivo: quem depende de passthrough é passthrough
+            for n in _data_bindings(tree):   # só assign/def — não imports
+                last_binder_pt[n] = is_pt
 
             for name in referenced:
                 if name in locally_bound or name in _NON_VAR_NAMES:
@@ -930,6 +1025,7 @@ class NotebookProcessor:
             'records': records,
             'by_producer_idx': by_producer_idx,
             'by_consumer_idx': by_consumer_idx,
+            'needs_py': needs_py,
         }
 
     def _expand_foreign_code_cell(self, cell, src: str, combo: Combo,
@@ -956,18 +1052,53 @@ class NotebookProcessor:
         failed_producers = ctx.setdefault('failed_producers', set())
 
         def _to_reference():
-            # Toda queda pra referência PRECISA propagar: as variáveis que
-            # esta célula produziria nunca vão gerar seu state/<var>_<idx>.png
-            # em tempo de execução, então qualquer consumidor à frente também
-            # tem que cair — senão ele emite um mm::_read_state(...) pendente
-            # e o FileNotFoundError derruba o render do Quarto inteiro.
+            # Nos capítulos OpenCV o kernel é Python nas duas trilhas: em vez
+            # de virar referência morta (`#| eval: false` → figura some, `@ref`
+            # quebra), a célula roda como passthrough Python — a figura e o
+            # `@fig-...` continuam existindo. Fora deles, mantém o fallback
+            # antigo (propaga produtor falho pra o consumidor à frente cair).
+            if opencv:
+                return _do_passthrough()
             failed_producers.update(produced_keys)
             return self._reference_only_cell(cell, src, combo)
 
+        persisted_vars = sorted({records[k]['var_name'] for k in produced_keys})
+
+        def _do_passthrough():
+            # Roda a célula como Python (kernel é Python nas duas trilhas) — a
+            # figura e o `@fig-...` existem no livro C++. Se consome/produz
+            # imagem de/para outra célula, faz a ponte via state/<var>_<idx>.png
+            # em Python (espelho de inject_consumer_reads/inject_producer_writes).
+            out = self._passthrough_widget_cell(cell, src, combo)
+            if out and (consumed_keys or produced_keys):
+                from .exec_validate import (inject_consumer_reads_py,
+                                            inject_producer_writes_py)
+                psrc = _get_source(out[0])
+                if consumed_keys:
+                    psrc = inject_consumer_reads_py(
+                        psrc, [records[k] for k in consumed_keys])
+                if produced_keys:
+                    psrc = inject_producer_writes_py(
+                        psrc, persisted_vars, cell_idx)
+                _set_source(out[0], psrc)
+            return out
+
         if not _is_eligible_for_foreign_expansion(src, opencv, opencv_link):
-            if _is_pure_html_widget(src):
-                return self._passthrough_widget_cell(cell, src, combo)
+            # Passthrough: simulador HTML puro OU figura que é só visualização
+            # Python-only (matplotlib/pywt/scipy) num capítulo OpenCV.
+            is_widget = _is_pure_html_widget(src)
+            is_viz = (opencv or opencv_link) and _is_viz_only_figure(src)
+            if is_widget or is_viz:
+                return _do_passthrough()
             return _to_reference()
+
+        # Célula que depende de nome (função / array não-mm / escalar) ligado
+        # só numa célula passthrough anterior — não dá pra transpilar (não há
+        # como levar `aplicar_filtro_freq`/`H_gauss` a um programa C++ isolado).
+        # Sem isto, o LLM inventava um stub e a figura saía errada
+        # (ex.: fig-05-filtros-passa-alta: img_out == img_in).
+        if opencv and cell_idx in cross.get('needs_py', set()):
+            return _do_passthrough()
 
         ext = LANGUAGES[combo.lang].extension
         base = _cell_base_name(src, ctx)
@@ -993,7 +1124,7 @@ class NotebookProcessor:
             return _to_reference()
 
         external_vars = sorted({records[k]['var_name'] for k in consumed_keys})
-        persisted_vars = sorted({records[k]['var_name'] for k in produced_keys})
+        # persisted_vars já computado no topo da função
 
         # output_image_path precisa ir pro translate() ANTES da checagem de
         # compilação (Fase 3) — se o #define MM_OUT só fosse prefixado
@@ -1028,7 +1159,25 @@ class NotebookProcessor:
                 from .exec_validate import compile_check
                 ok, err = compile_check('cpp', mutated, opencv=opencv_link)
                 if not ok:
-                    print(f'  ⚠ Injeção state/ falhou ao compilar; célula cai para referência.\n{err[:800]}')
+                    # Causa comum: o LLM renomeou a variável Python (snake_case)
+                    # para camelCase no corpo, e a injeção mecânica usa o nome
+                    # original. O g++ diz o nome certo ("did you mean 'X'?") —
+                    # aplica o s/orig/sugerido/ e revalida UMA vez.
+                    fixes = dict(re.findall(
+                        r"['‘]([A-Za-z_]\w*)['’] was not declared[^\n]*?"
+                        r"did you mean ['‘]([A-Za-z_]\w*)['’]", err))
+                    if fixes:
+                        fixed = mutated
+                        for bad, good in fixes.items():
+                            fixed = re.sub(rf'\b{re.escape(bad)}\b', good, fixed)
+                        ok2, err2 = compile_check('cpp', fixed, opencv=opencv_link)
+                        if ok2:
+                            print(f'  ✓ Injeção state/: renomeações do LLM '
+                                  f'reconciliadas ({", ".join(fixes)})')
+                            mutated, ok, err = fixed, True, err2
+                    if not ok:
+                        print(f'  ⚠ Injeção state/ falhou ao compilar; célula '
+                              f'cai para referência.\n{err[:800]}')
             if not ok:
                 return _to_reference()
             translated = mutated
@@ -1050,6 +1199,24 @@ class NotebookProcessor:
                 translated = panel_mut
             else:
                 panels = None
+
+        # ── Run-check (só capítulos cv::): compilar não basta — a tradução do
+        # LLM pode compilar e CRASHAR em runtime (tipos cv::Mat misturados em
+        # arithm_op, etc.). Executa o binário com state/ sintético; se crashar,
+        # a célula vira passthrough Python (a figura ainda renderiza, o `@ref`
+        # resolve) em vez de derrubar o render inteiro.
+        if opencv:
+            from .exec_validate import compile_check
+            stub = [(records[k]['var_name'], records[k]['producer_idx'])
+                    for k in consumed_keys]
+            rok, rerr = compile_check('cpp', translated, opencv=True,
+                                      run=True, stub_state=stub, timeout=40)
+            if not rok:
+                # passthrough Python ainda grava state/ (inject_producer_writes_py),
+                # então NÃO propaga como produtor falho — consumidores seguem ok.
+                print(f'  ⚠ {base}: C++ compila mas falha em runtime — '
+                      f'célula vira passthrough Python.\n{rerr[:500]}')
+                return _do_passthrough()
 
         write_cell = copy.deepcopy(cell)
         _set_source(write_cell, f'%%writefile {TMP_DIR}/{base}{ext}\n{translated}')
@@ -1252,5 +1419,19 @@ class NotebookProcessor:
 
         # --- Mesclagem do notebook de exercícios (EPs) ---
         nb = self._merge_ep_notebook(nb, Path(nb_path), combo)
+
+        # IDs de célula determinísticos. Sem isto, `nbformat.write` gera um id
+        # ALEATÓRIO para toda célula sem id (separador/EP/glue sintetizados, e
+        # notebooks-fonte ainda em nbformat 4.0) — o .ipynb gerado então muda a
+        # cada build mesmo com fonte + cache idênticos, e o `freeze` do Quarto
+        # nunca acerta o cache (re-executa tudo sempre). Deriva de (cap/arquivo/
+        # combo + índice + fonte): estável entre builds, muda só na célula
+        # editada. Ver quarto_builder._quarto_yml (freeze) e render_quarto
+        # (invalidação por hash de morph*).
+        _tag = f'{Path(nb_path).parent.name}/{Path(nb_path).name}/{combo.key}'
+        for _i, _cell in enumerate(nb.cells):
+            _cell['id'] = hashlib.blake2s(
+                f'{_tag}\x00{_i}\x00'.encode() + _get_source(_cell).encode(),
+                digest_size=6).hexdigest()
 
         return nb

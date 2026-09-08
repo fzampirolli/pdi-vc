@@ -69,10 +69,15 @@ _EXT_BY_LANG = {'cpp': '.cpp', 'java': '.java', 'c': '.c'}
 
 
 def compile_check(lang: str, source: str, name: str = 'snippet',
-                   timeout: int = 15, opencv: bool = False) -> tuple[bool, str]:
+                   timeout: int = 15, opencv: bool = False,
+                   run: bool = False, stub_state=None) -> tuple[bool, str]:
     """
-    Escreve `source` num diretório temporário e tenta compilar (nunca
-    executar) via o comando de `compile_run_table`. Devolve (ok, stderr).
+    Escreve `source` num diretório temporário e tenta compilar via o comando
+    de `compile_run_table`. Devolve (ok, stderr).
+
+    `run=True`: além de compilar, EXECUTA o binário (com PNGs sintéticos em
+    tmp/state/ para cada (var, idx) de `stub_state`) e exige exit 0 — pega
+    tradução que compila mas crasha em runtime.
 
     `opencv=True` (capítulos em CPP_OPENCV_CHAPTERS): compila com
     `-DMM_USE_OPENCV` + flags do `pkg-config opencv4`, dando à célula acesso
@@ -116,7 +121,49 @@ def compile_check(lang: str, source: str, name: str = 'snippet',
 
         if result.returncode != 0:
             return False, result.stderr
+
+        if not run:
+            return True, ''
+
+        # ── Run-check: compilar não basta pros capítulos cv:: — a tradução do
+        # LLM pode compilar e crashar em runtime (tipos cv::Mat misturados em
+        # arithm_op, índice fora do range, etc.). Roda o binário com PNGs de
+        # estado sintéticos e exige exit 0.
+        (tmp_path / 'tmp' / 'state').mkdir(parents=True, exist_ok=True)
+        for var, idx in (stub_state or []):
+            _write_stub_png(tmp_path / 'tmp' / 'state' / f'{var}_{idx}.png')
+        # Assets do capítulo lidos por caminho relativo (mm::read/cv::imread
+        # "imagens/..."): o run-check roda num tmp isolado sem a pasta imagens/
+        # do capítulo — cria stubs sintéticos para não reprovar por isso.
+        for rel in set(re.findall(r'["\'](imagens/[^"\']+?\.(?:png|jpe?g))["\']',
+                                  source, re.IGNORECASE)):
+            dst = tmp_path / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _write_stub_png(dst)
+        run_cmd = compile_run_table(name)[ext][1]
+        try:
+            rr = subprocess.run(run_cmd, cwd=tmp_path, capture_output=True,
+                                timeout=timeout, text=True)
+        except subprocess.TimeoutExpired:
+            return False, f'timeout ({timeout}s) ao EXECUTAR o binário'
+        if rr.returncode != 0:
+            return False, (rr.stderr or rr.stdout or
+                           f'binário saiu com código {rr.returncode}')[-2000:]
+        # exit 0 não basta: se a célula declara MM_OUT, o PNG TEM que sair —
+        # senão a célula-cola `mm.read("tmp/fig_x.png")` dá FileNotFound e
+        # derruba o render (ex.: binário que lê uma imagem que não existe e
+        # segue com Mat vazio sem crashar).
+        m = re.search(r'#define\s+MM_OUT\s+"([^"]+)"', source)
+        if m and not (tmp_path / m.group(1)).exists():
+            return False, f'binário rodou (exit 0) mas nao produziu {m.group(1)}'
         return True, ''
+
+
+def _write_stub_png(path: Path):
+    """PNG grayscale 64x64 — só pra o binário do run-check ter o que ler em
+    state/. Conteúdo não importa, só existir com dimensões/canais válidos."""
+    from PIL import Image as _PILImage
+    _PILImage.new('L', (64, 64), color=128).save(str(path))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -267,6 +314,50 @@ def inject_producer_writes(cpp_src: str, var_names: list, producer_idx: int):
 
     mutated = cpp_src[:body_start] + new_body + cpp_src[body_end:]
     return _ensure_filesystem_include(mutated)
+
+
+# ── Ponte de estado no lado PYTHON ──────────────────────────────────────────
+# Espelho de inject_consumer_reads/inject_producer_writes para células que a
+# trilha C++ mantém como passthrough Python (figura matplotlib/pywt, simulador
+# HTML) mas que dependem de / alimentam uma imagem produzida por outra célula
+# (que virou programa C++ e gravou state/<var>_<idx>.png). Sem isto, a célula
+# passthrough dá NameError na variável que "veio de outra célula".
+STATE_IO_BEGIN_PY = '# [pdi:state-io] auto-gerado — não editar à mão'
+STATE_IO_END_PY = '# [pdi:state-io:end]'
+
+
+def _split_quarto_options(py_src: str):
+    """Devolve (linhas de opção `#|` no topo, resto) — a injeção Python precisa
+    entrar DEPOIS do bloco `#| label:/fig-cap:/...`, senão o Quarto não o
+    reconhece como opções da célula."""
+    lines = py_src.split('\n')
+    i = 0
+    while i < len(lines) and lines[i].lstrip().startswith('#|'):
+        i += 1
+    return lines[:i], lines[i:]
+
+
+def inject_consumer_reads_py(py_src: str, records: list) -> str:
+    """Prepende `<var> = mm.read("state/<var>_<producer_idx>.png")` (mm.read do
+    Python já preserva grayscale → 2D), logo após as opções `#|` da célula."""
+    opts, body = _split_quarto_options(py_src)
+    reads = [STATE_IO_BEGIN_PY]
+    for r in sorted(records, key=lambda r: r['var_name']):
+        reads.append(f'{r["var_name"]} = mm.read('
+                     f'"{STATE_DIR}/{r["var_name"]}_{r["producer_idx"]}.png")')
+    reads.append(STATE_IO_END_PY)
+    return '\n'.join(opts + reads + body)
+
+
+def inject_producer_writes_py(py_src: str, var_names: list, producer_idx: int) -> str:
+    """Anexa `mm.write(<var>, "state/<var>_<producer_idx>.png")` no fim da
+    célula, criando o diretório."""
+    tail = [STATE_IO_BEGIN_PY,
+            f'import os as _pdi_os; _pdi_os.makedirs("{STATE_DIR}", exist_ok=True)']
+    for v in sorted(var_names):
+        tail.append(f'mm.write({v}, "{STATE_DIR}/{v}_{producer_idx}.png")')
+    tail.append(STATE_IO_END_PY)
+    return py_src.rstrip('\n') + '\n' + '\n'.join(tail) + '\n'
 
 
 def _ensure_filesystem_include(cpp_src: str) -> str:

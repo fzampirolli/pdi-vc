@@ -27,7 +27,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 
-from .config import LANGUAGES, LOCALES, BASE_LANG, BASE_LOCALE
+from .config import LANGUAGES, LOCALES, BASE_LANG, BASE_LOCALE, CPP_CHAPTERS
 
 DIR_GEN = Path('gen')
 DIR_BOOK = DIR_GEN / 'book'
@@ -570,19 +570,25 @@ class IndexBuilder:
     # só os capítulos em CPP_CHAPTERS (pipeline/config.py) passaram pela
     # validação de ponta a ponta (as células de código C++ compilam e
     # executam de verdade via g++). Prependida à dica genérica, no idioma
-    # da própria versão. Manter em sincronia com CPP_CHAPTERS.
-    CPP_VALIDATION_NOTE: Dict[str, str] = {
-        'pt': ('⚙️ C++: por enquanto só os Capítulos 1 e 2 foram validados — '
-               'neles as células de código C++ compilam e executam de verdade '
-               '(g++). Os demais capítulos ainda não foram portados para C++.\n\n'),
-        'en': ('⚙️ C++: for now only Chapters 1 and 2 have been validated — '
-               'there the C++ code cells really compile and run (g++). The '
-               'remaining chapters have not been ported to C++ yet.\n\n'),
-        'fr': ('⚙️ C++ : pour l\'instant seuls les chapitres 1 et 2 ont été '
-               'validés — leurs cellules de code C++ compilent et s\'exécutent '
-               'réellement (g++). Les autres chapitres n\'ont pas encore été '
-               'portés en C++.\n\n'),
-    }
+    # da própria versão. O intervalo de capítulos é derivado de CPP_CHAPTERS.
+    @staticmethod
+    def _cpp_chapters_phrase(locale_key: str) -> str:
+        nums = sorted(int(c.replace('cap', '')) for c in CPP_CHAPTERS)
+        if not nums:
+            return {'pt': 'nenhum capítulo', 'en': 'no chapter',
+                    'fr': 'aucun chapitre'}.get(locale_key, 'no chapter')
+        contiguous = nums == list(range(nums[0], nums[-1] + 1))
+        if len(nums) == 1:
+            n = nums[0]
+            return {'pt': f'o Capítulo {n}', 'en': f'Chapter {n}',
+                    'fr': f'le chapitre {n}'}.get(locale_key, f'Chapter {n}')
+        if contiguous:
+            a, b = nums[0], nums[-1]
+            return {'pt': f'os Capítulos {a} a {b}', 'en': f'Chapters {a} to {b}',
+                    'fr': f'les chapitres {a} à {b}'}.get(locale_key, f'Chapters {a} to {b}')
+        lst = ', '.join(str(n) for n in nums)
+        return {'pt': f'os Capítulos {lst}', 'en': f'Chapters {lst}',
+                'fr': f'les chapitres {lst}'}.get(locale_key, f'Chapters {lst}')
 
     def _build_validation_hint(self, v: Dict) -> str:
         template = self.VALIDATION_HINT_TEMPLATES.get(
@@ -590,9 +596,24 @@ class IndexBuilder:
         )
         hint = template.format(combo=v['key'], locale=v['locale_key'], lang=v['lang_key'])
         if v['lang_key'] == 'cpp':
-            note = self.CPP_VALIDATION_NOTE.get(
-                v['locale_key'], self.CPP_VALIDATION_NOTE['en']
-            )
+            lk = v['locale_key']
+            phrase = self._cpp_chapters_phrase(lk)
+            note = {
+                'pt': (f'⚙️ C++: por enquanto só {phrase} foram validados — '
+                       'neles as células de código C++ compilam e executam de '
+                       'verdade (g++). Os demais capítulos ainda não foram '
+                       'portados para C++.\n\n'),
+                'en': (f'⚙️ C++: for now only {phrase} have been validated — '
+                       'there the C++ code cells really compile and run (g++). '
+                       'The remaining chapters have not been ported to C++ yet.\n\n'),
+                'fr': (f'⚙️ C++ : pour l\'instant seuls {phrase} ont été validés '
+                       '— leurs cellules de code C++ compilent et s\'exécutent '
+                       'réellement (g++). Les autres chapitres n\'ont pas encore '
+                       'été portés en C++.\n\n'),
+            }.get(lk)
+            if note is None:
+                note = (f'⚙️ C++: only {phrase} validated (code cells compile & '
+                        'run via g++).\n\n')
             hint = note + hint
         return hint
 

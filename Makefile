@@ -6,6 +6,7 @@
 # make html     → watch py+pt, renderiza HTML ao salvar
 # make pdf      → watch py+pt, renderiza PDF ao salvar
 # make publish  → build + docs/ + git push
+# make publish-parallel → render de TODOS os combos em paralelo + docs/ + git push
 # make clean    → apaga gen/, docs/ e cache
 
 LANGS   ?= py
@@ -31,22 +32,27 @@ endif
 
 PY      = python dev.py
 
+# INC=1 → passa --incremental ao dev.py: capítulos cujo gen/ já está mais novo
+# que a fonte + .EPs + morph.*/cache/pipeline (mtime) não são reprocessados.
+# Combina com o `freeze: auto` do Quarto (só re-executa o que foi regenerado).
+INCREMENTAL := $(if $(filter 1,$(INC)),--incremental,)
+
 # TinyTeX na frente do PATH para garantir lualatex correto
 TINYTEX = $(HOME)/.TinyTeX/bin/x86_64-linux
 export PATH := $(TINYTEX):$(PATH)
 
 # ── Watch (modo desenvolvimento) ──────────────────────────────────────────────
 .PHONY: html
-html:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html
+html: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render html
 	$(MAKE) index
 
 .PHONY: pdf
-pdf:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render pdf
+pdf: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render pdf
 
 .PHONY: all-formats
-all-formats:
+all-formats: sync-morph
 	$(PY) --langs $(LANGS) --locales $(LOCALES) --render all
 
 # ── Build rápido de 1 capítulo ────────────────────────────────────────────────
@@ -56,17 +62,19 @@ all-formats:
 # em gen/book/, não só este). Uso:
 #   make cap01 cpp.pt
 #   make cap03            (usa LANGS/LOCALES default ou já setados)
-cap%:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html --no-apendices \
+cap%: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render html --no-apendices \
 		all/cap$*/cap$*.ipynb \
 		$(wildcard all/cap$*/cap$*.EPs.ipynb)
+ifneq ($(FAST),1)
 	python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos \
 		--lang $(LANGS) --locale $(LOCALES) --cap cap$*
+endif
 
 # ── Build único ───────────────────────────────────────────────────────────────
 .PHONY: build
-build:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render html
+build: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render html
 	$(MAKE) index
 	$(MAKE) eps-all
 	$(MAKE) moodle-all
@@ -77,13 +85,13 @@ build-index:
 	$(MAKE) index
 	
 .PHONY: build-pdf
-build-pdf:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render pdf
+build-pdf: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render pdf
 	$(MAKE) index
 
 .PHONY: build-all
-build-all:
-	$(PY) --once --langs $(LANGS) --locales $(LOCALES) --render all
+build-all: sync-morph
+	$(PY) --once $(INCREMENTAL) --langs $(LANGS) --locales $(LOCALES) --render all
 	$(MAKE) index
 
 # ── Índice e abertura local ────────────────────────────────────────────────────
@@ -97,7 +105,7 @@ open:
 
 # ── Combinações especiais ──────────────────────────────────────────────────────
 .PHONY: full
-full:
+full: sync-morph
 	$(PY) --once --langs py,cpp,java,c --locales pt,en,fr,es,it --render all
 	$(MAKE) index
 
@@ -109,6 +117,52 @@ publish:
 .PHONY: publish-fast
 publish-fast:
 	./publish_all.sh --langs $(LANGS) --locales $(LOCALES) --skip-render
+
+# ── Publicação com render PARALELO de todos os combos ─────────────────────────
+# Renderiza cada combo (lang.locale) num processo próprio, ao MESMO TEMPO —
+# são independentes (cada um em gen/quarto/<combo>/) — e só então gera índice
+# + deploy. Tempo de parede ≈ combo mais lento, não a soma.
+#
+#   make publish-parallel                 # padrão: py,cpp × pt,en,fr (livro inteiro)
+#   make publish-parallel PUB_LANGS=cpp PUB_LOCALES=pt     # subconjunto
+#   make publish-parallel cpp.pt py.en    # atalho lang.locale (produto cartesiano)
+#   make publish-parallel JOBS=3          # no máx. 3 combos por vez (poupa RAM)
+#   make publish-parallel NP=1            # gera gen/book/ + docs/ mas NÃO faz git push
+#   make publish-parallel INC=1           # incremental (só re-renderiza o que mudou)
+#
+# Escopo por trilha (herdado do dev.py): py = cap01-09, cpp = só CPP_CHAPTERS
+# (cap01-05 hoje) — em ambos com apêndices e PDF. Logs em gen/_publog/<combo>.log.
+PUB_LANGS   ?= py,cpp
+PUB_LOCALES ?= pt,en,fr
+_PUB_LANGS   := $(if $(COMBO_GOALS),$(LANGS),$(PUB_LANGS))
+_PUB_LOCALES := $(if $(COMBO_GOALS),$(LOCALES),$(PUB_LOCALES))
+
+.PHONY: publish-parallel
+publish-parallel: sync-morph
+	@set -e; mkdir -p gen/_publog; T0=$$(date +%s); \
+	combos=$$(for L in $(subst $(COMMA),$(SPACE),$(_PUB_LANGS)); do \
+	            for O in $(subst $(COMMA),$(SPACE),$(_PUB_LOCALES)); do echo $$L.$$O; done; \
+	          done); \
+	echo ">> [$$(date +%H:%M:%S)] render paralelo (JOBS=$(or $(JOBS),ilimitado)):" $$combos; \
+	printf '%s\n' $$combos | xargs -P $(or $(JOBS),0) -I{} sh -c ' \
+	  c="{}"; L=$${c%.*}; O=$${c#*.}; s=$$(date +%s); \
+	  python dev.py --once $(INCREMENTAL) --langs $$L --locales $$O --render all \
+	    > gen/_publog/$$c.log 2>&1; \
+	  rc=$$?; e=$$(date +%s); echo "$$rc $$((e-s))" > gen/_publog/$$c.rc; \
+	  [ $$rc = 0 ] && echo "  ✓ [$$(date +%H:%M:%S)] $$c  ($$((e-s))s)" \
+	              || echo "  ✗ [$$(date +%H:%M:%S)] $$c (rc=$$rc, $$((e-s))s) — gen/_publog/$$c.log"'; \
+	fail=0; echo ">> tempos por combo:"; \
+	for c in $$combos; do \
+	  read rc dt < gen/_publog/$$c.rc 2>/dev/null || { rc=1; dt=0; }; \
+	  printf '   %-8s %s  %ss\n' "$$c" "$$([ $$rc = 0 ] && echo OK || echo FALHA)" "$$dt"; \
+	  [ "$$rc" = 0 ] || fail=1; done; \
+	TR=$$(($$(date +%s)-T0)); echo ">> render total (parede): $$((TR/60))m$$((TR%60))s"; \
+	if [ $$fail != 0 ]; then \
+	  echo "!! combo(s) falharam — deploy abortado (logs em gen/_publog/)"; exit 1; fi; \
+	echo ">> [$$(date +%H:%M:%S)] todos os combos OK — índice + deploy"; \
+	./publish_all.sh --langs $(_PUB_LANGS) --locales $(_PUB_LOCALES) --skip-render \
+	  $(if $(filter 1,$(NP)),--skip-git,); \
+	TT=$$(($$(date +%s)-T0)); echo ">> [$$(date +%H:%M:%S)] publish-parallel completo: $$((TT/60))m$$((TT%60))s"
 
 
 # ── Publicação de notebook único ──────────────────────────────────────────────
@@ -220,17 +274,48 @@ sims-dry:
 CHAPTERS ?=
 LOCALE   ?= pt
 
+# ── Sincroniza morph.py / morph.hpp / stb_image*.h da árvore de trabalho ──────
+# para as CÓPIAS LOCAIS ao lado das fontes (all/capNN/). Essas cópias são
+# gitignoradas e o `config.setup` só as baixa do GitHub master `if not exists`,
+# nunca as atualiza — então, ao editar morph/* e rodar um notebook de all/
+# direto no Jupyter (ou compilar um %%writefile .cpp na mão), usa-se a versão
+# defasada. O build do pipeline (make html) não sofre disso: ele faz symlink
+# da morph/* viva. Rode isto após mexer em morph/*, e reinicie o kernel.
+.PHONY: sync-morph
+sync-morph:
+	@python -c "import shutil, pathlib; \
+from pipeline.config import CPP_CHAPTERS; \
+root = pathlib.Path('.'); \
+caps = sorted(p.name for p in (root/'all').glob('cap*') if p.is_dir()); \
+[shutil.copy2(root/'morph'/'morph.py', root/'all'/c/'morph.py') for c in caps]; \
+[shutil.copy2(root/'morph'/'cpp'/f, root/'all'/c/f) \
+   for c in caps if c in CPP_CHAPTERS \
+   for f in ('morph.hpp','stb_image.h','stb_image_write.h') \
+   if (root/'morph'/'cpp'/f).exists()]; \
+print('sync-morph: morph.py ->', caps); \
+print('sync-morph: morph.hpp+stb ->', [c for c in caps if c in CPP_CHAPTERS])"
+
 .PHONY: check-combos
-check-combos:
+check-combos: sync-morph
 	python check_combos.py $(if $(CHAPTERS),--chapters $(CHAPTERS),) --locale $(LOCALE)
 
 .PHONY: check-combos-locale
-check-combos-locale:
+check-combos-locale: sync-morph
 	python check_combos.py --locale-consistency $(if $(CHAPTERS),--chapters $(CHAPTERS),)
 
 .PHONY: check-combos-parity
-check-combos-parity:
+check-combos-parity: sync-morph
 	python check_combos.py --lang-parity --locale $(LOCALE) $(if $(CHAPTERS),--chapters $(CHAPTERS),)
+
+# ── Preflight OPCIONAL: executa as fontes all/capNN/*.ipynb (menos cap09) ──────
+# numa cópia temporária, com morph* da árvore de trabalho, e falha se alguma
+# célula quebrar — pega o "esqueci de rodar uma célula". NÃO é pré-requisito de
+# build (é pesado: executa cap01..cap08); rode sob demanda antes de publicar,
+# de preferência filtrando: `make check-notebooks CHAPTERS=cap02`.
+# Não escreve outputs de volta. Rode DENTRO do .venv (morph.py é 3.11+).
+.PHONY: check-notebooks
+check-notebooks: sync-morph
+	python check_notebooks.py $(if $(CHAPTERS),--chapters $(CHAPTERS),) $(NBCHECK_ARGS)
 
 
 # ── Ajuda ─────────────────────────────────────────────────────────────────────
@@ -243,6 +328,7 @@ help:
 	@echo "  make build-pdf     → py×pt + PDF + índice"
 	@echo "  make build-all     → py×pt + HTML+PDF + índice"
 	@echo "  make full          → todas linguagens×idiomas + HTML+PDF"
+	@echo "  INC=1 make build …  → pula capítulos cujo gen/ já está atualizado (mtime); casa com o freeze do Quarto"
 	@echo ""
 	@echo "  👀 Watch (Ctrl+C para sair):"
 	@echo "  make html          → watch + HTML"
@@ -252,6 +338,9 @@ help:
 	@echo "  🌐 Publicação:"
 	@echo "  make publish       → build + docs/ + git push"
 	@echo "  make publish-fast  → deploy para docs/ + git push (sem recompilar HTML/PDF)"
+	@echo "  make publish-parallel → render de TODOS os combos EM PARALELO (py,cpp × pt,en,fr) + HTML+PDF + índice + docs/ + git push"
+	@echo "     opções: PUB_LANGS=cpp PUB_LOCALES=pt (subconjunto) · JOBS=3 (limita combos simultâneos) · NP=1 (sem git push) · INC=1 (incremental)"
+	@echo "     escopo: py = cap01-09 · cpp = só CPP_CHAPTERS (cap01-05) · logs em gen/_publog/<combo>.log"
 	@echo "  make index         → só regenera o índice"
 	@echo "  make open          → abre gen/book/index.html"
 	@echo ""
@@ -263,6 +352,8 @@ help:
 	@echo "  make check-combos          → estrutura pt/en/fr + paridade py/cpp"
 	@echo "  make check-combos-locale   → só estrutura pt vs en vs fr (mesma linguagem)"
 	@echo "  make check-combos-parity   → só py vs cpp (labels, refs, xrefs)"
+	@echo "  make check-notebooks CHAPTERS=cap02 → (opcional, pesado) executa as fontes e falha se célula quebrar"
+	@echo "  make sync-morph            → copia morph.py/hpp da árvore de trabalho p/ all/cap*/ (roda antes de build/html/checks)"
 	@echo "     opções: CHAPTERS=cap01,cap02  LOCALE=pt"
 	@echo ""
 	@echo "  🧹 Limpeza:"
@@ -288,4 +379,7 @@ help:
 	@echo "                make html cpp.pt"
 	@echo ""
 	@echo "  ⚡ Build de 1 capítulo (rápido, sem eps/moodle/sims/index):"
-	@echo "  make cap01 cpp.pt        → só HTML do cap01 (+ EPs dele)"
+	@echo "  make cap01 cpp.pt        → só HTML do cap01 (+ EPs + caderno do aluno)"
+	@echo "  FAST=1 make cap01 cpp.pt → idem, pulando o caderno do aluno (iteração)"
+	@echo "  (freeze: auto — capítulos não alterados restauram do gen/quarto/<combo>/_freeze/;"
+	@echo "   PDI_VC_NO_FREEZE=1 desliga; mexer em morph.* invalida o _freeze automaticamente)"

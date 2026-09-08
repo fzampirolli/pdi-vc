@@ -40,7 +40,11 @@ BASE_LANG = 'py'   # fonte canônico — editar apenas em Python
 # demais usam cv2/skimage sem equivalente e, com error:false, uma célula
 # quebrada abortaria o render do combo cpp inteiro — por isso o build só
 # gera/inclui cpp para estes. Ver CPP_VALIDATION_NOTE em index_builder.
-CPP_CHAPTERS = {'cap01', 'cap02', 'cap03', 'cap04'}  # cap05: infra OpenCV pronta (CPP_OPENCV_CHAPTERS), port em iteração
+CPP_CHAPTERS = {'cap01', 'cap02', 'cap03', 'cap04', 'cap05'}
+# cap05: trilha cpp = passthrough Python (2026-09-07) — capítulo OpenCV, o
+# "C++" é a API cv:: quase idêntica a cv2.; ver _expand_foreign_code_cell
+# (if opencv:) e project_pdi_vc_cpp_execution. cap06-08 seguem o mesmo padrão
+# quando entrarem aqui.
 
 # Capítulos cujas células C++ são TRADUZIDAS para `cv::` puro: cap05-08
 # dependem de cv::dft/HoughLines/ORB/ml/... sem equivalente na morph.hpp, então
@@ -59,6 +63,16 @@ CPP_MM_OPENCV_CHAPTERS = {'cap04'}
 
 # União: qualquer capítulo cujo `!g++` das células C++ leva `-DMM_USE_OPENCV`.
 CPP_OPENCV_LINK_CHAPTERS = CPP_OPENCV_CHAPTERS | CPP_MM_OPENCV_CHAPTERS
+
+
+def cpp_build_chapters() -> set[str]:
+    """Capítulos que o build gera/inclui na trilha C++ = `CPP_CHAPTERS` mais o
+    que estiver em `PDI_VC_CPP_EXTRA` (lista separada por vírgula). O extra
+    serve para trabalhar um capítulo OpenCV ainda "em iteração" (cap05-08) sem
+    promovê-lo permanentemente. Ex.: `PDI_VC_CPP_EXTRA=cap05 make cap05 cpp.pt`."""
+    import os
+    extra = {c.strip() for c in os.environ.get('PDI_VC_CPP_EXTRA', '').split(',') if c.strip()}
+    return CPP_CHAPTERS | extra
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Registro de idiomas (locales)

@@ -44,7 +44,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from pipeline.config import LANGUAGES, LOCALES, Combo, CPP_CHAPTERS
+from pipeline.config import LANGUAGES, LOCALES, Combo, CPP_CHAPTERS, cpp_build_chapters
 from pipeline.cache import TranslationCache
 from pipeline.bib import parse_bib
 from pipeline.translators import TranslatorFactory
@@ -98,6 +98,39 @@ def find_sources(paths: list[str] | None = None) -> list[Path]:
     if paths:
         return [Path(p) for p in paths if Path(p).exists()]
     return sorted(DIR_ALL.glob('cap*/cap*.ipynb'))
+
+
+_SHARED_DEP_MTIME: float | None = None
+
+
+def _shared_dep_mtime() -> float:
+    """mtime mais recente de tudo que, mudando, invalida QUALQUER gen/<combo>/
+    (morph.*, cache de tradução, .bib, código do pipeline). Cacheado por processo."""
+    global _SHARED_DEP_MTIME
+    if _SHARED_DEP_MTIME is None:
+        deps = [Path('morph/morph.py'), Path('morph/config.py'),
+                Path('morph/testsuite.py'), Path('morph/cpp/morph.hpp'),
+                Path('.cache/translations.json'), Path('references.bib'),
+                *sorted(Path('pipeline').glob('*.py')), Path(__file__).resolve()]
+        _SHARED_DEP_MTIME = max((p.stat().st_mtime for p in deps if p.exists()),
+                                default=0.0)
+    return _SHARED_DEP_MTIME
+
+
+def _gen_is_fresh(nb_path: Path, combo: Combo) -> bool:
+    """True se gen/<combo>/…/<cap>.<combo>.ipynb já está mais novo que a fonte,
+    o .EPs dela e as deps compartilhadas — logo `build_notebook` pode ser pulado
+    no modo --incremental."""
+    out = _gen_notebook_path(nb_path, combo)
+    if not out.exists():
+        return False
+    srcs = [nb_path]
+    eps = nb_path.with_name(nb_path.stem + '.EPs.ipynb')
+    if eps.exists():
+        srcs.append(eps)
+    newest_src = max(p.stat().st_mtime for p in srcs if p.exists())
+    out_m = out.stat().st_mtime
+    return out_m >= newest_src and out_m >= _shared_dep_mtime()
 
 
 def _gen_notebook_path(nb_path: Path, combo: Combo) -> Path:
@@ -281,8 +314,15 @@ def audit_cache(sources: list[Path], combos: list[Combo],
 def run_build(sources: list[Path], combos: list[Combo],
               processor: NotebookProcessor, quarto_builder: QuartoBuilder,
               render_fmt: str | None, verbose: bool,
-              include_apendices: bool = True) -> dict[str, Path]:
-    """Executa build completo; retorna {combo.key: quarto_dir}."""
+              include_apendices: bool = True,
+              incremental: bool = False) -> dict[str, Path]:
+    """Executa build completo; retorna {combo.key: quarto_dir}.
+
+    incremental=True: pula `build_notebook` de (fonte, combo) cujo gen/ já está
+    mais novo que a fonte + .EPs + deps compartilhadas (morph.*, cache, pipeline).
+    O `quarto render` que vem depois ainda roda, mas com `freeze: auto` só
+    re-executa os capítulos de fato regenerados.
+    """
     quarto_dirs: dict[str, Path] = {}
 
     for combo in combos:
@@ -294,10 +334,17 @@ def run_build(sources: list[Path], combos: list[Combo],
         # render do combo cpp inteiro. Ver CPP_VALIDATION_NOTE no índice.
         combo_sources = sources
         if combo.lang == 'cpp':
-            combo_sources = [s for s in sources if s.parent.name in CPP_CHAPTERS]
+            _cpp_caps = cpp_build_chapters()   # CPP_CHAPTERS + PDI_VC_CPP_EXTRA
+            combo_sources = [s for s in sources if s.parent.name in _cpp_caps]
+        n_skip = 0
         for nb_path in combo_sources:
+            if incremental and _gen_is_fresh(nb_path, combo):
+                n_skip += 1
+                continue
             out = build_notebook(nb_path, combo, processor)
             print(f'  ✓ {out}')
+        if incremental and n_skip:
+            print(f'  ⏭  {n_skip} capítulo(s) já atualizados — pulados')
 
         qdir = quarto_builder.build(combo, include_apendices=include_apendices)
         quarto_dirs[combo.key] = qdir
@@ -379,6 +426,10 @@ def main():
                         help='Build único, sem entrar no loop de watch')
     parser.add_argument('--no-apendices', action='store_true',
                         help='Não inclui os apêndices no livro (build rápido de 1 capítulo)')
+    parser.add_argument('--incremental', action='store_true',
+                        help='Pula o reprocessamento de capítulos cujo gen/ já está mais '
+                             'novo que a fonte + .EPs + morph.*/cache/pipeline (mtime). '
+                             'Só o build inicial; o watch continua por hash.')
     parser.add_argument('--promote-edits', action='store_true',
                         help='Grava no cache as edições manuais feitas em gen/*.ipynb '
                              '(não gera nem builda nada — ver README § Editando o conteúdo gerado)')
@@ -447,7 +498,8 @@ def main():
     # ── Build inicial ─────────────────────────────────────────────────────────
     quarto_dirs = run_build(sources, combos, processor, builder,
                             args.render, args.verbose,
-                            include_apendices=not args.no_apendices)
+                            include_apendices=not args.no_apendices,
+                            incremental=args.incremental)
     cache.save()
 
     if args.once:

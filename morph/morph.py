@@ -182,9 +182,12 @@ class mm:
 
     @staticmethod
     def gray(img):
-        """Converte imagem colorida para escala de cinza."""
+        """Converte imagem colorida para escala de cinza. Idempotente: se já
+        for 1 canal (2D ou HxWx1), devolve como está."""
         cv2 = mm._get_cv2()
-        return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY if img.ndim==3 and img.shape[2]==4
+        if getattr(img, "ndim", 2) == 2 or (img.ndim == 3 and img.shape[2] == 1):
+            return img if img.ndim == 2 else img[:, :, 0]
+        return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY if img.shape[2] == 4
                             else cv2.COLOR_RGB2GRAY)
 
     @staticmethod
@@ -297,8 +300,14 @@ class mm:
 
     @staticmethod
     def perspective_transform(img, pts1, pts2, size=None):
-        """Aplica transformação de perspectiva (homografia) em uma imagem."""
+        """Aplica transformação de perspectiva (homografia) em uma imagem.
+
+        pts1/pts2: 4 pares (x, y) — aceita np.ndarray, lista ou tupla.
+        """
         cv2 = mm._get_cv2()
+        np = mm._get_np()
+        pts1 = np.asarray(pts1, dtype=np.float32)
+        pts2 = np.asarray(pts2, dtype=np.float32)
         if size is None:
             h, w = img.shape[:2]
             size = (w, h)
@@ -2062,6 +2071,214 @@ class mm:
         feature = mm._get_skfeature()
         return feature.hog(f, orientations=orientations, pixels_per_cell=pixels_per_cell,
                             cells_per_block=cells_per_block, feature_vector=True)
+
+    # ── DOMÍNIO DA FREQUÊNCIA (cap05) ──────────────────────────────────────
+    # Espelham mm::distCenter / mm::freqFilter / mm::spectrumMag / mm::dct2 /
+    # mm::idct2 da morph.hpp — mesmo resultado nas trilhas Python e C++.
+
+    @staticmethod
+    def distCenter(M, N):
+        """distancia_centro: matriz M×N com a distância de (u,v) ao centro (M/2, N/2) do espectro centrado."""
+        np = mm._get_np()
+        u = np.arange(M) - M // 2
+        v = np.arange(N) - N // 2
+        V, U = np.meshgrid(v, u)
+        return np.sqrt(U ** 2 + V ** 2)
+
+    @staticmethod
+    def freqFilter(img, H):
+        """aplicar_filtro_freq: aplica o filtro centrado H (mesmo shape da imagem) via FFT; devolve uint8 [0,255]."""
+        np = mm._get_np(); cv2 = mm._get_cv2()
+        if getattr(img, "ndim", 2) == 3:
+            img = mm.gray(img)
+        F = np.fft.fftshift(np.fft.fft2(img.astype(np.float64)))
+        g = np.real(np.fft.ifft2(np.fft.ifftshift(F * H)))
+        return cv2.normalize(g, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+    @staticmethod
+    def spectrumMag(img):
+        """Espectro de magnitude para visualização: log(1+|F|) centrado e normalizado [0,255]."""
+        np = mm._get_np(); cv2 = mm._get_cv2()
+        if getattr(img, "ndim", 2) == 3:
+            img = mm.gray(img)
+        F = np.fft.fftshift(np.fft.fft2(img.astype(np.float64)))
+        return cv2.normalize(np.log1p(np.abs(F)), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+    @staticmethod
+    def psnr(a, b):
+        """PSNR (dB) entre duas imagens uint8 — espelha mm::psnr / cv2.PSNR."""
+        cv2 = mm._get_cv2()
+        return cv2.PSNR(a, b)
+
+    @staticmethod
+    def spatialKernel(H):
+        """Resposta espacial de um filtro real centrado H: fftshift(real(ifft2(ifftshift(H)))),
+        normalizada [0,255]. Espelha mm::spatialKernel."""
+        np = mm._get_np(); cv2 = mm._get_cv2()
+        sp = np.fft.fftshift(np.real(np.fft.ifft2(np.fft.ifftshift(np.asarray(H, np.float64)))))
+        return cv2.normalize(sp, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+    @staticmethod
+    def wavefun(name, level=6):
+        """(x, phi, psi) da wavelet `name`. Usa PyWavelets quando disponível;
+        senão, algoritmo em cascata (espelha mm::wavefun)."""
+        np = mm._get_np()
+        try:
+            import pywt
+            phi, psi, x = pywt.Wavelet(name).wavefun(level=level)
+            return np.asarray(x), np.asarray(phi), np.asarray(psi)
+        except Exception:
+            pass
+        _tbl = {
+            "haar": [0.7071067811865476, 0.7071067811865476],
+            "db4": [0.2303778133088965, 0.7148465705529157, 0.6308807679298589,
+                    -0.02798376941685985, -0.18703481171909309, 0.03084138183556076,
+                    0.0328830116668852, -0.01059740178506903],
+        }
+        rl = np.asarray(_tbl.get(name, _tbl["haar"]))
+        rh = rl[::-1] * (np.array([(-1) ** k for k in range(len(rl))]))
+        p = np.array([1.0]); q = np.array([1.0])
+        for _ in range(max(1, level)):
+            pu = np.zeros(len(p) * 2 - 1); pu[::2] = p
+            p, q = np.convolve(pu, rl) * np.sqrt(2), np.convolve(pu, rh) * np.sqrt(2)
+        x = np.linspace(0, len(rl) - 1, len(p))
+        return x, p, q
+
+    @staticmethod
+    def dct2(block):
+        """DCT-II 2D ortonormal (scipy.fft.dct norm='ortho', separável) — == cv::dct do OpenCV."""
+        from scipy.fft import dct
+        return dct(dct(block.T, norm="ortho").T, norm="ortho")
+
+    @staticmethod
+    def idct2(coefs):
+        """IDCT-II 2D ortonormal."""
+        from scipy.fft import idct
+        return idct(idct(coefs.T, norm="ortho").T, norm="ortho")
+
+    # Construtores de filtro no domínio da frequência (H centrado, DC no meio).
+    # highpass=True devolve o complemento (1 - H). Espelham mm::gaussFilter /
+    # mm::idealFilter / mm::butterFilter da morph.hpp.
+
+    @staticmethod
+    def gaussFilter(M, N, D0, highpass=False):
+        """Filtro Gaussiano passa-baixa H(u,v) = exp(-D²/(2·D0²)) (ou 1-H se highpass)."""
+        np = mm._get_np()
+        lp = np.exp(-(mm.distCenter(M, N) ** 2) / (2.0 * D0 ** 2))
+        return (1.0 - lp) if highpass else lp
+
+    @staticmethod
+    def idealFilter(M, N, D0, highpass=False):
+        """Filtro ideal (corte abrupto em D0) (ou seu complemento se highpass)."""
+        np = mm._get_np()
+        lp = (mm.distCenter(M, N) <= D0).astype(np.float64)
+        return (1.0 - lp) if highpass else lp
+
+    @staticmethod
+    def butterFilter(M, N, D0, n=2, highpass=False):
+        """Filtro Butterworth de ordem n: 1/(1+(D/D0)^(2n)) (ou seu complemento se highpass)."""
+        D = mm.distCenter(M, N)
+        lp = 1.0 / (1.0 + (D / D0) ** (2 * n))
+        return (1.0 - lp) if highpass else lp
+
+    @staticmethod
+    def jpegCompress(img, quality):
+        """Pipeline JPEG simplificado: DCT 8×8 -> quantização (tabela de luminância
+        escalada por `quality` em 1..100) -> dequantização -> IDCT. Espelha mm::jpegCompress."""
+        np = mm._get_np()
+        QL = np.array([
+            [16, 11, 10, 16, 24, 40, 51, 61], [12, 12, 14, 19, 26, 58, 60, 55],
+            [14, 13, 16, 24, 40, 57, 69, 56], [14, 17, 22, 29, 51, 87, 80, 62],
+            [18, 22, 37, 56, 68, 109, 103, 77], [24, 35, 55, 64, 81, 104, 113, 92],
+            [49, 64, 78, 87, 103, 121, 120, 101], [72, 92, 95, 98, 112, 100, 103, 99],
+        ], dtype=np.float64)
+        quality = int(max(1, min(100, quality)))
+        escala = 5000.0 / quality if quality < 50 else 200.0 - 2.0 * quality
+        Q = np.clip(np.round(QL * escala / 100.0), 1.0, 255.0)
+        if getattr(img, "ndim", 2) == 3:
+            img = mm.gray(img)
+        src = img.astype(np.float64)
+        h, w = src.shape
+        out = np.zeros((h, w), np.float64)
+        for r in range(0, h - 7, 8):
+            for c in range(0, w - 7, 8):
+                C = mm.dct2(src[r:r+8, c:c+8] - 128.0)
+                Cq = np.round(C / Q) * Q
+                out[r:r+8, c:c+8] = mm.idct2(Cq) + 128.0
+        return np.clip(out, 0, 255).astype(np.uint8)
+
+    @staticmethod
+    def lineChart(xs, ys, colors=None, labels=None, title="", xlabel="", ylabel="",
+                  width=760, height=420, logx=False, logy=False):
+        """Gráfico de linhas header-only (substitui matplotlib na trilha C++).
+        `xs[k]`/`ys[k]` = k-ésima curva; `colors` em BGR. Espelha mm::lineChart."""
+        np = mm._get_np(); cv2 = mm._get_cv2()
+        ys = [np.asarray(y, dtype=np.float64) for y in ys]
+        # `xs` pode ser um único eixo x compartilhado (sequência de números) ou
+        # uma lista de eixos (um por curva). Detecta pelo 1º elemento.
+        shared = len(xs) == 0 or np.isscalar(xs[0]) or np.ndim(xs[0]) == 0
+        if shared:
+            xs = [np.asarray(xs, dtype=np.float64)] * len(ys)
+        else:
+            xs = [np.asarray(x, dtype=np.float64) for x in xs]
+        CYCLE = [(48, 90, 216), (117, 158, 29), (183, 74, 83), (40, 39, 214),
+                 (148, 103, 189), (75, 119, 44), (33, 145, 237)]
+        colors = colors or []
+        labels = labels or []
+        tx = (lambda v: np.log10(np.maximum(v, 1e-12))) if logx else (lambda v: v)
+        ty = (lambda v: np.log10(np.maximum(v, 1e-12))) if logy else (lambda v: v)
+        allx = np.concatenate([tx(x) for x in xs]); ally = np.concatenate([ty(y) for y in ys])
+        allx = allx[np.isfinite(allx)]; ally = ally[np.isfinite(ally)]
+        xmin, xmax = float(allx.min()), float(allx.max())
+        ymin, ymax = float(ally.min()), float(ally.max())
+        if xmax <= xmin: xmax = xmin + 1
+        if ymax <= ymin: ymax = ymin + 1
+        pad = 0.06 * (ymax - ymin); ynonneg = ymin >= 0.0
+        ymin -= pad; ymax += pad
+        if ynonneg and ymin < 0.0: ymin = 0.0
+        L, Rm, Tm, Bm = 62, 18, (18 if not title else 40), 46
+        cnv = np.full((height, width, 3), 255, np.uint8)
+        px0, py0, pw, ph = L, Tm, width - L - Rm, height - Tm - Bm
+        cv2.rectangle(cnv, (px0, py0), (px0 + pw, py0 + ph), (150, 150, 150), 1)
+        PX = lambda X: int(round(px0 + (tx(X) - xmin) / (xmax - xmin) * pw))
+        PY = lambda Y: int(round(py0 + ph - (ty(Y) - ymin) / (ymax - ymin) * ph))
+        for i in range(6):
+            gx = px0 + pw * i // 5
+            cv2.line(cnv, (gx, py0), (gx, py0 + ph), (230, 230, 230), 1)
+            X = xmin + (xmax - xmin) * i / 5.0
+            cv2.putText(cnv, f"{(10**X if logx else X):.3g}", (gx - 14, py0 + ph + 16),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (90, 90, 90), 1, cv2.LINE_AA)
+        for j in range(5):
+            gy = py0 + ph - ph * j // 4
+            cv2.line(cnv, (px0, gy), (px0 + pw, gy), (230, 230, 230), 1)
+            Y = ymin + (ymax - ymin) * j / 4.0
+            cv2.putText(cnv, f"{(10**Y if logy else Y):.3g}", (6, gy + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (90, 90, 90), 1, cv2.LINE_AA)
+        for k in range(len(xs)):
+            col = colors[k] if k < len(colors) else CYCLE[k % len(CYCLE)]
+            pts = [(PX(a), PY(b)) for a, b in zip(xs[k], ys[k])]
+            for a, b in zip(pts[:-1], pts[1:]):
+                cv2.line(cnv, a, b, col, 2, cv2.LINE_AA)
+            for p in pts:
+                cv2.circle(cnv, p, 2, col, -1, cv2.LINE_AA)
+        if labels:
+            maxlen = max(len(str(s)) for s in labels)
+            boxw = min(pw - 20, 34 + maxlen * 7)
+            lx = px0 + pw - boxw
+            for k in range(len(labels)):
+                col = colors[k] if k < len(colors) else CYCLE[k % len(CYCLE)]
+                ly = py0 + 14 + k * 16
+                cv2.line(cnv, (lx, ly), (lx + 20, ly), col, 2, cv2.LINE_AA)
+                cv2.putText(cnv, str(labels[k]), (lx + 25, ly + 4),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (60, 60, 60), 1, cv2.LINE_AA)
+        if title:
+            cv2.putText(cnv, title, (L, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (30, 30, 30), 1, cv2.LINE_AA)
+        if xlabel:
+            cv2.putText(cnv, xlabel, (width // 2 - 40, height - 8),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (60, 60, 60), 1, cv2.LINE_AA)
+        if ylabel:
+            cv2.putText(cnv, ylabel, (6, Tm - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (60, 60, 60), 1, cv2.LINE_AA)
+        return cnv
 
     # ---- Aprendizado Profundo
 

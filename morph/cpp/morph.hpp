@@ -32,11 +32,13 @@
 #include "stb_image_write.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -68,6 +70,12 @@ struct Image {
     Image(int h_, int w_, int channels_ = 1)
         : h(h_), w(w_), channels(channels_),
           data((size_t)h_ * w_ * channels_, 0) {}
+    // De um buffer já pronto (row-major, canais intercalados). Conveniência
+    // para o código traduzido que monta a Image a partir de um cv::Mat 8-bit.
+    Image(int h_, int w_, int channels_, std::vector<unsigned char> data_)
+        : h(h_), w(w_), channels(channels_), data(std::move(data_)) {
+        data.resize((size_t)h_ * w_ * channels_, 0);
+    }
 
     unsigned char& at(int y, int x, int c = 0) {
         return data[(size_t)(y * w + x) * channels + c];
@@ -75,6 +83,30 @@ struct Image {
     unsigned char at(int y, int x, int c = 0) const {
         return data[(size_t)(y * w + x) * channels + c];
     }
+
+#ifdef MM_USE_OPENCV
+    // Interoperabilidade cv::Mat (só nos capítulos OpenCV, cap05-08): as
+    // células traduzidas trabalham em cv::Mat (float, DFT/DCT), mas mm::write/
+    // mm::show/estado entre células são em mm::Image (8-bit). Estes dois
+    // pontes fecham o vão. Float / não-8-bit vira 8-bit por normalização
+    // min-max (mesmo que cv2.normalize(...,NORM_MINMAX) da trilha py).
+    Image(const cv::Mat& m) {
+        cv::Mat u;
+        if (m.depth() == CV_8U) u = m;
+        else cv::normalize(m, u, 0, 255, cv::NORM_MINMAX, CV_8U);
+        h = u.rows; w = u.cols; channels = u.channels();
+        data.assign((size_t)h * w * channels, 0);
+        if (u.isContinuous()) std::memcpy(data.data(), u.data, data.size());
+        else for (int y = 0; y < h; ++y)
+            std::memcpy(data.data() + (size_t)y * w * channels,
+                        u.ptr(y), (size_t)w * channels);
+    }
+    operator cv::Mat() const {
+        cv::Mat m(h, w, CV_8UC(channels));
+        std::memcpy(m.data, data.data(), data.size());
+        return m.clone();
+    }
+#endif
 };
 
 // ── Elemento estruturante ─────────────────────────────────────────────────
@@ -266,9 +298,23 @@ inline Image randomImage(int h, int w, int maxValue = 9) {
 }
 
 inline void write(const Image& img, const std::string& path) {
+    // Garante o diretório-pai (ex.: "tmp/...") — células sem leitura de estado
+    // não têm "tmp/" pré-criado, e o stbi_write_png falharia em silêncio.
+    std::error_code _ec;
+    auto parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty()) std::filesystem::create_directories(parent, _ec);
     stbi_write_png(path.c_str(), img.w, img.h, img.channels,
                     img.data.data(), img.w * img.channels);
 }
+
+#ifdef MM_USE_OPENCV
+// Overload cv::Mat (capítulos OpenCV): normaliza float→8-bit e grava via a
+// rota de sempre. Sem isto, `mm::write(<cv::Mat>, ...)` não compila
+// (a injeção de painéis/estado emite `mm::write(var, ...)` cru).
+inline void write(const cv::Mat& m, const std::string& path) {
+    write(Image(m), path);
+}
+#endif
 
 // Otsu: limiar que maximiza a variância entre classes sobre o histograma
 // 256-bin. Exposto à parte pra quem precisa do T em si (títulos, logs) —
@@ -501,6 +547,10 @@ inline std::string drawImg(const Image& img) {
     return oss.str();
 }
 
+// Escala mantendo a proporção. Fica aqui só como declaração porque o corpo
+// (e o enum Interp) vêm mais abaixo, junto com resize/_resize_to.
+inline Image _resize_fit(const Image& src, int out_w, int out_h, bool smooth);
+
 // Uma imagem: escreve out_path; título (se houver) vai pro stdout — não tem
 // como desenhar texto na imagem sem uma biblioteca de fontes, então a
 // legenda aparece na saída de texto da célula, não dentro do PNG.
@@ -512,6 +562,12 @@ inline void show(const Image& img, const std::string& out_path,
 
 // Várias imagens: compõe um grid simples (sem título embutido no PNG, mesma
 // limitação acima — títulos vão pro stdout, numerados).
+//
+// Cada célula é um quadrado de lado CELL e cada imagem é reescalada para
+// caber nela mantendo a proporção, centralizada sobre fundo branco — igual
+// ao imshow do matplotlib nos subplots da mm.show em Python. Sem isso, uma
+// matriz didática 5x5 sairia com 5 px ao lado de um histograma de ~500 px
+// (era a origem das "imagens minúsculas" no C++ vs. Python).
 inline void show(const std::vector<Image>& imgs, const std::string& out_path,
                   const std::vector<std::string>& titles = {}, int cols = 3) {
     int n = (int)imgs.size();
@@ -525,29 +581,51 @@ inline void show(const std::vector<Image>& imgs, const std::string& out_path,
     cols = std::max(1, cols);
     int rows = (n + cols - 1) / cols;
 
-    int cellW = 0, cellH = 0;
-    for (auto& im : imgs) {
-        cellW = std::max(cellW, im.w);
-        cellH = std::max(cellH, im.h);
-    }
-    const int gap = 4;
-    int canvasW = cols * cellW + (cols + 1) * gap;
-    int canvasH = rows * cellH + (rows + 1) * gap;
+    const int CELL = 512;   // lado da célula quadrada, em px (≈ 5in @ ~100dpi)
+    const int gap = 8;
 
+    int canvasW = cols * CELL + (cols + 1) * gap;
+    int canvasH = rows * CELL + (rows + 1) * gap;
     Image canvas(canvasH, canvasW, 3);
     std::fill(canvas.data.begin(), canvas.data.end(), (unsigned char)255);
 
     for (int i = 0; i < n; ++i) {
+        // Imagem 1-canal: estica [min,max]→[0,255] antes de exibir, como o
+        // Normalize automático do imshow(array 2D) no matplotlib — sem isso
+        // uma matriz didática 3-bit (valores 0..7) sairia quase toda preta.
+        // RGB (3 canais) passa direto, igual ao matplotlib com MxNx3.
+        Image norm = imgs[i];
+        if (norm.channels == 1 && !norm.data.empty()) {
+            unsigned char lo = 255, hi = 0;
+            for (unsigned char v : norm.data) { lo = std::min(lo, v); hi = std::max(hi, v); }
+            if (hi > lo) {
+                double sc = 255.0 / (hi - lo);
+                for (unsigned char& v : norm.data)
+                    v = (unsigned char)std::lround((v - lo) * sc);
+            }
+        }
+        const Image& im = norm;
+        double s = std::min((double)CELL / std::max(1, im.w),
+                            (double)CELL / std::max(1, im.h));
+        int nw = std::max(1, (int)std::lround(im.w * s));
+        int nh = std::max(1, (int)std::lround(im.h * s));
+        // Downscale de foto → bilinear; upscale de matriz didática → nearest
+        // (mantém os "pixelões" nítidos, como o imshow de um array pequeno).
+        bool smooth = (im.w >= 64 && im.h >= 64) && s < 1.0;
+        Image scaled = (nw == im.w && nh == im.h) ? im
+                                                  : _resize_fit(im, nw, nh, smooth);
+
         int r = i / cols, c = i % cols;
-        int offY = gap + r * (cellH + gap);
-        int offX = gap + c * (cellW + gap);
-        const Image& im = imgs[i];
-        for (int y = 0; y < im.h; ++y)
-            for (int x = 0; x < im.w; ++x)
+        int cellY = gap + r * (CELL + gap);
+        int cellX = gap + c * (CELL + gap);
+        int offY = cellY + (CELL - nh) / 2;
+        int offX = cellX + (CELL - nw) / 2;
+        for (int y = 0; y < nh; ++y)
+            for (int x = 0; x < nw; ++x)
                 for (int ch = 0; ch < 3; ++ch) {
-                    unsigned char v = (im.channels == 1)
-                                           ? im.at(y, x, 0)
-                                           : im.at(y, x, std::min(ch, im.channels - 1));
+                    unsigned char v = (scaled.channels == 1)
+                        ? scaled.at(y, x, 0)
+                        : scaled.at(y, x, std::min(ch, scaled.channels - 1));
                     canvas.at(offY + y, offX + x, ch) = v;
                 }
     }
@@ -624,6 +702,12 @@ inline Image _resize_to(const Image& src, int out_w, int out_h, Interp mode) {
     return out;
 }
 
+// Declarada lá em cima (antes de mm::show): escala p/ (out_w,out_h) usando
+// bilinear quando smooth, nearest caso contrário.
+inline Image _resize_fit(const Image& src, int out_w, int out_h, bool smooth) {
+    return _resize_to(src, out_w, out_h, smooth ? Interp::BILINEAR : Interp::NEAREST);
+}
+
 // mm.resize(img, fator) — escala uniforme.
 inline Image resize(const Image& src, double factor, const std::string& method = "bilinear") {
     return _resize_to(src, (int)std::round(src.w * factor),
@@ -659,6 +743,118 @@ inline Image rotate(const Image& src, double angle_deg, double scale = 1.0,
         -beta, alpha, beta * cx + (1 - alpha) * cy
     };
     return _warp_affine(src, M, src.w, src.h, _interp_from(interp));
+}
+
+// ── Perspectiva (homografia) ─────────────────────────────────────────────
+//
+// Réplica header-only de cv2.getPerspectiveTransform + cv2.warpPerspective
+// (o que a mm.perspective_transform da morph.py chama). getPerspectiveTransform
+// monta e resolve o sistema linear 8x8 das 4 correspondências de pontos;
+// warpPerspective varre o destino e amostra a origem pelo mapa projetivo
+// inverso. Fora dos limites → 0 (BORDER_CONSTANT do cv2). Critério v0:
+// resultado plausível, não bit-a-bit idêntico ao OpenCV.
+
+using Homography = std::array<double, 9>;   // linha-maior h0..h8, com h8 = 1
+
+// Ax = b in-place por eliminação de Gauss com pivô parcial (n <= 8). A é
+// n×n linha-maior; a solução volta em b.
+inline void _solve_lin(double* A, double* b, int n) {
+    for (int col = 0; col < n; ++col) {
+        int piv = col;
+        for (int r = col + 1; r < n; ++r)
+            if (std::fabs(A[r * n + col]) > std::fabs(A[piv * n + col])) piv = r;
+        if (piv != col) {
+            for (int k = 0; k < n; ++k) std::swap(A[col * n + k], A[piv * n + k]);
+            std::swap(b[col], b[piv]);
+        }
+        double d = A[col * n + col];
+        if (std::fabs(d) < 1e-12)
+            throw std::runtime_error("getPerspectiveTransform: pontos degenerados/colineares");
+        for (int r = 0; r < n; ++r) {
+            if (r == col) continue;
+            double f = A[r * n + col] / d;
+            for (int k = col; k < n; ++k) A[r * n + k] -= f * A[col * n + k];
+            b[r] -= f * b[col];
+        }
+    }
+    for (int i = 0; i < n; ++i) b[i] /= A[i * n + i];
+}
+
+// M mapeia src → dst (mesma ordem de cv2.getPerspectiveTransform(pts_src, pts_dst)):
+//   X = (h0·x + h1·y + h2) / (h6·x + h7·y + 1)
+//   Y = (h3·x + h4·y + h5) / (h6·x + h7·y + 1)
+inline Homography getPerspectiveTransform(const double s[4][2], const double d[4][2]) {
+    double A[64] = {0}, b[8];
+    for (int i = 0; i < 4; ++i) {
+        double x = s[i][0], y = s[i][1], X = d[i][0], Y = d[i][1];
+        double* r0 = A + (2 * i) * 8;
+        double* r1 = A + (2 * i + 1) * 8;
+        r0[0] = x; r0[1] = y; r0[2] = 1; r0[6] = -x * X; r0[7] = -y * X; b[2 * i]     = X;
+        r1[3] = x; r1[4] = y; r1[5] = 1; r1[6] = -x * Y; r1[7] = -y * Y; b[2 * i + 1] = Y;
+    }
+    _solve_lin(A, b, 8);
+    return {b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], 1.0};
+}
+
+inline Homography _invert3x3(const Homography& m) {
+    double a = m[0], b = m[1], c = m[2], d = m[3], e = m[4],
+           f = m[5], g = m[6], h = m[7], i = m[8];
+    double det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (std::fabs(det) < 1e-12)
+        throw std::runtime_error("warpPerspective: homografia singular");
+    double s = 1.0 / det;
+    return {
+        (e * i - f * h) * s, (c * h - b * i) * s, (b * f - c * e) * s,
+        (f * g - d * i) * s, (a * i - c * g) * s, (c * d - a * f) * s,
+        (d * h - e * g) * s, (b * g - a * h) * s, (a * e - b * d) * s
+    };
+}
+
+// warpPerspective estilo cv2 (sem WARP_INVERSE_MAP): M é src→dst, invertida
+// aqui para varrer o destino de tamanho out_w × out_h.
+inline Image warpPerspective(const Image& src, const Homography& M,
+                             int out_w, int out_h, Interp mode = Interp::BILINEAR) {
+    out_w = std::max(1, out_w); out_h = std::max(1, out_h);
+    Homography Mi = _invert3x3(M);
+    Image out(out_h, out_w, src.channels);
+    for (int y = 0; y < out_h; ++y)
+        for (int x = 0; x < out_w; ++x) {
+            double den = Mi[6] * x + Mi[7] * y + Mi[8];
+            if (std::fabs(den) < 1e-12) den = (den < 0 ? -1e-12 : 1e-12);
+            double sx = (Mi[0] * x + Mi[1] * y + Mi[2]) / den;
+            double sy = (Mi[3] * x + Mi[4] * y + Mi[5]) / den;
+            for (int ch = 0; ch < src.channels; ++ch)
+                out.at(y, x, ch) = _sample(src, sx, sy, ch, mode);
+        }
+    return out;
+}
+
+// mm.perspective_transform(img, pts1, pts2, size) — homografia de pts1→pts2.
+// out_w/out_h <= 0 usa o tamanho de src (equivale a size=None no Python).
+inline Image perspective_transform(const Image& src,
+                                   const double pts1[4][2], const double pts2[4][2],
+                                   int out_w = -1, int out_h = -1,
+                                   const std::string& method = "bilinear") {
+    return warpPerspective(src, getPerspectiveTransform(pts1, pts2),
+                           out_w <= 0 ? src.w : out_w,
+                           out_h <= 0 ? src.h : out_h, _interp_from(method));
+}
+
+// Mesma coisa aceitando std::vector<std::array<double,2>> (4 pontos por lado) —
+// forma mais natural para o código gerado das células.
+inline Image perspective_transform(const Image& src,
+                                   const std::vector<std::array<double, 2>>& pts1,
+                                   const std::vector<std::array<double, 2>>& pts2,
+                                   int out_w = -1, int out_h = -1,
+                                   const std::string& method = "bilinear") {
+    if (pts1.size() != 4 || pts2.size() != 4)
+        throw std::runtime_error("perspective_transform: exige 4 pontos em cada lado");
+    double a[4][2], b[4][2];
+    for (int i = 0; i < 4; ++i) {
+        a[i][0] = pts1[i][0]; a[i][1] = pts1[i][1];
+        b[i][0] = pts2[i][0]; b[i][1] = pts2[i][1];
+    }
+    return perspective_transform(src, a, b, out_w, out_h, method);
 }
 
 // Recorte retangular [y0:y1, x0:x1] — equivalente ao fatiamento numpy
@@ -1603,7 +1799,12 @@ inline Image label0(const Image& f, SE b = SE::box(3)) {
 }
 
 // ── Transformada de distância ──────────────────────────────────────────
-// dist: L2 aproximada (chamfer 2 passes, pesos 1 / √2). Satura em 255.
+// dist: L2 aproximada (chamfer 2 passes, pesos 1 / √2). Quando a distância
+// máxima passa de 255, ESCALA linearmente para [0,255] em vez de saturar —
+// o mm.dist do Python promove para uint16 nesse caso, e saturar em 255
+// achatava o pico e o vale juntos, grudando objetos vizinhos no
+// `dist > frac*dist.max()` (marcadores do watershed). O corte é
+// scale-invariant, então o resultado do limiar casa com o Python.
 inline Image dist(const Image& f) {
     Image src = (f.channels == 1) ? f : gray(f);
     int H = src.h, W = src.w;
@@ -1628,8 +1829,17 @@ inline Image dist(const Image& f) {
             if (y < H - 1 && x < W - 1)v = std::min(v, m[(size_t)(y + 1) * W + x + 1] + d);
             if (y < H - 1 && x > 0)    v = std::min(v, m[(size_t)(y + 1) * W + x - 1] + d);
         }
+    double mx = 0.0;
+    for (int i = 0; i < H * W; ++i) if (m[i] < INF * 0.5) mx = std::max(mx, m[i]);
     Image out(H, W, 1);
-    for (int i = 0; i < H * W; ++i) out.data[i] = (unsigned char)std::min(255.0, std::round(m[i]));
+    if (mx <= 255.0) {                       // cabe em uint8 — cru (igual ao Python)
+        for (int i = 0; i < H * W; ++i)
+            out.data[i] = (unsigned char)std::min(255.0, std::round(m[i]));
+    } else {                                 // Python promoveria a uint16; aqui escala
+        double s = 255.0 / mx;
+        for (int i = 0; i < H * W; ++i)
+            out.data[i] = (unsigned char)std::lround((m[i] < INF * 0.5 ? m[i] : mx) * s);
+    }
     return out;
 }
 // dist1: distância por erosões sucessivas com SE de pesos (b passado pelo usuário).
@@ -1734,5 +1944,595 @@ inline Image watershed(const Image& f, Image mask = Image(),
                        const std::string& op = "region", SE b = SE::box(3)) {
     return watershedB(f, mask, op, b);
 }
+
+// ── Transformada Wavelet Discreta 2D (DWT) ───────────────────────────────────
+//
+// Equivalente didático de pywt.dwt2/wavedec2/waverec2/threshold para os
+// capítulos OpenCV (não há wavelet no cv::). Só Haar, db4, sym4, bior2.2 —
+// suficiente para as figuras do cap05. Borda 'symmetric' (half-sample) e
+// coeficientes idênticos aos do PyWavelets; casa numericamente com pywt e
+// tem reconstrução perfeita (verificado). Opera em cv::Mat CV_64F, 1 canal.
+#ifdef MM_USE_OPENCV
+
+// Coeficientes de decomposição/reconstrução (low/high), na convenção pywt.
+inline void _wave_filters(const std::string& name,
+                          std::vector<double>& dl, std::vector<double>& dh,
+                          std::vector<double>& rl, std::vector<double>& rh) {
+    const double s = 0.7071067811865476;      // 1/sqrt(2)
+    if (name == "haar" || name == "db1") {
+        dl = {s, s};        dh = {-s, s};
+        rl = {s, s};        rh = {s, -s};
+    } else if (name == "db4") {
+        dl = {-0.01059740178506903, 0.0328830116668852, 0.03084138183556076,
+              -0.18703481171909309, -0.02798376941685985, 0.6308807679298589,
+              0.7148465705529157, 0.2303778133088965};
+        dh = {-0.2303778133088965, 0.7148465705529157, -0.6308807679298589,
+              -0.02798376941685985, 0.18703481171909309, 0.03084138183556076,
+              -0.0328830116668852, -0.01059740178506903};
+        rl = {0.2303778133088965, 0.7148465705529157, 0.6308807679298589,
+              -0.02798376941685985, -0.18703481171909309, 0.03084138183556076,
+              0.0328830116668852, -0.01059740178506903};
+        rh = {-0.01059740178506903, -0.0328830116668852, 0.03084138183556076,
+              0.18703481171909309, -0.02798376941685985, -0.6308807679298589,
+              0.7148465705529157, -0.2303778133088965};
+    } else if (name == "sym4") {
+        dl = {-0.07576571478927333, -0.02963552764599851, 0.49761866763201545,
+              0.8037387518059161, 0.29785779560527736, -0.09921954357684722,
+              -0.01260396726203783, 0.0322231006040427};
+        dh = {-0.0322231006040427, -0.01260396726203783, 0.09921954357684722,
+              0.29785779560527736, -0.8037387518059161, 0.49761866763201545,
+              0.02963552764599851, -0.07576571478927333};
+        rl = {0.0322231006040427, -0.01260396726203783, -0.09921954357684722,
+              0.29785779560527736, 0.8037387518059161, 0.49761866763201545,
+              -0.02963552764599851, -0.07576571478927333};
+        rh = {-0.07576571478927333, 0.02963552764599851, 0.49761866763201545,
+              -0.8037387518059161, 0.29785779560527736, 0.09921954357684722,
+              -0.01260396726203783, -0.0322231006040427};
+    } else if (name == "bior2.2") {
+        dl = {0.0, -0.1767766952966369, 0.3535533905932738, 1.0606601717798212,
+              0.3535533905932738, -0.1767766952966369};
+        dh = {0.0, 0.3535533905932738, -0.7071067811865476, 0.3535533905932738,
+              0.0, 0.0};
+        rl = {0.0, 0.3535533905932738, 0.7071067811865476, 0.3535533905932738,
+              0.0, 0.0};
+        rh = {0.0, 0.1767766952966369, 0.3535533905932738, -1.0606601717798212,
+              0.3535533905932738, 0.1767766952966369};
+    } else {
+        throw std::runtime_error("mm::dwt2: wavelet nao suportada: " + name +
+                                 " (use haar/db4/sym4/bior2.2)");
+    }
+}
+
+// índice half-sample symmetric ('symmetric' do pywt): ...2 1 | 1 2 3 | 3 2 1...
+inline int _sym_idx(int i, int n) {
+    if (n == 1) return 0;
+    int p = 2 * n;
+    i %= p; if (i < 0) i += p;
+    return i < n ? i : p - 1 - i;
+}
+
+// 1D DWT de um nível: x -> (cA, cD), out_len = (n + L - 1) / 2.
+inline void _dwt1(const std::vector<double>& x,
+                  const std::vector<double>& dl, const std::vector<double>& dh,
+                  std::vector<double>& cA, std::vector<double>& cD) {
+    int n = (int)x.size(), L = (int)dl.size(), ol = (n + L - 1) / 2;
+    cA.assign(ol, 0.0); cD.assign(ol, 0.0);
+    for (int k = 0; k < ol; ++k) {
+        double a = 0, d = 0;
+        for (int i = 0; i < L; ++i) {
+            double xi = x[_sym_idx(2 * k + i - (L - 2), n)];
+            a += xi * dl[L - 1 - i];        // filtro invertido (correlação)
+            d += xi * dh[L - 1 - i];
+        }
+        cA[k] = a; cD[k] = d;
+    }
+}
+
+// 1D IDWT de um nível: (cA, cD) -> sinal de comprimento out_len.
+inline std::vector<double> _idwt1(const std::vector<double>& cA,
+                                  const std::vector<double>& cD,
+                                  const std::vector<double>& rl,
+                                  const std::vector<double>& rh, int out_len) {
+    int n = (int)cA.size(), L = (int)rl.size();
+    std::vector<double> ya(2 * n, 0.0), yd(2 * n, 0.0);
+    for (int i = 0; i < n; ++i) { ya[2 * i] = cA[i]; yd[2 * i] = cD[i]; }
+    std::vector<double> full(2 * n + L - 1, 0.0);
+    for (int i = 0; i < (int)ya.size(); ++i)
+        for (int j = 0; j < L; ++j) {
+            full[i + j] += ya[i] * rl[j];
+            full[i + j] += yd[i] * rh[j];
+        }
+    int start = L - 2;
+    std::vector<double> out(out_len, 0.0);
+    for (int i = 0; i < out_len && start + i < (int)full.size(); ++i)
+        out[i] = full[start + i];
+    return out;
+}
+
+// Aplica _dwt1 em cada linha; devolve (L, H) com metade das colunas.
+inline void _rows_dwt(const cv::Mat& m, const std::vector<double>& dl,
+                      const std::vector<double>& dh, cv::Mat& Lo, cv::Mat& Hi) {
+    int R = m.rows, C = m.cols, oc = (C + (int)dl.size() - 1) / 2;
+    Lo.create(R, oc, CV_64F); Hi.create(R, oc, CV_64F);
+    std::vector<double> row(C), cA, cD;
+    for (int y = 0; y < R; ++y) {
+        for (int x = 0; x < C; ++x) row[x] = m.at<double>(y, x);
+        _dwt1(row, dl, dh, cA, cD);
+        for (int x = 0; x < oc; ++x) { Lo.at<double>(y, x) = cA[x]; Hi.at<double>(y, x) = cD[x]; }
+    }
+}
+inline void _cols_dwt(const cv::Mat& m, const std::vector<double>& dl,
+                      const std::vector<double>& dh, cv::Mat& Lo, cv::Mat& Hi) {
+    cv::Mat mt = m.t(), lt, ht;
+    _rows_dwt(mt, dl, dh, lt, ht);
+    Lo = lt.t(); Hi = ht.t();
+}
+
+struct Subbands { cv::Mat LL, LH, HL, HH; };   // CV_64F
+
+// pywt.dwt2(x, wavelet) -> (LL, (LH, HL, HH)). Convenção: dwt nas linhas
+// (eixo -1), depois nas colunas (eixo -2).
+inline Subbands dwt2(const cv::Mat& src, const std::string& wavelet = "haar") {
+    std::vector<double> dl, dh, rl, rh;
+    _wave_filters(wavelet, dl, dh, rl, rh);
+    cv::Mat s; src.convertTo(s, CV_64F);
+    cv::Mat Lo, Hi;
+    _rows_dwt(s, dl, dh, Lo, Hi);
+    Subbands o;
+    _cols_dwt(Lo, dl, dh, o.LL, o.LH);
+    _cols_dwt(Hi, dl, dh, o.HL, o.HH);
+    return o;
+}
+
+inline cv::Mat idwt2(const Subbands& c, const std::string& wavelet = "haar") {
+    std::vector<double> dl, dh, rl, rh;
+    _wave_filters(wavelet, dl, dh, rl, rh);
+    int Lc = (int)rl.size();
+    // inverte colunas: (LL,LH)->Lo ; (HL,HH)->Hi ; out_rows = 2*n - (Lc-2)
+    auto icols = [&](const cv::Mat& A, const cv::Mat& D) {
+        cv::Mat At = A.t(), Dt = D.t();
+        int n = At.cols, ol = 2 * n - (Lc - 2);
+        cv::Mat R(At.rows, ol, CV_64F);
+        std::vector<double> a(n), d(n);
+        for (int y = 0; y < At.rows; ++y) {
+            for (int i = 0; i < n; ++i) { a[i] = At.at<double>(y, i); d[i] = Dt.at<double>(y, i); }
+            auto r = _idwt1(a, d, rl, rh, ol);
+            for (int i = 0; i < ol; ++i) R.at<double>(y, i) = r[i];
+        }
+        return R.t();
+    };
+    cv::Mat Lo = icols(c.LL, c.LH), Hi = icols(c.HL, c.HH);
+    // inverte linhas
+    int n = Lo.cols, ol = 2 * n - (Lc - 2);
+    cv::Mat out(Lo.rows, ol, CV_64F);
+    std::vector<double> a(n), d(n);
+    for (int y = 0; y < Lo.rows; ++y) {
+        for (int i = 0; i < n; ++i) { a[i] = Lo.at<double>(y, i); d[i] = Hi.at<double>(y, i); }
+        auto r = _idwt1(a, d, rl, rh, ol);
+        for (int i = 0; i < ol; ++i) out.at<double>(y, i) = r[i];
+    }
+    return out;
+}
+
+// pywt.wavedec2 / waverec2 — multi-nível. detail[j] = {LH, HL, HH} do nível
+// j+1 (j=0 é o mais fino). LL é a aproximação do nível mais grosso.
+// detail[j] = {LH, HL, HH} do nível j (vector, não array — mais tolerante
+// ao código que o tradutor gera).
+struct WaveDec2 { cv::Mat LL; std::vector<std::vector<cv::Mat>> detail; };
+
+inline WaveDec2 wavedec2(const cv::Mat& src, const std::string& wavelet, int level) {
+    WaveDec2 c;
+    cv::Mat cur; src.convertTo(cur, CV_64F);
+    for (int l = 0; l < level; ++l) {
+        Subbands sb = dwt2(cur, wavelet);
+        c.detail.push_back({sb.LH, sb.HL, sb.HH});
+        cur = sb.LL;
+    }
+    c.LL = cur;
+    return c;
+}
+
+inline cv::Mat waverec2(const WaveDec2& c, const std::string& wavelet) {
+    cv::Mat cur = c.LL;
+    for (int l = (int)c.detail.size() - 1; l >= 0; --l) {
+        Subbands sb;
+        sb.LL = cur; sb.LH = c.detail[l][0];
+        sb.HL = c.detail[l][1]; sb.HH = c.detail[l][2];
+        // idwt2 pode devolver 1-2 px a mais por causa do padding do filtro —
+        // recorta para o tamanho de LH (que tem as dims corretas do nível).
+        cv::Mat r = idwt2(sb, wavelet);
+        int rr = std::min(r.rows, sb.LH.rows * 2);
+        int cc = std::min(r.cols, sb.LH.cols * 2);
+        cur = r(cv::Rect(0, 0, cc, rr)).clone();
+    }
+    return cur;
+}
+
+// pywt.threshold(x, t, mode) — 'hard' zera |x|<=t ; 'soft' encolhe.
+inline cv::Mat wave_threshold(const cv::Mat& x, double t,
+                              const std::string& mode = "hard") {
+    cv::Mat s; x.convertTo(s, CV_64F);
+    cv::Mat o = s.clone();
+    for (int y = 0; y < o.rows; ++y)
+        for (int c = 0; c < o.cols; ++c) {
+            double v = o.at<double>(y, c);
+            if (mode == "soft") {
+                double a = std::fabs(v) - t;
+                o.at<double>(y, c) = a > 0 ? (v > 0 ? a : -a) : 0.0;
+            } else {  // hard
+                if (std::fabs(v) <= t) o.at<double>(y, c) = 0.0;
+            }
+        }
+    return o;
+}
+
+// ── Domínio da frequência (cap05) ─────────────────────────────────────────
+// Equivalente header-only do padrão np.fft.fft2 / fftshift / ifft2 usado no
+// livro. Filtros H são cv::Mat CV_64F já CENTRADOS (DC no meio), mesma
+// convenção de np.fft.fftshift. Operam sobre imagem de 1 canal.
+
+// distancia_centro(M, N) do livro: matriz M×N (CV_64F) com a distância
+// euclidiana de cada ponto (u,v) ao centro (M/2, N/2) do espectro centrado.
+inline cv::Mat distCenter(int M, int N) {
+    cv::Mat D(M, N, CV_64F);
+    for (int u = 0; u < M; ++u) {
+        double du = u - M / 2;
+        for (int v = 0; v < N; ++v) {
+            double dv = v - N / 2;
+            D.at<double>(u, v) = std::sqrt(du * du + dv * dv);
+        }
+    }
+    return D;
+}
+
+// Troca os 4 quadrantes de `m` no lugar. Para dimensões pares coincide com
+// np.fft.fftshift E np.fft.ifftshift (ambos deslocam N/2); é o que as
+// figuras do capítulo usam.
+inline void _fftshift(cv::Mat& m) {
+    int cx = m.cols / 2, cy = m.rows / 2;
+    cv::Mat q0(m, cv::Rect(0, 0, cx, cy)),  q1(m, cv::Rect(cx, 0, cx, cy));
+    cv::Mat q2(m, cv::Rect(0, cy, cx, cy)), q3(m, cv::Rect(cx, cy, cx, cy));
+    cv::Mat t;
+    q0.copyTo(t); q3.copyTo(q0); t.copyTo(q3);
+    q1.copyTo(t); q2.copyTo(q1); t.copyTo(q2);
+}
+
+// np.fft.fftshift(np.fft.fft2(img)) — espectro complexo CENTRADO (CV_64FC2).
+inline cv::Mat fft2c(const cv::Mat& img) {
+    cv::Mat f; img.convertTo(f, CV_64F);
+    cv::Mat planes[] = {f, cv::Mat::zeros(f.size(), CV_64F)};
+    cv::Mat cpx; cv::merge(planes, 2, cpx);
+    cv::dft(cpx, cpx, cv::DFT_COMPLEX_OUTPUT);
+    _fftshift(cpx);
+    return cpx;
+}
+
+// np.real(np.fft.ifft2(np.fft.ifftshift(Fc))) — CV_64F, 1 canal.
+inline cv::Mat ifft2c(const cv::Mat& Fc) {
+    cv::Mat F = Fc.clone();
+    _fftshift(F);                       // desfaz o shift (par: == ifftshift)
+    cv::Mat out;
+    cv::idft(F, out, cv::DFT_SCALE | cv::DFT_REAL_OUTPUT);
+    return out;
+}
+
+// Resposta espacial de um filtro real CENTRADO H:
+// fftshift(real(ifft2(ifftshift(H)))) — o pico fica no centro para visualização
+// (ex.: filtro Ideal na frequência -> sinc 2D no espaço, causa do ringing).
+inline Image spatialKernel(const cv::Mat& H) {
+    cv::Mat Hd; H.convertTo(Hd, CV_64F);
+    cv::Mat planes[] = {Hd, cv::Mat::zeros(Hd.size(), CV_64F)};
+    cv::Mat cpx; cv::merge(planes, 2, cpx);
+    cv::Mat sp = ifft2c(cpx);
+    _fftshift(sp);
+    cv::Mat out; cv::normalize(sp, out, 0, 255, cv::NORM_MINMAX);
+    out.convertTo(out, CV_8U);
+    return Image(out);
+}
+
+// aplicar_filtro_freq(img, H) do livro: aplica o filtro centrado H (CV_64F,
+// mesmo tamanho da imagem) via FFT e devolve a imagem filtrada normalizada
+// para [0,255] (mm::Image, 1 canal).
+inline Image freqFilter(const Image& img, const cv::Mat& H) {
+    cv::Mat g = gray(img);                       // garante 1 canal (8-bit)
+    cv::Mat src; g.convertTo(src, CV_64F);
+    cv::Mat planes[2]; cv::split(fft2c(src), planes);
+    cv::Mat Hd; H.convertTo(Hd, CV_64F);
+    planes[0] = planes[0].mul(Hd);
+    planes[1] = planes[1].mul(Hd);
+    cv::Mat Fg; cv::merge(planes, 2, Fg);
+    cv::Mat real = ifft2c(Fg), out;
+    cv::normalize(real, out, 0, 255, cv::NORM_MINMAX);
+    out.convertTo(out, CV_8U);
+    return Image(out);
+}
+
+// Espectro de magnitude para visualização: log(1+|F|) normalizado [0,255]
+// (cv2.normalize(np.log1p(np.abs(F)), ...) do livro). `img` de 1 canal.
+inline Image spectrumMag(const Image& img) {
+    cv::Mat g = gray(img), src; g.convertTo(src, CV_64F);
+    cv::Mat planes[2]; cv::split(fft2c(src), planes);
+    cv::Mat mag; cv::magnitude(planes[0], planes[1], mag);
+    cv::log(mag + 1.0, mag);
+    cv::Mat out; cv::normalize(mag, out, 0, 255, cv::NORM_MINMAX);
+    out.convertTo(out, CV_8U);
+    return Image(out);
+}
+
+// DCT-II / IDCT-II 2D ortonormais (== scipy.fft.dct(..., norm='ortho') 2D).
+// Entrada/saída CV_64F; `cv::dct`/`cv::idct` do OpenCV já são ortonormais.
+inline cv::Mat dct2(const cv::Mat& block) {
+    cv::Mat b; block.convertTo(b, CV_64F);
+    cv::Mat o; cv::dct(b, o); return o;
+}
+inline cv::Mat idct2(const cv::Mat& coef) {
+    cv::Mat c; coef.convertTo(c, CV_64F);
+    cv::Mat o; cv::idct(c, o); return o;
+}
+
+// ── Construtores de filtro no domínio da frequência (H centrado, CV_64F) ──
+// Passe `highpass=true` para o complemento (1 - H). D0 = frequência de corte.
+inline cv::Mat gaussFilter(int M, int N, double D0, bool highpass = false) {
+    cv::Mat D = distCenter(M, N), H(M, N, CV_64F);
+    for (int u = 0; u < M; ++u)
+        for (int v = 0; v < N; ++v) {
+            double d = D.at<double>(u, v);
+            double lp = std::exp(-(d * d) / (2.0 * D0 * D0));
+            H.at<double>(u, v) = highpass ? 1.0 - lp : lp;
+        }
+    return H;
+}
+inline cv::Mat idealFilter(int M, int N, double D0, bool highpass = false) {
+    cv::Mat D = distCenter(M, N), H(M, N, CV_64F);
+    for (int u = 0; u < M; ++u)
+        for (int v = 0; v < N; ++v) {
+            double lp = (D.at<double>(u, v) <= D0) ? 1.0 : 0.0;
+            H.at<double>(u, v) = highpass ? 1.0 - lp : lp;
+        }
+    return H;
+}
+inline cv::Mat butterFilter(int M, int N, double D0, int n = 2,
+                            bool highpass = false) {
+    cv::Mat D = distCenter(M, N), H(M, N, CV_64F);
+    for (int u = 0; u < M; ++u)
+        for (int v = 0; v < N; ++v) {
+            double lp = 1.0 / (1.0 + std::pow(D.at<double>(u, v) / D0, 2 * n));
+            H.at<double>(u, v) = highpass ? 1.0 - lp : lp;
+        }
+    return H;
+}
+
+// ── Pipeline JPEG simplificado (cap05) ───────────────────────────────────
+// DCT em blocos 8×8 -> quantização pela tabela de luminância escalada pelo
+// fator de qualidade -> dequantização -> IDCT. `quality` em 1..100.
+inline Image jpegCompress(const Image& img, int quality) {
+    static const double QL[64] = {
+        16,11,10,16,24,40,51,61,   12,12,14,19,26,58,60,55,
+        14,13,16,24,40,57,69,56,   14,17,22,29,51,87,80,62,
+        18,22,37,56,68,109,103,77, 24,35,55,64,81,104,113,92,
+        49,64,78,87,103,121,120,101, 72,92,95,98,112,100,103,99};
+    if (quality < 1) quality = 1;
+    if (quality > 100) quality = 100;
+    double escala = quality < 50 ? 5000.0 / quality : 200.0 - 2.0 * quality;
+    cv::Mat Q(8, 8, CV_64F);
+    for (int i = 0; i < 64; ++i)
+        Q.at<double>(i / 8, i % 8) =
+            std::min(255.0, std::max(1.0, std::round(QL[i] * escala / 100.0)));
+
+    cv::Mat g = gray(img), src; g.convertTo(src, CV_64F);
+    cv::Mat out = cv::Mat::zeros(src.size(), CV_64F);
+    for (int r = 0; r + 8 <= src.rows; r += 8)
+        for (int c = 0; c + 8 <= src.cols; c += 8) {
+            cv::Mat blk = src(cv::Rect(c, r, 8, 8)).clone() - 128.0;
+            cv::Mat C = dct2(blk), Cq(8, 8, CV_64F);
+            for (int y = 0; y < 8; ++y)
+                for (int x = 0; x < 8; ++x) {
+                    double q = Q.at<double>(y, x);
+                    Cq.at<double>(y, x) = std::round(C.at<double>(y, x) / q) * q;
+                }
+            cv::Mat rec = idct2(Cq) + 128.0;
+            rec.copyTo(out(cv::Rect(c, r, 8, 8)));
+        }
+    cv::Mat o8; out.convertTo(o8, CV_8U);   // convertTo satura em [0,255]
+    return Image(o8);
+}
+
+// ── Gráfico de linhas header-only (cap05) ────────────────────────────────
+// Substitui os gráficos matplotlib nas células da trilha C++. `xs[k]`/`ys[k]`
+// são a k-ésima curva; `colors` em BGR (ciclo padrão se vazio); `labels` para
+// a legenda (opcional). Devolve uma imagem BGR pronta para mm::show.
+inline Image lineChart(const std::vector<std::vector<double>>& xs,
+                       const std::vector<std::vector<double>>& ys,
+                       std::vector<cv::Scalar> colors = {},
+                       std::vector<std::string> labels = {},
+                       const std::string& title = "",
+                       const std::string& xlabel = "",
+                       const std::string& ylabel = "",
+                       int width = 760, int height = 420,
+                       bool logx = false, bool logy = false) {
+    const std::vector<cv::Scalar> CYCLE = {
+        {48, 90, 216}, {117, 158, 29}, {183, 74, 83}, {40, 39, 214},
+        {148, 103, 189}, {75, 119, 44}, {33, 145, 237}};
+    auto tx = [&](double v) { return logx ? std::log10(std::max(v, 1e-12)) : v; };
+    auto ty = [&](double v) { return logy ? std::log10(std::max(v, 1e-12)) : v; };
+
+    double xmin = 1e300, xmax = -1e300, ymin = 1e300, ymax = -1e300;
+    for (size_t k = 0; k < xs.size(); ++k)
+        for (size_t i = 0; i < xs[k].size(); ++i) {
+            double X = tx(xs[k][i]), Y = ty(ys[k][i]);
+            if (!std::isfinite(X) || !std::isfinite(Y)) continue;
+            xmin = std::min(xmin, X); xmax = std::max(xmax, X);
+            ymin = std::min(ymin, Y); ymax = std::max(ymax, Y);
+        }
+    if (xmax <= xmin) xmax = xmin + 1;
+    if (ymax <= ymin) ymax = ymin + 1;
+    double ypad = 0.06 * (ymax - ymin);
+    bool ynonneg = ymin >= 0.0;
+    ymin -= ypad; ymax += ypad;
+    if (ynonneg && ymin < 0.0) ymin = 0.0;   // não inventar eixo negativo
+
+    const int L = 62, R = 18, T = title.empty() ? 18 : 40, B = 46;
+    cv::Mat cv_(height, width, CV_8UC3, cv::Scalar(255, 255, 255));
+    cv::Rect plot(L, T, width - L - R, height - T - B);
+    cv::rectangle(cv_, plot, cv::Scalar(150, 150, 150), 1);
+
+    auto px = [&](double X) {
+        return (int)std::lround(plot.x + (tx(X) - xmin) / (xmax - xmin) * plot.width);
+    };
+    auto py = [&](double Y) {
+        return (int)std::lround(plot.y + plot.height -
+                                (ty(Y) - ymin) / (ymax - ymin) * plot.height);
+    };
+
+    // grade + rótulos numéricos (5×4)
+    for (int i = 0; i <= 5; ++i) {
+        double X = xmin + (xmax - xmin) * i / 5.0;
+        int gx = plot.x + plot.width * i / 5;
+        cv::line(cv_, {gx, plot.y}, {gx, plot.y + plot.height},
+                 cv::Scalar(230, 230, 230), 1);
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.3g", logx ? std::pow(10, X) : X);
+        cv::putText(cv_, buf, {gx - 14, plot.y + plot.height + 16},
+                    cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(90, 90, 90), 1, cv::LINE_AA);
+    }
+    for (int j = 0; j <= 4; ++j) {
+        double Y = ymin + (ymax - ymin) * j / 4.0;
+        int gy = plot.y + plot.height - plot.height * j / 4;
+        cv::line(cv_, {plot.x, gy}, {plot.x + plot.width, gy},
+                 cv::Scalar(230, 230, 230), 1);
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.3g", logy ? std::pow(10, Y) : Y);
+        cv::putText(cv_, buf, {6, gy + 4}, cv::FONT_HERSHEY_SIMPLEX, 0.38,
+                    cv::Scalar(90, 90, 90), 1, cv::LINE_AA);
+    }
+
+    // curvas
+    for (size_t k = 0; k < xs.size(); ++k) {
+        cv::Scalar col = k < colors.size() ? colors[k] : CYCLE[k % CYCLE.size()];
+        std::vector<cv::Point> pts;
+        for (size_t i = 0; i < xs[k].size() && i < ys[k].size(); ++i)
+            pts.push_back({px(xs[k][i]), py(ys[k][i])});
+        for (size_t i = 1; i < pts.size(); ++i)
+            cv::line(cv_, pts[i - 1], pts[i], col, 2, cv::LINE_AA);
+        for (const auto& p : pts) cv::circle(cv_, p, 2, col, -1, cv::LINE_AA);
+    }
+
+    // legenda — largura proporcional ao rótulo mais longo
+    if (!labels.empty()) {
+        size_t maxlen = 0;
+        for (const auto& s : labels) maxlen = std::max(maxlen, s.size());
+        int boxw = std::min(plot.width - 20, 34 + (int)maxlen * 7);
+        int lx = plot.x + plot.width - boxw;
+        for (size_t k = 0; k < labels.size(); ++k) {
+            cv::Scalar col = k < colors.size() ? colors[k] : CYCLE[k % CYCLE.size()];
+            int ly = plot.y + 14 + (int)k * 16;
+            cv::line(cv_, {lx, ly}, {lx + 20, ly}, col, 2, cv::LINE_AA);
+            cv::putText(cv_, labels[k], {lx + 25, ly + 4},
+                        cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(60, 60, 60), 1, cv::LINE_AA);
+        }
+    }
+    if (!title.empty())
+        cv::putText(cv_, title, {L, 26}, cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                    cv::Scalar(30, 30, 30), 1, cv::LINE_AA);
+    if (!xlabel.empty())
+        cv::putText(cv_, xlabel, {width / 2 - 40, height - 8},
+                    cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(60, 60, 60), 1, cv::LINE_AA);
+    if (!ylabel.empty())
+        cv::putText(cv_, ylabel, {6, T - 6}, cv::FONT_HERSHEY_SIMPLEX, 0.45,
+                    cv::Scalar(60, 60, 60), 1, cv::LINE_AA);
+    return Image(cv_);
+}
+
+// pywt.Wavelet(name).wavefun(level) -> (x, phi, psi) via algoritmo em cascata
+// (upsample + convolução com os filtros de reconstrução). Forma compatível com
+// o PyWavelets; suficiente para o gráfico de ψ do cap05. name: haar|db4|sym4|bior2.2.
+inline void wavefun(const std::string& name, int level,
+                    std::vector<double>& x, std::vector<double>& phi,
+                    std::vector<double>& psi) {
+    std::vector<double> dl, dh, rl, rh;
+    _wave_filters(name, dl, dh, rl, rh);
+    auto up = [](const std::vector<double>& v) {
+        std::vector<double> o(v.empty() ? 0 : v.size() * 2 - 1, 0.0);
+        for (size_t i = 0; i < v.size(); ++i) o[i * 2] = v[i];
+        return o;
+    };
+    auto conv = [](const std::vector<double>& a, const std::vector<double>& b) {
+        std::vector<double> o(a.size() + b.size() - 1, 0.0);
+        for (size_t i = 0; i < a.size(); ++i)
+            for (size_t j = 0; j < b.size(); ++j) o[i + j] += a[i] * b[j];
+        return o;
+    };
+    // Cascata (rl/rh do _wave_filters já somam ±sqrt(2), sem fator extra):
+    //   phi: level iterações  conv(up(.), rl)
+    //   psi: 1ª iteração conv(up(.), rh), demais conv(up(.), rl)  -> mesmo comprimento
+    int lv = std::max(1, level);
+    std::vector<double> p = {1.0};
+    for (int it = 0; it < lv; ++it) p = conv(up(p), rl);
+    std::vector<double> q = conv(up(std::vector<double>{1.0}), rh);
+    for (int it = 1; it < lv; ++it) q = conv(up(q), rl);
+    phi = p; psi = q;
+    int n = (int)std::min(phi.size(), psi.size());
+    phi.resize(n); psi.resize(n);
+    double span = (double)(rl.size() - 1);
+    x.resize(n);
+    for (int i = 0; i < n; ++i) x[i] = n > 1 ? span * i / (n - 1) : 0.0;
+}
+
+// Overload: um único eixo x compartilhado por todas as curvas de `ys`.
+inline Image lineChart(const std::vector<double>& x,
+                       const std::vector<std::vector<double>>& ys,
+                       std::vector<cv::Scalar> colors = {},
+                       std::vector<std::string> labels = {},
+                       const std::string& title = "",
+                       const std::string& xlabel = "",
+                       const std::string& ylabel = "",
+                       int width = 760, int height = 420,
+                       bool logx = false, bool logy = false) {
+    std::vector<std::vector<double>> xs(ys.size(), x);
+    return lineChart(xs, ys, std::move(colors), std::move(labels),
+                     title, xlabel, ylabel, width, height, logx, logy);
+}
+
+// Overloads genéricos: aceitam vetores de QUALQUER tipo numérico (ex.:
+// std::vector<int> para tamanhos de kernel). Convertem para double e delegam.
+template <class Tx, class Ty>
+inline Image lineChart(const std::vector<Tx>& x,
+                       const std::vector<std::vector<Ty>>& ys,
+                       std::vector<cv::Scalar> colors = {},
+                       std::vector<std::string> labels = {},
+                       const std::string& title = "", const std::string& xlabel = "",
+                       const std::string& ylabel = "", int width = 760, int height = 420,
+                       bool logx = false, bool logy = false) {
+    std::vector<double> xd(x.begin(), x.end());
+    std::vector<std::vector<double>> yd;
+    for (const auto& v : ys) yd.emplace_back(v.begin(), v.end());
+    return lineChart(xd, yd, std::move(colors), std::move(labels),
+                     title, xlabel, ylabel, width, height, logx, logy);
+}
+template <class Tx, class Ty>
+inline Image lineChart(const std::vector<std::vector<Tx>>& xs,
+                       const std::vector<std::vector<Ty>>& ys,
+                       std::vector<cv::Scalar> colors = {},
+                       std::vector<std::string> labels = {},
+                       const std::string& title = "", const std::string& xlabel = "",
+                       const std::string& ylabel = "", int width = 760, int height = 420,
+                       bool logx = false, bool logy = false) {
+    std::vector<std::vector<double>> xd, yd;
+    for (const auto& v : xs) xd.emplace_back(v.begin(), v.end());
+    for (const auto& v : ys) yd.emplace_back(v.begin(), v.end());
+    return lineChart(xd, yd, std::move(colors), std::move(labels),
+                     title, xlabel, ylabel, width, height, logx, logy);
+}
+
+// PSNR entre duas imagens (dB) — espelha cv::PSNR. Harmoniza canais/tamanho
+// (mm::read devolve 3 canais mesmo para PNG cinza; jpeg/etc. devolvem 1).
+inline double psnr(const Image& a, const Image& b) {
+    cv::Mat ma = (a.channels == 1) ? (cv::Mat)a : (cv::Mat)gray(a);
+    cv::Mat mb = (b.channels == 1) ? (cv::Mat)b : (cv::Mat)gray(b);
+    if (ma.size() != mb.size()) cv::resize(mb, mb, ma.size());
+    return cv::PSNR(ma, mb);
+}
+
+#endif  // MM_USE_OPENCV
 
 }  // namespace mm

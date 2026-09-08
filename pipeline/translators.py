@@ -144,7 +144,11 @@ def _unmask_protected_tokens(text: str, tokens: list[str]) -> str:
     return _MASK_PLACEHOLDER_RE.sub(_repl, text)
 
 
-_MM_OUT_LINE_RE = re.compile(r'^#define MM_OUT "[^"]*"\n')
+# MULTILINE: o LLM às vezes emite seu próprio `#define MM_OUT "output.jpg"`
+# no meio do arquivo (depois dos //| e dos #include), ignorando a instrução
+# de usar o token. Sem \m isso não era removido e REDEFINIA o MM_OUT injetado
+# → o binário gravava em "output.jpg" e o run-check reprovava por "no PNG".
+_MM_OUT_LINE_RE = re.compile(r'^[ \t]*#define[ \t]+MM_OUT[ \t]+"[^"]*"[ \t]*\n', re.M)
 
 
 def _apply_mm_out(code: str, path: Optional[str]) -> str:
@@ -157,7 +161,7 @@ def _apply_mm_out(code: str, path: Optional[str]) -> str:
     cache-hit quanto no retorno da tradução nova. Assim mudar o diretório
     de saída não invalida o cache de tradução.
     """
-    code = _MM_OUT_LINE_RE.sub('', code, count=1)
+    code = _MM_OUT_LINE_RE.sub('', code)          # remove QUALQUER #define MM_OUT do LLM
     if path:
         code = f'#define MM_OUT "{path}"\n' + code
     return code
@@ -513,19 +517,74 @@ class LLMCodeTranslator(Translator):
                       void      mm::show(const std::vector<mm::Image>&, std::string out_path,
                                           std::vector<std::string> titles={}, int cols=3) // grid
                       mm::Image mm::gray(const mm::Image&)
-                    An `mm::Image` has `.h .w .channels` and a flat
-                    `std::vector<unsigned char> data` (row-major, interleaved).
-                    Convert to/from `cv::Mat` when needed:
-                      cv::Mat m(img.h, img.w, img.channels==1?CV_8UC1:CV_8UC3, img.data.data());
-                      // and back: mm::Image out(m.rows, m.cols, m.channels());
-                      //           std::memcpy(out.data.data(), m.data, out.data.size());
+                    An `mm::Image` has `.h .w .channels` (FIELDS — plain ints,
+                    NEVER call them: `img.channels`, never `img.channels()`) and
+                    a flat `std::vector<unsigned char> data`.
+                    Getting a `cv::Mat` from an `mm::Image`: assign directly —
+                    `cv::Mat m = img;` — the implicit conversion handles it. Or
+                    for a known 1-channel image (o caso comum no cap05):
+                      cv::Mat m(img.h, img.w, CV_8UC1, img.data.data());
+                    Back: `mm::Image out(m);` (implicit). `mm::show`/`mm::write`
+                    also accept a `cv::Mat` directly.
+                    NEVER emit a bare prose line (a "Nota:" / explanation with
+                    backticks) into the program — comments go on `//` lines only.
+                    `os.makedirs(p, exist_ok=True)` -> `std::filesystem::create_directories(p);`
+                    (`#include <filesystem>`). NEVER `<direct.h>` / `_mkdir` / `<windows.h>`
+                    — this is Linux. `os.path.getsize(p)` -> `(double)std::filesystem::file_size(p)`.
+
+                    *** HARD RULE — cap05 helpers (já existem em morph.hpp) ***
+                    If the Python calls any of `mm.distCenter` `mm.freqFilter`
+                    `mm.spectrumMag` `mm.dct2` `mm.idct2` `mm.gaussFilter`
+                    `mm.idealFilter` `mm.butterFilter` `mm.jpegCompress`
+                    `mm.lineChart` `mm.spatialKernel` `mm.wavefun` `mm.psnr`, emit the
+                    IDENTICAL `mm::` call with the same arguments. These ALREADY
+                    EXIST in morph.hpp (`#ifdef MM_USE_OPENCV`) and do all the
+                    FFT / DCT / JPEG / chart math correctly. Re-implementing them
+                    (cv::dft, cv::dct, fftshift, getOptimalDFTSize, a manual
+                    block loop, a hand-drawn chart) is a BUG — do not do it.
+                    Signatures:
+                      cv::Mat mm::distCenter(int M, int N)                       // CV_64F, DC no centro
+                      mm::Image mm::freqFilter(const mm::Image& img, const cv::Mat& H)   // H centrado CV_64F -> imagem 8-bit
+                      mm::Image mm::spectrumMag(const mm::Image& img)            // log(1+|F|) normalizado
+                      cv::Mat mm::dct2(const cv::Mat&) / mm::idct2(const cv::Mat&)  // CV_64F, ortonormal
+                      cv::Mat mm::gaussFilter(int M,int N,double D0,bool highpass=false)
+                      cv::Mat mm::idealFilter(int M,int N,double D0,bool highpass=false)
+                      cv::Mat mm::butterFilter(int M,int N,double D0,int n=2,bool highpass=false)
+                      mm::Image mm::jpegCompress(const mm::Image& img, int quality)   // pipeline JPEG 8×8
+                      mm::Image mm::spatialKernel(const cv::Mat& H)              // fftshift(real(ifft2(ifftshift(H)))) -> imagem
+                      void mm::wavefun(const std::string& name, int level,
+                                       std::vector<double>& x, std::vector<double>& phi,
+                                       std::vector<double>& psi);
+                      //   Python `x, phi, psi = mm.wavefun("db4", 6)` ->
+                      //   `std::vector<double> x, phi, psi; mm::wavefun("db4", 6, x, phi, psi);`
+                      mm::Image mm::lineChart(
+                          const std::vector<std::vector<double>>& xs,          // uma curva por posição k
+                          const std::vector<std::vector<double>>& ys,
+                          std::vector<cv::Scalar> colors = {},                 // BGR; ciclo padrão se vazio
+                          std::vector<std::string> labels = {},
+                          const std::string& title = "", const std::string& xlabel = "",
+                          const std::string& ylabel = "", int width = 760, int height = 420,
+                          bool logx = false, bool logy = false);
+                    mm::lineChart tem overload com um eixo x compartilhado:
+                      mm::lineChart(const std::vector<double>& x,
+                                    const std::vector<std::vector<double>>& ys, ...)
+                    `img_gray.shape` (Python) -> use `img_gray.h` / `img_gray.w`.
+                    Keyword arg `highpass=True` -> positional `true`. Uma curva
+                    única -> `ys = {{...}}` (vetor de 1 vetor).
 
                     Mappings (Python -> C++):
                       np.fft.fft2 / scipy.fft.fft2          -> cv::dft(src32f, dst, cv::DFT_COMPLEX_OUTPUT)
                       np.fft.ifft2 / scipy.fft.ifft2        -> cv::idft(..., cv::DFT_SCALE | cv::DFT_REAL_OUTPUT)
                       np.fft.fftshift                       -> swap quadrants of the spectrum by hand (write a small helper)
-                      magnitude spectrum                    -> cv::split -> cv::magnitude -> (optional) cv::log
-                      scipy.fft.dctn / dct (2D)             -> cv::dct(src32f, dst) on a CV_32F matrix
+                      magnitude spectrum                    -> mm::spectrumMag(img)  (ou cv::split -> cv::magnitude -> cv::log)
+                      scipy.fft.dctn / dct (2D)             -> mm::dct2 / mm::idct2  (ou cv::dct(src64f, dst) numa matriz CV_64F)
+                      pywt.dwt2(x, w)                       -> mm::Subbands s = mm::dwt2(x_cvmat, "haar"|"db4"|"sym4"|"bior2.2");
+                                                              // s.LL / s.LH / s.HL / s.HH are CV_64F cv::Mat, same as pywt's (LL,(LH,HL,HH))
+                      pywt.idwt2((LL,(LH,HL,HH)), w)        -> mm::idwt2({LL,LH,HL,HH}, w)
+                      pywt.wavedec2(x, w, level=n)          -> mm::WaveDec2 c = mm::wavedec2(x_cvmat, w, n);  // c.LL, c.detail[j] = {LH,HL,HH}
+                      pywt.waverec2(coeffs, w)              -> mm::waverec2(c, w)
+                      pywt.threshold(sb, t, mode='hard')    -> mm::wave_threshold(sb, t, "hard")
+                      pywt.Wavelet(w).wavefun(...)          -> não portável (gráfico de linha de ψ) — não deveria chegar aqui
                       cv2.normalize(x, None, 0, 255, NORM_MINMAX) -> cv::normalize(x, dst, 0, 255, cv::NORM_MINMAX, CV_8U)
                       cv2.filter2D / sepFilter2D / bilateralFilter / GaussianBlur / Canny / HoughLines /
                       findContours / getPerspectiveTransform / warpPerspective / ORB_create / BFMatcher /
@@ -543,6 +602,12 @@ class LLMCodeTranslator(Translator):
                     "..."` line is prepended for you — pass the token MM_OUT,
                     never invent a filename.
 
+                    `mm::write`/`mm::show` accept `cv::Mat` directly (an
+                    overload normalizes float->8-bit), and `mm::Image` converts
+                    implicitly to/from `cv::Mat` — so you may pass either type.
+                    Cross-cell image variables are persisted/restored
+                    mechanically AFTER you (do NOT add your own state I/O).
+
                     Rules:
                     - `#| ...` lines -> `//| ...` verbatim at the top; never a
                       bare `#|` line (invalid preprocessor directive).
@@ -552,6 +617,11 @@ class LLMCodeTranslator(Translator):
                       image path.
                     - COMPLETE program: all `#include`s, one `int main() {
                       ... return 0; }` wrapping every statement.
+                    - **Keep the Python variable names EXACTLY** (same
+                      snake_case) for any variable also used in another cell —
+                      the cross-cell persistence injects `mm::write(<name>,
+                      ...)` using the original name; renaming it to camelCase
+                      breaks the build.
                     - Preserve comments, translating their text into the
                       target locale.
                 """).strip()

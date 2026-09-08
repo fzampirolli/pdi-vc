@@ -51,6 +51,10 @@ _BROKEN_REF_RE = re.compile(r'\?@(?:fig|tbl|eq|sec|lst|thm)-[\w-]+'
                             r'|class="quarto-unresolved-ref"')
 _CELL_OUT_RE = re.compile(r'<div class="cell-output[^"]*">.*?</div>', re.S)
 _FIG_IMG_RE = re.compile(r'<img\b[^>]*\bsrc="[^"]*(?:fig-|figure-html)[^"]*"')
+# âncora de figura no HTML do Quarto: <div id="fig-..."> / <figure id="fig-...">.
+# O sufixo "-caption-<uuid>" é do <figcaption> — removido para casar a identidade.
+_FIG_ID_RE = re.compile(r'\bid="(fig-[A-Za-z0-9_-]+)"')
+_FIG_CAPTION_SUFFIX_RE = re.compile(r'-caption-[0-9a-fA-F-]+$')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +72,39 @@ def _load_nb(path: Path):
 
 _MARKER_RE = re.compile(r'^\s*(?:<!--\s*)?#\[(py|cpp)\]#', re.M)
 _EP_PLACEHOLDER_RE = re.compile(r'^\s*%%writefile\s+EP\d+_\d+\.py\s*$', re.M)
+# Cabeçalhos Markdown ATX (ignora `#` dentro de fenced code — ver _nb_stats).
+_HEADING_RE = re.compile(r'^(#{1,6})\s+(.+?)\s*#*\s*$')
+_FENCE_RE = re.compile(r'^\s*(```|~~~)')
+_CALLOUT_RE = re.compile(r'^\s*:::+\s*\{\.callout-(\w+)', re.M)
+
+
+_CALLOUT_OPEN_RE = re.compile(r'^\s*:::+\s*\{\.callout-')
+
+
+def _headings(md_src: str) -> list[tuple[int, str]]:
+    """(nível, texto) de cada cabeçalho ATX. Pula linhas dentro de ``` ``` e o
+    primeiro cabeçalho logo após `::: {.callout-...}` — no Quarto isso é o
+    TÍTULO do callout, não uma seção do documento (senão infla a contagem de
+    secões/subsecões e gera divergência falsa py↔cpp)."""
+    out, in_fence, callout_title_pending = [], False, False
+    for line in md_src.splitlines():
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if _CALLOUT_OPEN_RE.match(line):
+            callout_title_pending = True
+            continue
+        m = _HEADING_RE.match(line)
+        if m:
+            if callout_title_pending:
+                callout_title_pending = False   # é o título do callout — ignora
+                continue
+            out.append((len(m.group(1)), m.group(2).strip()))
+        elif line.strip():
+            callout_title_pending = False        # 1ª linha não-vazia não-título
+    return out
 
 
 def _nb_stats(path: Path) -> dict:
@@ -77,6 +114,9 @@ def _nb_stats(path: Path) -> dict:
     labels = []            # todos os labels
     marked_labels = set()   # labels em célula #[py]#/#[cpp]# (single-track de propósito)
     refs = 0                # células "não portado" (exclui placeholders de EP)
+    headings: list[tuple[int, str]] = []
+    callouts: list[str] = []
+    md_nonempty = 0
     for c in nb['cells']:
         s = _src(c)
         found = _LABEL_RE.findall(s)
@@ -87,13 +127,38 @@ def _nb_stats(path: Path) -> dict:
                 or 'not yet ported to this language' in s):
             if not _EP_PLACEHOLDER_RE.search(s):
                 refs += 1
+        if c['cell_type'] == 'markdown':
+            if s.strip():
+                md_nonempty += 1
+            headings += _headings(s)
+            callouts += _CALLOUT_RE.findall(s)
+    h_by_level = Counter(lvl for lvl, _ in headings)
     return {
-        'code': len(code), 'md': len(md),
+        'code': len(code), 'md': len(md), 'md_nonempty': md_nonempty,
         'labels': labels, 'label_set': set(labels),
         'marked_labels': marked_labels,
         'shared_label_set': set(labels) - marked_labels,
         'ref_cells': refs, 'path': path,
+        'headings': headings,
+        'h_by_level': h_by_level,
+        'n_headings': len(headings),
+        'sections': h_by_level.get(1, 0) + h_by_level.get(2, 0),
+        'subsections': h_by_level.get(3, 0),
+        'callouts': Counter(callouts),
+        'n_callouts': len(callouts),
     }
+
+
+def _fmt_levels(cnt: Counter) -> str:
+    return '{' + ', '.join(f'h{lvl}={cnt[lvl]}' for lvl in sorted(cnt)) + '}' if cnt else '{}'
+
+
+def _heading_lines(headings: list[tuple[int, str]], limit: int = 40) -> list[str]:
+    """Lista 'searchable' de cabeçalhos p/ despejar em INFO quando há divergência."""
+    rows = [f'{"  " * (lvl - 1)}{"#" * lvl} {txt}' for lvl, txt in headings]
+    if len(rows) > limit:
+        rows = rows[:limit] + [f'… (+{len(rows) - limit} cabeçalhos)']
+    return rows
 
 
 def _html_stats(path: Path) -> dict | None:
@@ -106,7 +171,8 @@ def _html_stats(path: Path) -> dict | None:
                or 'An error occurred while executing' in b)
     broken = len(_BROKEN_REF_RE.findall(html))
     figs = len(_FIG_IMG_RE.findall(html))
-    return {'errors': errs, 'broken_refs': broken, 'figs': figs}
+    fig_ids = {_FIG_CAPTION_SUFFIX_RE.sub('', m) for m in _FIG_ID_RE.findall(html)}
+    return {'errors': errs, 'broken_refs': broken, 'figs': figs, 'fig_ids': fig_ids}
 
 
 def _source_marked_labels(cap: str) -> set[str]:
@@ -172,7 +238,8 @@ def check_locale_consistency(langs, locales, chapters, rep: Report):
                 if st['code'] != base['code']:
                     diffs.append(f"code {st['code']}≠{base['code']}")
                 if st['md'] != base['md']:
-                    diffs.append(f"md {st['md']}≠{base['md']}")
+                    diffs.append(f"md {st['md']}≠{base['md']} "
+                                 f"(texto ñ-vazio {st['md_nonempty']}≠{base['md_nonempty']})")
                 cb, cl = Counter(base['labels']), Counter(st['labels'])
                 if cb != cl:
                     only_b = sorted(base['label_set'] - st['label_set'])
@@ -188,7 +255,32 @@ def check_locale_consistency(langs, locales, chapters, rep: Report):
                     rep.bad(f'{tag}: {lo} vs {base_lo} — ' + ' | '.join(diffs))
                 else:
                     rep.ok(f'{tag}: {lo} estrutura == {base_lo} '
-                           f'({base["code"]} code, {len(base["labels"])} labels)')
+                           f'({base["code"]} code, {len(base["labels"])} labels, '
+                           f'{base["sections"]} secões, {base["subsections"]} subsecões, '
+                           f'{base["md_nonempty"]} células de texto)')
+
+                # Prosa: secões/subsecões/callouts/células de texto devem ser
+                # iguais entre idiomas (só o TEXTO muda). WARN — não quebra o
+                # exit code, mas despeja os cabeçalhos p/ achar o que divergiu.
+                struct = []
+                if st['h_by_level'] != base['h_by_level']:
+                    struct.append(f"cabeçalhos {_fmt_levels(st['h_by_level'])} "
+                                  f"≠ {base_lo} {_fmt_levels(base['h_by_level'])} "
+                                  f"[secões {st['sections']}≠{base['sections']}, "
+                                  f"subsecões {st['subsections']}≠{base['subsections']}]")
+                if st['callouts'] != base['callouts']:
+                    struct.append(f"callouts {dict(st['callouts'])} "
+                                  f"≠ {base_lo} {dict(base['callouts'])}")
+                if st['md_nonempty'] != base['md_nonempty']:
+                    struct.append(f"células de texto {st['md_nonempty']}≠{base['md_nonempty']}")
+                if struct:
+                    rep.wrn(f'{tag}: prosa {lo} vs {base_lo} — ' + ' | '.join(struct))
+                    rep.info(f'{base_lo} níveis: {[l for l, _ in base["headings"]]}')
+                    rep.info(f'{lo} níveis: {[l for l, _ in st["headings"]]}')
+                    for ln in _heading_lines(base['headings']):
+                        rep.info(f'{base_lo}| {ln}')
+                    for ln in _heading_lines(st['headings']):
+                        rep.info(f'{lo}| {ln}')
             # HTML
             for lo, st in stats.items():
                 h = _html_stats(_book_html(lang, lo, cap))
@@ -204,9 +296,18 @@ def check_locale_consistency(langs, locales, chapters, rep: Report):
             hs = {lo: v for lo, v in hs.items() if v}
             if len(hs) >= 2:
                 figset = {v['figs'] for v in hs.values()}
-                if len(figset) > 1:
-                    rep.bad(f'{tag}: contagem de figuras difere entre idiomas '
+                base_ids = hs.get(base_lo, next(iter(hs.values())))['fig_ids']
+                id_diff = {lo: (sorted(base_ids - v['fig_ids']),
+                                sorted(v['fig_ids'] - base_ids))
+                           for lo, v in hs.items() if v['fig_ids'] != base_ids}
+                if len(figset) > 1 or id_diff:
+                    rep.bad(f'{tag}: figuras diferem entre idiomas '
                             + ', '.join(f'{lo}={v["figs"]}' for lo, v in hs.items()))
+                    for lo, (miss, extra) in id_diff.items():
+                        if miss:
+                            rep.info(f'{lo}: falta {["#" + i for i in miss]} (tem em {base_lo})')
+                        if extra:
+                            rep.info(f'{lo}: sobra {["#" + i for i in extra]} (não tem em {base_lo})')
                 else:
                     rep.ok(f'{tag}: {figset.pop()} figuras em todos os idiomas')
 
@@ -247,6 +348,32 @@ def check_lang_parity(locale, chapters, rep: Report):
         else:
             rep.ok(f'{cap}: cpp sem células caídas para referência')
 
+        # Estrutura de prosa: secões/subsecões/callouts/células de texto.
+        # py e cpp derivam do MESMO fonte, então devem bater exatamente.
+        if py['h_by_level'] == cp['h_by_level'] and py['callouts'] == cp['callouts']:
+            rep.ok(f'{cap}: estrutura de texto casa '
+                   f'({py["sections"]} secões, {py["subsections"]} subsecões, '
+                   f'{py["n_headings"]} cabeçalhos, {py["n_callouts"]} callouts, '
+                   f'{py["md_nonempty"]} células de texto)')
+        else:
+            bits = []
+            if py['h_by_level'] != cp['h_by_level']:
+                bits.append(f'cabeçalhos py {_fmt_levels(py["h_by_level"])} '
+                            f'≠ cpp {_fmt_levels(cp["h_by_level"])} '
+                            f'[secões {py["sections"]}vs{cp["sections"]}, '
+                            f'subsecões {py["subsections"]}vs{cp["subsections"]}]')
+            if py['callouts'] != cp['callouts']:
+                bits.append(f'callouts py {dict(py["callouts"])} ≠ cpp {dict(cp["callouts"])}')
+            if py['md_nonempty'] != cp['md_nonempty']:
+                bits.append(f'células de texto py {py["md_nonempty"]} ≠ cpp {cp["md_nonempty"]}')
+            rep.wrn(f'{cap}: estrutura de texto difere — ' + ' | '.join(bits))
+            py_h = {(l, t) for l, t in py['headings']}
+            cp_h = {(l, t) for l, t in cp['headings']}
+            for side, hs in (('só em py', sorted(py_h - cp_h)),
+                             ('só em cpp', sorted(cp_h - py_h))):
+                for lvl, txt in hs:
+                    rep.info(f'{side}: {"#" * lvl} {txt}')
+
         hpy = _html_stats(_book_html('py', locale, cap))
         hcp = _html_stats(_book_html('cpp', locale, cap))
         for name, h in (('py', hpy), ('cpp', hcp)):
@@ -258,11 +385,25 @@ def check_lang_parity(locale, chapters, rep: Report):
             if h['broken_refs']:
                 rep.bad(f'{cap}: {h["broken_refs"]} cross-ref quebrado no HTML {name}')
         if hpy and hcp:
-            if hpy['figs'] == hcp['figs']:
+            only_py = sorted(hpy['fig_ids'] - hcp['fig_ids'])
+            only_cp = sorted(hcp['fig_ids'] - hpy['fig_ids'])
+            if hpy['figs'] == hcp['figs'] and not only_py and not only_cp:
                 rep.ok(f'{cap}: {hpy["figs"]} figuras em py e cpp')
             else:
                 rep.wrn(f'{cap}: figuras py={hpy["figs"]} cpp={hcp["figs"]} '
                         f'(esperado se há células #[py]#/#[cpp]# de matplotlib)')
+                # Nomeia EXATAMENTE quais #fig- aparecem só de um lado, e
+                # cruza com os marcadores do fonte p/ dizer se é esperado.
+                for tag_side, ids in (('só em py (falta no cpp)', only_py),
+                                      ('só em cpp (falta no py)', only_cp)):
+                    for fid in ids:
+                        why = ('#[py]#/#[cpp]#-only no fonte → esperado'
+                               if fid in marked else 'NÃO marcado no fonte → investigar')
+                        rep.info(f'{tag_side}: #{fid}  [{why}]')
+                if not only_py and not only_cp:
+                    rep.info('contagem difere mas os ids #fig- casam — '
+                             'provável figura dupla (2 <img> no mesmo painel) ou '
+                             'imagem sem âncora fig- num dos lados')
 
 
 # ─────────────────────────────────────────────────────────────────────────────

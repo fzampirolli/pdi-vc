@@ -65,7 +65,7 @@ from nbclient import NotebookClient
 from playwright.sync_api import sync_playwright
 
 from .config import (
-    Combo, UI_STRINGS, LOCALES, LANGUAGES, CPP_CHAPTERS,
+    Combo, UI_STRINGS, LOCALES, LANGUAGES, CPP_CHAPTERS, cpp_build_chapters,
     BASE_LANG, BASE_LOCALE, parse_combo,
 )
 
@@ -1007,7 +1007,7 @@ pre {
                 # CPP_CHAPTERS (ver CPP_VALIDATION_NOTE em index_builder). Não
                 # inclua os demais nos livros cpp mesmo que exista um .ipynb
                 # gerado (stale) — cv2/skimage sem equivalente quebram o render.
-                if combo.lang == 'cpp' and cap not in CPP_CHAPTERS:
+                if combo.lang == 'cpp' and cap not in cpp_build_chapters():
                     continue
                 nb_name = f'{cap}.{combo.key}.ipynb'
                 if (nb_root / cap / nb_name).exists():
@@ -1063,6 +1063,16 @@ pre {
         # autor roda uma vez no Jupyter e versiona os outputs em
         # all/capNN/*.ipynb; o Quarto só renderiza esses outputs salvos.
         execute_enabled = '' if combo.is_base() else '  enabled: true\n'
+
+        # freeze: combo base não é re-executado no render (freeze é irrelevante).
+        # Não-base: `auto` = só re-executa capítulos cujo .ipynb GERADO mudou
+        # (IDs de célula determinísticos em notebook_processor.process() tornam
+        # isso confiável). O `_freeze/` é invalidado por render_quarto quando
+        # morph.py/morph.hpp/stb/config mudam (deps que o hash do .ipynb não
+        # captura). PDI_VC_NO_FREEZE=1 volta ao comportamento antigo.
+        freeze_mode = ('false'
+                       if combo.is_base() or os.environ.get('PDI_VC_NO_FREEZE') == '1'
+                       else 'auto')
 
         # NOTA: A capa do PDF é gerada via capa.tex (include-before-body).
         # NÃO use \AtBeginDocument no include-in-header para isso — o Quarto/Pandoc
@@ -1281,7 +1291,7 @@ format:
       - file: fvextra.tex
 
 execute:
-{execute_enabled}  freeze: false
+{execute_enabled}  freeze: {freeze_mode}
   cache: false
   echo: true      # ← GARANTE que o código-fonte das células SERÁ renderizado no PDF
   warning: false  # ← Oculta avisos do compilador/Python no PDF
@@ -2557,10 +2567,44 @@ def _inject_favicon_into_generated_htmls(qdir: Path):
             text = text.replace('<head>', f'<head>\n  {favicon_tag}', 1)
             html_path.write_text(text, encoding='utf-8')
 
+def _bust_freeze_if_deps_changed(qdir: Path) -> None:
+    """`freeze: auto` do Quarto só olha o hash do .ipynb. morph.py / morph.hpp /
+    stb / config são deps compartilhadas que NÃO estão no .ipynb — se mudarem,
+    as figuras congeladas ficam velhas. Aqui hasheia essas deps e, na primeira
+    divergência, apaga qdir/_freeze/ para forçar re-execução completa."""
+    import hashlib
+    root = Path(__file__).resolve().parent.parent
+    dep_files = [root / 'morph' / 'morph.py',
+                 root / 'morph' / 'config.py',
+                 root / 'morph' / 'testsuite.py',
+                 root / 'morph' / 'cpp' / 'morph.hpp',
+                 root / 'morph' / 'cpp' / 'stb_image.h',
+                 root / 'morph' / 'cpp' / 'stb_image_write.h']
+    h = hashlib.blake2s(digest_size=16)
+    for f in dep_files:
+        h.update(f.name.encode())
+        h.update(f.read_bytes() if f.exists() else b'\x00')
+    digest = h.hexdigest()
+
+    stamp = qdir / '_freeze' / '.deps_hash'
+    prev = stamp.read_text().strip() if stamp.exists() else None
+    if prev == digest:
+        return
+    frz = qdir / '_freeze'
+    if frz.exists():
+        shutil.rmtree(frz, ignore_errors=True)
+        print('  ♻ morph*/config mudou → _freeze/ invalidado (re-executa tudo)')
+    frz.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(digest)
+
+
 def render_quarto(qdir: Path, fmt: str, all_root: Path = Path('all'), verbose: bool = False):
     # Cria arquivo sentinela para testsuite.py detectar ambiente Quarto
     sentinela = qdir / '.quarto_render'
     sentinela.write_text('1', encoding='utf-8')
+
+    if os.environ.get('PDI_VC_NO_FREEZE') != '1':
+        _bust_freeze_if_deps_changed(qdir)
 
     def _fix_spurious_closing_div(qdir: Path, combo_name: str):
         """
