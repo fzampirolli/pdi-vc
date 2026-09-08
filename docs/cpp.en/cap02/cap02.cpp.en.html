@@ -275,6 +275,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Mathematical Morphology and Image Segmentation</span></span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cap05/cap05.cpp.en.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Transforms and Compression</span></span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -539,7 +545,13 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <p>The conversion between intensity ranges is straightforward and given by:</p>
 <p><span class="math display">\[f_{\text{norm}}(x,y) = \frac{f(x,y)}{255}\]</span></p>
 <p>where <span class="math inline">\(f(x,y) \in [0,\,255]\)</span> and <span class="math inline">\(f_{\text{norm}}(x,y) \in [0,\,1]\)</span>.</p>
-<p><strong>Representation convention in <code>morph.hpp</code>:</strong> the library in this book adopts a single convention, without the range and channel order ambiguities that arise when combining multiple Python libraries.</p>
+<p><strong>Representation convention in <code>morph.hpp</code>:</strong> the library of this book adopts a single convention (<a href="#tbl-02-bibliotecas" class="quarto-xref">Table&nbsp;<span>2.1</span></a>), without the range and channel-order ambiguities that arise when combining several Python libraries.</p>
+<div id="tbl-02-bibliotecas" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-bibliotecas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2.1: Image representation convention in <code>morph.hpp</code> — range, band order, number of channels, and memory layout.
+</figcaption>
+<div aria-describedby="tbl-02-bibliotecas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -570,13 +582,16 @@ f(x,y) = i(x,y) \cdot r(x,y)
 </tr>
 </tbody>
 </table>
-<p>The <code>struct Image</code> stores the pixels in a linear <code>std::vector&lt;unsigned char&gt;</code>, with the fields <code>h</code>, <code>w</code>, and <code>channels</code>. The <code>mm::read</code> function decodes with <code>stb_image</code> forcing 3 channels (or 1, when <code>grayscale=true</code>); therefore <strong>any alpha channel in the file is discarded upon reading</strong>. For working in floating point, the same relationship <span class="math inline">\(f_{\text{norm}} = f/255\)</span> holds.</p>
-<p>In the following example cell, the RGBA version (<span class="math inline">\(M \times N \times 4\)</span>) is assembled by stacking a synthetic alpha channel onto the loaded array — the notebook kernel is Python, and the display receives the <code>ndarray</code> in that <span class="math inline">\(H \times W \times C\)</span> layout.</p>
+</div>
+</figure>
+</div>
+<p>The <code>struct Image</code> stores pixels in a linear <code>std::vector&lt;unsigned char&gt;</code>, with the fields <code>h</code>, <code>w</code>, and <code>channels</code>. The function <code>mm::read</code> decodes with <code>stb_image</code> forcing 3 channels (or 1, when <code>grayscale=true</code>); therefore <strong>any alpha channel in the file is discarded upon reading</strong>. For floating-point work, the same relationship <span class="math inline">\(f_{\text{norm}} = f/255\)</span> holds.</p>
+<p>In the following example cell, the RGBA version (<span class="math inline">\(M \times N \times 4\)</span>) is assembled by stacking a synthetic alpha channel onto the read array — the notebook kernel is Python, and the display receives the <code>ndarray</code> in that <span class="math inline">\(H \times W \times C\)</span> layout.</p>
 </section>
 <section id="preparing-the-practical-environment" class="level3" data-number="2.4.2">
 <h3 data-number="2.4.2" class="anchored" data-anchor-id="preparing-the-practical-environment"><span class="header-section-number">2.4.2</span> Preparing the Practical Environment</h3>
 <p>The following block loads the <code>morph.py</code> module from the repository and demonstrates, for a synthetic pixel, the different scaling conventions and channel orders adopted by the main image processing libraries.</p>
-<div id="d79f35e0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;cce914b38b428cdb202f12dc26dfc663&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="1">
+<div id="72ee1e525881" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;cce914b38b428cdb202f12dc26dfc663&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, urllib.request</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>os.makedirs(<span class="st">"tmp/state"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)  <span class="co"># C++ track build artifacts (.cpp, binary, PNGs)</span></span>
@@ -605,7 +620,7 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <section id="implementation-of-image-reading-in-morph.hpp" class="level3" data-number="2.4.3">
 <h3 data-number="2.4.3" class="anchored" data-anchor-id="implementation-of-image-reading-in-morph.hpp"><span class="header-section-number">2.4.3</span> Implementation of Image Reading in <code>morph.hpp</code></h3>
 <p>The following excerpt shows the source code of the <code>mm::read</code> function, allowing you to directly verify how the <code>morph.hpp</code> library implements image reading.</p>
-<div id="3cf13ee1" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;4f6724daed4d1a757506dfb026246e92&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="2">
+<div id="d2ed9928f892" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;4f6724daed4d1a757506dfb026246e92&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># morph.hpp is header-only; below, the body of the function mm::read().</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re, pathlib</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>hpp <span class="op">=</span> pathlib.Path(<span class="st">"morph.hpp"</span>).read_text()</span>
@@ -642,7 +657,7 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <section id="rgb-and-rgba-practical-example-with-the-mandrill-image" class="level3" data-number="2.4.4">
 <h3 data-number="2.4.4" class="anchored" data-anchor-id="rgb-and-rgba-practical-example-with-the-mandrill-image"><span class="header-section-number">2.4.4</span> RGB and RGBA: Practical Example with the Mandrill Image</h3>
 <p>The following example loads the Mandrill image in RGB format, artificially constructs an alpha channel with a horizontal gradient, and displays both representations, concretely illustrating the matrix structures <span class="math inline">\(M \times N \times 3\)</span> and <span class="math inline">\(M \times N \times 4\)</span>.</p>
-<div id="6ddc7804" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;3fe3732425f2f37f38b9fde63dcc80ea&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="3">
+<div id="81e3a4587cca" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;3fe3732425f2f37f38b9fde63dcc80ea&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_rgb_rgba.cpp</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_rgb_rgba.png"</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>rgb<span class="op">-</span>rgba</span>
@@ -693,10 +708,10 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_rgb_rgba.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_rgb_rgba.cpp</code></pre>
 </div>
 </div>
-<div id="37fb6f4a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="4">
+<div id="66931e0f06df" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_rgb_rgba.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_rgb_rgba <span class="op">\</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_rgb_rgba <span class="op">\</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_rgb_rgba.png"</span> <span class="op">\</span></span>
@@ -763,7 +778,7 @@ Figure&nbsp;2.3: Imagem RGB (3 canais, <span class="math inline">\(M \times N \t
 <section id="effects-of-sampling-and-quantization" class="level3" data-number="2.5.3">
 <h3 data-number="2.5.3" class="anchored" data-anchor-id="effects-of-sampling-and-quantization"><span class="header-section-number">2.5.3</span> Effects of Sampling and Quantization</h3>
 <p>The following experiments show how reducing spatial resolution (subsampling) and bit depth degrade visual quality. Use the code to explore different factors and gray levels.</p>
-<div id="f228eb66" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;6ada7ffedfa5a42abf4d4cebac34f6a9&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="6">
+<div id="de927886db33" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;6ada7ffedfa5a42abf4d4cebac34f6a9&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>mm_out_1.cpp</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iostream&gt;</span></span>
@@ -786,10 +801,10 @@ Figure&nbsp;2.3: Imagem RGB (3 canais, <span class="math inline">\(M \times N \t
 <span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/mm_out_1.cpp</code></pre>
+<pre><code>Writing tmp/mm_out_1.cpp</code></pre>
 </div>
 </div>
-<div id="dd4ff485" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="7">
+<div id="ceba2917d990" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>mm_out_1.cpp <span class="op">-</span>o tmp<span class="op">/</span>mm_out_1 <span class="op">\</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>mm_out_1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -797,7 +812,7 @@ Figure&nbsp;2.3: Imagem RGB (3 canais, <span class="math inline">\(M \times N \t
 </div>
 </div>
 <p>The experiment presented in <a href="#fig-02-subamostragem" class="quarto-xref">Figure&nbsp;<span>2.4</span></a> illustrates the trade-off between <strong>spatial resolution</strong> and <strong>storage cost</strong> in memory. The code employs the subsampling technique via <em>slicing</em> to reduce the original pixel matrix according to a factor <span class="math inline">\(f\)</span>, resulting in memory savings — for example, a factor <span class="math inline">\(f=8\)</span> reduces the data size by 64 times (<span class="math inline">\(8^2\)</span>). For visual comparison purposes, the reduced images are restored to their original dimensions (<span class="math inline">\(512 \times 512\)</span>) through <strong>nearest-neighbor</strong> interpolation (<code>nearest</code>). This process does not recover the lost information, but it makes evident the effect of <strong><em>aliasing</em></strong> and the block structure (pixelation) generated by the low data density of the sampled matrix.</p>
-<div id="e134faba" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;689ffd15675e2325bda75e27fefc4b56&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="8">
+<div id="4f16f244d803" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;689ffd15675e2325bda75e27fefc4b56&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_subamostragem.cpp</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_subamostragem.png"</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
@@ -852,10 +867,10 @@ Figure&nbsp;2.3: Imagem RGB (3 canais, <span class="math inline">\(M \times N \t
 <span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_subamostragem.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_subamostragem.cpp</code></pre>
 </div>
 </div>
-<div id="7a4edb8a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="9">
+<div id="dab66867729d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_subamostragem.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_subamostragem <span class="op">\</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_subamostragem <span class="op">\</span></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_subamostragem.png"</span> <span class="op">\</span></span>
@@ -877,7 +892,7 @@ Figure&nbsp;2.3: Imagem RGB (3 canais, <span class="math inline">\(M \times N \t
 <div id="fig-02-subamostragem" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-subamostragem-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.cpp.en_files/figure-html/fig-02-subamostragem-output-1.png" width="1890" height="755" class="figure-img">
+<img src="cap02.cpp.en_files/figure-html/fig-02-subamostragem-output-1.png" width="1890" height="500" class="figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-subamostragem-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2.4: Efeito da subamostragem. Os títulos exibem as dimensões (W x H) e o tamanho da matriz em memória (KB).
@@ -888,7 +903,7 @@ Figure&nbsp;2.4: Efeito da subamostragem. Os títulos exibem as dimensões (W x 
 </div>
 <p>The experiment in <a href="#fig-02-quantizacao" class="quarto-xref">Figure&nbsp;<span>2.5</span></a> focuses on <strong>intensity quantization</strong>, the process of discretizing the amplitude of the function <span class="math inline">\(f(x,y)\)</span>. While subsampling affects the spatial grid, reducing the bit depth limits the number of gray levels available to represent brightness.</p>
 <p>By reducing the depth from 8 bits (256 levels) to smaller values, the <strong>posterization</strong> effect arises, where smooth gradients in a scene are replaced by abrupt transitions. At the 1-bit limit, the image becomes strictly binary, preserving only the silhouette and losing texture and volume details.</p>
-<div id="38cac379" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;27466ddac06d8fc3c764deff2a5b61af&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="11">
+<div id="c1ef855dfb66" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;27466ddac06d8fc3c764deff2a5b61af&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_quantizacao.cpp</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_quantizacao.png"</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>quantizacao</span>
@@ -955,10 +970,10 @@ Figure&nbsp;2.4: Efeito da subamostragem. Os títulos exibem as dimensões (W x 
 <span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_quantizacao.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_quantizacao.cpp</code></pre>
 </div>
 </div>
-<div id="b87764d5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="12">
+<div id="d862bbf5336e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_quantizacao.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_quantizacao <span class="op">\</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_quantizacao <span class="op">\</span></span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_quantizacao.png"</span> <span class="op">\</span></span>
@@ -980,7 +995,7 @@ Figure&nbsp;2.4: Efeito da subamostragem. Os títulos exibem as dimensões (W x 
 <div id="fig-02-quantizacao" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-quantizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="cap02.cpp.en_files/figure-html/fig-02-quantizacao-output-1.png" width="1890" height="755" class="figure-img">
+<img src="cap02.cpp.en_files/figure-html/fig-02-quantizacao-output-1.png" width="1890" height="500" class="figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-quantizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2.5: Efeito da redução da profundidade de bits. Os títulos exibem a quantidade de bits, níveis e o tamanho em memória (KB).
@@ -998,11 +1013,11 @@ Figure&nbsp;2.5: Efeito da redução da profundidade de bits. Os títulos exibem
 <li><strong>Perception</strong>: Visual degradation becomes critical below 4 bits, where the human eye begins to perceive the artificial “boundaries” created by the lack of intermediate tones.</li>
 </ul>
 <p>The limitation of data types smaller than a byte in the Python/NumPy ecosystem stems from hardware architecture, which addresses memory in blocks of 8 bits (Bytes). To maintain compatibility with OpenCV and ensure efficiency, even binary elements are mapped to 1-byte containers (<code>uint8</code> or <code>bool8</code>).</p>
-<p>Although languages such as ANSI C allow the packing of 8 pixels per byte (<em>bit-packing</em>), this approach requires constant unpacking for computations and imposes high complexity in pointer manipulation. As per <a href="#tbl-02-dados" class="quarto-xref">Table&nbsp;<span>2.1</span></a>, the use of <code>uint8</code> is favored for ease of neighbor access and versatility in geometric transformations. Furthermore, native NumPy and OpenCV methods execute processing internally at a low level (C/C++), making vectorized operations faster than manual implementations with nested loops in Python.</p>
+<p>Although languages such as ANSI C allow the packing of 8 pixels per byte (<em>bit-packing</em>), this approach requires constant unpacking for computations and imposes high complexity in pointer manipulation. As per <a href="#tbl-02-dados" class="quarto-xref">Table&nbsp;<span>2.2</span></a>, the use of <code>uint8</code> is favored for ease of neighbor access and versatility in geometric transformations. Furthermore, native NumPy and OpenCV methods execute processing internally at a low level (C/C++), making vectorized operations faster than manual implementations with nested loops in Python.</p>
 <div id="tbl-02-dados" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-dados-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;2.1: Comparison between packing strategies and processing efficiency.
+Table&nbsp;2.2: Comparison between packing strategies and processing efficiency.
 </figcaption>
 <div aria-describedby="tbl-02-dados-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
@@ -1052,7 +1067,7 @@ Table&nbsp;2.1: Comparison between packing strategies and processing efficiency.
 <li><strong>8-Neighborhood</strong> (Moore): includes all eight adjacent pixels (adds the four diagonal ones).</li>
 </ul>
 <p>The choice of neighborhood influences operations such as edge detection, gradient computation, and connectivity.</p>
-<div id="2eacd1c2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5f4f335c59eaceb8857a0279712fbfda&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="14">
+<div id="2c58fddb7e1b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5f4f335c59eaceb8857a0279712fbfda&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_vizinhanca.cpp</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_vizinhanca.png"</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
@@ -1079,10 +1094,10 @@ Table&nbsp;2.1: Comparison between packing strategies and processing efficiency.
 <span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_vizinhanca.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_vizinhanca.cpp</code></pre>
 </div>
 </div>
-<div id="a5d6f98a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="15">
+<div id="bcbf7e435857" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_vizinhanca.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_vizinhanca <span class="op">\</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_vizinhanca <span class="op">\</span></span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_vizinhanca.png"</span> <span class="op">\</span></span>
@@ -1116,12 +1131,12 @@ Figure&nbsp;2.6: Ilustração de vizinhanças 4 em uma matriz 3x3. No centro (1,
 </section>
 <section id="distances-between-pixels" class="level3" data-number="2.6.3">
 <h3 data-number="2.6.3" class="anchored" data-anchor-id="distances-between-pixels"><span class="header-section-number">2.6.3</span> Distances Between Pixels</h3>
-<p>Distance metrics are fundamental for quantifying physical proximity and connectivity among the elements that make up the digital grid. As demonstrated in <a href="#tbl-02-distancias" class="quarto-xref">Table&nbsp;<span>2.2</span></a>, the choice of metric defines the movement cost between pixels and alters the behavior of segmentation algorithms and morphological analysis.</p>
+<p>Distance metrics are fundamental for quantifying physical proximity and connectivity among the elements that make up the digital grid. As demonstrated in <a href="#tbl-02-distancias" class="quarto-xref">Table&nbsp;<span>2.3</span></a>, the choice of metric defines the movement cost between pixels and alters the behavior of segmentation algorithms and morphological analysis.</p>
 <p>To measure the distance between two pixels <span class="math inline">\(p(x_1, y_1)\)</span> and <span class="math inline">\(q(x_2, y_2)\)</span>, different metric functions are used, each imposing distinct movement constraints on the <em>grid</em>:</p>
 <div id="tbl-02-distancias" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-distancias-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;2.2: Comparison of distance metrics applied to the pixel grid.
+Table&nbsp;2.3: Comparison of distance metrics applied to the pixel grid.
 </figcaption>
 <div aria-describedby="tbl-02-distancias-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
@@ -1181,11 +1196,11 @@ Table&nbsp;2.2: Comparison of distance metrics applied to the pixel grid.
 </section>
 <section id="image-storage" class="level2" data-number="2.7">
 <h2 data-number="2.7" class="anchored" data-anchor-id="image-storage"><span class="header-section-number">2.7</span> Image Storage</h2>
-<p>The choice of file format is a decisive step in the processing pipeline, as it determines how sampling and quantization data will be preserved or discarded. As presented in <a href="#tbl-02-formatos" class="quarto-xref">Table&nbsp;<span>2.3</span></a>, each extension balances data fidelity and storage efficiency in a distinct manner.</p>
+<p>The choice of file format is a decisive step in the processing pipeline, as it determines how sampling and quantization data will be preserved or discarded. As presented in <a href="#tbl-02-formatos" class="quarto-xref">Table&nbsp;<span>2.4</span></a>, each extension balances data fidelity and storage efficiency in a distinct manner.</p>
 <div id="tbl-02-formatos" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-formatos-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;2.3: Main digital image storage formats and their applications in DIP.
+Table&nbsp;2.4: Main digital image storage formats and their applications in DIP.
 </figcaption>
 <div aria-describedby="tbl-02-formatos-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
@@ -1255,14 +1270,14 @@ Table&nbsp;2.3: Main digital image storage formats and their applications in DIP
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>C++ Track: Why This Example Remains in Python
+<span class="screen-reader-only">Note</span>C++ Track: Why EXIF Extraction Remains in Python
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Metadata extraction is <strong>container parsing</strong> — decoding the EXIF header embedded in the file — rather than pixel processing: it is orthogonal to the sampling and quantization pipeline. <code>morph.hpp</code> decodes images with <code>stb_image</code>, which returns only the pixel matrix and discards the EXIF header. Since the kernel of this notebook is Python even in the C++ track, this example uses Pillow-mode reading (<code>pil=True</code>) in both tracks. In a standalone C++ program, the equivalent approach would be to vendor a dedicated library: <code>easyexif</code> (EXIF/GPS reading in JPEG, single header, zero dependencies) or <code>exiv2</code> (reading <strong>and</strong> writing, including IPTC/XMP).</p>
+<p>Metadata extraction is <strong>container parsing</strong> — decoding the EXIF header embedded in the file — not pixel processing: it is orthogonal to the sampling and quantization pipeline. <code>morph.hpp</code> decodes images with <code>stb_image</code>, which delivers only the pixel matrix and discards the EXIF header. Since the kernel of this notebook is Python even in the C++ track, this example uses Pillow-mode reading (<code>pil=True</code>) in both tracks. In a standalone C++ program, the equivalent approach would be to vendor a dedicated library: <code>easyexif</code> (EXIF/GPS reading in JPEG, single header, zero dependencies) or <code>exiv2</code> (reading <strong>and</strong> writing, including IPTC/XMP).</p>
 </div>
 </div>
-<div id="232f0410" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;96055a169cb619a02d6f35c90ae20809&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="17">
+<div id="81b8353a1ca0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;96055a169cb619a02d6f35c90ae20809&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="17">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_01_natureza.cpp</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_01_natureza.png"</span></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Compile: g<span class="op">++</span> <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> <span class="op">-</span>o program program.cpp <span class="op">-</span>lmorph</span>
@@ -1312,10 +1327,10 @@ Table&nbsp;2.3: Main digital image storage formats and their applications in DIP
 <span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb29-48"><a href="#cb29-48" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_01_natureza.cpp</code></pre>
+<pre><code>Writing tmp/fig_01_natureza.cpp</code></pre>
 </div>
 </div>
-<div id="aef6c2f5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="18">
+<div id="36481cb62f01" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="18">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_01_natureza.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_01_natureza <span class="op">\</span></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_01_natureza <span class="op">\</span></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_01_natureza.png"</span> <span class="op">\</span></span>
@@ -1411,7 +1426,7 @@ Figure&nbsp;2.7: Area de Proteção Ambiental Quilombos do Médio Ribeira - Barb
 \tag{2.3}\]</span></span></p>
 <p>The third row of the matrix ensures that the operation remains in affine space, allowing translation, rotation, and scaling to be combined by simple matrix multiplication. In practice, <code>cv2.warpAffine</code> uses only the first two rows (a <span class="math inline">\(2 \times 3\)</span> matrix), since the third row is always <span class="math inline">\([0, 0, 1]\)</span>.</p>
 <p>Pixels shifted beyond the original area are discarded; uncovered areas are filled with 0 (black). See an example in <a href="#fig-02-translacao" class="quarto-xref">Figure&nbsp;<span>2.8</span></a>.</p>
-<div id="01d57e19" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;8af081a84e1b50d81daeaec01d22fd85&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="20">
+<div id="f20448e799af" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;8af081a84e1b50d81daeaec01d22fd85&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="20">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_translacao.cpp</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_translacao.png"</span></span>
 <span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="op">//</span><span class="co">#| label: fig-02-translacao</span></span>
@@ -1445,10 +1460,10 @@ Figure&nbsp;2.7: Area de Proteção Ambiental Quilombos do Médio Ribeira - Barb
 <span id="cb35-31"><a href="#cb35-31" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb35-32"><a href="#cb35-32" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_translacao.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_translacao.cpp</code></pre>
 </div>
 </div>
-<div id="a1e40172" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="21">
+<div id="594e286dd881" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="21">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_translacao.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_translacao <span class="op">\</span></span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_translacao <span class="op">\</span></span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_translacao.png"</span> <span class="op">\</span></span>
@@ -1506,7 +1521,7 @@ Figure&nbsp;2.8: Exemplo de translação da imagem do pássaro com deslocamentos
 <li><strong><code>bilinear</code></strong> (<code>INTER_LINEAR</code>, default): weighted average of the 4 nearest neighbors. Balances quality and performance — suitable for most cases.</li>
 <li><strong><code>bicubic</code></strong> (<code>INTER_CUBIC</code>): considers the 16 neighbors on a cubic surface. Produces smoother edges at the cost of greater processing.</li>
 </ul>
-<div id="9ed2c9e9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;360c82cb455996b6d6dc7599c508f4d9&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="23">
+<div id="8ded1a8bdc2f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;360c82cb455996b6d6dc7599c508f4d9&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="23">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_rotacao.cpp</span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_rotacao.png"</span></span>
 <span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>rotacao</span>
@@ -1545,10 +1560,10 @@ Figure&nbsp;2.8: Exemplo de translação da imagem do pássaro com deslocamentos
 <span id="cb40-36"><a href="#cb40-36" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb40-37"><a href="#cb40-37" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_rotacao.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_rotacao.cpp</code></pre>
 </div>
 </div>
-<div id="211ffbda" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="24">
+<div id="fa0148b3ffc4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="24">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_rotacao.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_rotacao <span class="op">\</span></span>
 <span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_rotacao <span class="op">\</span></span>
 <span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_rotacao.png"</span> <span class="op">\</span></span>
@@ -1599,11 +1614,11 @@ s_x &amp; 0   &amp; 0 \\
 0   &amp; 0   &amp; 1
 \end{bmatrix}
 \tag{2.5}\]</span></span></p>
-<p>When <span class="math inline">\(s &gt; 1\)</span> (enlargement), pixels of the destination image map to non-integer positions in the source — requiring interpolation to estimate the value. When <span class="math inline">\(s &lt; 1\)</span> (reduction), multiple source pixels contribute to a single destination pixel — requiring <strong>decimation</strong>. The same three methods described for rotation are available in <code>mm::resize</code>, with the difference that here the visual impact is more noticeable: in enlargement, <code>nearest</code> produces a blocky effect (<em>pixelation</em>), while <code>bicubic</code> better preserves edge sharpness, according to <a href="#tbl-02-interp" class="quarto-xref">Table&nbsp;<span>2.4</span></a>:</p>
+<p>When <span class="math inline">\(s &gt; 1\)</span> (enlargement), pixels of the destination image map to non-integer positions in the source — requiring interpolation to estimate the value. When <span class="math inline">\(s &lt; 1\)</span> (reduction), multiple source pixels contribute to a single destination pixel — requiring <strong>decimation</strong>. The same three methods described for rotation are available in <code>mm::resize</code>, with the difference that here the visual impact is more noticeable: in enlargement, <code>nearest</code> produces a blocky effect (<em>pixelation</em>), while <code>bicubic</code> better preserves edge sharpness, according to <a href="#tbl-02-interp" class="quarto-xref">Table&nbsp;<span>2.5</span></a>:</p>
 <div id="tbl-02-interp" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-interp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;2.4: Interpolation methods available in <code>mm::resize</code> and their respective numbers of neighbors used in the calculation.
+Table&nbsp;2.5: Interpolation methods available in <code>mm::resize</code> and their respective numbers of neighbors used in the calculation.
 </figcaption>
 <div aria-describedby="tbl-02-interp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
@@ -1641,7 +1656,7 @@ Table&nbsp;2.4: Interpolation methods available in <code>mm::resize</code> and t
 </figure>
 </div>
 <p>The <code>size_or_factor</code> parameter accepts both a scalar (uniform factor, e.g., <code>0.5</code> to reduce by half) and a tuple <code>(width, height)</code> for absolute dimensions.</p>
-<div id="be3ab157" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5a6f85a8edd4279a0ddc72fa46fe158e&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="26">
+<div id="8c2aa38d4e02" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5a6f85a8edd4279a0ddc72fa46fe158e&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="26">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_escala_detalhe.cpp</span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_escala_detalhe.png"</span></span>
 <span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
@@ -1680,10 +1695,10 @@ Table&nbsp;2.4: Interpolation methods available in <code>mm::resize</code> and t
 <span id="cb45-36"><a href="#cb45-36" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb45-37"><a href="#cb45-37" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_escala_detalhe.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_escala_detalhe.cpp</code></pre>
 </div>
 </div>
-<div id="3749a01c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="27">
+<div id="5a3445fa91a4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="27">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_escala_detalhe.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_escala_detalhe <span class="op">\</span></span>
 <span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_escala_detalhe <span class="op">\</span></span>
 <span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_escala_detalhe.png"</span> <span class="op">\</span></span>
@@ -1737,7 +1752,7 @@ sh_y &amp; 1    &amp; 0 \\
 \end{bmatrix}
 \tag{2.6}\]</span></span></p>
 <p>For <span class="math inline">\(sh_x \neq 0\)</span> and <span class="math inline">\(sh_y = 0\)</span>, each row is shifted horizontally proportionally to its vertical position — producing the characteristic “tilt” effect. See the example in <a href="#fig-02-cisalhamento" class="quarto-xref">Figure&nbsp;<span>2.11</span></a>.</p>
-<div id="e5791b80" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;591ddfc768759629eb5610a15724d142&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="29">
+<div id="50b81a4389d7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;591ddfc768759629eb5610a15724d142&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="29">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_cisalhamento.cpp</span>
 <span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_cisalhamento.png"</span></span>
 <span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>cisalhamento</span>
@@ -1777,10 +1792,10 @@ sh_y &amp; 1    &amp; 0 \\
 <span id="cb50-37"><a href="#cb50-37" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
 <span id="cb50-38"><a href="#cb50-38" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_cisalhamento.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_cisalhamento.cpp</code></pre>
 </div>
 </div>
-<div id="03056fba" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="30">
+<div id="6af2e6d36a0e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="30">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_cisalhamento.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_cisalhamento <span class="op">\</span></span>
 <span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_cisalhamento <span class="op">\</span></span>
 <span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_cisalhamento.png"</span> <span class="op">\</span></span>
@@ -1950,7 +1965,7 @@ Figure&nbsp;2.11: Exemplo de cisalhamento da imagem do pássaro: horizontal (shx
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download"><em>Download</em></h4>
 <p>Download <code>morph.py</code> and <code>testsuite.py</code> by running the cell below:</p>
-<div id="7d152361" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;a0c89cb0c8f60adef3fc560f04198b54&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="32">
+<div id="b9d017271ed8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;a0c89cb0c8f60adef3fc560f04198b54&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="32">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, urllib.request</span>
 <span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>os.makedirs(<span class="st">"tmp/state"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)  <span class="co"># C++ track build artifacts (.cpp, binary, PNGs)</span></span>
@@ -2247,17 +2262,18 @@ Figure&nbsp;2.12: Simulator EP02_01: Linear Brightness and Contrast Adjustment (
 
 </div>
 </section></section></section>
-<div id="231db298" class="cell" data-execution_count="34">
+<div id="c7df9b086e62" class="cell" data-execution_count="34">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_01.cpp</span>
 <span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_01.cpp</code></pre>
+<pre><code>Writing EP02_01.cpp</code></pre>
 </div>
 </div>
-<div id="e1252ecc" class="cell" data-execution_count="35">
+<div id="753077d2a189" class="cell" data-execution_count="35">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_01.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_01.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_01.cases
+   ✅ Downloaded successfully
 📋 8 case(s) loaded from casos/EP02_01.cases
 
 🔍 Testing C++: EP02_01.cpp
@@ -2503,17 +2519,18 @@ Figure&nbsp;2.13: EP02_02 Simulator: Spatial Subsampling (Resolution Reduction b
 
 </div>
 
-<div id="d4e95362" class="cell" data-execution_count="37">
+<div id="b6c653bdd47e" class="cell" data-execution_count="37">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_02.cpp</span>
 <span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_02.cpp</code></pre>
+<pre><code>Writing EP02_02.cpp</code></pre>
 </div>
 </div>
-<div id="097aa297" class="cell" data-execution_count="38">
+<div id="cde587eb9f20" class="cell" data-execution_count="38">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_02.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_02.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_02.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_02.cases
 
 🔍 Testing C++: EP02_02.cpp
@@ -2770,17 +2787,18 @@ Figure&nbsp;2.14: EP02_03 Simulator: Quantization and Bit Depth (Reduction of Gr
 
 </div>
 
-<div id="9cd6c632" class="cell" data-execution_count="40">
+<div id="4161da9d05cf" class="cell" data-execution_count="40">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_03.cpp</span>
 <span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_03.cpp</code></pre>
+<pre><code>Writing EP02_03.cpp</code></pre>
 </div>
 </div>
-<div id="8e27772d" class="cell" data-execution_count="41">
+<div id="dd026d42f8e2" class="cell" data-execution_count="41">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_03.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_03.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_03.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_03.cases
 
 🔍 Testing C++: EP02_03.cpp
@@ -3128,17 +3146,18 @@ Figure&nbsp;2.15: EP02_04 Simulator: Distance Transform in Binary Image (Chessbo
 
 </div>
 
-<div id="a22b7e10" class="cell" data-execution_count="43">
+<div id="33a67bc67d89" class="cell" data-execution_count="43">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_04.cpp</span>
 <span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_04.cpp</code></pre>
+<pre><code>Writing EP02_04.cpp</code></pre>
 </div>
 </div>
-<div id="8eb20617" class="cell" data-execution_count="44">
+<div id="244d37d043aa" class="cell" data-execution_count="44">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_04.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_04.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_04.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_04.cases
 
 🔍 Testing C++: EP02_04.cpp
@@ -3384,17 +3403,18 @@ Figure&nbsp;2.16: EP02_05 Simulator: Geometric Image Translation (Displacement t
 </figure>
 </div>
 </div>
-<div id="ba40d19c" class="cell" data-execution_count="46">
+<div id="0ba29f81f76d" class="cell" data-execution_count="46">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_05.cpp</span>
 <span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_05.cpp</code></pre>
+<pre><code>Writing EP02_05.cpp</code></pre>
 </div>
 </div>
-<div id="47b005bc" class="cell" data-execution_count="47">
+<div id="f2f664e01a29" class="cell" data-execution_count="47">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_05.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_05.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_05.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_05.cases
 
 🔍 Testing C++: EP02_05.cpp
@@ -3687,17 +3707,18 @@ Figure&nbsp;2.17: EP02_06 Simulator: Image Rotation Around Origin by Angle θ
 
 </div>
 
-<div id="c1013e55" class="cell" data-execution_count="49">
+<div id="fde002db4b5a" class="cell" data-execution_count="49">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_06.cpp</span>
 <span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_06.cpp</code></pre>
+<pre><code>Writing EP02_06.cpp</code></pre>
 </div>
 </div>
-<div id="4095139d" class="cell" data-execution_count="50">
+<div id="7c4ae833b772" class="cell" data-execution_count="50">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_06.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_06.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_06.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_06.cases
 
 🔍 Testing C++: EP02_06.cpp
@@ -3997,7 +4018,7 @@ Figure&nbsp;2.18: EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest
 
 </div>
 
-<div id="4b779a80" class="cell" data-execution_count="52">
+<div id="839e832412bd" class="cell" data-execution_count="52">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Not yet ported to this language in this version — conceptual reference in Python.</span></span>
 <span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_07.py</span>
 <span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Python code</span></span>
@@ -4024,10 +4045,11 @@ Figure&nbsp;2.18: EP02_07 Simulator: Spatial Resizing and Interpolation (Nearest
 <span id="cb77-24"><a href="#cb77-24" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Display</span></span>
 <span id="cb77-25"><a href="#cb77-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mm.drawImg(resultado))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="28d752a8" class="cell" data-execution_count="53">
+<div id="28737d463235" class="cell" data-execution_count="53">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb78"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href="#cb78-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_07.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_07.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_07.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_07.cases
 💥 File EP02_07.cpp not found.</pre>
 </div>
@@ -4289,17 +4311,18 @@ Figure&nbsp;2.19: EP02_08 Simulator: 2D Shear Geometric Transformation (Horizont
 
 </div>
 
-<div id="602b2098" class="cell" data-execution_count="55">
+<div id="64cf9e290875" class="cell" data-execution_count="55">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_08.cpp</span>
 <span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_08.cpp</code></pre>
+<pre><code>Writing EP02_08.cpp</code></pre>
 </div>
 </div>
-<div id="5fdd72d3" class="cell" data-execution_count="56">
+<div id="d2d9a6b1879a" class="cell" data-execution_count="56">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_08.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_08.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_08.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_08.cases
 
 🔍 Testing C++: EP02_08.cpp
@@ -4595,17 +4618,18 @@ Figure&nbsp;2.20: Simulator EP02_09: Affine Transformation 2D (2×3 Matrix)
 </figure>
 </div>
 </div>
-<div id="dd90acf0" class="cell" data-execution_count="58">
+<div id="874773423b3a" class="cell" data-execution_count="58">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_09.cpp</span>
 <span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_09.cpp</code></pre>
+<pre><code>Writing EP02_09.cpp</code></pre>
 </div>
 </div>
-<div id="3a8728b8" class="cell" data-execution_count="59">
+<div id="9587ce8c4457" class="cell" data-execution_count="59">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb85"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_09.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_09.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_09.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_09.cases
 
 🔍 Testing C++: EP02_09.cpp
@@ -4923,17 +4947,18 @@ Figure&nbsp;2.21: Simulator EP02_10: Perspective Correction (3×3 Homography Tra
 
 </div>
 
-<div id="271c13c0" class="cell" data-execution_count="61">
+<div id="68e50d06083a" class="cell" data-execution_count="61">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb87"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_10.cpp</span>
 <span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_10.cpp</code></pre>
+<pre><code>Writing EP02_10.cpp</code></pre>
 </div>
 </div>
-<div id="48cfcae9" class="cell" data-execution_count="62">
+<div id="1edbb46fedb9" class="cell" data-execution_count="62">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb89"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_10.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_10.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_10.cases
+   ✅ Downloaded successfully
 📋 5 case(s) loaded from casos/EP02_10.cases
 
 🔍 Testing C++: EP02_10.cpp
@@ -5038,7 +5063,8 @@ Figure&nbsp;2.21: Simulator EP02_10: Perspective Correction (3×3 Homography Tra
 <section id="sudoku-image-acquisition-and-conversion-to-grayscale" class="level4" data-number="2.17.11.3">
 <h4 data-number="2.17.11.3" data-anchor-id="sudoku-image-acquisition-and-conversion-to-grayscale"><span class="header-section-number">2.17.11.3</span> Sudoku image acquisition and conversion to grayscale</h4>
 <p><a href="#fig-02-sudoku-original" class="quarto-xref">Figure&nbsp;<span>2.22</span></a> shows the reading of the original image followed by its conversion to grayscale and resizing to a <span class="math inline">\(500 \times 500\)</span> pixel matrix, preparing the data for the next step.</p>
-<div id="a364b4f3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;f4de36e99c6d999d0b61d9b8780c3236&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="63">
+<p>The perspective correction, applied at <a href="#fig-02-sudoku2" class="quarto-xref">Figure&nbsp;<span>2.23</span></a> via the homography matrix, eliminates distortions caused by the camera angle and produces a frontal, regular view of the Sudoku grid.</p>
+<div id="558e465d3e9a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;ec12cc4e2d54c70dc84838fad7f1aa04&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="63">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb90"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_sudoku_original.cpp</span>
 <span id="cb90-2"><a href="#cb90-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_sudoku_original.png"</span></span>
 <span id="cb90-3"><a href="#cb90-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>sudoku<span class="op">-</span>original</span>
@@ -5047,29 +5073,37 @@ Figure&nbsp;2.21: Simulator EP02_10: Perspective Correction (3×3 Homography Tra
 <span id="cb90-6"><a href="#cb90-6" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> output: true</span>
 <span id="cb90-7"><a href="#cb90-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb90-8"><a href="#cb90-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
-<span id="cb90-9"><a href="#cb90-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
-<span id="cb90-10"><a href="#cb90-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb90-11"><a href="#cb90-11" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
-<span id="cb90-12"><a href="#cb90-12" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_rgb <span class="op">=</span> mm::read(<span class="st">"https://upload.wikimedia.org/wikipedia/commons/e/e7/Sudoku_en_peri%C3%B3dico.jpg"</span>)<span class="op">;</span></span>
-<span id="cb90-13"><a href="#cb90-13" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_gray <span class="op">=</span> mm::gray(sudoku_rgb)<span class="op">;</span></span>
-<span id="cb90-14"><a href="#cb90-14" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_small <span class="op">=</span> mm::resize(sudoku_gray, <span class="dv">500</span>, <span class="dv">500</span>)<span class="op">;</span></span>
-<span id="cb90-15"><a href="#cb90-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb90-16"><a href="#cb90-16" aria-hidden="true" tabindex="-1"></a>    mm::show({sudoku_rgb, sudoku_small}, MM_OUT,</span>
-<span id="cb90-17"><a href="#cb90-17" aria-hidden="true" tabindex="-1"></a>             std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span>{<span class="st">"Original RGB"</span>, <span class="st">"Cinza 500x500"</span>}, <span class="dv">2</span>)<span class="op">;</span></span>
-<span id="cb90-18"><a href="#cb90-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb90-19"><a href="#cb90-19" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb90-20"><a href="#cb90-20" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
-<span id="cb90-21"><a href="#cb90-21" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
-<span id="cb90-22"><a href="#cb90-22" aria-hidden="true" tabindex="-1"></a>mm::write(sudoku_rgb, <span class="st">"tmp/fig_02_sudoku_original_0.png"</span>)<span class="op">;</span></span>
-<span id="cb90-23"><a href="#cb90-23" aria-hidden="true" tabindex="-1"></a>mm::write(sudoku_small, <span class="st">"tmp/fig_02_sudoku_original_1.png"</span>)<span class="op">;</span></span>
-<span id="cb90-24"><a href="#cb90-24" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
-<span id="cb90-25"><a href="#cb90-25" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb90-26"><a href="#cb90-26" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb90-9"><a href="#cb90-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb90-10"><a href="#cb90-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb90-11"><a href="#cb90-11" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
+<span id="cb90-12"><a href="#cb90-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb90-13"><a href="#cb90-13" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb90-14"><a href="#cb90-14" aria-hidden="true" tabindex="-1"></a>    std::string url <span class="op">=</span> <span class="st">"https://upload.wikimedia.org/wikipedia/commons/e/e7/Sudoku_en_peri%C3%B3dico.jpg"</span><span class="op">;</span></span>
+<span id="cb90-15"><a href="#cb90-15" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_rgb <span class="op">=</span> mm::read(url)<span class="op">;</span></span>
+<span id="cb90-16"><a href="#cb90-16" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_gray <span class="op">=</span> mm::gray(sudoku_rgb)<span class="op">;</span></span>
+<span id="cb90-17"><a href="#cb90-17" aria-hidden="true" tabindex="-1"></a>    mm::Image sudoku_small <span class="op">=</span> mm::resize(sudoku_gray, <span class="dv">500</span>, <span class="dv">500</span>)<span class="op">;</span></span>
+<span id="cb90-18"><a href="#cb90-18" aria-hidden="true" tabindex="-1"></a>    mm::write(sudoku_small, <span class="st">"sudoku.png"</span>)<span class="op">;</span>   <span class="op">//</span> consumida pela célula fig<span class="op">-</span><span class="dv">0</span><span class="er">2</span><span class="op">-</span>sudoku2</span>
+<span id="cb90-19"><a href="#cb90-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb90-20"><a href="#cb90-20" aria-hidden="true" tabindex="-1"></a>    mm::show(</span>
+<span id="cb90-21"><a href="#cb90-21" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{sudoku_rgb, sudoku_small},</span>
+<span id="cb90-22"><a href="#cb90-22" aria-hidden="true" tabindex="-1"></a>        MM_OUT,</span>
+<span id="cb90-23"><a href="#cb90-23" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span>{<span class="st">"Original RGB"</span>, <span class="st">"Cinza 500x500"</span>},</span>
+<span id="cb90-24"><a href="#cb90-24" aria-hidden="true" tabindex="-1"></a>        <span class="dv">2</span></span>
+<span id="cb90-25"><a href="#cb90-25" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb90-26"><a href="#cb90-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb90-27"><a href="#cb90-27" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb90-28"><a href="#cb90-28" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
+<span id="cb90-29"><a href="#cb90-29" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb90-30"><a href="#cb90-30" aria-hidden="true" tabindex="-1"></a>mm::write(sudoku_rgb, <span class="st">"tmp/fig_02_sudoku_original_0.png"</span>)<span class="op">;</span></span>
+<span id="cb90-31"><a href="#cb90-31" aria-hidden="true" tabindex="-1"></a>mm::write(sudoku_small, <span class="st">"tmp/fig_02_sudoku_original_1.png"</span>)<span class="op">;</span></span>
+<span id="cb90-32"><a href="#cb90-32" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
+<span id="cb90-33"><a href="#cb90-33" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb90-34"><a href="#cb90-34" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting tmp/fig_02_sudoku_original.cpp</code></pre>
+<pre><code>Writing tmp/fig_02_sudoku_original.cpp</code></pre>
 </div>
 </div>
-<div id="40702925" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="64">
+<div id="a94310da8c18" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="64">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb92"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_sudoku_original.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_sudoku_original <span class="op">\</span></span>
 <span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_sudoku_original <span class="op">\</span></span>
 <span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_sudoku_original.png"</span> <span class="op">\</span></span>
@@ -5104,8 +5138,89 @@ Figure&nbsp;2.22: Aquisição da imagem de um Sudoku à esquerda. À direita, co
 </div>
 </div>
 </div>
-<div id="cell-fig-02-sim-ep0211-sudoku" class="cell" data-execution_count="66">
-<div id="fig-02-sim-ep0211-sudoku" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="65">
+<div id="88dd5a3f2ed9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;07f740aab3b3d0d0a87921b58ac9ea34&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="66">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_sudoku2.cpp</span>
+<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_sudoku2.png"</span></span>
+<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
+<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
+<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">1.</span> Image saved <span class="im">from</span> the previous cell (sudoku.png, <span class="dv">500</span><span class="er">x500</span>, grayscale)</span>
+<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a>    mm::Image img <span class="op">=</span> mm::read(<span class="st">"sudoku.png"</span>)<span class="op">;</span></span>
+<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">2.</span> Padding to <span class="kw">not</span> cut the grid vertices (mm::pad fills <span class="cf">with</span> <span class="dv">0</span>)</span>
+<span id="cb95-13"><a href="#cb95-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> PAD <span class="op">=</span> <span class="dv">60</span><span class="op">;</span></span>
+<span id="cb95-14"><a href="#cb95-14" aria-hidden="true" tabindex="-1"></a>    mm::Image img_pad <span class="op">=</span> mm::pad(img, PAD)<span class="op">;</span></span>
+<span id="cb95-15"><a href="#cb95-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-16"><a href="#cb95-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">3.</span> Grid corners <span class="kw">in</span> the expanded image — TL, TR, BL, BR</span>
+<span id="cb95-17"><a href="#cb95-17" aria-hidden="true" tabindex="-1"></a>    double pts1[<span class="dv">4</span>][<span class="dv">2</span>] <span class="op">=</span> {{<span class="dv">100</span>, <span class="dv">160</span>}, {<span class="dv">390</span>, <span class="dv">45</span>}, {<span class="dv">200</span>, <span class="dv">580</span>}, {<span class="dv">570</span>, <span class="dv">420</span>}}<span class="op">;</span></span>
+<span id="cb95-18"><a href="#cb95-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-19"><a href="#cb95-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">4.</span> Destination corners: front view SIZE×SIZE</span>
+<span id="cb95-20"><a href="#cb95-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> SIZE <span class="op">=</span> <span class="dv">500</span><span class="op">;</span></span>
+<span id="cb95-21"><a href="#cb95-21" aria-hidden="true" tabindex="-1"></a>    double pts2[<span class="dv">4</span>][<span class="dv">2</span>] <span class="op">=</span> {{<span class="dv">0</span>, <span class="dv">0</span>}, {(double)SIZE, <span class="dv">0</span>}, {<span class="dv">0</span>, (double)SIZE}, {(double)SIZE, (double)SIZE}}<span class="op">;</span></span>
+<span id="cb95-22"><a href="#cb95-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-23"><a href="#cb95-23" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">5.</span> Homography pts1 <span class="op">-&gt;</span> pts2 <span class="kw">and</span> rectification</span>
+<span id="cb95-24"><a href="#cb95-24" aria-hidden="true" tabindex="-1"></a>    mm::Image img_rect <span class="op">=</span> mm::perspective_transform(img_pad, pts1, pts2, SIZE, SIZE)<span class="op">;</span></span>
+<span id="cb95-25"><a href="#cb95-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-26"><a href="#cb95-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> <span class="fl">6.</span> Display</span>
+<span id="cb95-27"><a href="#cb95-27" aria-hidden="true" tabindex="-1"></a>    mm::show(</span>
+<span id="cb95-28"><a href="#cb95-28" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{img_pad, img_rect},</span>
+<span id="cb95-29"><a href="#cb95-29" aria-hidden="true" tabindex="-1"></a>        MM_OUT,</span>
+<span id="cb95-30"><a href="#cb95-30" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span>{<span class="st">"Original (with padding)"</span>, <span class="st">"Rectified front view"</span>},</span>
+<span id="cb95-31"><a href="#cb95-31" aria-hidden="true" tabindex="-1"></a>        <span class="dv">2</span></span>
+<span id="cb95-32"><a href="#cb95-32" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb95-33"><a href="#cb95-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-34"><a href="#cb95-34" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb95-35"><a href="#cb95-35" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
+<span id="cb95-36"><a href="#cb95-36" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb95-37"><a href="#cb95-37" aria-hidden="true" tabindex="-1"></a>mm::write(img_pad, <span class="st">"tmp/fig_02_sudoku2_0.png"</span>)<span class="op">;</span></span>
+<span id="cb95-38"><a href="#cb95-38" aria-hidden="true" tabindex="-1"></a>mm::write(img_rect, <span class="st">"tmp/fig_02_sudoku2_1.png"</span>)<span class="op">;</span></span>
+<span id="cb95-39"><a href="#cb95-39" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
+<span id="cb95-40"><a href="#cb95-40" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb95-41"><a href="#cb95-41" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing tmp/fig_02_sudoku2.cpp</code></pre>
+</div>
+</div>
+<div id="4e0599a01a4e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="67">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb97"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> tmp<span class="op">/</span>fig_02_sudoku2.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_02_sudoku2 <span class="op">\</span></span>
+<span id="cb97-2"><a href="#cb97-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_02_sudoku2 <span class="op">\</span></span>
+<span id="cb97-3"><a href="#cb97-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_02_sudoku2.png"</span> <span class="op">\</span></span>
+<span id="cb97-4"><a href="#cb97-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">||</span> echo <span class="st">"⚠ mm::show não gravou tmp/fig_02_sudoku2.png"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] Original (with padding)
+[2] Rectified front view</code></pre>
+</div>
+</div>
+<div id="cell-fig-02-sudoku2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="68">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb99"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb99-3"><a href="#cb99-3" aria-hidden="true" tabindex="-1"></a>        mm.read(<span class="st">"tmp/fig_02_sudoku2_0.png"</span>),</span>
+<span id="cb99-4"><a href="#cb99-4" aria-hidden="true" tabindex="-1"></a>        mm.read(<span class="st">"tmp/fig_02_sudoku2_1.png"</span>),</span>
+<span id="cb99-5"><a href="#cb99-5" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb99-6"><a href="#cb99-6" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb99-7"><a href="#cb99-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'Original (com padding)'</span>,</span>
+<span id="cb99-8"><a href="#cb99-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'Vista frontal retificada'</span>,</span>
+<span id="cb99-9"><a href="#cb99-9" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb99-10"><a href="#cb99-10" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb99-11"><a href="#cb99-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-02-sudoku2" class="quarto-float quarto-figure quarto-figure-center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-02-sudoku2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="cap02.cpp.en_files/figure-html/fig-02-sudoku2-output-1.png" width="1466" height="759" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sudoku2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2.23: Correção de perspectiva por homografia 3×3: imagem com <em>padding</em> e a vista frontal retificada, via <em>mm::perspective_transform</em> (solve 8×8 dos 4 pontos + mapeamento inverso projetivo).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-fig-02-sim-ep0211-sudoku" class="cell" data-execution_count="69">
+<div id="fig-02-sim-ep0211-sudoku" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center" data-execution_count="68">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-02-sim-ep0211-sudoku-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -5474,22 +5589,23 @@ Figure&nbsp;2.22: Aquisição da imagem de um Sudoku à esquerda. À direita, co
 </div>
 </figure></div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sim-ep0211-sudoku-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2.23: EP02_11 Simulator: Sudoku Perspective Correction (3×3 Homography with Bilinear Resampling)
+Figure&nbsp;2.24: EP02_11 Simulator: Sudoku Perspective Correction (3×3 Homography with Bilinear Resampling)
 </figcaption>
 
 </div>
 
-<div id="de35f17a" class="cell" data-execution_count="67">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_11.cpp</span>
-<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="0f489bb76823" class="cell" data-execution_count="70">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb100"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP02_11.cpp</span>
+<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Overwriting EP02_11.cpp</code></pre>
+<pre><code>Writing EP02_11.cpp</code></pre>
 </div>
 </div>
-<div id="a15d8d2f" class="cell" data-execution_count="68">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb97"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_11.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="1fdff479fed7" class="cell" data-execution_count="71">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb102"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP02_11.cpp"</span>).run()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP02_11.cases already exists in casos/
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Trying: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap02/casos/EP02_11.cases
+   ✅ Downloaded successfully
 📋 4 case(s) loaded from casos/EP02_11.cases
 
 🔍 Testing C++: EP02_11.cpp
