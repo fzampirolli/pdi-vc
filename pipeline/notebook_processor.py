@@ -82,6 +82,44 @@ def _set_source(cell, src: str):
     cell['source'] = src
 
 
+_THEMATIC_BREAK_RE = re.compile(r'^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*$')
+_HR = '------------------------------------------------------------------------'
+
+
+def _sanitize_md_thematic_breaks(src: str) -> str:
+    """
+    Normaliza réguas horizontais (thematic breaks) em markdown para evitar o
+    pitfall do leitor de qmd do Pandoc: uma linha ``---`` isolada seguida
+    IMEDIATAMENTE por texto (sem linha em branco) é interpretada como abertura
+    de bloco YAML de metadados e derruba o ``quarto render --to latex`` com
+    ``Error parsing YAML metadata ... did not find expected <document start>``.
+
+    Qualquer linha que seja só uma régua (``---``, ``***``, ``___`` — 3+ do
+    mesmo caractere) vira uma régua longa de 72 hifens (o que o próprio Pandoc
+    emite para ``<hr>`` — inequívoco, nunca YAML), com linha em branco antes e
+    depois. Não toca em nada dentro de blocos de código cercados (```` ``` ````).
+    """
+    if '---' not in src and '***' not in src and '___' not in src:
+        return src
+    lines = src.split('\n')
+    out: list[str] = []
+    in_fence = False
+    fence_re = re.compile(r'^[ \t]*(`{3,}|~{3,})')
+    for ln in lines:
+        if fence_re.match(ln):
+            in_fence = not in_fence
+            out.append(ln)
+            continue
+        if not in_fence and _THEMATIC_BREAK_RE.match(ln):
+            if out and out[-1].strip() != '':
+                out.append('')
+            out.append(_HR)
+            out.append('')          # garante branco depois; branco extra é inócuo
+            continue
+        out.append(ln)
+    return '\n'.join(out)
+
+
 # Badge "Executar no Colab" da 1ª célula markdown: no fonte o alvo está
 # hardcoded (ora `notebooks_alunos/py.pt/capXX/...`, ora sem prefixo de
 # combo `notebooks_alunos/capXX/...`, às vezes apontando pro capítulo
@@ -850,7 +888,16 @@ class NotebookProcessor:
                 _set_source(cell, src)
 
         # --- Adicionar apenas separador visual sem título ---
-        separator = new_markdown_cell("---\n")
+        # NÃO usar "---" puro: uma célula markdown cujo conteúdo é exatamente
+        # "---" é ambígua para o leitor do Pandoc (qmd-reader.lua), que pode
+        # interpretá-la como abertura de bloco YAML de metadados e engasgar
+        # ("Error parsing YAML metadata ... did not find expected <document
+        # start>") ao render --to latex. Uma régua com >3 traços é
+        # inequivocamente um thematic break (é o que o próprio Pandoc emite
+        # para <hr>).
+        separator = new_markdown_cell(
+            "------------------------------------------------------------------------\n"
+        )
         main_nb.cells.append(separator)
         main_nb.cells.extend(ep_nb.cells)
         return main_nb
@@ -1419,6 +1466,14 @@ class NotebookProcessor:
 
         # --- Mesclagem do notebook de exercícios (EPs) ---
         nb = self._merge_ep_notebook(nb, Path(nb_path), combo)
+
+        # --- Normaliza réguas horizontais em markdown (pitfall YAML do Pandoc) ---
+        for _c in nb.cells:
+            if _c.cell_type == 'markdown':
+                _s = _get_source(_c)
+                _s2 = _sanitize_md_thematic_breaks(_s)
+                if _s2 != _s:
+                    _set_source(_c, _s2)
 
         # IDs de célula determinísticos. Sem isto, `nbformat.write` gera um id
         # ALEATÓRIO para toda célula sem id (separador/EP/glue sintetizados, e

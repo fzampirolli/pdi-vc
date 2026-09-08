@@ -4,7 +4,7 @@
 > Escreva **uma vez** em formato Quarto (Markdown+Python). O pipeline traduz o resto.
 
 🚧 **Em construção!**
-Os 9 capítulos estão ativos no build e foram aplicados em turmas de PDI na UFABC. O livro é publicado em 6 combos: **Python** × **pt/en/fr** (livro completo) e **C++** × **pt/en/fr** (por ora só o Capítulo 1 — ver "Execução real de código em C++").
+Os 9 capítulos estão ativos no build e foram aplicados em turmas de PDI na UFABC. O livro é publicado em 6 combos: **Python** × **pt/en/fr** (livro completo, 9 capítulos) e **C++** × **pt/en/fr** (capítulos 1 a 5 — ver "Execução real de código em C++"). **Espanhol** e **italiano** já têm suporte no pipeline (`LOCALES` em `pipeline/config.py`) e estão em preparação.
 
 [![Livro Online](https://img.shields.io/badge/Livro-Online-blue?logo=github)](https://fzampirolli.github.io/pdi-vc)
 [![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/py.pt/cap01/cap01_aluno.ipynb)
@@ -147,7 +147,7 @@ docs/
     │                          #   py.fr, cpp.pt, cpp.en, cpp.fr}
     ├── book-latex/            # Fontes .tex, PDFs e figuras geradas via LaTeX
     ├── livro.<locale>.<lang>.pdf   # PDF do combo
-    ├── cap01/ … cap09/        # Capítulos em HTML (cpp: só cap01 e cap02)
+    ├── cap01/ … cap09/        # Capítulos em HTML (cpp: cap01–cap05)
     └── site_libs/             # Bibliotecas estáticas (Bootstrap, Quarto Search…)
 ```
 
@@ -355,8 +355,44 @@ python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alun
 ### Publicação
 
 ```bash
-make publish    # build + docs/ + git push
+make publish    # build + docs/ + git push (sequencial)
 ```
+
+**Publicação recorrente em paralelo** — regenera cada combo em processo próprio,
+tabula os tempos e só faz o deploy se **todos** passarem:
+
+```bash
+make publish-parallel                       # py,cpp × pt,en,fr (default)
+make publish-parallel PUB_LOCALES=pt,en     # subconjunto de idiomas
+make publish-parallel JOBS=4                # limita processos simultâneos (default: ilimitado)
+make publish-parallel NP=1                  # regenera docs/ local, sem git push
+make publish-parallel INC=1                 # --incremental (só o que mudou)
+make publish-parallel cpp.en cpp.fr         # atalho lang.locale (produto cartesiano dos langs × locales citados)
+```
+
+Roda em **2 ondas**: primeiro os combos `.pt` (aquecem o `.cache/translations.json`),
+depois os demais idiomas — evita a corrida de cache em que combos paralelos
+traduzem a mesma célula ao mesmo tempo com resultados divergentes. Logs por combo
+em `gen/_publog/<combo>.log`.
+
+#### Tempos de build
+
+Regeneração completa a partir do zero, com quatro processos em paralelo
+(`JOBS=4`), medida numa máquina local:
+
+| Combo    | Trilha | Idioma           | Render  |
+| :------- | :----- | :--------------- | ------: |
+| `py.pt`  | Python | Português (base) | ~8 min  |
+| `py.en`  | Python | Inglês           | ~32 min |
+| `py.fr`  | Python | Francês          | ~32 min |
+| `cpp.pt` | C++    | Português        | ~28 min |
+| `cpp.en` | C++    | Inglês           | ~32 min |
+| `cpp.fr` | C++    | Francês          | ~22 min |
+
+O combo-base `py.pt` **não reexecuta** os notebooks — só renderiza as saídas já
+gravadas em `all/capXX/*.ipynb` (ver `quarto_builder._quarto_yml`,
+`execute_enabled`). Tempo total de parede (2 ondas + índice + deploy): **~38 min**.
+Com o `.cache` quente e `INC=1`, um rebuild incremental é bem mais rápido.
 
 ### Limpeza
 
@@ -376,7 +412,7 @@ make clean-gen      # apaga só gen/ e docs/   ← use este na rotina de rebuild
 
 ---
 
-## ⚙️ Execução real de código em C++ (cap01)
+## ⚙️ Execução real de código em C++ (capítulos 1 a 5)
 
 Diferente de uma tradução decorativa, o combo `cpp` já **compila e executa de verdade**. Uma célula Python elegível do notebook-fonte vira, no notebook gerado, várias células que fazem exatamente o que o EP01_01 já demonstra manualmente com as 6 linguagens (`all/cap01/cap01.EPs.ipynb`, células `role: common`): `%%writefile` grava o código-fonte, uma célula de *shell magic* compila e roda (`!g++ arquivo.cpp -o arquivo && ./arquivo`), e — quando a célula original chama `mm.show()` — uma célula final exibe o PNG gerado (`IPython.display.Image`). Não existe kernel C++ no Quarto; tudo roda através do kernel Python via `!comando`, o mesmo mecanismo que já valida os EPs em 6 linguagens.
 
@@ -387,22 +423,22 @@ Diferente de uma tradução decorativa, o combo `cpp` já **compila e executa de
 3. **Validação por compilação** (`pipeline/exec_validate.py::compile_check`) — a tradução só é aceita e cacheada se **compilar de verdade** (`g++` num diretório temporário). Nenhuma tradução quebrada é publicada; falhas nunca são cacheadas (tentam de novo no próximo build, caso um ajuste de prompt/biblioteca resolva).
 4. **Fallback seguro**: célula inelegível ou que não compilou vira uma única célula de referência — o Python original, com `#| eval: false` (nunca executada) e um comentário deixando claro que é conceitual, não a fonte da figura ao lado. **Exceção**: célula que só monta um simulador `HTML(...)` (sem lógica `mm`/`cv2`/`plt` fora da string) passa executável, sem `#| eval: false` — senão o float `#| label:` fica órfão e todo `@fig-…-sim-…` do texto vira referência quebrada (`_is_pure_html_widget`/`_passthrough_widget_cell` em `notebook_processor.py`).
 
-**`morph/cpp/morph.hpp`** é a porta mínima da `morph.py` pra C++. Núcleo do cap01: `read` (com download por URL via `fork`/`execlp`, sem shell), `gray`, `randomImage`, `show`, `write`, `threshold` (com Otsu quando o limiar é omitido), `drawImg`. Cap02 acrescenta as transformações geométricas e utilitários de amostragem: `resize`, `translate`, `rotate`, `shear`, `crop`, `subsample`, `secross`, `drawImgPlt` (e a família `dil`/`ero` já está no header, mas é conteúdo do cap04, ainda fora de escopo). Usa `stb_image`/`stb_image_write` vendorizadas (`morph/cpp/THIRD_PARTY_LICENSES.md`) — sem depender de OpenCV, então `g++ arquivo.cpp -o arquivo` compila sem `apt install` adicional.
+**`morph/cpp/morph.hpp`** é a porta mínima da `morph.py` pra C++. Núcleo do cap01: `read` (com download por URL via `fork`/`execlp`, sem shell), `gray`, `randomImage`, `show`, `write`, `threshold` (com Otsu quando o limiar é omitido), `drawImg`. Cap02 acrescenta as transformações geométricas e utilitários de amostragem: `resize`, `translate`, `rotate`, `shear`, `crop`, `subsample`, `secross`, `drawImgPlt`. Cap03 e cap04 trazem a morfologia matemática (`dil`/`ero`/`open`/`close`/`gradm`, rotulagem) e cap05 os operadores de transformadas e compressão (`fft2c`/`ifft2c`, `dct2`/`idct2`, `gaussFilter`/`butterFilter`, `jpegCompress`, `wavefun`, `lineChart`, `psnr`). Os caps 01–02 usam só `stb_image`/`stb_image_write` vendorizadas (`morph/cpp/THIRD_PARTY_LICENSES.md`), então `g++ arquivo.cpp -o arquivo` compila sem `apt install`; os caps 03–05 são compilados com `-DMM_USE_OPENCV` e linkam `libopencv-dev` para paridade bit-a-bit com a trilha Python.
 
-**Escopo atual (v0):** cap01 e cap02 (ver `CPP_CHAPTERS` em `pipeline/config.py`). **Limitação estrutural conhecida:** cada célula compila como programa C++ isolado (mesmo modelo do EP01_01); a reutilização de uma variável `mm::Image` de uma célula anterior é reinjetada mecanicamente via round-trip em disco (`state/<var>_<idx>.png`), e casos fora desse padrão caem em referência não-executada. Simuladores interativos (`HTML(...)`) são apresentação pura e passam sem tradução (executam no kernel Python de qualquer combo); células que dependem de `cv2`/`skimage` sem equivalente no `morph.hpp` permanecem como referência Python.
+**Escopo atual:** cap01–cap05 (ver `CPP_CHAPTERS` em `pipeline/config.py`). **Limitação estrutural conhecida:** cada célula compila como programa C++ isolado (mesmo modelo do EP01_01); a reutilização de uma variável `mm::Image` de uma célula anterior é reinjetada mecanicamente via round-trip em disco (`state/<var>_<idx>.png`), e casos fora desse padrão caem em referência não-executada. Simuladores interativos (`HTML(...)`) são apresentação pura e passam sem tradução (executam no kernel Python de qualquer combo); células que dependem de `cv2`/`skimage` sem equivalente no `morph.hpp` permanecem como referência Python.
 
 ```bash
 # Gerar o capítulo 1 em C++ (PT), HTML apenas
 python dev.py --once --langs cpp --locales pt --render html
 
 # Build completo dos 6 combos em produção: py × pt,en,fr (9 caps) e
-# cpp × pt,en,fr (só cap01 e cap02), HTML+PDF
+# cpp × pt,en,fr (cap01–cap05), HTML+PDF
 ./utils/rebuild.sh py,cpp pt,en,fr
 ```
 
-> Os capítulos 02–09 em C++ ainda não foram portados (usam `cv2`/`skimage`
+> Os capítulos 06–09 em C++ ainda não foram portados (usam `cv2`/`skimage`
 > sem equivalente na `morph.hpp`); o build restringe automaticamente os
-> combos `cpp` ao `cap01` (`dev.py::run_build` + `_chapter_blocks`).
+> combos `cpp` aos `cap01`–`cap05` (`dev.py::run_build` + `_chapter_blocks`).
 
 Pra estender esse mecanismo — outro capítulo, ou outra linguagem além de `cpp` — a peça que falta pra cada nova linguagem é o equivalente a `morph.hpp` (um `morph.<ext>` com as mesmas funções) mais registrar seu comando de compilar em `morph/testsuite.py::compile_run_table` (fonte única, já usada pelos EPs em 6 linguagens) e em `pipeline/exec_validate.py`.
 
