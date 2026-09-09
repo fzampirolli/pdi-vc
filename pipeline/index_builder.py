@@ -208,6 +208,28 @@ class IndexBuilder:
             'cover-main':    'Couverture Principale',
             'cover-back':    'Quatrième de Couverture',
         },
+        'es': {
+            'about-edition': 'Sobre esta edición',
+            'last-updated':  'Última actualización',
+            'quick-access':  'Acceso rápido',
+            'simulators':    'Simuladores Interactivos',
+            'exercises':     'Ejercicios de Programación',
+            'download-pdf':  'Descargar PDF',
+            'covers':        'Portadas del libro',
+            'cover-main':    'Portada Principal',
+            'cover-back':    'Contraportada',
+        },
+        'it': {
+            'about-edition': 'Informazioni su questa edizione',
+            'last-updated':  'Ultimo aggiornamento',
+            'quick-access':  'Accesso rapido',
+            'simulators':    'Simulatori Interattivi',
+            'exercises':     'Esercizi di Programmazione',
+            'download-pdf':  'Scarica il PDF',
+            'covers':        'Copertine del libro',
+            'cover-main':    'Copertina Principale',
+            'cover-back':    'Quarta di Copertina',
+        },
     }
 
     @classmethod
@@ -564,6 +586,22 @@ class IndexBuilder:
                "l'original, ex. nom.{locale}.png, dans all/capXX/imagens/.\n"
                '🔒 Cellule manuelle réservée à ce combo : commencez la ligne par '
                '#[{combo}]#.'),
+        'es': ('Contenido generado automáticamente — aún sin revisión humana completa. '
+               'Para validar:\n'
+               '✏ Código/texto: edita la celda en gen/{combo}/capXX/ y ejecuta '
+               '"python dev.py --promote-edits".\n'
+               '🖼 Imagen incorrecta: añade un archivo con sufijo junto al original, '
+               'p. ej. nombre.{locale}.png, en all/capXX/imagens/.\n'
+               '🔒 Celda manual solo para este combo: empieza la línea con '
+               '#[{combo}]#.'),
+        'it': ('Contenuto generato automaticamente — non ancora rivisto completamente '
+               'da un umano. Per validare:\n'
+               '✏ Codice/testo: modifica la cella in gen/{combo}/capXX/ ed esegui '
+               '"python dev.py --promote-edits".\n'
+               '🖼 Immagine errata: aggiungi un file con suffisso accanto '
+               "all'originale, es. nome.{locale}.png, in all/capXX/imagens/.\n"
+               '🔒 Cella manuale solo per questo combo: inizia la riga con '
+               '#[{combo}]#.'),
     }
 
     # Nota extra só para os combos C++: a portabilidade ainda é parcial —
@@ -576,19 +614,23 @@ class IndexBuilder:
         nums = sorted(int(c.replace('cap', '')) for c in CPP_CHAPTERS)
         if not nums:
             return {'pt': 'nenhum capítulo', 'en': 'no chapter',
-                    'fr': 'aucun chapitre'}.get(locale_key, 'no chapter')
+                    'fr': 'aucun chapitre', 'es': 'ningún capítulo',
+                    'it': 'nessun capitolo'}.get(locale_key, 'no chapter')
         contiguous = nums == list(range(nums[0], nums[-1] + 1))
         if len(nums) == 1:
             n = nums[0]
             return {'pt': f'o Capítulo {n}', 'en': f'Chapter {n}',
-                    'fr': f'le chapitre {n}'}.get(locale_key, f'Chapter {n}')
+                    'fr': f'le chapitre {n}', 'es': f'el Capítulo {n}',
+                    'it': f'il Capitolo {n}'}.get(locale_key, f'Chapter {n}')
         if contiguous:
             a, b = nums[0], nums[-1]
             return {'pt': f'os Capítulos {a} a {b}', 'en': f'Chapters {a} to {b}',
-                    'fr': f'les chapitres {a} à {b}'}.get(locale_key, f'Chapters {a} to {b}')
+                    'fr': f'les chapitres {a} à {b}', 'es': f'los Capítulos {a} a {b}',
+                    'it': f'i Capitoli da {a} a {b}'}.get(locale_key, f'Chapters {a} to {b}')
         lst = ', '.join(str(n) for n in nums)
         return {'pt': f'os Capítulos {lst}', 'en': f'Chapters {lst}',
-                'fr': f'les chapitres {lst}'}.get(locale_key, f'Chapters {lst}')
+                'fr': f'les chapitres {lst}', 'es': f'los Capítulos {lst}',
+                'it': f'i Capitoli {lst}'}.get(locale_key, f'Chapters {lst}')
 
     def _build_validation_hint(self, v: Dict) -> str:
         template = self.VALIDATION_HINT_TEMPLATES.get(
@@ -610,6 +652,14 @@ class IndexBuilder:
                        '— leurs cellules de code C++ compilent et s\'exécutent '
                        'réellement (g++). Les autres chapitres n\'ont pas encore '
                        'été portés en C++.\n\n'),
+                'es': (f'⚙️ C++: por ahora solo {phrase} han sido validados — '
+                       'en ellos las celdas de código C++ compilan y se ejecutan '
+                       'de verdad (g++). Los demás capítulos aún no se han '
+                       'portado a C++.\n\n'),
+                'it': (f'⚙️ C++: per ora solo {phrase} sono stati validati — '
+                       'in essi le celle di codice C++ compilano e vengono '
+                       'eseguite davvero (g++). Gli altri capitoli non sono '
+                       'ancora stati portati in C++.\n\n'),
             }.get(lk)
             if note is None:
                 note = (f'⚙️ C++: only {phrase} validated (code cells compile & '
@@ -685,6 +735,48 @@ class IndexBuilder:
             'footer-license':'Matériel pédagogique ouvert sous licence',
             'updated-prefix':'⏱ Mis à jour le {date}',
         },
+        'es': {
+            'title-tag':    'PDI+VC — Libro Interactivo',
+            'eyebrow':      'UFABC · Material didáctico interactivo',
+            'hero-title':   'Procesamiento Digital<br>de Imágenes y<br><em>Visión por Computador</em>',
+            'hero-sub':     ('Libro abierto, multi-lenguaje y multi-idioma para cursos de '
+                              'grado y posgrado en Computación e Ingenierías.'),
+            'stat-versions':'versiones',
+            'stat-langs':   'lenguajes',
+            'stat-locales': 'idiomas',
+            'scroll':       'Ver todas las versiones',
+            'section-title':'Versiones disponibles',
+            'cta-available':'📖 Abrir libro',
+            'cta-soon':     '⏳ Próximamente',
+            'pdf-btn':      '📄 PDF',
+            'pdf-title':    'Descargar PDF',
+            'pdf-soon':     '📄 Próximamente',
+            'validated':    '✓ Validado',
+            'footer-title': 'PDI+VC — Procesamiento Digital de Imágenes y Visión por Computador',
+            'footer-license':'Material didáctico abierto bajo licencia',
+            'updated-prefix':'⏱ Actualizado el {date}',
+        },
+        'it': {
+            'title-tag':    'PDI+VC — Libro Interattivo',
+            'eyebrow':      'UFABC · Materiale didattico interattivo',
+            'hero-title':   'Elaborazione Digitale<br>delle Immagini e<br><em>Visione Artificiale</em>',
+            'hero-sub':     ('Libro aperto, multi-linguaggio e multilingua per corsi di '
+                              'laurea e magistrale in Informatica e Ingegneria.'),
+            'stat-versions':'versioni',
+            'stat-langs':   'linguaggi',
+            'stat-locales': 'lingue',
+            'scroll':       'Vedi tutte le versioni',
+            'section-title':'Versioni disponibili',
+            'cta-available':'📖 Apri il libro',
+            'cta-soon':     '⏳ Prossimamente',
+            'pdf-btn':      '📄 PDF',
+            'pdf-title':    'Scarica il PDF',
+            'pdf-soon':     '📄 Prossimamente',
+            'validated':    '✓ Validato',
+            'footer-title': 'PDI+VC — Elaborazione Digitale delle Immagini e Visione Artificiale',
+            'footer-license':'Materiale didattico aperto sotto licenza',
+            'updated-prefix':'⏱ Aggiornato il {date}',
+        },
     }
 
     MESES_PT = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -693,6 +785,10 @@ class IndexBuilder:
                 'July', 'August', 'September', 'October', 'November', 'December']
     MESES_FR = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
                 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+    MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    MESES_IT = ['', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+                'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
 
     def _updated_strings(self, now: datetime) -> Dict[str, str]:
         """Data/hora formatada por locale — SEM prefixo (usado tanto na pill
@@ -701,7 +797,9 @@ class IndexBuilder:
         pt = f"{now.day} de {self.MESES_PT[now.month]} de {now.year} às {now.strftime('%H:%M')}"
         en = f"{self.MESES_EN[now.month]} {now.day}, {now.year} at {now.strftime('%H:%M')}"
         fr = f"{now.day} {self.MESES_FR[now.month]} {now.year} à {now.strftime('%H:%M')}"
-        return {'pt': pt, 'en': en, 'fr': fr}
+        es = f"{now.day} de {self.MESES_ES[now.month]} de {now.year} a las {now.strftime('%H:%M')}"
+        it = f"{now.day} {self.MESES_IT[now.month]} {now.year} alle {now.strftime('%H:%M')}"
+        return {'pt': pt, 'en': en, 'fr': fr, 'es': es, 'it': it}
 
     def generate_html(self, versions: List[Dict], updated: Dict[str, str]) -> str:
         """Gera o HTML principal com design editorial refinado."""
@@ -1176,6 +1274,8 @@ class IndexBuilder:
     <button class="lang-toggle-btn active" data-lang="pt">PT</button>
     <button class="lang-toggle-btn" data-lang="en">EN</button>
     <button class="lang-toggle-btn" data-lang="fr">FR</button>
+    <button class="lang-toggle-btn" data-lang="es">ES</button>
+    <button class="lang-toggle-btn" data-lang="it">IT</button>
   </div>
   <div class="hero-cover">
     <img src="{cover_img}" alt="Capa do livro — girassol processado digitalmente">

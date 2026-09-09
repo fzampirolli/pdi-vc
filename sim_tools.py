@@ -85,6 +85,32 @@ I18N = {
         "eyebrow":        "PDI+VC · Simulateur Interactif",
         "description":    "Description :",
     },
+    "es": {
+        "subtitle":      "Procesamiento Digital de Imágenes y Visión por Computador",
+        "university":     "Universidad Federal del ABC (UFABC)",
+        "license_line":   f"Material didáctico abierto bajo licencia {_CC}",
+        "chapter":        "Capítulo",
+        "back_to_book":   "📖 Volver al Libro",
+        "view_book":      "📖 Ver el libro",
+        "index_general":  "📂 Índice general",
+        "index_title":    "Simuladores Interactivos | PDI+VC",
+        "index_h1":       "PDI+VC · Simuladores Interactivos",
+        "eyebrow":        "PDI+VC · Simulador Interactivo",
+        "description":    "Descripción:",
+    },
+    "it": {
+        "subtitle":      "Elaborazione Digitale delle Immagini e Visione Artificiale",
+        "university":     "Università Federale dell'ABC (UFABC)",
+        "license_line":   f"Materiale didattico aperto sotto licenza {_CC}",
+        "chapter":        "Capitolo",
+        "back_to_book":   "📖 Torna al Libro",
+        "view_book":      "📖 Vedi il libro",
+        "index_general":  "📂 Indice generale",
+        "index_title":    "Simulatori Interattivi | PDI+VC",
+        "index_h1":       "PDI+VC · Simulatori Interattivi",
+        "eyebrow":        "PDI+VC · Simulatore Interattivo",
+        "description":    "Descrizione:",
+    },
 }
 
 def t(lang: str, key: str) -> str:

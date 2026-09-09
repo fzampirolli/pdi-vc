@@ -954,7 +954,28 @@ class NotebookProcessor:
         """
         out = copy.deepcopy(cell)
         py_tr = self._factory.code_translator(BASE_LANG, combo.locale)
-        _set_source(out, py_tr.translate(src))
+        psrc = py_tr.translate(src)
+        if combo.lang != BASE_LANG:
+            # Numa trilha estrangeira (cpp), a célula de setup que fazia
+            # `import numpy as np` / `import cv2` pode ter virado C++ ou sido
+            # expandida — então uma célula que cai em passthrough Python aqui
+            # e usa `np.`/`cv2.`/`os.` sem importar dá NameError e derruba o
+            # render do capítulo inteiro. Garante os imports (idempotente:
+            # re-importar não custa nada), preservando as linhas `#|` no topo.
+            needs = [m for m in ('numpy', 'cv2', 'os')
+                     if re.search(rf'\b{("np" if m=="numpy" else m)}\.', psrc)
+                     and not re.search(rf'^[ \t]*import\s+{m}\b', psrc, re.M)]
+            if needs:
+                lines = psrc.split('\n')
+                k = 0
+                while k < len(lines) and (lines[k].lstrip().startswith('#|')
+                                          or not lines[k].strip()):
+                    k += 1
+                guard = ('import numpy as np, cv2, os  '
+                         '# [pdi] passthrough: garante imports desta trilha')
+                lines.insert(k, guard)
+                psrc = '\n'.join(lines)
+        _set_source(out, psrc)
         return [out]
 
     def _iter_foreign_candidate_cells(self, nb, combo: Combo, opencv: bool = False,
@@ -1310,7 +1331,8 @@ class NotebookProcessor:
                 # Painéis individuais (mm::write injetado acima) → reproduz
                 # a figura Python com títulos/eixos, em vez do composto
                 # achatado e sem texto do mm::show C++.
-                glue_lines = fig_opts + _panels_glue_lines(base, panels)
+                body = _panels_glue_lines(base, panels)
+                sentinel = f'{TMP_DIR}/{base}_0.png'
             else:
                 # Composto único (imagem só, ou fallback de painéis). Usa o
                 # MESMO figsize da célula Python original — e OMITE quando o
@@ -1322,7 +1344,23 @@ class NotebookProcessor:
                 fs = _parse_mm_show_figsize(src)
                 call = f'mm.show(mm.read("{png_name}")'
                 call += f', figsize={fs})' if fs else ')'
-                glue_lines = fig_opts + [call]
+                body = [call]
+                sentinel = png_name
+            # Rede de segurança: o binário C++ pode compilar mas falhar em
+            # runtime (dados reais ≠ stubs do compile_check) e NÃO gravar o
+            # PNG — ou gravá-lo truncado/corrompido. Sem esta guarda,
+            # `mm.read()` levanta FileNotFoundError/UnidentifiedImageError e
+            # derruba o render do LIVRO INTEIRO. `try/except` cobre os dois
+            # (e o painel _1.png corrompido enquanto _0.png existe); a figura
+            # vira um aviso e o resto do capítulo segue.
+            guarded = ['try:']
+            guarded += [f'    {ln}' for ln in body]
+            guarded += [
+                'except Exception as _e:',
+                f'    print("figura indisponivel nesta trilha (C++): "'
+                f' + repr(_e) + " {sentinel} (ver a versao Python)")',
+            ]
+            glue_lines = fig_opts + guarded
             glue_cell = new_code_cell('\n'.join(glue_lines))
             out.append(glue_cell)
 
