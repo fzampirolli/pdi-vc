@@ -3,17 +3,17 @@
 📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_05.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_05.html</a>
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_05 🟡 Etichettatura delle Componenti Connesse: Segmentazione per Istanza</h2>
-<p>L’esempio di segmentazione classica di questo capitolo ha separato le “istanze” delle monete semplicemente tramite la loro disconnessione spaziale nella maschera binaria risultante dalla sogliatura di Otsu. Questa fase finale — etichettare ogni componente connessa con un identificatore di istanza — è esattamente ciò che ti è stato incaricato di implementare qui, da zero, su una maschera binaria già pronta (0 = sfondo, 1 = oggetto), come se fosse una reimplementazione manuale di <code>cv2.connectedComponents</code>.</p>
-<p>Questo esercizio mette anche in luce, in modo molto concreto, la limitazione discussa nel capitolo: il risultato dipende interamente da come si definisce la “vicinanza” tra i pixel — e, come vedrai nel secondo esempio, due pixel in diagonale possono essere considerati la stessa istanza o istanze diverse, dipendendo esclusivamente dalla <strong>connettività</strong> scelta, non da alcuna nozione semantica di oggetto.</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_05 🟡 Etichettatura dei Componenti Connessi: Segmentazione delle Istanze</h2>
+<p>L’esempio di segmentazione classica di questo capitolo ha separato le “istanze” delle monete semplicemente tramite la loro disconnessione spaziale nella maschera binaria risultante dalla sogliatura di Otsu. Questa fase finale — etichettare ogni componente connesso con un identificatore di istanza — è esattamente ciò che ti è stato richiesto di implementare qui, da zero, su una maschera binaria già pronta (0 = sfondo, 1 = oggetto), come se fosse una reimplementazione manuale di <code>cv2.connectedComponents</code>.</p>
+<p>Questo esercizio mette inoltre in luce, in modo molto concreto, la limitazione discussa nel capitolo: il risultato dipende interamente da come si definisce la “vicinanza” tra i pixel — e, come vedrai nel secondo esempio, due pixel in diagonale possono essere considerati la stessa istanza o istanze diverse, dipendendo esclusivamente dalla <strong>connettività</strong> scelta, non da alcuna nozione semantica di oggetto.</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
 <li><strong>Input:</strong> Leggere le dimensioni <em>H</em> × <em>W</em> della maschera binaria e i suoi <em>H</em> × <em>W</em> valori (0 o 1).</li>
-<li><strong>Connettività:</strong> Leggere l’intero <em>c</em> ∈ 4, 8. Nella connettività 4, i vicini di (<em>i</em>,<em>j</em>) sono (i-1,<em>j</em>), (i+1,<em>j</em>), (<em>i</em>,j-1) e (<em>i</em>,j+1). Nella connettività 8, si aggiungono le quattro diagonali: (i-1,j-1), (i-1,j+1), (i+1,j-1) e (i+1,j+1).</li>
-<li><strong>Scoperta delle componenti:</strong> Percorrendo la maschera con una scansione riga per riga, da sinistra a destra e dall’alto verso il basso, ogni volta che si trova un pixel di valore 1 senza ancora etichetta, esso dà inizio a una <strong>nuova componente</strong>: attribuisci ad esso la prossima etichetta disponibile (la prima componente scoperta riceve l’etichetta 1, la seconda l’etichetta 2, e così via) e propaga la stessa etichetta a tutti i pixel di valore 1 raggiungibili da esso tramite una catena di vicini (secondo la connettività scelta) — tramite ricerca in ampiezza, in profondità, o <em>union-find</em>, a tua scelta.</li>
+<li><strong>Connettività:</strong> Leggere l’intero <em>c</em> ∈ 4, 8. Con connettività 4, i vicini di (<em>i</em>,<em>j</em>) sono (i-1,<em>j</em>), (i+1,<em>j</em>), (<em>i</em>,j-1) e (<em>i</em>,j+1). Con connettività 8, si aggiungono le quattro diagonali: (i-1,j-1), (i-1,j+1), (i+1,j-1) e (i+1,j+1).</li>
+<li><strong>Scoperta dei componenti:</strong> Scorrendo la maschera in scansione riga per riga, da sinistra a destra e dall’alto verso il basso, ogni volta che si incontra un pixel di valore 1 non ancora etichettato, questo dà inizio a una <strong>nuova componente</strong>: assegnagli la prossima etichetta disponibile (la prima componente scoperta riceve l’etichetta 1, la seconda l’etichetta 2, e così via) e propaga la stessa etichetta a tutti i pixel di valore 1 raggiungibili da esso tramite una catena di vicini (secondo la connettività scelta) — tramite ricerca in ampiezza, in profondità, o <em>union-find</em>, a tua scelta.</li>
 <li><strong>Pixel di sfondo:</strong> rimangono con etichetta 0 e non appartengono a nessuna istanza.</li>
-<li><strong>Output:</strong> Per prima cosa, stampare la mappa completa delle etichette — <em>H</em> righe con <em>W</em> interi ciascuna. Successivamente, per ogni etichetta \ell da 1 a <em>K</em> (nell’ordine di scoperta), stampare <code>Istanza l: A pixel</code>, dove <em>A</em> è la quantità di pixel con quella etichetta. Infine, stampare <code>Totale istanze: K</code>.</li>
+<li><strong>Output:</strong> Prima, stampare la mappa completa delle etichette — <em>H</em> righe con <em>W</em> interi ciascuna. Successivamente, per ogni etichetta \ell da 1 a <em>K</em> (nell’ordine di scoperta), stampare <code>Istanza l: A pixel</code>, dove <em>A</em> è la quantità di pixel con quella etichetta. Infine, stampare <code>Totale istanze: K</code>.</li>
 </ol>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
@@ -25,12 +25,12 @@
 </ul>
 </div>
 <div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti Teorici</h4>
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
 <th style="padding:10px;border:1px solid #ddd;">Elemento</th>
-<th style="padding:10px;border:1px solid #ddd;">Ruolo nella segmentazione classica per istanza</th>
+<th style="padding:10px;border:1px solid #ddd;">Ruolo nella segmentazione classica delle istanze</th>
 </tr>
 </thead>
 <tbody>
@@ -44,11 +44,11 @@
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Connettività 4 vs. 8</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parametro che modifica il risultato: con la connettività 8, due blob uniti solo in diagonale diventano un’unica istanza</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parametro che altera il risultato: con connettività 8, due blob uniti solo in diagonale diventano un’unica istanza</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Limitazione centrale</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La tecnica fonde istanze che si toccano o si sovrappongono (anche se sono oggetti chiaramente distinti), poiché non esiste una nozione di “oggetto” — ma solo di “regione connessa”</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La tecnica fonde istanze che si toccano o si sovrappongono (anche se sono oggetti chiaramente distinti), poiché non c’è nozione di “oggetto” — solo di “regione connessa”</td>
 </tr>
 </tbody>
 </table>
@@ -108,7 +108,7 @@ Totale istanze: 2</td>
 0 1<br/>
 Istanza 1: 2 pixel<br/>
 Totale istanze: 1</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Con la connettività 8, i due pixel in diagonale appartengono alla <strong>stessa</strong> istanza. Ripeti questo esempio con c=4: il risultato diventa 2 istanze da 1 pixel ciascuna — puramente per il cambiamento di connettività, senza alcuna differenza nella maschera.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Con connettività 8, i due pixel in diagonale appartengono alla <strong>stessa</strong> istanza. Ripeti questo esempio con c=4: il risultato diventa 2 istanze di 1 pixel ciascuna — puramente per il cambiamento di connettività, senza alcuna differenza nella maschera.</td>
 </tr>
 </tbody>
 </table>
@@ -131,7 +131,7 @@ Totale istanze: 1</td>
 <!-- Controles de Seleção de Conectividade -->
 <div class="sim-ep0805_panel" style="margin-bottom:14px;">
 <div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:10px;">
-      La stessa maschera (due pixel in diagonale) — cambia la connettività e osserva il numero di istanze e i colori delle etichette cambiare.
+      La stessa maschera (due pixel in diagonale) — alterna la connettività e osserva il numero di istanze e i colori delle etichette cambiare.
     </div>
 <div style="display:flex; gap:8px; justify-content:center;">
 <button id="sim-ep0805_c4">Connettività 4</button>

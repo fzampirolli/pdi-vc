@@ -1,0 +1,307 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/cpp.es/EP04_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/cpp.es/EP04_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_03 🌱 Dilatación Binaria Plana (mm.dil0)</h2>
+<p>En <strong>microscopía de partículas</strong> y en <strong>OCR de placas de automóvil desgastadas</strong>, los trazos finos o discontinuos deben “engrosarse” para que el reconocimiento funcione. La <strong>dilatación morfológica</strong> hace exactamente eso: expande regiones claras usando un elemento estructurante <em>B</em> — la misma operación implementada en <code>morph.py</code> como <code>mm::dil0(f, B)</code>, usada cuando <em>B</em> es <strong>plano</strong> (sin pesos, solo 0/1). Ver en Figura 4.32 una simulación de este EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Dimensiones de la imagen:</strong> Leer los enteros <em>L</em> (filas) y <em>C</em> (columnas) de <em>f</em>.</li>
+<li><strong>Dimensiones de <em>B</em>:</strong> Leer los enteros <em>L</em>_<em>B</em> (filas) y <em>C</em>_<em>B</em> (columnas) del elemento estructurante.</li>
+<li><strong>Elemento estructurante:</strong> Leer la matriz <em>B</em> con valores 0 o 1, fila a fila.</li>
+<li><strong>Datos:</strong> Leer la matriz <em>f</em> (la imagen original), fila a fila.</li>
+<li><strong>Reflexión:</strong> Construir <em>B</em>_ref, la versión de <em>B</em> reflejada en 180° (filas y columnas invertidas) — exactamente como hace <code>mm::dil0</code> internamente.</li>
+<li><strong>Vecindad sin padding:</strong> Para cada píxel (<em>y</em>,<em>x</em>), recorrer las posiciones (by,bx) de <em>B</em>_ref centradas en (<em>y</em>,<em>x</em>), usando el desplazamiento <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Descartar</strong> todo (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fuera de [0,<em>L</em>)×[0,<em>C</em>) — <strong>no rellenar con ceros</strong>.</li>
+<li><strong>Mapeo:</strong> Calcular cada píxel de salida como el <strong>máximo</strong> entre <em>f</em>(<em>y</em>,<em>x</em>) y todos los <em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) válidos cuya posición correspondiente en <em>B</em>_ref vale 1: <em>g</em>(<em>y</em>,<em>x</em>) = \max\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \max_\substack(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ <em>v</em>álido\\ <em>B</em>_ref(by,bx)=1 <em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\Big)</li>
+<li><strong>Salida:</strong> Mostrar la matriz <em>g</em> con dimensiones <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li><strong>Sin padding:</strong> Nunca inventar vecinos fuera de la imagen; usar solo los que existen realmente.</li>
+<li><strong>Reflexión obligatoria:</strong> <em>B</em> debe reflejarse antes de aplicarse (es lo que diferencia <code>mm::dil0</code> de una simple búsqueda de máximo).</li>
+<li><strong>Robustez de borde:</strong> Si ninguna posición válida de <em>B</em>_ref=1 cae dentro del dominio para un píxel dado, este <strong>mantiene su valor original</strong>.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concepto</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+<th style="padding:10px;border:1px solid #ddd;">Impacto Visual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Dilatación</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>g</em> ≥ <em>f</em> siempre (extensiva)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Las regiones claras crecen, los huecos oscuros se encogen</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong><em>B</em> mayor</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Vecindad más amplia</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Crecimiento más agresivo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Reflexión de <em>B</em></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>B</em>_ref(<em>y</em>,<em>x</em>) = <em>B</em>(-<em>y</em>,-<em>x</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Garantiza la definición formal de Minkowski de la dilatación</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Entero <em>L</em>.</li>
+<li>Línea 2: Entero <em>C</em>.</li>
+<li>Línea 3: Entero <em>L</em>_<em>B</em>.</li>
+<li>Línea 4: Entero <em>C</em>_<em>B</em>.</li>
+<li>Siguientes <em>L</em>_<em>B</em> líneas: elementos enteros (0 o 1) de la matriz <em>B</em>.</li>
+<li>Siguientes <em>L</em> líneas: elementos enteros de la matriz <em>f</em>.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li>Matriz <em>g</em> en <em>L</em> filas y <em>C</em> columnas, valores enteros separados por espacio.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+3<br/>
+0 1 0<br/>
+1 1 1<br/>
+0 1 0<br/>
+0 0 0<br/>
+0 9 0<br/>
+0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 9 0<br/>
+9 9 9<br/>
+0 9 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>B</em> en cruz simétrico: punto aislado se expande en cruz</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+4<br/>
+1<br/>
+3<br/>
+1 1 1<br/>
+10 200 5 80</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">200 200 200 80</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>B</em> horizontal: cada píxel “atrae” el máximo de los vecinos de la fila</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="78" id="cell-fig-04-sim-ep0403-dilatacao">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0403-dilatacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 4.32: Simulador EP04_03: Dilatación Binaria Plana (g = f ⊕ B)
+</figcaption>
+</div>
+</div><div id="sim-ep0403-dilatacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🌱 Simulador EP04_03: Dilatación Plana (mm.dil0)</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">g = f ⊕ B</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Cambie el elemento estructurante B (o seleccione los preajustes) y haga clic en las celdas de la imagen original f para encender o apagar píxeles.</p>
+<!-- Painel do Elemento Estruturante B -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Elemento Estructurante B (Clic para Alternar 0/1)</span>
+<div id="sim_ep0403_grid_B" style="display:grid;grid-template-columns:repeat(3, 38px);gap:4px;justify-content:center;margin-bottom:12px;user-select:none;"></div>
+<!-- Presets de B -->
+<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+<button id="sim_ep0403_btnCross" style="padding:5px 10px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">➕ Cruz</button>
+<button id="sim_ep0403_btnBox" style="padding:5px 10px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">⬛ Cuadro</button>
+<button id="sim_ep0403_btnDiag" style="padding:5px 10px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">⤫ Diagonal</button>
+</div>
+</div>
+<!-- Comparativo Lado a Lado: Entrada Original f vs Dilatada g -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Imagem Original f -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Imagen Original f (5×5)</span>
+<div id="sim_ep0403_grid_orig" style="display:grid;grid-template-columns:repeat(5, 36px);gap:3px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0403_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nueva Imagen</button>
+</div>
+<!-- Imagem Dilatada g -->
+<div style="background:#fafaf7;border:1px solid #16a085;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Dilatada g (f ⊕ B)</span>
+<div id="sim_ep0403_grid_new" style="display:grid;grid-template-columns:repeat(5, 36px);gap:3px;justify-content:center;user-select:none;"></div>
+<div style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid transparent;background:transparent;color:transparent;user-select:none;"> </div>
+</div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0403_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      g(y,x) = máximo sobre vecinos válidos de B reflejado
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0403(root){
+    if (!root || root.dataset.simEp0403Init) return;
+    root.dataset.simEp0403Init = "1";
+
+    var gB      = root.querySelector('#sim_ep0403_grid_B');
+    var gO      = root.querySelector('#sim_ep0403_grid_orig');
+    var gN      = root.querySelector('#sim_ep0403_grid_new');
+    var debugDiv= root.querySelector('#sim_ep0403_debug');
+
+    var btnNew   = root.querySelector('#sim_ep0403_btnNew');
+    var btnCross = root.querySelector('#sim_ep0403_btnCross');
+    var btnBox   = root.querySelector('#sim_ep0403_btnBox');
+    var btnDiag  = root.querySelector('#sim_ep0403_btnDiag');
+
+    var B = [[0, 1, 0], [1, 1, 1], [0, 1, 0]];
+    var L = 5, C = 5, pixels = [];
+
+    function generate() {
+      pixels = [];
+      for (var y = 0; y < L; y++) {
+        var row = [];
+        for (var x = 0; x < C; x++) {
+          row.push((Math.random() < 0.78) ? 0 : 1);
+        }
+        pixels.push(row);
+      }
+    }
+
+    function reflect(M) {
+      var n = M.length, out = [];
+      for (var i = n - 1; i >= 0; i--) {
+        out.push(M[i].slice().reverse());
+      }
+      return out;
+    }
+
+    function dilate(f, Bm) {
+      var HB = Bm.length, WB = Bm[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var Bref = reflect(Bm);
+      var g = [];
+      for (var y = 0; y < L; y++) g.push(f[y].slice());
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bref[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C && f[vy][vx] > g[y][x]) {
+                g[y][x] = f[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function renderB() {
+      gB.innerHTML = '';
+      for (var by = 0; by < 3; by++) {
+        for (var bx = 0; bx < 3; bx++) {
+          (function(byy, bxx){
+            var c = document.createElement('div');
+            c.style.cssText = 'width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+            c.style.background = B[byy][bxx] ? '#16a085' : '#fafaf7';
+            c.style.color = B[byy][bxx] ? '#ffffff' : '#8a8371';
+            c.textContent = B[byy][bxx];
+
+            c.addEventListener('click', function(){
+              B[byy][bxx] = 1 - B[byy][bxx];
+              renderB();
+              render();
+            });
+            gB.appendChild(c);
+          })(by, bx);
+        }
+      }
+    }
+
+    function render() {
+      var g = dilate(pixels, B);
+      gO.innerHTML = '';
+      gN.innerHTML = '';
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          (function(yy, xx){
+            var p = pixels[yy][xx] ? 255 : 30;
+            var fgO = p > 128 ? '#000000' : '#ffffff';
+            var cO = document.createElement('div');
+            cO.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;cursor:pointer;user-select:none;background:rgb(' + p + ',' + p + ',' + p + ');color:' + fgO + ';box-sizing:border-box;';
+            cO.textContent = pixels[yy][xx];
+
+            cO.addEventListener('click', function(){
+              pixels[yy][xx] = 1 - pixels[yy][xx];
+              render();
+            });
+            gO.appendChild(cO);
+          })(y, x);
+
+          var r = g[y][x] ? 255 : 30;
+          var fgN = r > 128 ? '#000000' : '#ffffff';
+          var cN = document.createElement('div');
+          cN.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + r + ',' + r + ',' + r + ');color:' + fgN + ';box-sizing:border-box;';
+          cN.textContent = g[y][x];
+          gN.appendChild(cN);
+        }
+      }
+    }
+
+    btnNew.addEventListener('click', function(){
+      generate();
+      render();
+    });
+
+    btnCross.addEventListener('click', function(){
+      B = [[0, 1, 0], [1, 1, 1], [0, 1, 0]];
+      renderB();
+      render();
+    });
+
+    btnBox.addEventListener('click', function(){
+      B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+      renderB();
+      render();
+    });
+
+    btnDiag.addEventListener('click', function(){
+      B = [[1, 0, 1], [0, 1, 0], [1, 0, 1]];
+      renderB();
+      render();
+    });
+
+    generate();
+    renderB();
+    render();
+  }
+
+  function tryInitSimEP0403(){
+    var root = document.getElementById('sim-ep0403-dilatacao');
+    if (root) initSimEP0403(root); else setTimeout(tryInitSimEP0403, 200);
+  }
+  tryInitSimEP0403();
+})();
+
+</script>
+</div></div>

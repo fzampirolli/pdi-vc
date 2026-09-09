@@ -4,45 +4,45 @@
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
 <h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_05 🏆 Pipeline JPEG Completo: DCT, Quantizzazione e Ricostruzione</h2>
-<p>Sei stato incaricato di creare, da zero, un <strong>codec JPEG didattico</strong> in ambiente embedded, senza alcuna libreria di immagini disponibile — solo operazioni matematiche di base. Il cliente vuole capire esattamente dove la qualità viene persa e dove viene recuperata, blocco per blocco. Questa è la sfida finale del capitolo: integrare <strong>tutto</strong> ciò che è stato studiato — la DCT-II ortonormale, la quantizzazione percettiva e la ricostruzione tramite IDCT — in un unico <em>pipeline</em> end-to-end, elaborando un blocco <em>N</em> × <em>N</em> dall’inizio alla fine, esattamente come fa internamente lo standard JPEG, 8×8 pixel alla volta.</p>
+<p>Sei stato incaricato di creare, da zero, un <strong>codec JPEG didattico</strong> in un ambiente embedded, senza alcuna libreria di immagini disponibile — solo operazioni matematiche di base. Il cliente vuole capire esattamente dove la qualità viene persa e dove viene recuperata, blocco per blocco. Questa è la sfida finale del capitolo: integrare <strong>tutto</strong> ciò che è stato studiato — la DCT-II ortonormale, la quantizzazione percettiva e la ricostruzione tramite IDCT — in un unico <em>pipeline</em> end-to-end, elaborando un blocco <em>N</em> × <em>N</em> dall’inizio alla fine, esattamente come fa internamente lo standard JPEG, 8×8 pixel alla volta.</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
-<li><strong>Dimensione del blocco:</strong> Leggere l’intero <em>N</em>.</li>
+<li><strong>Dimensione del blocco:</strong> Leggere il numero intero <em>N</em>.</li>
 <li><strong>Blocco originale:</strong> Leggere la matrice di pixel <em>f</em>(<em>x</em>,<em>y</em>), <em>N</em> righe con <em>N</em> interi in [0,255].</li>
 <li><strong>Tabella di quantizzazione:</strong> Leggere la matrice <em>Q</em>, <em>N</em> × <em>N</em> interi positivi.</li>
-<li><strong>Centralizzazione:</strong> Sottrarre 128 da ogni pixel: <em>g</em>(<em>x</em>,<em>y</em>) = <em>f</em>(<em>x</em>,<em>y</em>) - 128.</li>
+<li><strong>Centratura:</strong> Sottrarre 128 da ogni pixel: <em>g</em>(<em>x</em>,<em>y</em>) = <em>f</em>(<em>x</em>,<em>y</em>) - 128.</li>
 <li><strong>DCT-II 2D ortonormale:</strong> Calcolare <em>C</em>(<em>u</em>,<em>v</em>) = α(<em>u</em>)\,α(<em>v</em>)∑_x=0^N-1∑_y=0^N-1 <em>g</em>(<em>x</em>,<em>y</em>)\,\cos\!\left[(\pi(2<em>x</em>+1)<em>u</em>)/(2<em>N</em>)\right]\cos\!\left[(\pi(2<em>y</em>+1)<em>v</em>)/(2<em>N</em>)\right] con α(0)=√(1/<em>N</em>) e α(<em>k</em>)=√(2/<em>N</em>) per <em>k</em>&gt;0.</li>
 <li><strong>Quantizzazione:</strong> \tildeC(<em>u</em>,<em>v</em>) = round(<em>C</em>(<em>u</em>,<em>v</em>)/<em>Q</em>(<em>u</em>,<em>v</em>)).</li>
 <li><strong>Dequantizzazione:</strong> <em>C</em>'(<em>u</em>,<em>v</em>) = \tildeC(<em>u</em>,<em>v</em>)× <em>Q</em>(<em>u</em>,<em>v</em>).</li>
-<li><strong>IDCT-II 2D (inversa ortonormale):</strong> Calcolare <em>g</em>'(<em>x</em>,<em>y</em>) a partire da <em>C</em>'(<em>u</em>,<em>v</em>) usando la trasformata inversa corrispondente (stessa base, sommatoria su <em>u</em>,<em>v</em>).</li>
-<li><strong>Revertimento della centralizzazione e arrotondamento:</strong> <em>f</em>'(<em>x</em>,<em>y</em>) = round(<em>g</em>'(<em>x</em>,<em>y</em>) + 128), vincolato all’intervallo [0,255] (<em>clipping</em>).</li>
+<li><strong>IDCT-II 2D (inversa ortonormale):</strong> Calcolare <em>g</em>'(<em>x</em>,<em>y</em>) da <em>C</em>'(<em>u</em>,<em>v</em>) usando la trasformata inversa corrispondente (stessa base, sommatoria su <em>u</em>,<em>v</em>).</li>
+<li><strong>Inversione della centratura e arrotondamento:</strong> <em>f</em>'(<em>x</em>,<em>y</em>) = round(<em>g</em>'(<em>x</em>,<em>y</em>) + 128), limitato all’intervallo [0,255] (<em>clipping</em>).</li>
 <li><strong>Output:</strong> Visualizzare il blocco ricostruito <em>f</em>', <em>N</em> × <em>N</em>, interi.</li>
 </ol>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong><em>Pipeline</em> completo obbligatorio:</strong> tutte le sei fasi (centralizzare, DCT, quantizzare, dequantizzare, IDCT, invertire) devono essere implementate — saltare la quantizzazione non supera i test, poiché il risultato sarebbe identico all’originale.</li>
+<li><strong><em>Pipeline</em> completo obbligatorio:</strong> tutte e sei le fasi (centrare, DCT, quantizzare, dequantizzare, IDCT, invertire) devono essere implementate — saltare la quantizzazione non supera i test, poiché il risultato sarebbe identico all’originale.</li>
 <li><strong><em>Clipping</em>:</strong> i valori ricostruiti al di fuori di [0,255] devono essere troncati (0 se negativi, 255 se maggiori di 255).</li>
 <li><strong>Arrotondamento:</strong> sia nella quantizzazione che nella ricostruzione finale dei pixel, usare l’arrotondamento standard; i casi di test evitano ambiguità <code>.5</code>.</li>
-<li><strong>Base ortonormale:</strong> la normalizzazione α(<em>u</em>) e α(<em>v</em>) deve essere applicata esattamente come specificato — senza di essa, l’IDCT non ricostruisce correttamente.</li>
+<li><strong>Base ortonormale:</strong> la normalizzazione α(<em>u</em>) e α(<em>v</em>) deve essere applicata esattamente come specificato — senza di essa, la IDCT non ricostruisce correttamente.</li>
 </ul>
 </div>
 <div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti Teorici</h4>
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
 <th style="padding:10px;border:1px solid #ddd;">Fase</th>
-<th style="padding:10px;border:1px solid #ddd;">Analoga nello standard JPEG reale</th>
+<th style="padding:10px;border:1px solid #ddd;">Analoga nel vero standard JPEG</th>
 <th style="padding:10px;border:1px solid #ddd;">Dove la qualità viene persa</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Centralizzazione</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Identica — la DCT presuppone un segnale centrato sullo zero</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Centratura</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Stessa — la DCT presuppone un segnale centrato su zero</td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nessuna perdita</td>
 </tr>
 <tr>
@@ -108,7 +108,7 @@
 </div>
 <div>
 <h4> 💡 Suggerimento per il Debug</h4>
-<p>Se il risultato non corrisponde, verifica in questo ordine: (1) i coefficienti DCT grezzi (prima della quantizzazione) — devono ricostruire l’originale <strong>esattamente</strong> tramite IDCT se salti le fasi 6–7; (2) la tabella α(<em>u</em>) — l’errore comune è applicare √(2/<em>N</em>) anche per u=0; (3) l’arrotondamento della quantizzazione, che deve avvenire <strong>prima</strong> di moltiplicare nuovamente per <em>Q</em>.</p>
+<p>Se il risultato non corrisponde, verifica in questo ordine: (1) i coefficienti DCT grezzi (prima della quantizzazione) — devono ricostruire l’originale <strong>esattamente</strong> tramite IDCT se salti le fasi 6–7; (2) la tabella α(<em>u</em>) — un errore comune è applicare √(2/<em>N</em>) anche per u=0; (3) l’arrotondamento della quantizzazione, che deve avvenire <strong>prima</strong> di moltiplicare di nuovo per <em>Q</em>.</p>
 <div class="cell" data-execution_count="45" data-quarto-private-1='{"key":"pdi","value":{"ck":"c4ca82e50ae4a62737ade772817b8ac9"}}' id="cell-fig-05-sim-ep0505">
 </div>
 </div><div id="sim-ep0505" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
@@ -130,7 +130,7 @@
 <div class="sim-ep0505_panel" style="margin-bottom:14px;">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
 <label style="font-size:11px; font-weight:700; color:#5e5a4a;">
-        Scala Q (1 = Tabella Base, Maggiore = Più Perdita): <span id="sim-ep0505_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
+        Scala di Q (1 = Tabella Base, Maggiore = Più Perdita): <span id="sim-ep0505_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
 </label>
 </div>
 <input id="sim-ep0505_sl_s" max="5" min="0.5" step="0.5" type="range" value="1"/>

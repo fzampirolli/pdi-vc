@@ -4,8 +4,8 @@
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
 <h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_05 🟠 Valutazione della Segmentazione: IoU e Dice Pixel per Pixel</h2>
-<p>Il Blocco 2 della sezione “Segmentazione Semantica con Architettura U-Net” definisce, in poche righe, la funzione <code>iou_mascaras</code>, utilizzata per misurare la qualità della linea di base morfologica classica (smoothing + Otsu + apertura) e, più avanti, della stessa U-Net addestrata. A differenza dell’IoU dell’EP09_04 — calcolato su <strong>bounding box</strong> (regioni rettangolari descritte da quattro numeri) —, l’IoU di segmentazione è calcolato <strong>pixel per pixel</strong>: ogni posizione dell’immagine viene confrontata singolarmente tra la maschera predetta e la maschera di riferimento.</p>
-<p>Sei stato incaricato di generalizzare questa valutazione, implementando non solo l’IoU pixel per pixel, ma anche il <strong>coefficiente di Dice</strong>, un’altra metrica di sovrapposizione ampiamente utilizzata in segmentazione medica (inclusa nella funzione <code>perda_dice</code>, menzionata nello stesso blocco del capitolo come base della funzione di perdita utilizzata per addestrare la U-Net).</p>
+<p>Il Blocco 2 della sezione “Segmentazione Semantica con Architettura U-Net” definisce, in poche righe, la funzione <code>iou_mascaras</code>, utilizzata per misurare la qualità della baseline morfologica classica (smoothing + Otsu + apertura) e, più avanti, della stessa U-Net addestrata. Diversamente dall’IoU dell’EP09_04 — calcolato su <strong>bounding box</strong> (regioni rettangolari descritte da quattro numeri) —, l’IoU di segmentazione è calcolato <strong>pixel per pixel</strong>: ogni posizione dell’immagine viene confrontata individualmente tra la maschera predetta e la maschera di riferimento.</p>
+<p>Ti è stato affidato il compito di generalizzare questa valutazione, implementando non solo l’IoU pixel per pixel, ma anche il <strong>coefficiente di Dice</strong>, un’altra metrica di sovrapposizione ampiamente utilizzata in segmentazione medica (inclusa nella funzione <code>perda_dice</code>, menzionata nello stesso blocco del capitolo come base della funzione di perdita utilizzata per addestrare la U-Net).</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
@@ -16,20 +16,20 @@
 unione = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></li>
 <li><p><strong>IoU pixel per pixel:</strong> IoU = \fracintersezioneunione.</p></li>
 <li><p><strong>Coefficiente di Dice:</strong> Dice = \frac2 · intersezione|<em>P</em>| + |<em>R</em>|, dove |<em>P</em>| e |<em>R</em>| sono il numero totale di pixel dell’oggetto in ciascuna maschera.</p></li>
-<li><p><strong>Convenzione per maschere vuote:</strong> se <strong>entrambe</strong> le maschere non possiedono alcun pixel dell’oggetto (unione = 0 e |<em>P</em>|+|<em>R</em>|=0), considerare la corrispondenza banalmente perfetta: IoU = Dice = 1,0.</p></li>
+<li><p><strong>Convenzione per maschere vuote:</strong> se <strong>entrambe</strong> le maschere non hanno alcun pixel dell’oggetto (unione = 0 e |<em>P</em>|+|<em>R</em>|=0), considera la corrispondenza banalmente perfetta: IoU = Dice = 1,0.</p></li>
 <li><p><strong>Output:</strong> Due righe, <code>IoU: X.XXXX</code> e <code>Dice: X.XXXX</code>, ciascun valore con 4 cifre decimali.</p></li>
 </ol>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong>Qualsiasi valore non nullo conta come oggetto:</strong> trattare valori diversi da 0 (non solo 1) come appartenenti alla maschera, replicando il controllo <code>predita &gt; 0</code> utilizzato in <code>iou_mascaras</code> nel capitolo.</li>
+<li><strong>Qualsiasi valore non nullo conta come oggetto:</strong> tratta i valori diversi da 0 (non solo 1) come appartenenti alla maschera, replicando il controllo <code>predita &gt; 0</code> usato in <code>iou_mascaras</code> nel capitolo.</li>
 <li><strong>Stesse dimensioni:</strong> le due maschere hanno sempre esattamente <em>H</em> × <em>W</em> elementi.</li>
-<li><strong>Convenzione di vuoto:</strong> applicare la regola del punto 7 <strong>solo</strong> quando entrambe le maschere sono completamente vuote; se solo una è vuota, l’intersezione è 0 e l’IoU/Dice risultante sarà anch’esso 0.</li>
+<li><strong>Convenzione del vuoto:</strong> applica la regola del punto 7 <strong>solo</strong> quando entrambe le maschere sono completamente vuote; se solo una è vuota, l’intersezione è 0 e l’IoU/Dice risultante sarà anch’esso 0.</li>
 </ul>
 </div>
 <div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamentazione Teorica</h4>
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
@@ -47,12 +47,12 @@ unione = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></l
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Metrica correlata all’IoU (sempre Dice \ge IoU), più sensibile a piccole intersezioni e ampiamente utilizzata come funzione di perdita in segmentazione (funzione <code>perda_dice</code> del capitolo)</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Convenzione delle maschere vuote</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Convenzione per maschere vuote</td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Evita la divisione per zero e riconosce che “nessun oggetto previsto, nessun oggetto reale” è, per definizione, un successo</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Confronto classico vs. U-Net</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il capitolo utilizza esattamente questo tipo di metrica per giustificare, numericamente, perché la U-Net supera la linea di base morfologica in scenari a basso contrasto</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il capitolo usa esattamente questo tipo di metrica per giustificare, numericamente, perché la U-Net supera la baseline morfologica in scenari a basso contrasto</td>
 </tr>
 </tbody>
 </table>
@@ -60,7 +60,7 @@ unione = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></l
 <div>
 <h4> 🧩 Metodi di <code>morph.py</code> che possono aiutare</h4>
 <ul>
-<li><code>mm.readImg(h, w, dtype='uint8')</code> — legge direttamente ciascuna maschera binaria <em>h</em> × <em>w</em> dall’input standard (i valori 0/1 rientrano perfettamente nel tipo intero standard).</li>
+<li><code>mm.readImg(h, w, dtype='uint8')</code> — legge direttamente ogni maschera binaria <em>h</em> × <em>w</em> dall’input standard (i valori 0/1 rientrano perfettamente nel tipo intero standard).</li>
 <li>La stessa funzione <code>iou_mascaras</code>, definita nel Blocco 2 della sezione U-Net del capitolo (non fa parte di <code>morph.py</code>, ma del codice del capitolo), è l’ispirazione diretta di questo esercizio — vale la pena rileggere quelle poche righe prima di programmare.</li>
 <li>Per un’estensione opzionale (non richiesta da questo EP), <code>mm.connectedComponents</code> o <code>mm.label0</code> (visti nel contesto dell’analisi delle componenti connesse) permetterebbero di etichettare ogni nodulo individualmente e calcolare l’IoU <strong>per componente</strong>, invece che sull’intera maschera.</li>
 </ul>
@@ -88,13 +88,13 @@ unione = ∑_i,<em>j</em> \mathbb1[<em>P</em>_ij=1 \vee <em>R</em>_ij=1].</p></l
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Si consideri una maschera predetta con un quadrato 2×2 di pixel attivi e un riferimento spostato di una colonna, sovrapponendosi solo per metà dell’area:</p>
+<p>Considera una maschera predetta con un quadrato 2×2 di pixel attivi e un riferimento spostato di una colonna, sovrapponendosi solo per metà dell’area:</p>
 <pre><code>Predetta        Riferimento
 0 0 0 0         0 0 0 0
 0 1 1 0         0 0 1 1
 0 1 1 0         0 0 1 1
 0 0 0 0         0 0 0 0</code></pre>
-<p>Intersezione =2 pixel, unione =6 pixel (4+4-2), quindi IoU=2/6\approx0,3333 e Dice=2·2/(4+4)=0,5000 — si noti che il Dice è sempre uguale o maggiore dell’IoU per la stessa sovrapposizione.</p>
+<p>Intersezione =2 pixel, unione =6 pixel (4+4-2), quindi IoU=2/6\approx0,3333 e Dice=2·2/(4+4)=0,5000 — nota che il Dice è sempre uguale o maggiore dell’IoU per la stessa sovrapposizione.</p>
 </div>
 </div>
 </div>
@@ -136,11 +136,11 @@ Dice: 0.5000</td>
 <div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;gap:12px;justify-content:center;font-size:10px;flex-wrap:wrap;">
 <span style="display:flex;align-items:center;gap:3px;">
 <span style="width:12px;height:12px;background:#4a90e2;border:2px solid #2c5f8a;border-radius:2px;display:inline-block;"></span>
-<b>Intersezione</b> (TP)
+<b>Intersezione</b> (VP)
       </span>
 <span style="display:flex;align-items:center;gap:3px;">
 <span style="width:12px;height:12px;background:#ff6b6b;border:2px solid #cc4444;border-radius:2px;display:inline-block;"></span>
-<b>Solo predetta</b> (FP)
+<b>Solo previsto</b> (FP)
       </span>
 <span style="display:flex;align-items:center;gap:3px;">
 <span style="width:12px;height:12px;background:#f5a623;border:2px solid #b87d1a;border-radius:2px;display:inline-block;"></span>
@@ -148,7 +148,7 @@ Dice: 0.5000</td>
       </span>
 <span style="display:flex;align-items:center;gap:3px;">
 <span style="width:12px;height:12px;background:#f0f0f0;border:2px solid #ccc;border-radius:2px;display:inline-block;"></span>
-<b>Sfondo</b> (TN)
+<b>Sfondo</b> (VN)
       </span>
 </div>
 <!-- Controles compactos -->
@@ -183,7 +183,7 @@ Dice: 0.5000</td>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
 <div>
 <div style="font-weight:bold;font-size:11px;color:#333;margin-bottom:4px;text-align:center;">
-            🔵 Maschera Predetta
+            🔵 Maschera Prevista
           </div>
 <div id="ep0905_pred_grid" style="display:flex;justify-content:center;overflow-x:auto;"></div>
 </div>

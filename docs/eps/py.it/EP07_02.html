@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP07_02 — 🟡 Normalizzazione Z-score e Robustezza del k-NN a Scale Distinte | PDI+VC</title>
+  <title>EP07_02 — 🟡 Normalizzazione Z-score e Robustezza del k-NN a Scale Diverse | EDI+VA</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -241,8 +241,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="ep-frame-header">
   <div class="ep-frame-brand">
-    <span class="ep-frame-eyebrow">PDI+VC · Esercizio di Programmazione</span>
-    <h1 class="ep-frame-title">EP07_02 — 🟡 Normalizzazione Z-score e Robustezza del k-NN a Scale Distinte</h1>
+    <span class="ep-frame-eyebrow">EDI+VA · Esercizio di Programmazione</span>
+    <h1 class="ep-frame-title">EP07_02 — 🟡 Normalizzazione Z-score e Robustezza del k-NN a Scale Diverse</h1>
   </div>
   <nav class="ep-frame-nav">
     <a href="EP07_01.html" class="ep-btn ep-btn-nav">← EP07_01</a>
@@ -257,31 +257,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="ep-main-wrapper">
   <div class="ep-card-frame">
     <div class="ep-container">
-      <h3 data-anchor-id="ep07_02-normalizzazione-z-score-e-robustezza-del-k-nn-a-scale-distinte" data-number="7.18.2"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalizzazione <em>Z-score</em> e Robustezza del k-NN a Scale Distinte</h3>
+      <h3 data-anchor-id="ep07_02-normalizzazione-z-score-e-robustezza-del-k-nn-a-scale-diverse" data-number="7.18.2"><span class="header-section-number">7.18.2</span> EP07_02 🟡 Normalizzazione <em>Z-score</em> e Robustezza del k-NN a Scale Diverse</h3>
 <p>Questo esercizio riprende il classificatore implementato nell’<strong>EP07_01</strong>, questa volta sotto la prospettiva discussa nella sezione <em>L’Impatto della Scala e la Normalizzazione delle Caratteristiche</em> del capitolo: il k-NN decide in base alla distanza tra vettori, per cui una caratteristica misurata su una scala molto più ampia rispetto alle altre tende a <strong>dominare</strong> il calcolo della distanza, anche quando non è la più rilevante per separare le classi.</p>
-<p>Un sistema di ispezione registra, per ogni pezzo, la sua <strong>area</strong> (in pixel, che può raggiungere centinaia o migliaia) e la sua <strong>circolarità</strong> (sempre compresa tra <span class="math inline">\(0\)</span> e <span class="math inline">\(1\)</span>). Ti è stato affidato il compito di classificare nuovi pezzi con il k-NN in due modi — con e senza la standardizzazione <em>Z-score</em> presentata nel capitolo — e di riportare in quali casi i due approcci <strong>divergono</strong>.</p>
+<p>Un sistema di ispezione registra, per ogni pezzo, la sua <strong>area</strong> (in pixel, che può arrivare a centinaia o migliaia) e la sua <strong>circolarità</strong> (sempre tra <span class="math inline">\(0\)</span> e <span class="math inline">\(1\)</span>). Ti è stato affidato il compito di classificare nuovi pezzi tramite k-NN in due modi — con e senza la standardizzazione <em>Z-score</em> presentata nel capitolo — e di riportare in quali casi i due approcci <strong>divergono</strong>.</p>
 <section class="level4" data-number="7.18.2.1" id="linee-guida-di-implementazione-1">
 <h4 data-anchor-id="linee-guida-di-implementazione-1" data-number="7.18.2.1"><span class="header-section-number">7.18.2.1</span> 📋 Linee Guida di Implementazione</h4>
 <ol type="1">
 <li><strong>Quantità e parametro:</strong> Leggere l’intero <span class="math inline">\(N\)</span> (numero di esempi di addestramento) e l’intero dispari <span class="math inline">\(k\)</span>.</li>
 <li><strong>Esempi di addestramento:</strong> Per ciascuno degli <span class="math inline">\(N\)</span> esempi, leggere tre valori: l’area <span class="math inline">\(x_1\)</span> (reale), la circolarità <span class="math inline">\(x_2\)</span> (reale) e l’etichetta <span class="math inline">\(r\)</span> (intero, <span class="math inline">\(0\)</span> o <span class="math inline">\(1\)</span>).</li>
 <li><strong>Query:</strong> Leggere l’intero <span class="math inline">\(Q\)</span> e, successivamente, le coordinate <span class="math inline">\(x_1, x_2\)</span> di ciascuna query.</li>
-<li><strong>Classificazione senza normalizzazione:</strong> Per ogni query, classificarla con il k-NN direttamente su <span class="math inline">\((x_1, x_2)\)</span>, con distanza euclidea e le stesse regole di spareggio dell’EP07_01 (ordine di lettura per distanze a pari merito; vicino più prossimo tra classi a pari merito nella votazione).</li>
-<li><strong>Parametri di normalizzazione:</strong> Calcolare la media <span class="math inline">\(\mu_j\)</span> e la deviazione standard <strong>popolazionale</strong> <span class="math inline">\(\sigma_j\)</span> (divisione per <span class="math inline">\(N\)</span>, non per <span class="math inline">\(N-1\)</span> — la stessa convenzione adottata dalla classe <code>StandardScaler</code>) di ogni caratteristica <span class="math inline">\(j \in \{1,2\}\)</span>, <strong>esclusivamente sul set di addestramento</strong>.</li>
-<li><strong>Standardizzazione:</strong> Trasformare ogni caratteristica di addestramento e di query tramite <span class="math display">\[
+<li><strong>Classificazione senza normalizzazione:</strong> Per ogni query, classificarla tramite k-NN direttamente su <span class="math inline">\((x_1, x_2)\)</span>, con distanza euclidea e le stesse regole di pareggio dell’EP07_01 (ordine di lettura per distanze a pari merito; vicino più prossimo tra classi a pari merito nella votazione).</li>
+<li><strong>Parametri di normalizzazione:</strong> Calcolare la media <span class="math inline">\(\mu_j\)</span> e la deviazione standard <strong>popolazionale</strong> <span class="math inline">\(\sigma_j\)</span> (divisione per <span class="math inline">\(N\)</span>, non per <span class="math inline">\(N-1\)</span> — la stessa convenzione adottata dalla classe <code>StandardScaler</code>) di ciascuna caratteristica <span class="math inline">\(j \in \{1,2\}\)</span>, <strong>esclusivamente sul set di addestramento</strong>.</li>
+<li><strong>Standardizzazione:</strong> Trasformare ciascuna caratteristica di addestramento e di query tramite <span class="math display">\[
 z_j = \frac{x_j - \mu_j}{\sigma_j}.
 \]</span> Se <span class="math inline">\(\sigma_j = 0\)</span> (caratteristica costante nell’addestramento), definire <span class="math inline">\(z_j = 0\)</span> per tutti i campioni di quella caratteristica, evitando la divisione per zero.</li>
-<li><strong>Classificazione con normalizzazione:</strong> Ripetere la classificazione k-NN del punto 4, ora sui vettori standardizzati <span class="math inline">\((z_1, z_2)\)</span>, con le stesse regole di spareggio.</li>
+<li><strong>Classificazione con normalizzazione:</strong> Ripetere la classificazione k-NN del punto 4, ora sui vettori standardizzati <span class="math inline">\((z_1, z_2)\)</span>, con le stesse regole di pareggio.</li>
 <li><strong>Output:</strong> Per ogni query, nell’ordine di input, stampare le due classi previste. Alla fine, stampare il numero di query in cui le due classificazioni <strong>divergono</strong>.</li>
 </ol>
 </section>
 <section class="level4" data-number="7.18.2.2" id="vincoli-computazionali-1">
 <h4 data-anchor-id="vincoli-computazionali-1" data-number="7.18.2.2"><span class="header-section-number">7.18.2.2</span> 📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong>Adattamento solo sul training set:</strong> <span class="math inline">\(\mu_j\)</span> e <span class="math inline">\(\sigma_j\)</span> sono calcolati unicamente a partire dal set di addestramento e riapplicati alle query — mai ricalcolati a partire da esse. Questa pratica evita la <strong>dispersione dei dati</strong> (<em>data leakage</em>), menzionata nella sezione sulla normalizzazione del capitolo.</li>
+<li><strong>Adattamento solo sul training:</strong> <span class="math inline">\(\mu_j\)</span> e <span class="math inline">\(\sigma_j\)</span> sono calcolati unicamente a partire dal set di addestramento e riapplicati alle query — mai ricalcolati a partire da esse. Questa pratica evita la <strong>dispersione dei dati</strong> (<em>data leakage</em>), menzionata nella sezione sulla normalizzazione del capitolo.</li>
 <li><strong>Deviazione standard popolazionale:</strong> utilizzare <span class="math inline">\(\sigma_j = \sqrt{\frac{1}{N}\sum_i (x_{i,j}-\mu_j)^2}\)</span>, e non la versione campionaria (divisione per <span class="math inline">\(N-1\)</span>).</li>
 <li><strong>Caratteristica costante:</strong> trattare <span class="math inline">\(\sigma_j = 0\)</span> come caso speciale (punto 6); non deve verificarsi un errore di divisione per zero.</li>
-<li><strong>Regole di spareggio:</strong> riutilizzare esattamente le convenzioni dell’EP07_01, sia nella selezione dei <span class="math inline">\(k\)</span> vicini sia nella votazione a maggioranza.</li>
+<li><strong>Regole di pareggio:</strong> riutilizzare esattamente le convenzioni dell’EP07_01, sia nella selezione dei <span class="math inline">\(k\)</span> vicini che nella votazione a maggioranza.</li>
 </ul>
 </section>
 <section class="level4" data-number="7.18.2.3" id="fondamenti-teorici-1">
@@ -300,32 +300,32 @@ z_j = \frac{x_j - \mu_j}{\sigma_j}.
 <tbody>
 <tr class="odd">
 <td>Standardizzazione <em>Z-score</em></td>
-<td>Riscalare ogni caratteristica per media <span class="math inline">\(0\)</span> e deviazione standard <span class="math inline">\(1\)</span>, rendendo scale eterogenee confrontabili</td>
+<td>Riscalare ogni caratteristica a media <span class="math inline">\(0\)</span> e deviazione standard <span class="math inline">\(1\)</span>, rendendo scale eterogenee comparabili</td>
 </tr>
 <tr class="even">
-<td>Adattamento (<em>fit</em>) solo sul training set</td>
-<td>Garantire che la valutazione sulle query rifletta solo ciò che il modello ha appreso nell’addestramento</td>
+<td>Adattamento (<em>fit</em>) solo sul training</td>
+<td>Garantisce che la valutazione sulle query rifletta solo ciò che il modello ha appreso nell’addestramento</td>
 </tr>
 <tr class="odd">
 <td>Distanza euclidea senza normalizzazione</td>
 <td>Dominata dalla caratteristica con maggiore ampiezza — qui, l’area</td>
 </tr>
 <tr class="even">
-<td>Previsione divergente</td>
+<td>Predizione divergente</td>
 <td>Evidenzia che la scala delle caratteristiche, e non solo l’algoritmo o i dati, può determinare il confine decisionale del k-NN</td>
 </tr>
 </tbody>
 </table>
-<p>Questo esercizio rafforza, in modo controllato, il motivo per cui il <code>StandardScaler</code> viene applicato prima del k-NN lungo il capitolo: senza questa fase, le caratteristiche di circolarità — anche se altamente discriminative — possono essere praticamente ignorate dal classificatore di fronte a una caratteristica di area con ampiezza centinaia di volte maggiore.</p>
+<p>Questo esercizio sottolinea, in modo controllato, la ragione per cui lo <code>StandardScaler</code> viene applicato prima del k-NN nel corso del capitolo: senza questo passaggio, caratteristiche come la circolarità — anche se altamente discriminative — possono essere praticamente ignorate dal classificatore di fronte a una caratteristica come l’area con ampiezza centinaia di volte maggiore.</p>
 </section>
-<section class="level4" data-number="7.18.2.4" id="specifiche-di-input-e-output-vpl">
-<h4 data-anchor-id="specifiche-di-input-e-output-vpl" data-number="7.18.2.4"><span class="header-section-number">7.18.2.4</span> 📦 Specifiche di Input e Output (VPL)</h4>
+<section class="level4" data-number="7.18.2.4" id="specifica-di-input-e-output-vpl-1">
+<h4 data-anchor-id="specifica-di-input-e-output-vpl-1" data-number="7.18.2.4"><span class="header-section-number">7.18.2.4</span> 📦 Specifica di Input e Output (VPL)</h4>
 <p><strong>Input:</strong></p>
 <ul>
 <li>Riga 1: Interi <span class="math inline">\(N\)</span> e <span class="math inline">\(k\)</span>, separati da spazio.</li>
-<li>Successive <span class="math inline">\(N\)</span> righe: tre valori per riga — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reali) e <span class="math inline">\(r\)</span> (intero <span class="math inline">\(\in \{0,1\}\)</span>), separati da spazio.</li>
-<li>Riga successiva: intero <span class="math inline">\(Q\)</span>.</li>
-<li>Successive <span class="math inline">\(Q\)</span> righe: due valori per riga — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reali) della query, separati da spazio.</li>
+<li>Prossime <span class="math inline">\(N\)</span> righe: tre valori per riga — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reali) e <span class="math inline">\(r\)</span> (intero <span class="math inline">\(\in \{0,1\}\)</span>), separati da spazio.</li>
+<li>Prossima riga: intero <span class="math inline">\(Q\)</span>.</li>
+<li>Prossime <span class="math inline">\(Q\)</span> righe: due valori per riga — <span class="math inline">\(x_1\)</span>, <span class="math inline">\(x_2\)</span> (reali) della query, separati da spazio.</li>
 </ul>
 <p><strong>Output:</strong></p>
 <ul>
@@ -359,7 +359,7 @@ z_j = \frac{x_j - \mu_j}{\sigma_j}.
 500 0.88</td>
 <td>SemNorm=1 ComNorm=0<br/>
 Divergiu: 1</td>
-<td>Senza normalizzazione, l’area (scala di centinaia) domina la distanza e la query viene classificata come classe <code>1</code>. Dopo la standardizzazione, la circolarità — molto più vicina ai campioni di classe <code>0</code> — inizia a pesare in modo comparabile, e la previsione cambia a <code>0</code>.</td>
+<td>Senza normalizzazione, l’area (scala di centinaia) domina la distanza e la query viene classificata come classe <code>1</code>. Dopo la standardizzazione, la circolarità — molto più vicina ai campioni di classe <code>0</code> — inizia a pesare in modo confrontabile, e la predizione cambia a <code>0</code>.</td>
 </tr>
 <tr class="even">
 <td>2 1<br/>
@@ -532,14 +532,13 @@ Figura 7.22: Simulatore EP07_02: Effetto della Normalizzazione <em>Z-score</em>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a aria-hidden="true" href="#cb45-1" tabindex="-1"></a><span class="op">%%</span>writefile EP07_02.py</span>
 <span id="cb45-2"><a aria-hidden="true" href="#cb45-2" tabindex="-1"></a><span class="co"># Codice Python</span></span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP07_02.py</code></pre>
+<pre><code>Overwriting EP07_02.py</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="26" data-quarto-private-1='{"key":"pdi","value":{"ck":"596c8c5dbaa9988035bc78e8ebd4a086"}}' id="a0c4e20b3051">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a aria-hidden="true" href="#cb47-1" tabindex="-1"></a>TestSuite(<span class="st">"EP07_02.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentativo: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap07/casos/EP07_02.cases
-   ✅ Scaricato con successo
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP07_02.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP07_02.cases
 
 🔍 Test di Python: EP07_02.py
@@ -554,7 +553,7 @@ Figura 7.22: Simulatore EP07_02: Effetto della Normalizzazione <em>Z-score</em>
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">EDI+VA — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Università Federale dell'ABC (UFABC)</a>.<br>
     Materiale didattico aperto sotto licenza <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -1471,7 +1470,7 @@ r.ordenados.forEach(function(v, ord){
   row.innerHTML =
     '<span style="display:flex;align-items:center;gap:4px;">' +
       (dentroK ? '✓' : ' ') +
-      '<span title="posizione di lettura nella lista originale di training — usata per il pareggio quando due distanze sono uguali" ' +
+      '<span title="posizione di lettura nella lista originale di addestramento — usata per il pareggio quando due distanze sono uguali" ' +
         'style="background:#eee;color:#9ca3af;border-radius:3px;padding:0 3px;font-size:8.5px;cursor:help;">#' + (v.i+1) + '</span>' +
       ' ' + v.p.nome + ' <span style="color:'+CORES[v.p.cls]+';font-weight:700;">('+v.p.cls+')</span>' +
     '</span>' +

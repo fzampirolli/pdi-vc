@@ -4,7 +4,7 @@
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
 <h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_07 ⛰️ Dilatazione ed Erosione con Pesi (mm.dil1 / mm.ero1)</h2>
-<p>Finora, l’elemento strutturante diceva solo “questo vicino conta” o “non conta” — ma nei <strong>modelli digitali di elevazione</strong> (usati nei GIS e nella pianificazione del drenaggio urbano), ogni vicino dovrebbe avere un <strong>peso diverso</strong> a seconda della distanza o della direzione del rilievo. Le versioni <strong>ponderate</strong> della dilatazione e dell’erosione, implementate in <code>morph.py</code> come <code>mm.dil1(f, b)</code> e <code>mm.ero1(f, b)</code>, sommano (o sottraggono) il peso di ciascun vicino prima di prendere il massimo (o il minimo) — generalizzando tutto ciò che è stato fatto negli EP precedenti. Vedere nella Figura 4.36 una simulazione di questo EP.</p>
+<p>Finora, l’elemento strutturante diceva solo “questo vicino conta” o “non conta” — ma nei <strong>modelli digitali di elevazione</strong> (usati nei GIS e nella pianificazione del drenaggio urbano), ogni vicino dovrebbe avere un <strong>peso diverso</strong> a seconda della distanza o della direzione del rilievo. Le versioni <strong>ponderate</strong> della dilatazione e dell’erosione, implementate in <code>morph.py</code> come <code>mm.dil1(f, b)</code> e <code>mm.ero1(f, b)</code>, sommano (o sottraggono) il peso di ciascun vicino prima di prendere il massimo (o il minimo) — generalizzando tutto ciò che è stato fatto negli EP precedenti. Vedere in Figura 4.36 una simulazione di questo EP.</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
@@ -12,7 +12,7 @@
 <li><strong>Dimensioni di <em>b</em>:</strong> Leggere gli interi <em>L</em>_<em>B</em> (righe) e <em>C</em>_<em>B</em> (colonne) dell’elemento strutturante ponderato.</li>
 <li><strong>Pesi:</strong> Leggere la matrice <em>b</em> di pesi <strong>interi</strong> (possono essere negativi, zero o positivi), riga per riga.</li>
 <li><strong>Dati:</strong> Leggere la matrice <em>f</em> (l’immagine originale), riga per riga.</li>
-<li><strong>Vicinato senza padding:</strong> Per ogni pixel (<em>y</em>,<em>x</em>), scorrere <strong>tutte</strong> le posizioni (by,bx) di <em>b</em> (non solo dove varrebbe 1 — qui <strong>tutti</strong> i pesi partecipano), usando lo stesso spostamento degli EP precedenti: <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Scartare</strong> ogni (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fuori da [0,<em>L</em>)×[0,<em>C</em>).</li>
+<li><strong>Vicinato senza padding:</strong> Per ogni pixel (<em>y</em>,<em>x</em>), percorrere <strong>tutte</strong> le posizioni (by,bx) di <em>b</em> (non solo dove varrebbe 1 — qui <strong>tutto</strong> il peso partecipa), usando lo stesso spostamento degli EP precedenti: <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Scartare</strong> ogni (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fuori da [0,<em>L</em>)×[0,<em>C</em>).</li>
 <li><strong>Dilatazione ponderata:</strong> Calcolare <em>g</em>_dil(<em>y</em>,<em>x</em>) = \max\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \max_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ valido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) + <em>b</em>(by,bx)\big)\Big)</li>
 <li><strong>Erosione ponderata:</strong> Calcolare, <strong>usando lo stesso <em>b</em> e senza riflessione</strong>: <em>g</em>_ero(<em>y</em>,<em>x</em>) = \min\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \min_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ valido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) - <em>b</em>(by,bx)\big)\Big)</li>
 <li><strong>Uscita:</strong> Mostrare <strong>prima</strong> la matrice completa <em>g</em>_dil, e <strong>poi</strong> la matrice completa <em>g</em>_ero.</li>
@@ -22,8 +22,8 @@
 <h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
 <ul>
 <li><strong>Nessuna delle due riflette <em>b</em></strong> — la versione ponderata non usa riflessione, nemmeno nella dilatazione (diversamente da <code>mm.dil0</code>).</li>
-<li><strong>Tutti i pesi partecipano:</strong> Qui non esiste il filtro “B=1”; anche il peso 0 entra nel calcolo.</li>
-<li><strong>Senza padding:</strong> i vicini fuori dall’immagine vengono ignorati, mai riempiti virtualmente.</li>
+<li><strong>Tutti i pesi partecipano:</strong> Non esiste qui il filtro “B=1”; anche il peso 0 entra nel calcolo.</li>
+<li><strong>Senza padding:</strong> i vicini fuori dall’immagine sono ignorati, mai virtualmente riempiti.</li>
 <li><strong>Tipo:</strong> L’uscita può contenere valori negativi o maggiori di 255 — <strong>non</strong> c’è <em>clipping</em> in questo EP.</li>
 <li><strong>Suggerimento:</strong> Per rimuovere i messaggi di overflow quando si superano i limiti del tipo uint8, includere all’inizio del codice:</li>
 </ul>
@@ -67,13 +67,13 @@
 <li>Riga 2: Intero <em>C</em>.</li>
 <li>Riga 3: Intero <em>L</em>_<em>B</em>.</li>
 <li>Riga 4: Intero <em>C</em>_<em>B</em>.</li>
-<li>Successive <em>L</em>_<em>B</em> righe: elementi interi (possono essere negativi) della matrice <em>b</em>.</li>
-<li>Successive <em>L</em> righe: elementi interi della matrice <em>f</em>.</li>
+<li>Prossime <em>L</em>_<em>B</em> righe: elementi interi (possono essere negativi) della matrice <em>b</em>.</li>
+<li>Prossime <em>L</em> righe: elementi interi della matrice <em>f</em>.</li>
 </ul>
 <p><strong>Output:</strong></p>
 <ul>
 <li>Prima la matrice <em>g</em>_dil in <em>L</em> righe e <em>C</em> colonne.</li>
-<li>Poi la matrice <em>g</em>_ero in <em>L</em> righe e <em>C</em> colonne.</li>
+<li>Successivamente la matrice <em>g</em>_ero in <em>L</em> righe e <em>C</em> colonne.</li>
 </ul>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">

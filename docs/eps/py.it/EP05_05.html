@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP05_05 — 🏆 Pipeline JPEG Completo: DCT, Quantizzazione e Ricostruzione | PDI+VC</title>
+  <title>EP05_05 — 🏆 Pipeline JPEG Completo: DCT, Quantizzazione e Ricostruzione | EDI+VA</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="ep-frame-header">
   <div class="ep-frame-brand">
-    <span class="ep-frame-eyebrow">PDI+VC · Esercizio di Programmazione</span>
+    <span class="ep-frame-eyebrow">EDI+VA · Esercizio di Programmazione</span>
     <h1 class="ep-frame-title">EP05_05 — 🏆 Pipeline JPEG Completo: DCT, Quantizzazione e Ricostruzione</h1>
   </div>
   <nav class="ep-frame-nav">
@@ -258,35 +258,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="ep-card-frame">
     <div class="ep-container">
       <h3 class="anchored" data-anchor-id="ep05_05-pipeline-jpeg-completo-dct-quantizzazione-e-ricostruzione" data-number="5.13.5"><span class="header-section-number">5.13.5</span> EP05_05 🏆 <em>Pipeline</em> JPEG Completo: DCT, Quantizzazione e Ricostruzione</h3>
-<p>Sei stato incaricato di creare, da zero, un <strong>codec JPEG didattico</strong> in ambiente embedded, senza alcuna libreria di immagini disponibile — solo operazioni matematiche di base. Il cliente vuole capire esattamente dove la qualità viene persa e dove viene recuperata, blocco per blocco. Questa è la sfida finale del capitolo: integrare <strong>tutto</strong> ciò che è stato studiato — la DCT-II ortonormale, la quantizzazione percettiva e la ricostruzione tramite IDCT — in un unico <em>pipeline</em> end-to-end, elaborando un blocco <span class="math inline">\(N \times N\)</span> dall’inizio alla fine, esattamente come fa internamente lo standard JPEG, <span class="math inline">\(8\times8\)</span> pixel alla volta.</p>
+<p>Sei stato incaricato di creare, da zero, un <strong>codec JPEG didattico</strong> in un ambiente embedded, senza alcuna libreria di immagini disponibile — solo operazioni matematiche di base. Il cliente vuole capire esattamente dove la qualità viene persa e dove viene recuperata, blocco per blocco. Questa è la sfida finale del capitolo: integrare <strong>tutto</strong> ciò che è stato studiato — la DCT-II ortonormale, la quantizzazione percettiva e la ricostruzione tramite IDCT — in un unico <em>pipeline</em> end-to-end, elaborando un blocco <span class="math inline">\(N \times N\)</span> dall’inizio alla fine, esattamente come fa internamente lo standard JPEG, <span class="math inline">\(8\times8\)</span> pixel alla volta.</p>
 <section class="level4" data-number="5.13.5.1" id="linee-guida-di-implementazione-3">
 <h4 class="anchored" data-anchor-id="linee-guida-di-implementazione-3" data-number="5.13.5.1"><span class="header-section-number">5.13.5.1</span> 📋 Linee Guida di Implementazione</h4>
 <ol type="1">
-<li><strong>Dimensione del blocco:</strong> Leggere l’intero <span class="math inline">\(N\)</span>.</li>
+<li><strong>Dimensione del blocco:</strong> Leggere il numero intero <span class="math inline">\(N\)</span>.</li>
 <li><strong>Blocco originale:</strong> Leggere la matrice di pixel <span class="math inline">\(f(x,y)\)</span>, <span class="math inline">\(N\)</span> righe con <span class="math inline">\(N\)</span> interi in <span class="math inline">\([0,255]\)</span>.</li>
 <li><strong>Tabella di quantizzazione:</strong> Leggere la matrice <span class="math inline">\(Q\)</span>, <span class="math inline">\(N \times N\)</span> interi positivi.</li>
-<li><strong>Centralizzazione:</strong> Sottrarre 128 da ogni pixel: <span class="math inline">\(g(x,y) = f(x,y) - 128\)</span>.</li>
+<li><strong>Centratura:</strong> Sottrarre 128 da ogni pixel: <span class="math inline">\(g(x,y) = f(x,y) - 128\)</span>.</li>
 <li><strong>DCT-II 2D ortonormale:</strong> Calcolare <span class="math display">\[
 C(u,v) = \alpha(u)\,\alpha(v)\sum_{x=0}^{N-1}\sum_{y=0}^{N-1} g(x,y)\,\cos\!\left[\frac{\pi(2x+1)u}{2N}\right]\cos\!\left[\frac{\pi(2y+1)v}{2N}\right]
 \]</span> con <span class="math inline">\(\alpha(0)=\sqrt{1/N}\)</span> e <span class="math inline">\(\alpha(k)=\sqrt{2/N}\)</span> per <span class="math inline">\(k&gt;0\)</span>.</li>
 <li><strong>Quantizzazione:</strong> <span class="math inline">\(\tilde{C}(u,v) = \text{round}(C(u,v)/Q(u,v))\)</span>.</li>
 <li><strong>Dequantizzazione:</strong> <span class="math inline">\(C'(u,v) = \tilde{C}(u,v)\times Q(u,v)\)</span>.</li>
-<li><strong>IDCT-II 2D (inversa ortonormale):</strong> Calcolare <span class="math inline">\(g'(x,y)\)</span> a partire da <span class="math inline">\(C'(u,v)\)</span> usando la trasformata inversa corrispondente (stessa base, sommatoria su <span class="math inline">\(u,v\)</span>).</li>
-<li><strong>Revertimento della centralizzazione e arrotondamento:</strong> <span class="math inline">\(f'(x,y) = \text{round}(g'(x,y) + 128)\)</span>, vincolato all’intervallo <span class="math inline">\([0,255]\)</span> (<em>clipping</em>).</li>
+<li><strong>IDCT-II 2D (inversa ortonormale):</strong> Calcolare <span class="math inline">\(g'(x,y)\)</span> da <span class="math inline">\(C'(u,v)\)</span> usando la trasformata inversa corrispondente (stessa base, sommatoria su <span class="math inline">\(u,v\)</span>).</li>
+<li><strong>Inversione della centratura e arrotondamento:</strong> <span class="math inline">\(f'(x,y) = \text{round}(g'(x,y) + 128)\)</span>, limitato all’intervallo <span class="math inline">\([0,255]\)</span> (<em>clipping</em>).</li>
 <li><strong>Output:</strong> Visualizzare il blocco ricostruito <span class="math inline">\(f'\)</span>, <span class="math inline">\(N \times N\)</span>, interi.</li>
 </ol>
 </section>
 <section class="level4" data-number="5.13.5.2" id="vincoli-computazionali-4">
 <h4 class="anchored" data-anchor-id="vincoli-computazionali-4" data-number="5.13.5.2"><span class="header-section-number">5.13.5.2</span> 📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong><em>Pipeline</em> completo obbligatorio:</strong> tutte le sei fasi (centralizzare, DCT, quantizzare, dequantizzare, IDCT, invertire) devono essere implementate — saltare la quantizzazione non supera i test, poiché il risultato sarebbe identico all’originale.</li>
+<li><strong><em>Pipeline</em> completo obbligatorio:</strong> tutte e sei le fasi (centrare, DCT, quantizzare, dequantizzare, IDCT, invertire) devono essere implementate — saltare la quantizzazione non supera i test, poiché il risultato sarebbe identico all’originale.</li>
 <li><strong><em>Clipping</em>:</strong> i valori ricostruiti al di fuori di <span class="math inline">\([0,255]\)</span> devono essere troncati (0 se negativi, 255 se maggiori di 255).</li>
 <li><strong>Arrotondamento:</strong> sia nella quantizzazione che nella ricostruzione finale dei pixel, usare l’arrotondamento standard; i casi di test evitano ambiguità <code>.5</code>.</li>
-<li><strong>Base ortonormale:</strong> la normalizzazione <span class="math inline">\(\alpha(u)\)</span> e <span class="math inline">\(\alpha(v)\)</span> deve essere applicata esattamente come specificato — senza di essa, l’IDCT non ricostruisce correttamente.</li>
+<li><strong>Base ortonormale:</strong> la normalizzazione <span class="math inline">\(\alpha(u)\)</span> e <span class="math inline">\(\alpha(v)\)</span> deve essere applicata esattamente come specificato — senza di essa, la IDCT non ricostruisce correttamente.</li>
 </ul>
 </section>
-<section class="level4" data-number="5.13.5.3" id="fondamento-teorico-2">
-<h4 class="anchored" data-anchor-id="fondamento-teorico-2" data-number="5.13.5.3"><span class="header-section-number">5.13.5.3</span> 🧠 Fondamento Teorico</h4>
+<section class="level4" data-number="5.13.5.3" id="fondamenti-teorici-4">
+<h4 class="anchored" data-anchor-id="fondamenti-teorici-4" data-number="5.13.5.3"><span class="header-section-number">5.13.5.3</span> 🧠 Fondamenti Teorici</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%"/>
@@ -296,14 +296,14 @@ C(u,v) = \alpha(u)\,\alpha(v)\sum_{x=0}^{N-1}\sum_{y=0}^{N-1} g(x,y)\,\cos\!\lef
 <thead>
 <tr class="header">
 <th>Fase</th>
-<th>Analoga nello standard JPEG reale</th>
+<th>Analoga nel vero standard JPEG</th>
 <th>Dove la qualità viene persa</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Centralizzazione</td>
-<td>Identica — la DCT presuppone un segnale centrato sullo zero</td>
+<td>Centratura</td>
+<td>Stessa — la DCT presuppone un segnale centrato su zero</td>
 <td>Nessuna perdita</td>
 </tr>
 <tr class="even">
@@ -374,7 +374,7 @@ C(u,v) = \alpha(u)\,\alpha(v)\sum_{x=0}^{N-1}\sum_{y=0}^{N-1} g(x,y)\,\cos\!\lef
 </section>
 <section class="level4" data-number="5.13.5.6" id="suggerimento-per-il-debug">
 <h4 class="anchored" data-anchor-id="suggerimento-per-il-debug" data-number="5.13.5.6"><span class="header-section-number">5.13.5.6</span> 💡 Suggerimento per il Debug</h4>
-<p>Se il risultato non corrisponde, verifica in questo ordine: (1) i coefficienti DCT grezzi (prima della quantizzazione) — devono ricostruire l’originale <strong>esattamente</strong> tramite IDCT se salti le fasi 6–7; (2) la tabella <span class="math inline">\(\alpha(u)\)</span> — l’errore comune è applicare <span class="math inline">\(\sqrt{2/N}\)</span> anche per <span class="math inline">\(u=0\)</span>; (3) l’arrotondamento della quantizzazione, che deve avvenire <strong>prima</strong> di moltiplicare nuovamente per <span class="math inline">\(Q\)</span>.</p>
+<p>Se il risultato non corrisponde, verifica in questo ordine: (1) i coefficienti DCT grezzi (prima della quantizzazione) — devono ricostruire l’originale <strong>esattamente</strong> tramite IDCT se salti le fasi 6–7; (2) la tabella <span class="math inline">\(\alpha(u)\)</span> — un errore comune è applicare <span class="math inline">\(\sqrt{2/N}\)</span> anche per <span class="math inline">\(u=0\)</span>; (3) l’arrotondamento della quantizzazione, che deve avvenire <strong>prima</strong> di moltiplicare di nuovo per <span class="math inline">\(Q\)</span>.</p>
 <div class="cell" data-execution_count="45" data-quarto-private-1='{"key":"pdi","value":{"ck":"c4ca82e50ae4a62737ade772817b8ac9"}}' id="cell-fig-05-sim-ep0505">
 <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="45" id="fig-05-sim-ep0505">
 <figure class="quarto-float quarto-float-fig figure">
@@ -399,7 +399,7 @@ C(u,v) = \alpha(u)\,\alpha(v)\sum_{x=0}^{N-1}\sum_{y=0}^{N-1} g(x,y)\,\cos\!\lef
 <div class="sim-ep0505_panel" style="margin-bottom:14px;">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
 <label style="font-size:11px; font-weight:700; color:#5e5a4a;">
-        Scala Q (1 = Tabella Base, Maggiore = Più Perdita): <span id="sim-ep0505_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
+        Scala di Q (1 = Tabella Base, Maggiore = Più Perdita): <span id="sim-ep0505_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
 </label>
 </div>
 <input id="sim-ep0505_sl_s" max="5" min="0.5" step="0.5" type="range" value="1"/>
@@ -554,14 +554,13 @@ Figura 5.36: Simulatore EP05_05: <em>Pipeline</em> JPEG completo a blocchi
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a aria-hidden="true" href="#cb45-1" tabindex="-1"></a><span class="op">%%</span>writefile EP05_05.py</span>
 <span id="cb45-2"><a aria-hidden="true" href="#cb45-2" tabindex="-1"></a><span class="co"># Codice Python</span></span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP05_05.py</code></pre>
+<pre><code>Overwriting EP05_05.py</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="47" data-quarto-private-1='{"key":"pdi","value":{"ck":"226fadf7bbe765aad10871b73e248a3a"}}' id="ee9e0fa1b17b">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a aria-hidden="true" href="#cb47-1" tabindex="-1"></a>TestSuite(<span class="st">"EP05_05.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentativo: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap05/casos/EP05_05.cases
-   ✅ Scaricato con successo
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_05.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_05.cases
 
 🔍 Test di Python: EP05_05.py
@@ -576,7 +575,7 @@ Figura 5.36: Simulatore EP05_05: <em>Pipeline</em> JPEG completo a blocchi
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">EDI+VA — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Università Federale dell'ABC (UFABC)</a>.<br>
     Materiale didattico aperto sotto licenza <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>

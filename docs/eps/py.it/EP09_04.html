@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP09_04 — 🟡 Intersezione su Unione (IoU) e Soppressione dei Non-Massimi (NMS) | PDI+VC</title>
+  <title>EP09_04 — 🟡 Intersezione su Unione (IoU) e Soppressione dei Non-Massimi (NMS) | EDI+VA</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="ep-frame-header">
   <div class="ep-frame-brand">
-    <span class="ep-frame-eyebrow">PDI+VC · Esercizio di Programmazione</span>
+    <span class="ep-frame-eyebrow">EDI+VA · Esercizio di Programmazione</span>
     <h1 class="ep-frame-title">EP09_04 — 🟡 Intersezione su Unione (IoU) e Soppressione dei Non-Massimi (NMS)</h1>
   </div>
   <nav class="ep-frame-nav">
@@ -258,13 +258,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="ep-card-frame">
     <div class="ep-container">
       <h3 class="anchored" data-anchor-id="ep09_04-intersezione-su-unione-iou-e-soppressione-dei-non-massimi-nms" data-number="9.10.4"><span class="header-section-number">9.10.4</span> EP09_04 🟡 Intersezione su Unione (IoU) e Soppressione dei Non-Massimi (NMS)</h3>
-<p>I modelli di rilevamento degli oggetti possono produrre <strong>più bounding box candidate</strong> per lo stesso oggetto, con diverse posizioni e punteggi di confidenza. La fase di post-elaborazione responsabile dell’eliminazione di queste rilevazioni ridondanti è la <strong>Soppressione dei Non-Massimi (NMS)</strong>, la cui operazione fondamentale utilizza la metrica della <strong>Intersezione su Unione (IoU)</strong>.</p>
-<p>La NMS utilizza questa misura per decidere quali box devono essere mantenute. In generale, la box con la confidenza più alta viene selezionata per prima; successivamente, le box che presentano una IoU superiore a una certa soglia con la box selezionata sono considerate ridondanti e rimosse. Il processo viene ripetuto finché non rimangono box candidate.</p>
-<p>In questo esercizio, dovrai implementare l’algoritmo NMS da zero, calcolando la IoU tra le box e applicando successivamente il criterio di selezione e soppressione per produrre l’insieme finale di rilevazioni.</p>
-<section class="level4" data-number="9.10.4.1" id="linee-guida-per-limplementazione">
-<h4 class="anchored" data-anchor-id="linee-guida-per-limplementazione" data-number="9.10.4.1"><span class="header-section-number">9.10.4.1</span> 📋 Linee Guida per l’Implementazione</h4>
+<p>I modelli di rilevamento degli oggetti possono produrre <strong>diverse bounding box candidate</strong> per lo stesso oggetto, con posizioni e punteggi di confidenza differenti. La fase di post-elaborazione responsabile dell’eliminazione di queste rilevazioni ridondanti è la <strong>Soppressione dei Non-Massimi (NMS)</strong>, la cui operazione fondamentale utilizza la metrica di <strong>Intersezione su Unione (IoU)</strong>.</p>
+<p>La NMS utilizza questa misura per decidere quali box devono essere mantenute. In generale, la box con la confidenza più alta viene selezionata per prima; successivamente, le box che presentano un’IoU superiore a una certa soglia con la box selezionata sono considerate ridondanti e vengono rimosse. Il processo viene ripetuto finché non rimangono box candidate.</p>
+<p>In questo esercizio, dovrai implementare l’algoritmo NMS da zero, calcolando l’IoU tra le box e applicando successivamente il criterio di selezione e soppressione per produrre l’insieme finale di rilevazioni.</p>
+<section class="level4" data-number="9.10.4.1" id="linee-guida-di-implementazione-3">
+<h4 class="anchored" data-anchor-id="linee-guida-di-implementazione-3" data-number="9.10.4.1"><span class="header-section-number">9.10.4.1</span> 📋 Linee Guida di Implementazione</h4>
 <ol type="1">
-<li><p><strong>Input:</strong> Leggere l’intero <span class="math inline">\(N\)</span> (numero di box candidate) e la soglia reale <span class="math inline">\(\tau\)</span> (soglia di IoU per la soppressione), sulla stessa riga.</p></li>
+<li><p><strong>Input:</strong> Leggere l’intero <span class="math inline">\(N\)</span> (numero di box candidate) e la soglia reale <span class="math inline">\(\tau\)</span> (soglia IoU per la soppressione), sulla stessa riga.</p></li>
 <li><p><strong>Box:</strong> Leggere <span class="math inline">\(N\)</span> righe, ciascuna con cinque valori reali:</p>
 <p><code>x1 y1 x2 y2 score</code></p>
 <p>dove <span class="math inline">\((x_1,y_1)\)</span> rappresenta l’angolo superiore sinistro, <span class="math inline">\((x_2,y_2)\)</span> l’angolo inferiore destro e <code>score</code> il punteggio di confidenza.</p></li>
@@ -277,25 +277,25 @@ IoU(A,B)=
 <p>L’area di intersezione deve essere calcolata dalla sovrapposizione degli intervalli in <span class="math inline">\(x\)</span> e <span class="math inline">\(y\)</span>. Se non c’è sovrapposizione, l’area di intersezione è zero.</p></li>
 <li><p><strong>Algoritmo greedy di NMS:</strong></p>
 <ol type="a">
-<li><p>Ordinare le box per <code>score</code> decrescente. In caso di parità, mantenere l’ordine originale di lettura.</p></li>
-<li><p>Selezionare la box con il punteggio più alto tra le box rimanenti e aggiungerla all’insieme di output.</p></li>
-<li><p>Calcolare la IoU tra la box selezionata e <strong>tutte le box ancora rimanenti</strong>. Sopprimere le box per le quali</p></li>
+<li><p>Ordina le box per <code>score</code> decrescente. In caso di parità, mantieni l’ordine originale di lettura.</p></li>
+<li><p>Seleziona la box con il punteggio più alto tra le box rimanenti e aggiungila all’insieme di output.</p></li>
+<li><p>Calcola l’IoU tra la box selezionata e <strong>tutte le box ancora rimanenti</strong>. Sopprimi le box per cui</p></li>
 </ol>
 <p><span class="math display">\[
 \text{IoU} &gt; \tau.
 \]</span></p>
 <ol start="4" type="a">
-<li>Ripetere i passaggi (b) e (c) finché non rimangono box.</li>
+<li>Ripeti i passaggi (b) e (c) finché non rimangono box.</li>
 </ol></li>
-<li><p><strong>Output:</strong> Per ogni box mantenuta, nell’ordine in cui è stata selezionata, stampare il suo indice originale (posizione di lettura, iniziando da <span class="math inline">\(0\)</span>) e il suo <code>score</code>, formattato con 4 cifre decimali. Alla fine, stampare:</p>
-<p><code>Totali mantenute: X</code></p></li>
+<li><p><strong>Output:</strong> Per ogni box mantenuta, nell’ordine in cui è stata selezionata, stampa il suo indice originale (posizione di lettura, a partire da <span class="math inline">\(0\)</span>) e il suo <code>score</code>, formattato con 4 cifre decimali. Alla fine, stampa:</p>
+<p><code>Totale mantenute: X</code></p></li>
 </ol>
 </section>
 <section class="level4" data-number="9.10.4.2" id="vincoli-computazionali-3">
 <h4 class="anchored" data-anchor-id="vincoli-computazionali-3" data-number="9.10.4.2"><span class="header-section-number">9.10.4.2</span> 📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong>Soppressione stretta:</strong> solo le box con <span class="math inline">\(\text{IoU} &gt; \tau\)</span> vengono soppresse. Le box con <span class="math inline">\(\text{IoU} = \tau\)</span> vengono mantenute.</li>
-<li><strong>Indici originali:</strong> l’output fa riferimento alla posizione in cui ogni box è stata letta nell’input (iniziando da <span class="math inline">\(0\)</span>), e non alla sua posizione dopo l’ordinamento.</li>
+<li><strong>Soppressione stretta:</strong> solo le box con <span class="math inline">\(\text{IoU} &gt; \tau\)</span> vengono soppresse. Le box con <span class="math inline">\(\text{IoU}=\tau\)</span> vengono mantenute.</li>
+<li><strong>Indici originali:</strong> l’output fa riferimento alla posizione in cui ogni box è stata letta nell’input (a partire da <span class="math inline">\(0\)</span>), non alla sua posizione dopo l’ordinamento.</li>
 <li><strong>Ordinamento stabile:</strong> in caso di <code>score</code> uguali, deve essere preservato l’ordine originale di lettura.</li>
 <li><strong>Rettangoli allineati agli assi:</strong> tutte le box sono specificate da due angoli, con <span class="math inline">\(x_1 &lt; x_2\)</span> e <span class="math inline">\(y_1 &lt; y_2\)</span> garantiti nell’input.</li>
 <li><strong>Coordinate e punteggi:</strong> i valori reali possono essere positivi o negativi, secondo i limiti definiti dall’input, ma le dimensioni delle box sono sempre positive.</li>
@@ -345,11 +345,11 @@ IoU(A,B)=
 <p><span class="math display">\[
 w=x_2-x_1,\qquad h=y_2-y_1.
 \]</span></p>
-<p>L’uso di questa funzione è opzionale. L’obiettivo principale dell’esercizio è implementare correttamente il processo di selezione e soppressione della NMS.</p></li>
+<p>L’uso di questa funzione è facoltativo. L’obiettivo principale dell’esercizio è implementare correttamente il processo di selezione e soppressione della NMS.</p></li>
 </ul>
 </section>
-<section class="level4" data-number="9.10.4.5" id="specifica-di-input-e-output-vpl-2">
-<h4 class="anchored" data-anchor-id="specifica-di-input-e-output-vpl-2" data-number="9.10.4.5"><span class="header-section-number">9.10.4.5</span> 📦 Specifica di Input e Output (VPL)</h4>
+<section class="level4" data-number="9.10.4.5" id="specifica-di-input-e-output-vpl-1">
+<h4 class="anchored" data-anchor-id="specifica-di-input-e-output-vpl-1" data-number="9.10.4.5"><span class="header-section-number">9.10.4.5</span> 📦 Specifica di Input e Output (VPL)</h4>
 <p><strong>Input:</strong></p>
 <ul>
 <li>Riga 1: intero <span class="math inline">\(N\)</span> e reale <span class="math inline">\(\tau\)</span>.</li>
@@ -357,8 +357,8 @@ w=x_2-x_1,\qquad h=y_2-y_1.
 </ul>
 <p><strong>Output:</strong></p>
 <ul>
-<li>Una riga per ogni box mantenuta, nell’ordine di selezione: <code>índice score</code>.</li>
-<li>Ultima riga: <code>Totali mantenute: X</code>.</li>
+<li>Una riga per box mantenuta, nell’ordine di selezione: <code>indice score</code>.</li>
+<li>Ultima riga: <code>Totale mantenute: X</code>.</li>
 </ul>
 <div class="cell" data-execution_count="66" data-quarto-private-1='{"key":"pdi","value":{"ck":"9d565dea1dcf97dc45f9c15837504691"}}' id="cell-fig-09-sim-ep0904">
 <div class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored no-overflow-x" data-execution_count="50" id="fig-09-sim-ep0904">
@@ -366,7 +366,7 @@ w=x_2-x_1,\qquad h=y_2-y_1.
 <div aria-describedby="fig-09-sim-ep0904-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div id="sim-ep0904" style="background-color:#fef9ef;border-radius:18px;border:1px solid #ede6d8;overflow:hidden;margin-top:20px;font-family:sans-serif;">
 <div style="background:#f3efe6;padding:8px 16px;font-size:12px;color:#5e5a4a;border-bottom:1px solid #e9dfcf;display:flex;justify-content:space-between;align-items:center;">
-<span>🎮 Simulatore: IoU e Soppressione Non-Massima</span>
+<span>🎮 Simulatore: IoU e Soppressione Non-Massimale</span>
 <span style="background:#e8e0cf;border-radius:40px;padding:2px 10px;font-weight:600;font-size:10px;">🟡 NMS</span>
 </div>
 <div style="padding:16px;background:white;">
@@ -394,7 +394,7 @@ w=x_2-x_1,\qquad h=y_2-y_1.
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px;">
 <div>
 <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
-<label style="font-weight:bold;color:#2980b9;">N. di caselle</label>
+<label style="font-weight:bold;color:#2980b9;">Numero di caselle</label>
 <span id="ep0904_n_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">5</span>
 </div>
 <input id="ep0904_n" max="8" min="2" step="1" style="width:100%;accent-color:#2980b9;height:4px;" type="range" value="5"/>
@@ -409,13 +409,13 @@ w=x_2-x_1,\qquad h=y_2-y_1.
 <div>
 <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">
 <label style="font-weight:bold;color:#2980b9;">Esempio</label>
-<span id="ep0904_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Standard</span>
+<span id="ep0904_example_v" style="font-family:monospace;font-weight:bold;color:#2980b9;font-size:9px;">Predefinito</span>
 </div>
 <select id="ep0904_example" style="width:100%;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;">
-<option value="padrao">Esempio Standard</option>
-<option value="agrupado">Caselle Raggruppate</option>
-<option value="disperso">Caselle Dispersee</option>
-<option value="aninhado">Caselle Annidate</option>
+<option value="padrao">Esempio predefinito</option>
+<option value="agrupado">Caselle raggruppate</option>
+<option value="disperso">Caselle sparse</option>
+<option value="aninhado">Caselle annidate</option>
 </select>
 </div>
 <div style="display:flex;align-items:center;justify-content:center;">
@@ -434,14 +434,14 @@ w=x_2-x_1,\qquad h=y_2-y_1.
 <!-- Canvas da visualização -->
 <div style="position:relative;background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);border-radius:10px;padding:16px;min-height:300px;">
 <div style="position:absolute;top:8px;left:10px;color:white;font-weight:bold;font-size:14px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);z-index:10;">
-          🎯 Visualizzazione delle Caselle
+          🎯 Visualizzazione delle caselle
         </div>
 <canvas id="ep0904_canvas" style="width:100%;height:280px;display:block;"></canvas>
 </div>
 <!-- Passo a passo -->
 <div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:10px;padding:12px;overflow-y:auto;max-height:310px;">
 <div style="font-weight:bold;font-size:12px;color:#333;margin-bottom:8px;">
-          📋 Passo Dopo Passo della NMS
+          📋 Procedura passo passo della NMS
         </div>
 <div id="ep0904_steps" style="font-family:monospace;font-size:10px;line-height:1.6;">
 <!-- Gerado dinamicamente -->
@@ -539,7 +539,7 @@ w=x_2-x_1,\qquad h=y_2-y_1.
         html += '<input type="number" id="ep0904_y1_' + i + '" value="' + boxes[i].y1 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y1">';
         html += '<input type="number" id="ep0904_x2_' + i + '" value="' + boxes[i].x2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="x2">';
         html += '<input type="number" id="ep0904_y2_' + i + '" value="' + boxes[i].y2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y2">';
-        html += '<input type="number" id="ep0904_score_' + i + '" value="' + boxes[i].score + '" step="0.05" min="0" max="1" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="score">';
+        html += '<input type="number" id="ep0904_score_' + i + '" value="' + boxes[i].score + '" step="0.05" min="0" max="1" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="punteggio">';
         html += '</div>';
       }
       boxesConfigEl.innerHTML = html;
@@ -700,7 +700,7 @@ w=x_2-x_1,\qquad h=y_2-y_1.
       // Score
       ctx.fillStyle = '#666';
       ctx.font = '10px Arial';
-      ctx.fillText('score: ' + box.score.toFixed(2), x + w/2, y + h/2);
+      ctx.fillText('punteggio: ' + box.score.toFixed(2), x + w/2, y + h/2);
     }
     
     // Mostrar passo a passo
@@ -813,14 +813,13 @@ Figura 9.46: Simulatore EP09_04: IoU e Soppressione Non-Massima (NMS)
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a aria-hidden="true" href="#cb79-1" tabindex="-1"></a><span class="op">%%</span>writefile EP09_04.py</span>
 <span id="cb79-2"><a aria-hidden="true" href="#cb79-2" tabindex="-1"></a><span class="co"># Codice Python</span></span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP09_04.py</code></pre>
+<pre><code>Overwriting EP09_04.py</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="68" data-quarto-private-1='{"key":"pdi","value":{"ck":"e8e280dbb55cb4bc4be31632a9651de4"}}' id="1f0e3b28d2ab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a aria-hidden="true" href="#cb81-1" tabindex="-1"></a>TestSuite(<span class="st">"EP09_04.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentativo: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap09/casos/EP09_04.cases
-   ✅ Scaricato con successo
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP09_04.cases esiste già in casos/
 📋 3 caso/i caricato/i da casos/EP09_04.cases
 
 🔍 Test di Python: EP09_04.py
@@ -835,7 +834,7 @@ Figura 9.46: Simulatore EP09_04: IoU e Soppressione Non-Massima (NMS)
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">EDI+VA — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Università Federale dell'ABC (UFABC)</a>.<br>
     Materiale didattico aperto sotto licenza <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -1065,7 +1064,7 @@ window.Quarto = {
 
     function cap09conv_atualizarCalculoTexto(){
       if (cap09conv_pos.r >= 10) {
-        cap09conv_calcTxt.textContent = "Convoluzione Completata! Tutti i 100 pixel della mappa di uscita sono stati generati.";
+        cap09conv_calcTxt.textContent = "Convoluzione Completata! Tutti i 100 pixel della mappa di output sono stati generati.";
         return;
       }
       var cap09conv_obj = cap09conv_calcularPosicao(cap09conv_pos.r, cap09conv_pos.c);
@@ -1331,7 +1330,7 @@ window.Quarto = {
       desenharPixel(ctxEsquema, 306, 84, 26, vizinhos[1], "#d1d5db");
 
       ctxEsquema.fillStyle = "#9ca3af"; ctxEsquema.font = "8px Inter, sans-serif";
-      ctxEsquema.fillText("(il kernel scorre →)", 265, 212);
+      ctxEsquema.fillText("(il kernel scivola →)", 265, 212);
     }
 
     // ---------- MODO TOTALMENTE CONECTADA ----------
@@ -1443,7 +1442,7 @@ window.Quarto = {
       } else {
         lblX1.textContent = "Attributo x₁ (feature) / Peso w₁";
         lblX2.textContent = "Attributo x₂ (feature) / Peso w₂";
-        diagTitle.textContent = "Vettore di Attributi → Neurone → Output";
+        diagTitle.textContent = "Vettore di Attributi → Neurone → Uscita";
         caption.innerHTML = "<b>🔗 Perda da Informação Espacial:</b> Na camada totalmente conectada, os mapas de características são achatados (flatten) em um vetor 1D. Como o neurônio se conecta a todas as entradas indiferenciadamente, a noção de 'vizinho de cima/lado' é destruída em prol de uma decisão global.";
         notaEscala.innerHTML = "Aqui x₁, x₂ representam atributos já extraídos (não pixels), tipicamente padronizados para uma faixa pequena como esta antes de entrarem na camada.";
       }
@@ -5594,7 +5593,7 @@ window.Quarto = {
           '<input type="number" id="ep0903_cout_' + index + '" value="' + (index === 0 ? '8' : '16') + '" min="1" max="64" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="filtri">';
       } else if (type === 'POOL') {
         paramsDiv.innerHTML = 
-          '<input type="number" id="ep0903_pool_size_' + index + '" value="2" min="2" max="4" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="dimensione pool">';
+          '<input type="number" id="ep0903_pool_size_' + index + '" value="2" min="2" max="4" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="pool size">';
       } else if (type === 'FC') {
         paramsDiv.innerHTML = 
           '<input type="number" id="ep0903_fcout_' + index + '" value="10" min="1" max="100" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="uscite">';
@@ -5808,7 +5807,7 @@ window.Quarto = {
         html += '<input type="number" id="ep0904_y1_' + i + '" value="' + boxes[i].y1 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y1">';
         html += '<input type="number" id="ep0904_x2_' + i + '" value="' + boxes[i].x2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="x2">';
         html += '<input type="number" id="ep0904_y2_' + i + '" value="' + boxes[i].y2 + '" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="y2">';
-        html += '<input type="number" id="ep0904_score_' + i + '" value="' + boxes[i].score + '" step="0.05" min="0" max="1" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="score">';
+        html += '<input type="number" id="ep0904_score_' + i + '" value="' + boxes[i].score + '" step="0.05" min="0" max="1" style="width:30px;padding:1px;border:1px solid #ccc;border-radius:2px;font-size:8px;" title="punteggio">';
         html += '</div>';
       }
       boxesConfigEl.innerHTML = html;
@@ -5969,7 +5968,7 @@ window.Quarto = {
       // Score
       ctx.fillStyle = '#666';
       ctx.font = '10px Arial';
-      ctx.fillText('score: ' + box.score.toFixed(2), x + w/2, y + h/2);
+      ctx.fillText('punteggio: ' + box.score.toFixed(2), x + w/2, y + h/2);
     }
     
     // Mostrar passo a passo

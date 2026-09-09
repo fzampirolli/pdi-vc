@@ -4,15 +4,15 @@
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
 <h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_05 🔴 Istogramma delle Orientazioni di una Cella HOG</h2>
-<p>La funzione <code>hog</code> di <code>scikit-image</code>, impiegata nel progetto di classificazione delle cifre, suddivide l’immagine in piccole <strong>celle</strong> e, per ciascuna, costruisce un istogramma delle orientazioni del gradiente ponderato dalla magnitudine — esattamente la fase centrale descritta nella sezione sul descrittore HOG del capitolo.</p>
-<p>Ti è stato affidato il compito di implementare questo calcolo per una singola cella, a partire dai valori di magnitudine e orientazione del gradiente <strong>già calcolati</strong> per ogni pixel della cella (omettendo il calcolo delle derivate parziali).</p>
+<p>La funzione <code>hog</code> di <code>scikit-image</code>, impiegata nel progetto di classificazione delle cifre, divide l’immagine in piccole <strong>celle</strong> e, per ciascuna, costruisce un istogramma delle orientazioni del gradiente ponderato per la magnitudine — esattamente il passaggio centrale descritto nella sezione sul descrittore HOG del capitolo.</p>
+<p>Sei stato incaricato di implementare questo calcolo per una singola cella, a partire dai valori di magnitudine e orientazione del gradiente <strong>già calcolati</strong> per ogni pixel della cella (tralasciando il calcolo delle derivate parziali).</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
 <li><strong>Dimensioni:</strong> Leggere gli interi <em>n</em> (la cella ha <em>n</em> × <em>n</em> pixel) e <em>B</em> (numero di contenitori dell’istogramma).</li>
 <li><strong>Magnitudini:</strong> Leggere <em>n</em> righe con <em>n</em> valori reali ciascuna, che rappresentano |\nabla <em>f</em>(<em>x</em>,<em>y</em>)| per ogni pixel della cella.</li>
 <li><strong>Orientazioni:</strong> Leggere altre <em>n</em> righe con <em>n</em> valori reali ciascuna, che rappresentano \theta(<em>x</em>,<em>y</em>) in <strong>gradi</strong>, già convertiti nell’intervallo <strong>non orientato</strong> [0^\circ, 180^\circ), come convenzionalmente utilizzato dal HOG.</li>
-<li><strong>Contenitori:</strong> I <em>B</em> contenitori coprono [0^\circ, 180^\circ) in fasce uguali di larghezza 180/<em>B</em> gradi. Un pixel con orientazione \theta appartiene al contenitore \lfloor \theta / (180/<em>B</em>) \rfloor; se questo indice è uguale a <em>B</em> (possibile solo quando \theta è esattamente 180^\circ, il che non dovrebbe verificarsi secondo la direttiva del punto 3), utilizzare il contenitore <em>B</em>-1.</li>
+<li><strong>Contenitori:</strong> I <em>B</em> contenitori coprono [0^\circ, 180^\circ) in fasce uguali di larghezza 180/<em>B</em> gradi. Un pixel con orientazione \theta appartiene al contenitore \lfloor \theta / (180/<em>B</em>) \rfloor; se questo indice è uguale a <em>B</em> (possibile solo quando \theta è esattamente 180^\circ, cosa che non dovrebbe verificarsi secondo la direttiva del punto 3), utilizzare il contenitore <em>B</em>-1.</li>
 <li><strong>Istogramma grezzo:</strong> Per ogni pixel, accumulare la sua <strong>magnitudine</strong> (non il suo conteggio) nel contenitore corrispondente: <em>H</em>[<em>b</em>] = ∑_(<em>x</em>,<em>y</em>)\, :\, bin(\theta(<em>x</em>,<em>y</em>)) = <em>b</em> |\nabla <em>f</em>(<em>x</em>,<em>y</em>)|.</li>
 <li><strong>Normalizzazione L2:</strong> Dopo aver costruito <em>H</em>, normalizzarlo per ottenere \hat <em>H</em>: \hat <em>H</em>[<em>b</em>] = (<em>H</em>[<em>b</em>])/(√(∑_j=0)^B-1) <em>H</em>[<em>j</em>]^2 + \epsilon, \qquad \epsilon = 10^-6.</li>
 <li><strong>Output:</strong> Stampare l’istogramma grezzo <em>H</em> (arrotondato a 2 cifre decimali) su una riga, seguito dall’istogramma normalizzato \hat <em>H</em> (arrotondato a 4 cifre decimali) su un’altra riga, entrambi con i <em>B</em> valori separati da spazi, nell’ordine dei contenitori.</li>
@@ -21,22 +21,22 @@
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong><em>Binning</em> non orientato:</strong> l’intervallo delle orientazioni è [0,180), non [0,360) — i gradienti in direzioni opposte (differenza di 180^\circ) contribuiscono allo <strong>stesso</strong> contenitore, convenzione standard del HOG per il rilevamento degli oggetti.</li>
-<li><strong>Accumulazione per magnitudine, non per conteggio:</strong> l’istogramma pondera ogni pixel per la sua magnitudine di gradiente, non si limita a contare quanti pixel ricadono in ciascun contenitore.</li>
+<li><strong><em>Binning</em> non orientato:</strong> l’intervallo delle orientazioni è [0,180), non [0,360) — i gradienti in direzioni opposte (differenza di 180^\circ) contribuiscono allo <strong>stesso</strong> contenitore, convenzione standard del HOG per il rilevamento di oggetti.</li>
+<li><strong>Accumulo per magnitudine, non per conteggio:</strong> l’istogramma pondera ogni pixel per la sua magnitudine del gradiente, non conta semplicemente quanti pixel cadono in ciascun contenitore.</li>
 <li><strong>Costante di stabilizzazione:</strong> l’\epsilon = 10^-6 al denominatore della normalizzazione evita la divisione per zero quando la cella è completamente omogenea (tutte le magnitudini nulle).</li>
 </ul>
 </div>
 <div>
-<h4> 📐 Da dove provengono le matrici di input</h4>
+<h4> 📐 Da dove provengono le matrici di ingresso</h4>
 <p>Prima di questo EP, ogni pixel (<em>x</em>,<em>y</em>) dell’immagine passa attraverso:</p>
 <p><em>G</em>_<em>x</em> = <em>f</em>(<em>x</em>+1,<em>y</em>)-<em>f</em>(<em>x</em>-1,<em>y</em>), \qquad <em>G</em>_<em>y</em> = <em>f</em>(<em>x</em>,<em>y</em>+1)-<em>f</em>(<em>x</em>,<em>y</em>-1)</p>
-<p>|\nabla <em>f</em>| = √(<em>G</em>_<em>x</em>^2+<em>G</em>_<em>y</em>^2), \qquad \theta_sgn = \operatornameatan2(<em>G</em>_<em>y</em>,<em>G</em>_<em>x</em>)</p>
-<p>Poiché il HOG ignora la polarità del contrasto, l’angolo viene ripiegato nell’intervallo non orientato:</p>
-<p>\theta = \theta_sgn \bmod 180°</p>
-<p>Ripetendo questo per tutti i pixel di una cella <em>n</em>× <em>n</em>, si ottengono le due matrici di input di questo esercizio: <strong>magnitudini</strong> |\nabla <em>f</em>| e <strong>orientazioni</strong> \theta ∈ [0°,180°).</p>
+<p>|\nabla <em>f</em>| = √(<em>G</em>_<em>x</em>^2+<em>G</em>_<em>y</em>^2), \qquad \theta_segnalato = \operatornameatan2(<em>G</em>_<em>y</em>,<em>G</em>_<em>x</em>)</p>
+<p>Poiché il HOG ignora la polarità del contrasto, l’angolo viene raddoppiato nell’intervallo non orientato:</p>
+<p>\theta = \theta_segnalato \bmod 180°</p>
+<p>Ripetendo questo per tutti i pixel di una cella <em>n</em>× <em>n</em>, si ottengono le due matrici di ingresso di questo esercizio: <strong>magnitudini</strong> |\nabla <em>f</em>| e <strong>orientazioni</strong> \theta ∈ [0°,180°).</p>
 </div>
 <div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti Teorici</h4>
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
@@ -63,17 +63,17 @@
 </tr>
 </tbody>
 </table>
-<p>La concatenazione degli istogrammi normalizzati di tutte le celle dell’immagine — non implementata in questo esercizio — forma il vettore di caratteristiche HOG completo, utilizzato come input del classificatore k-NN nel progetto del capitolo.</p>
+<p>La concatenazione degli istogrammi normalizzati di tutte le celle dell’immagine — non implementata in questo esercizio — forma il vettore di caratteristiche HOG completo, utilizzato come ingresso del classificatore k-NN nel progetto del capitolo.</p>
 </div>
 <div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
-<p><strong>Input:</strong></p>
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Ingresso e Uscita (VPL)</h4>
+<p><strong>Ingresso:</strong></p>
 <ul>
 <li>Riga 1: Interi <em>n</em> e <em>B</em>.</li>
-<li>Successive <em>n</em> righe: <em>n</em> magnitudini reali ciascuna.</li>
-<li>Successive <em>n</em> righe: <em>n</em> orientazioni reali (gradi, [0,180)) ciascuna.</li>
+<li>Prossime <em>n</em> righe: <em>n</em> magnitudini reali ciascuna.</li>
+<li>Prossime <em>n</em> righe: <em>n</em> orientazioni reali (gradi, [0,180)) ciascuna.</li>
 </ul>
-<p><strong>Output:</strong></p>
+<p><strong>Uscita:</strong></p>
 <ul>
 <li>Riga 1: i <em>B</em> valori dell’istogramma grezzo, arrotondati a 2 cifre decimali.</li>
 <li>Riga 2: i <em>B</em> valori dell’istogramma normalizzato, arrotondati a 4 cifre decimali.</li>
@@ -84,8 +84,8 @@
 <table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
 <thead>
 <tr style="background-color:#f1f1f1;">
-<th style="padding:10px;border:1px solid #ddd;">Input</th>
-<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Ingresso</th>
+<th style="padding:10px;border:1px solid #ddd;">Uscita</th>
 <th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
 </tr>
 </thead>
@@ -98,7 +98,7 @@
 170 20</td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5.00 5.00<br/>
 0.7071 0.7071</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Bin di larghezza 90°: [0,90) e [90,180); le magnitudini 1 e 4 cadono nel bin 0, 2 e 3 nel bin 1.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Contenitore di larghezza 90°: [0,90) e [90,180); le magnitudini 1 e 4 cadono nel contenitore 0, 2 e 3 nel contenitore 1.</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 4<br/>
@@ -108,7 +108,7 @@
 0 0</td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0.00 0.00 0.00 0.00<br/>
 0.0000 0.0000 0.0000 0.0000</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Cella omogenea: l’\epsilon evita la divisione per zero.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Cella omogenea: \epsilon evita la divisione per zero.</td>
 </tr>
 </tbody>
 </table>
@@ -125,18 +125,18 @@
 </style>
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP07_05: Istogramma delle orientazioni di una cella</span>
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP07_05: Istogramma delle Orientazioni di una Cella</span>
 <span class="sim-ep0705_pill">🔴 cella 3×3 fissa</span>
 
 </div><div style="padding:20px;background:white;overflow:auto">
 <p style="font-size:11px;color:#777;margin-bottom:14px;text-align:center;">
       Regola B e osserva come la <b>matrice delle orientazioni</b> (indipendente da quella delle magnitudini) viene mappata
-      nei contenitori tramite <code>bin = floor(θ / (180/B))</code>, e come le magnitudini vengono sommate in ciascun bin.
+      nei compartimenti tramite <code>bin = floor(θ / (180/B))</code>, e come le magnitudini vengono sommate in ciascun bin.
     </p>
 <!-- Controle B -->
 <div style="background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:20px;margin-bottom:18px;">
 <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-<label style="font-size:12px;font-weight:bold;color:#2980b9;">Numero di contenitori (B)</label>
+<label style="font-size:12px;font-weight:bold;color:#2980b9;">Numero di compartimenti (B)</label>
 <span id="ep0705_vl" style="font-family:monospace;font-weight:bold;color:#2980b9;">2</span>
 </div>
 <input id="ep0705_sl" max="6" min="2" step="1" style="width:100%;" type="range" value="2"/>
@@ -168,7 +168,7 @@
 </div>
 <!-- Faixas dos compartimentos -->
 <div style="margin-bottom:18px;">
-<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📊 Intervalli di ciascun contenitore (larghezza = 180° / B)</div>
+<div style="font-size:12px;font-weight:bold;color:#5e5a4a;margin-bottom:6px;">📊 Intervalli di ciascun compartimento (larghezza = 180° / B)</div>
 <div id="ep0705_faixas" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
 </div>
 <!-- Grade de pixels colorida por bin (mag + ang juntos) -->

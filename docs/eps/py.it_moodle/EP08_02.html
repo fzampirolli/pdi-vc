@@ -3,20 +3,20 @@
 📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_02.html</a>
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
-<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_02 🟢 Omografia e RANSAC: La Votazione per Inliers</h2>
-<p>Il RANSAC, presentato nella sezione “Modellazione Matematica: Omografia e RANSAC”, ripete un ciclo di tre passaggi — estrarre un campione minimo, stimare un modello candidato e contare quante corrispondenze sono coerenti con esso (gli <strong><em>inliers</em></strong>) — mantenendo alla fine il modello più votato. La fase di stima del modello a partire da 4 punti (passaggio 2) coinvolge algebra lineare che esula dallo scopo di questo EP; qui ricevi direttamente un insieme di omografie <strong>già candidate</strong> — come se ciascuna fosse stata stimata da un campione casuale diverso — e sei incaricato di riprodurre esattamente il passaggio decisivo dell’algoritmo: <strong>applicare ogni modello a tutte le corrispondenze e contare i propri <em>inliers</em></strong>, scegliendo il vincitore.</p>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_02 🟢 Omografia e RANSAC: Il Voto per Inlier</h2>
+<p>Il RANSAC, presentato nella sezione “Modellazione Matematica: Omografia e RANSAC”, ripete un ciclo di tre passaggi — selezionare un campione minimo, stimare un modello candidato e contare quante corrispondenze sono coerenti con esso (gli <strong><em>inlier</em></strong>) — conservando alla fine il modello più votato. La fase di stima del modello a partire da 4 punti (passo 2) coinvolge algebra lineare che esula dallo scopo di questo EP; qui ricevi direttamente un insieme di omografie <strong>già candidate</strong> — come se ciascuna fosse stata stimata da un campione casuale diverso — e sei incaricato di riprodurre esattamente il passo decisivo dell’algoritmo: <strong>applicare ogni modello a tutte le corrispondenze e contare i suoi <em>inlier</em></strong>, scegliendo il vincitore.</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
-<li><strong>Corrispondenze:</strong> Leggere il numero intero <em>N</em> e, successivamente, <em>N</em> righe con quattro valori reali ciascuna, <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>' — un punto dell’immagine A e il suo corrispondente (possibilmente errato) nell’immagine B, esattamente come prodotto dalla fase di <em>matching</em> dell’EP08_01.</li>
-<li><strong>Modelli candidati:</strong> Leggere il numero intero <em>K</em> (numero di omografie candidate) e il valore reale \varepsilon (soglia di errore di riproiezione). Successivamente, leggere <em>K</em> righe, ciascuna con nove valori reali <em>h</em>_11\ <em>h</em>_12\ <em>h</em>_13\ <em>h</em>_21\ <em>h</em>_22\ <em>h</em>_23\ <em>h</em>_31\ <em>h</em>_32\ <em>h</em>_33 — gli elementi della matrice <em>H</em> candidata, in ordine di lettura per riga (<em>row-major</em>).</li>
+<li><strong>Corrispondenze:</strong> Leggere l’intero <em>N</em> e, successivamente, <em>N</em> righe con quattro reali ciascuna, <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>' — un punto dell’immagine A e il suo corrispondente (possibilmente errato) nell’immagine B, esattamente come prodotto dalla fase di <em>matching</em> dell’EP08_01.</li>
+<li><strong>Modelli candidati:</strong> Leggere l’intero <em>K</em> (numero di omografie candidate) e il reale \varepsilon (soglia di errore di riproiezione). Successivamente, leggere <em>K</em> righe, ciascuna con nove reali <em>h</em>_11\ <em>h</em>_12\ <em>h</em>_13\ <em>h</em>_21\ <em>h</em>_22\ <em>h</em>_23\ <em>h</em>_31\ <em>h</em>_32\ <em>h</em>_33 — gli elementi della matrice <em>H</em> candidata, in ordine di lettura per righe (<em>row-major</em>).</li>
 <li><strong>Riproiezione:</strong> Per ogni corrispondenza (<em>x</em>,<em>y</em>,<em>x</em>',<em>y</em>') e ogni modello candidato <em>H</em>_<em>k</em>, calcolare il punto proiettato \beginbmatrix \hat <em>x</em> \\ \hat <em>y</em> \\ \hat <em>w</em> \endbmatrix = <em>H</em>_<em>k</em> \beginbmatrix <em>x</em> \\ <em>y</em> \\ 1 \endbmatrix,
 \qquad
 (\hat <em>x</em> / \hat <em>w</em>,\ \hat <em>y</em> / \hat <em>w</em>)\ è il punto proiettato.</li>
 <li><strong>Errore di riproiezione:</strong> <em>e</em> = √((\hat <em>x</em>/\hat <em>w</em> - <em>x</em>')^2 + (\hat <em>y</em> /\hat <em>w</em> - <em>y</em>')^2).</li>
-<li><strong>Conteggio degli <em>inliers</em>:</strong> Una corrispondenza è un <em>inlier</em> del modello <em>H</em>_<em>k</em> se <em>e</em> \le \varepsilon.</li>
-<li><strong>Selezione del modello migliore:</strong> Il modello vincitore è quello con il maggior numero di <em>inliers</em>; in caso di pareggio, scegli quello con <strong>indice minore</strong> <em>k</em> (il primo trovato durante il ciclo iterativo del RANSAC).</li>
-<li><strong>Output:</strong> Per ogni modello <em>k</em> da 0 a <em>K</em>-1, in ordine di lettura, stampare <code>Modelo k: I inliers</code>. Alla fine, stampare <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+<li><strong>Conteggio degli <em>inlier</em>:</strong> Una corrispondenza è un <em>inlier</em> del modello <em>H</em>_<em>k</em> se <em>e</em> \le \varepsilon.</li>
+<li><strong>Selezione del modello migliore:</strong> Il modello vincitore è quello con il maggior numero di <em>inlier</em>; in caso di pareggio, scegli quello con <strong>indice minore</strong> <em>k</em> (il primo trovato durante il ciclo iterativo del RANSAC).</li>
+<li><strong>Output:</strong> Per ogni modello <em>k</em> da 0 a <em>K</em>-1, nell’ordine di lettura, stampare <code>Modello k: I inliers</code>. Alla fine, stampare <code>Modello migliore: k_best con I_best inliers</code>.</li>
 </ol>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
@@ -24,7 +24,7 @@
 <ul>
 <li><strong>Confronto inclusivo:</strong> un errore di riproiezione <strong>esattamente uguale</strong> a \varepsilon conta come <em>inlier</em> (<em>e</em> \le \varepsilon).</li>
 <li><strong>Senza stima di <em>H</em>:</strong> le matrici sono già fornite pronte — non è necessario (né previsto) risolvere alcun sistema lineare.</li>
-<li><strong>Pareggio risolto dall’indice minore</strong>, riflettendo il comportamento naturale di un algoritmo iterativo che scorre i modelli in ordine e sostituisce il migliore trovato fino a quel momento solo quando un nuovo modello lo <strong>supera strettamente</strong>.</li>
+<li><strong>Pareggio risolto con l’indice minore</strong>, riflettendo il comportamento naturale di un algoritmo iterativo che esamina i modelli in ordine e sostituisce il migliore trovato finora solo quando un nuovo modello lo <strong>supera strettamente</strong>.</li>
 </ul>
 </div>
 <div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
@@ -43,7 +43,7 @@
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modello candidato <em>H</em>_<em>k</em></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Stimato da un campione minimo; può essere buono o cattivo, a seconda che il campione contenesse <em>outliers</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Stimato da un campione minimo; può essere buono o cattivo, a seconda che il campione contenesse <em>outlier</em></td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Errore di riproiezione</td>
@@ -51,11 +51,11 @@
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Inlier</em> vs. <em>outlier</em></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Corrispondenze coerenti con il modello vincitore (<em>inliers</em>) vs. le rimanenti, tipicamente corrispondenze errate del <em>matching</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Corrispondenze coerenti con il modello vincitore (<em>inlier</em>) vs. le altre, tipicamente corrispondenze errate del <em>matching</em></td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Rifinitura finale</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">In pratica, dopo aver scelto il modello migliore, il RANSAC lo ricalcola usando <strong>solo</strong> i propri <em>inliers</em> — passaggio non richiesto in questo EP</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">In pratica, dopo aver scelto il modello migliore, il RANSAC lo ricalcola usando <strong>solo</strong> i suoi <em>inlier</em> — passo non richiesto in questo EP</td>
 </tr>
 </tbody>
 </table>
@@ -64,15 +64,15 @@
 <h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
 <p><strong>Input:</strong></p>
 <ul>
-<li>Riga 1: Numero intero <em>N</em>.</li>
-<li>Prossime <em>N</em> righe: quattro valori reali <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>'.</li>
-<li>Riga successiva: Numero intero <em>K</em> e valore reale \varepsilon.</li>
-<li>Prossime <em>K</em> righe: nove valori reali (elementi di <em>H</em>_<em>k</em>, <em>row-major</em>).</li>
+<li>Riga 1: Intero <em>N</em>.</li>
+<li>Prossime <em>N</em> righe: quattro reali <em>x</em>\ <em>y</em>\ <em>x</em>'\ <em>y</em>'.</li>
+<li>Riga successiva: Intero <em>K</em> e reale \varepsilon.</li>
+<li>Prossime <em>K</em> righe: nove reali (elementi di <em>H</em>_<em>k</em>, <em>row-major</em>).</li>
 </ul>
 <p><strong>Output:</strong></p>
 <ul>
-<li><em>K</em> righe nel formato <code>Modelo k: I inliers</code>.</li>
-<li>Ultima riga: <code>Melhor modelo: k_best com I_best inliers</code>.</li>
+<li><em>K</em> righe nel formato <code>Modello k: I inliers</code>.</li>
+<li>Ultima riga: <code>Modello migliore: k_best con I_best inliers</code>.</li>
 </ul>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
@@ -96,9 +96,9 @@
 2 0.5<br/>
 2 0 0 0 2 0 0 0 1<br/>
 1 0 0 0 1 0 0 0 1</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modelo 0: 4 inliers<br/>
-Modelo 1: 1 inliers<br/>
-Melhor modelo: 0 com 4 inliers</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Modello 0: 4 inliers<br/>
+Modello 1: 1 inliers<br/>
+Modello migliore: 0 con 4 inliers</td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il Modello 0 (scala ×2) spiega correttamente 4 delle 5 corrispondenze; la 5ª, (5,5)\to(1,1), è un <em>outlier</em> che nessuno dei due modelli spiega bene.</td>
 </tr>
 </tbody>
@@ -116,7 +116,7 @@ Melhor modelo: 0 com 4 inliers</td>
 </style>
 <!-- Cabeçalho -->
 <div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP08_02: RANSAC — Conteggio Inliers</span>
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP08_02: RANSAC — Conteggio degli Inlier</span>
 <span class="sim-ep0802_pill">Modello: Scala ×2</span>
 <div style="padding:16px;background:#ffffff;">
 <!-- Painel de Controles -->
@@ -128,7 +128,7 @@ Melhor modelo: 0 com 4 inliers</td>
 </div>
 <input id="sim-ep0802_sl" max="13" min="0" step="0.25" type="range" value="0.5"/>
 <div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
-      Il modello candidato mappa (x,y) → in (2x,2y). Regola la soglia ε e osserva quali corrispondenze diventano inliers o outliers.
+      Il modello candidato mappa (x,y) → in (2x,2y). Regola la soglia ε e osserva quali corrispondenze diventano inlier o outlier.
     </div>
 </div>
 <!-- Cards de Pontos / Correspondências -->

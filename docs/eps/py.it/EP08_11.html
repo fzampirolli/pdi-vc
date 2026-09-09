@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EP08_11 — 🔴 Classificazione e Validazione di Oggetti con Riferimento di Bounding Box | PDI+VC</title>
+  <title>EP08_11 — 🔴 Classificazione e Validazione di Oggetti con Riferimento di Bounding Box | EDI+VA</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico"> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -261,7 +261,7 @@ div.csl-indent {
 <!-- CABEÇALHO COM ESTILO DO LIVRO E NAVEGAÇÃO -->
 <header class="ep-frame-header">
   <div class="ep-frame-brand">
-    <span class="ep-frame-eyebrow">PDI+VC · Esercizio di Programmazione</span>
+    <span class="ep-frame-eyebrow">EDI+VA · Esercizio di Programmazione</span>
     <h1 class="ep-frame-title">EP08_11 — 🔴 Classificazione e Validazione di Oggetti con Riferimento di Bounding Box</h1>
   </div>
   <nav class="ep-frame-nav">
@@ -278,7 +278,7 @@ div.csl-indent {
   <div class="ep-card-frame">
     <div class="ep-container">
       <h3 data-anchor-id="ep08_11-classificazione-e-validazione-di-oggetti-con-riferimento-di-bounding-box" data-number="8.14.11"><span class="header-section-number">8.14.11</span> EP08_11 🔴 Classificazione e Validazione di Oggetti con Riferimento di <em>Bounding Box</em></h3>
-<p>In questo esercizio, l’obiettivo è elaborare un’immagine in scala di grigi contenente più oggetti geometrici, estrarne le proprietà con <code>mm.measure</code> e validare i riquadri di delimitazione (<em>bounding box</em>) rilevati rispetto a un riferimento reale (<em>Ground Truth</em> - GT) fornito in input, utilizzando la metrica IoU (<em>Intersection over Union</em>).</p>
+<p>In questo esercizio, l’obiettivo è elaborare un’immagine in scala di grigi contenente molteplici oggetti geometrici, estrarne le proprietà con <code>mm.measure</code> e validare le scatole delimitatrici (<em>bounding boxes</em>) rilevate rispetto a un riferimento reale (<em>Ground Truth</em> - GT) fornito in input, utilizzando la metrica IoU (<em>Intersection over Union</em>).</p>
 <section class="level4" data-number="8.14.11.1" id="linee-guida-di-implementazione-10">
 <h4 data-anchor-id="linee-guida-di-implementazione-10" data-number="8.14.11.1"><span class="header-section-number">8.14.11.1</span> 📋 Linee Guida di Implementazione</h4>
 <ol type="1">
@@ -287,8 +287,8 @@ div.csl-indent {
 <li><strong>Lettura del Riferimento Reale (<em>Ground Truth</em>):</strong></li>
 </ol>
 <ul>
-<li>Leggere la quantità <span class="math inline">\(G\)</span> di riquadri di delimitazione del riferimento.</li>
-<li>Se <span class="math inline">\(G &gt; 0\)</span>, leggere <span class="math inline">\(G\)</span> righe contenenti ciascuna 5 valori: <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code>.</li>
+<li>Leggere la quantità <span class="math inline">\(G\)</span> di scatole delimitatrici del riferimento.</li>
+<li>Se <span class="math inline">\(G &gt; 0\)</span>, leggere <span class="math inline">\(G\)</span> righe contenenti 5 valori ciascuna: <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code>.</li>
 <li><strong>Conversione delle Coordinate:</strong> Le coordinate del riferimento sono normalizzate nell’intervallo <span class="math inline">\([0.0, 1.0]\)</span>. Per convertirle in pixel sulla griglia dell’immagine:</li>
 </ul>
 <p><span class="math display">\[x_{\min} = \lfloor \text{xmin\_norm} \times W \rfloor, \quad y_{\min} = \lfloor \text{ymin\_norm} \times H \rfloor\]</span></p>
@@ -298,12 +298,12 @@ div.csl-indent {
 </ol>
 <ul>
 <li>Estrarre le proprietà delle istanze con <code>mm.measure(img_bin, precision=0.02)</code>.</li>
-<li>Per ogni <em>bounding box</em> rilevata <span class="math inline">\((x, y, w, h)\)</span>, calcolare la sovrapposizione IoU rispetto ai riquadri del riferimento e impostare <code>hits = 1</code> se esiste una corrispondenza con <span class="math inline">\(\text{IoU} \ge 0.50\)</span>, oppure <code>hits = 0</code> in caso contrario.</li>
+<li>Per ogni <em>bounding box</em> rilevata <span class="math inline">\((x, y, w, h)\)</span>, calcolare la sovrapposizione IoU rispetto alle scatole del riferimento e definire <code>hits = 1</code> se esiste una corrispondenza con <span class="math inline">\(\text{IoU} \ge 0.50\)</span>, oppure <code>hits = 0</code> in caso contrario.</li>
 </ul>
 <ol start="5" type="1">
 <li><strong>Output:</strong> Ordinare le istanze per posizione <code>(bbox[0], bbox[1])</code> e stampare la tabella CSV con la colonna aggiuntiva <code>hits</code>.
 <ul>
-<li>Per l’ordinamento, usare <code>medidas.sort(key=lambda m: (m['bbox'][1], m['bbox'][0]))</code>, con <code>medidas = mm.measure(img)</code>.</li>
+<li>Per ordinare, usare <code>medidas.sort(key=lambda m: (m['bbox'][1], m['bbox'][0]))</code>, con <code>medidas = mm.measure(img)</code>.</li>
 </ul></li>
 </ol>
 </section>
@@ -326,22 +326,22 @@ div.csl-indent {
 <tr class="odd">
 <td><strong>BBox Rilevata</strong></td>
 <td><span class="math inline">\((x, y, w, h)\)</span> tramite <code>mm.measure</code></td>
-<td>Riquadro di delimitazione calcolato sulla griglia discreta in pixel interi.</td>
+<td>Scatola delimitatrice calcolata sulla griglia discreta in pixel interi.</td>
 </tr>
 <tr class="even">
 <td><strong>BBox Riferimento (GT)</strong></td>
 <td><span class="math inline">\((x_{\min}, y_{\min}, w, h)\)</span> convertiti</td>
-<td>Riquadro reale fornito in input in coordinate relative <span class="math inline">\([0.0, 1.0]\)</span>.</td>
+<td>Scatola reale fornita in input in coordinate relative <span class="math inline">\([0.0, 1.0]\)</span>.</td>
 </tr>
 <tr class="odd">
 <td><strong>IoU (Intersection over Union)</strong></td>
 <td><span class="math inline">\(\text{IoU} = \frac{\text{Area}(B_{\text{DET}} \cap B_{\text{GT}})}{\text{Area}(B_{\text{DET}} \cup B_{\text{GT}})}\)</span></td>
-<td>Valuta il tasso di sovrapposizione dei riquadri. È considerata valida se <span class="math inline">\(\text{IoU} \ge 0.50\)</span>.</td>
+<td>Valuta il tasso di sovrapposizione delle scatole. È considerata valida se <span class="math inline">\(\text{IoU} \ge 0.50\)</span>.</td>
 </tr>
 <tr class="even">
 <td><strong>Stato di Validazione (<code>hits</code>)</strong></td>
 <td><span class="math inline">\(1\)</span> se <span class="math inline">\(\max(\text{IoU}) \ge 0.50\)</span>, altrimenti <span class="math inline">\(0\)</span></td>
-<td>Indicatore binario di successo del rilevatore rispetto al riferimento.</td>
+<td>Indicatore binario di correttezza del rilevatore rispetto al riferimento.</td>
 </tr>
 </tbody>
 </table>
@@ -351,9 +351,9 @@ div.csl-indent {
 <p><strong>Input:</strong></p>
 <ul>
 <li><strong>Riga 1:</strong> Interi <span class="math inline">\(H\)</span> e <span class="math inline">\(W\)</span> (dimensioni della matrice).</li>
-<li><strong>Successive <span class="math inline">\(H\)</span> righe:</strong> <span class="math inline">\(W\)</span> interi (da <span class="math inline">\(0\)</span> a <span class="math inline">\(255\)</span>) che rappresentano l’immagine in scala di grigi.</li>
-<li><strong>Riga <span class="math inline">\(H + 2\)</span>:</strong> Intero <span class="math inline">\(G\)</span> (quantità di riquadri del riferimento vero).</li>
-<li><strong>Successive <span class="math inline">\(G\)</span> righe:</strong> 5 valori numerici per riga: <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code> (dove le coordinate sono valori float tra <span class="math inline">\(0.0\)</span> e <span class="math inline">\(1.0\)</span>).</li>
+<li><strong>Successive <span class="math inline">\(H\)</span> righe:</strong> <span class="math inline">\(W\)</span> interi (<span class="math inline">\(0\)</span> a <span class="math inline">\(255\)</span>) che rappresentano l’immagine in scala di grigi.</li>
+<li><strong>Riga <span class="math inline">\(H + 2\)</span>:</strong> Intero <span class="math inline">\(G\)</span> (quantità di scatole del riferimento reale).</li>
+<li><strong>Successive <span class="math inline">\(G\)</span> righe:</strong> 5 valori numerici per riga: <code>id xmin_norm ymin_norm xmax_norm ymax_norm</code> (dove le coordinate sono valori fluttuanti tra <span class="math inline">\(0.0\)</span> e <span class="math inline">\(1.0\)</span>).</li>
 </ul>
 <p><strong>Output:</strong></p>
 <ol type="1">
@@ -428,8 +428,8 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
 <div style="flex:1.5;min-width:240px;">
 <div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">VISUALIZZAZIONE DELLE BOUNDING BOXES</div>
 <div style="display:flex;gap:6px;">
-<button id="ep0811_toggleGT" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #1d4ed8;background:#2563eb;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟦</span> BBox Ground Truth (GT)</button>
-<button id="ep0811_toggleDET" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #047857;background:#059669;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟩</span> BBox Rilevata (DET)</button>
+<button id="ep0811_toggleGT" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #1d4ed8;background:#2563eb;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟦</span>BBox di Riferimento (GT)</button>
+<button id="ep0811_toggleDET" style="padding:5px 10px;font-size:10.5px;font-weight:700;border:1px solid #047857;background:#059669;color:#ffffff;cursor:pointer;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span>🟩</span>BBox Rilevata (DET)</button>
 </div>
 </div>
 <div>
@@ -437,18 +437,18 @@ id area perimeter cx cy x y w h circularity solidity vertices hits<br/>
 </div>
 </div>
 <div style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:10px;padding:8px 12px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center;">
-<span style="font-size:9.5px;font-weight:700;color:#8a8371;margin-right:4px;">LEGENDA DELLE BBOX:</span>
-<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#2563eb;border:1px dashed #93c5fd;"></span> <span>Ground Truth Reale (GT)</span></div>
-<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#059669;border:1px solid #34d399;"></span> <span>Rilevamento Accettato (IoU ≥ 0.5)</span></div>
-<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#dc2626;border:1px solid #f87171;"></span> <span>Rilevamento Rifiutato (IoU &lt; 0.5)</span></div>
-<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#7c3aed;border:1px double #a78bfa;"></span> <span>Sovrapposizione delle BBox</span></div>
+<span style="font-size:9.5px;font-weight:700;color:#8a8371;margin-right:4px;">LEGENDA DELLE BBOXES:</span>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#2563eb;border:1px dashed #93c5fd;"></span> <span>Riferimento Reale (GT)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#059669;border:1px solid #34d399;"></span> <span>Rilevazione Accettata (IoU ≥ 0.5)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#dc2626;border:1px solid #f87171;"></span> <span>Rilevazione Rifiutata (IoU &lt; 0.5)</span></div>
+<div style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:#374151;"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#7c3aed;border:1px double #a78bfa;"></span> <span>Sovrapposizione di BBoxes</span></div>
 </div>
 <div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;margin-bottom:14px;">
 <div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:8px;text-align:left;">VISUALIZZAZIONE DELLA MATRICE DI PIXEL</div>
 <div id="ep0811_grid_container" style="overflow-x:auto;padding-bottom:4px;"></div>
 </div>
 <div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
-<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">MISURE, CLASSIFICAZIONE GEOMETRICA E CONFRONTO IOU CON GROUND TRUTH</div>
+<div style="font-size:9.5px;font-weight:700;color:#8a8371;margin-bottom:3px;letter-spacing:.3px;">MISURE, CLASSIFICAZIONE GEOMETRICA E CONFRONTO IoU CON RIFERIMENTO</div>
 <div style="overflow-x:auto;">
 <table class="caption-top" style="width:100%;border-collapse:collapse;font-size:10.5px;font-family:monospace;margin-top:10px;">
 <thead>
@@ -817,14 +817,13 @@ Figura 8.25: Simulatore EP08_11: Classificazione Geometrica con Controlli Indip
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a aria-hidden="true" href="#cb63-1" tabindex="-1"></a><span class="op">%%</span>writefile EP08_11.py</span>
 <span id="cb63-2"><a aria-hidden="true" href="#cb63-2" tabindex="-1"></a><span class="co"># Codice Python</span></span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing EP08_11.py</code></pre>
+<pre><code>Overwriting EP08_11.py</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="52" data-quarto-private-1='{"key":"pdi","value":{"ck":"64c0ae9772aca1f29b92fa7c8843aa9e"}}' id="7096a084c6a7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a aria-hidden="true" href="#cb65-1" tabindex="-1"></a>TestSuite(<span class="st">"EP08_11.py"</span>).run()</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">📥 Tentativo: https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/all/cap08/casos/EP08_11.cases
-   ✅ Scaricato con successo
+<pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP08_11.cases esiste già in casos/
 📋 3 caso/i caricato/i da casos/EP08_11.cases
 
 🔍 Test di Python: EP08_11.py
@@ -839,7 +838,7 @@ Figura 8.25: Simulatore EP08_11: Classificazione Geometrica con Controlli Indip
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">EDI+VA — Elaborazione Digitale delle Immagini e Visione Artificiale</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">Università Federale dell'ABC (UFABC)</a>.<br>
     Materiale didattico aperto sotto licenza <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a> ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -1078,7 +1077,7 @@ window.Quarto = {
       ctx.fillStyle = "#fafaf7";
       ctx.textAlign = "center";
       ctx.fillText("Vicinato Originale (θ = 0°)", leftCenterX, centerY - patchRadius - 15);
-      ctx.fillText("Vicinato Ruotato (θ-allineato)", rightCenterX, centerY - patchRadius - 15);
+      ctx.fillText("Vicinato Ruotato (allineato a θ)", rightCenterX, centerY - patchRadius - 15);
 
       ctx.strokeStyle = "#8a8371";
       ctx.lineWidth = 1;

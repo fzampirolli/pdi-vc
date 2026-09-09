@@ -4,12 +4,12 @@
 <br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
 </div>
 <h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP09_03 🟡 Conteggio dei Parametri Addestrabili di una CNN</h2>
-<p>Questo EP formalizza il conteggio dei parametri addestrabili di una <em>CNN</em>. Data la descrizione testuale di una piccola architettura, composta da strati convoluzionali, di <em>pooling</em> e completamente connessi, determinare, per ogni strato, il numero di parametri addestrabili e il totale della rete.</p>
-<p>L’architettura deve essere interpretata <strong>sequenzialmente</strong>: l’uscita di uno strato convoluzionale diventa l’ingresso del successivo strato compatibile. Pertanto, il numero di canali prodotti da uno strato <code>CONV</code> determina il numero di canali di ingresso (<code>cin</code>) del successivo strato convoluzionale.</p>
-<p>In uno strato convoluzionale, è importante distinguere <strong>canali di ingresso</strong> e <strong>canali di uscita</strong>:</p>
+<p>Questo EP formalizza il conteggio dei parametri addestrabili di una <em>CNN</em>. Data la descrizione testuale di una piccola architettura, composta da layer convoluzionali, di <em>pooling</em> e completamente connessi, determinare, per ogni layer, il numero di parametri addestrabili e il totale della rete.</p>
+<p>L’architettura deve essere interpretata <strong>sequenzialmente</strong>: l’uscita di un layer convoluzionale diventa l’ingresso del layer successivo compatibile. Pertanto, il numero di canali prodotti da un layer <code>CONV</code> determina il numero di canali di ingresso (<code>cin</code>) del layer convoluzionale successivo.</p>
+<p>In un layer convoluzionale, è importante distinguere <strong>canali di ingresso</strong> e <strong>canali di uscita</strong>:</p>
 <div>
-<li><em>c</em>_in (<em>channels in</em>) è il numero di <strong>canali che entrano nello strato</strong>. Un’immagine in scala di grigi ha <em>c</em>_in=1, mentre un’immagine RGB ha <em>c</em>_in=3. In uno strato convoluzionale intermedio, <code>cin</code> è normalmente uguale al numero di canali prodotti dal precedente strato <code>CONV</code>.</li>
-<li><em>c</em>_out (<em>channels out</em>) è il numero di <strong>canali prodotti dallo strato</strong>. È uguale al numero di filtri utilizzati. Quindi, se uno strato ha 16 filtri, produce <em>c</em>_out=16 canali.</li>
+<li><em>c</em>_in (<em>channels in</em>) è il numero di <strong>canali che entrano nel layer</strong>. Un’immagine in scala di grigi ha <em>c</em>_in=1, mentre un’immagine RGB ha <em>c</em>_in=3. In un layer convoluzionale intermedio, <code>cin</code> è normalmente uguale al numero di canali prodotti dal layer <code>CONV</code> precedente.</li>
+<li><em>c</em>_out (<em>channels out</em>) è il numero di <strong>canali prodotti dal layer</strong>. È uguale al numero di filtri utilizzati. Pertanto, se un layer ha 16 filtri, produce <em>c</em>_out=16 canali.</li>
 </div>
 <p>Ad esempio, si consideri la sequenza:</p>
 <div><code>CONV 3 3 1 8 1
@@ -17,52 +17,52 @@ POOL
 CONV 3 3 8 16 1
 POOL
 FC 784 10 1</code></div>
-<p>La prima convoluzione riceve un’immagine con un canale e produce 8 canali. Dopo il <em>pooling</em>, la seconda convoluzione riceve questi 8 canali e produce 16 canali. Lo strato <code>POOL</code> non modifica il numero di canali, può solo ridurre le dimensioni spaziali. Lo strato <code>FC</code> riceve la quantità di ingressi indicata nella propria descrizione.</p>
+<p>La prima convoluzione riceve un’immagine con un canale e produce 8 canali. Dopo il <em>pooling</em>, la seconda convoluzione riceve questi 8 canali e ne produce 16. Il layer <code>POOL</code> non altera il numero di canali, può solo ridurre le dimensioni spaziali. Il layer <code>FC</code> riceve la quantità di ingressi indicata nella propria descrizione.</p>
 <p>Ogni filtro convoluzionale ha dimensioni</p>
 <p><em>k</em>_<em>h</em> × <em>k</em>_<em>w</em> × <em>c</em>_in.</p>
-<p>Pertanto, uno strato con <em>c</em>_out filtri ha</p>
+<p>Pertanto, un layer con <em>c</em>_out filtri ha</p>
 <p><em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in · <em>c</em>_out</p>
-<p>pesi. Se è presente il bias, si aggiunge un parametro per ogni filtro, totalizzando altri <em>c</em>_out parametri.</p>
-<p>Il punto centrale di questo esercizio è osservare che la quantità di parametri di uno strato convoluzionale <strong>non dipende dalle dimensioni spaziali</strong> (<em>H</em> × <em>W</em>) della mappa delle caratteristiche. Ciò è dovuto alla <strong>condivisione dei pesi</strong>: lo stesso filtro viene riutilizzato in diverse posizioni dell’ingresso.</p>
+<p>pesi. Se c’è un bias, si aggiunge un parametro per ogni filtro, totalizzando altri <em>c</em>_out parametri.</p>
+<p>Il punto centrale di questo esercizio è osservare che la quantità di parametri di un layer convoluzionale <strong>non dipende dalle dimensioni spaziali</strong> (<em>H</em> × <em>W</em>) della mappa delle caratteristiche. Ciò è dovuto alla <strong>condivisione dei pesi</strong>: lo stesso filtro viene riutilizzato in diverse posizioni dell’ingresso.</p>
 <div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
-<h4 style="margin-top:0;color:#4a5a78;">📋 Direttive di Implementazione</h4>
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
 <ol type="1">
-<li><p><strong>Ingresso:</strong> Leggere l’intero <em>L</em> (numero di strati dell’architettura, nell’ordine in cui vengono applicati).</p></li>
-<li><p><strong>Strati:</strong> Leggere <em>L</em> righe, ciascuna delle quali descrive uno strato in uno dei tre formati:</p>
+<li><p><strong>Ingresso:</strong> Leggere l’intero <em>L</em> (numero di layer dell’architettura, nell’ordine in cui vengono applicati).</p></li>
+<li><p><strong>Layer:</strong> Leggere <em>L</em> righe, ciascuna descrive un layer in uno dei tre formati:</p>
 <ul>
-<li><code>CONV kh kw cin cout bias</code> — strato convoluzionale con <em>kernel</em> <em>k</em>_<em>h</em> × <em>k</em>_<em>w</em>, <em>c</em>_in canali di ingresso, <em>c</em>_out canali di uscita e <code>bias</code> (0 o 1), che indica se è presente un bias per filtro;</li>
-<li><code>POOL</code> — strato di <em>pooling</em> (massimo o medio), che non ha parametri addestrabili e preserva il numero di canali;</li>
-<li><code>FC in out bias</code> — strato completamente connesso con <code>in</code> ingressi, <code>out</code> uscite e <code>bias</code> (0 o 1), che indica se è presente un bias per neurone.</li>
+<li><code>CONV kh kw cin cout bias</code> — layer convoluzionale con <em>kernel</em> <em>k</em>_<em>h</em> × <em>k</em>_<em>w</em>, <em>c</em>_in canali di ingresso, <em>c</em>_out canali di uscita e <code>bias</code> (0 o 1), che indica se c’è un bias per filtro;</li>
+<li><code>POOL</code> — layer di <em>pooling</em> (massimo o medio), che non ha parametri addestrabili e preserva il numero di canali;</li>
+<li><code>FC in out bias</code> — layer completamente connesso con <code>in</code> ingressi, <code>out</code> uscite e <code>bias</code> (0 o 1), che indica se c’è un bias per neurone.</li>
 </ul></li>
-<li><p><strong>Coerenza tra strati <code>CONV</code>:</strong> in una sequenza di strati convoluzionali, il <code>cin</code> di uno strato deve corrispondere al <code>cout</code> del precedente strato convoluzionale. Uno strato <code>POOL</code> non modifica questo numero di canali.</p>
+<li><p><strong>Coerenza tra layer <code>CONV</code>:</strong> in una sequenza di layer convoluzionali, il <code>cin</code> di un layer deve corrispondere al <code>cout</code> del layer convoluzionale precedente. Un layer <code>POOL</code> non altera questo numero di canali.</p>
 <p>Ad esempio:</p>
 <pre class="text"><code>CONV 3 3 1 8 1
 POOL
 CONV 3 3 8 16 1</code></pre>
-<p>La prima <code>CONV</code> produce 8 canali, che vengono ricevuti dalla seconda <code>CONV</code>. Pertanto, nel secondo strato, <code>cin=8</code> e <code>cout=16</code>.</p></li>
-<li><p><strong>Parametri di uno strato <code>CONV</code>:</strong></p>
+<p>La prima <code>CONV</code> produce 8 canali, che vengono ricevuti dalla seconda <code>CONV</code>. Pertanto, nel secondo layer, <code>cin=8</code> e <code>cout=16</code>.</p></li>
+<li><p><strong>Parametri di un layer <code>CONV</code>:</strong></p>
 <p>Ciascuno dei <em>c</em>_out filtri ha <em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in pesi. Pertanto,</p>
 <p><em>P</em>_CONV =
 <em>k</em>_<em>h</em> · <em>k</em>_<em>w</em> · <em>c</em>_in · <em>c</em>_out
 +
 <em>c</em>_out·bias.</p></li>
-<li><p><strong>Parametri di uno strato <code>FC</code>:</strong></p>
+<li><p><strong>Parametri di un layer <code>FC</code>:</strong></p>
 <p><em>P</em>_FC =
 in·out
 +
 out·bias.</p></li>
-<li><p><strong>Parametri di uno strato <code>POOL</code>:</strong> sempre 0.</p></li>
-<li><p><strong>Totale della rete:</strong> sommare i parametri addestrabili di tutti gli strati.</p></li>
-<li><p><strong>Uscita:</strong> Per ogni strato, nell’ordine di lettura, stampare <code>Camada i: P</code>, dove <em>i</em> inizia da 1 e <em>P</em> è il numero di parametri di quello strato. Alla fine, stampare <code>Total: T</code>.</p></li>
+<li><p><strong>Parametri di un layer <code>POOL</code>:</strong> sempre 0.</p></li>
+<li><p><strong>Totale della rete:</strong> sommare i parametri addestrabili di tutti i layer.</p></li>
+<li><p><strong>Uscita:</strong> Per ogni layer, nell’ordine di lettura, stampare <code>Camada i: P</code>, dove <em>i</em> inizia da 1 e <em>P</em> è il numero di parametri di quel layer. Alla fine, stampare <code>Total: T</code>.</p></li>
 </ol>
 </div>
 <div>
-<h4> 📐 Esempio per comprendere <code>cin</code> e <code>cout</code></h4>
+<h4> 📐 Esempio per capire <code>cin</code> e <code>cout</code></h4>
 <p>Si consideri la sequenza:</p>
 <pre class="text"><code>CONV 3 3 1 8 1
 POOL
 CONV 3 3 8 16 1</code></pre>
-<p>Nel primo strato:</p>
+<p>Nel primo layer:</p>
 <ul>
 <li><code>cin=1</code>: entra un canale;</li>
 <li><code>cout=8</code>: ci sono 8 filtri e, quindi, escono 8 canali.</li>
@@ -73,7 +73,7 @@ CONV 3 3 8 16 1</code></pre>
 <p>9·8=72</p>
 <p>pesi. Con un bias per filtro:</p>
 <p>72+8=80.</p>
-<p>Nel secondo strato:</p>
+<p>Nel secondo layer:</p>
 <ul>
 <li><code>cin=8</code>: entrano gli 8 canali prodotti dalla prima <code>CONV</code>;</li>
 <li><code>cout=16</code>: ci sono 16 filtri e, quindi, escono 16 canali.</li>
@@ -84,17 +84,17 @@ CONV 3 3 8 16 1</code></pre>
 <p>72·16=1152</p>
 <p>pesi. Con 16 bias:</p>
 <p>1152+16=1168.</p>
-<p>Pertanto, i due strati hanno, rispettivamente, <strong>80</strong> e <strong>1168 parametri addestrabili</strong>.</p>
+<p>Pertanto, i due layer hanno, rispettivamente, <strong>80</strong> e <strong>1168 parametri addestrabili</strong>.</p>
 <p>Si noti che <code>cout</code> <strong>non è</strong> cin moltiplicato per il numero di filtri. Il numero di filtri è esattamente <code>cout</code>: ogni filtro combina tutti i canali di ingresso e produce <strong>un singolo canale di uscita</strong>.</p>
 </div>
 <div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
 <h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
 <ul>
-<li><strong>Indipendenza dalla dimensione spaziale:</strong> l’ingresso non fornisce <em>H</em> × <em>W</em>. Il conteggio di uno strato <code>CONV</code> dipende solo da <code>kh</code>, <code>kw</code>, <code>cin</code> e <code>cout</code>.</li>
-<li><strong>Coerenza dei canali:</strong> per due strati <code>CONV</code> consecutivi, il <code>cin</code> del secondo deve essere uguale al <code>cout</code> del primo. Uno strato <code>POOL</code> preserva il numero di canali.</li>
+<li><strong>Indipendenza dalla dimensione spaziale:</strong> l’ingresso non fornisce <em>H</em> × <em>W</em>. Il conteggio di un layer <code>CONV</code> dipende solo da <code>kh</code>, <code>kw</code>, <code>cin</code> e <code>cout</code>.</li>
+<li><strong>Coerenza dei canali:</strong> per due layer <code>CONV</code> consecutivi, il <code>cin</code> del secondo deve essere uguale al <code>cout</code> del primo. Un layer <code>POOL</code> preserva il numero di canali.</li>
 <li><strong><code>bias</code> sempre 0 o 1:</strong> moltiplicare direttamente il termine di bias per questo valore.</li>
-<li><strong>Strati <code>POOL</code> senza argomenti aggiuntivi:</strong> la riga contiene solo la parola <code>POOL</code>.</li>
-<li><strong>Strati <code>FC</code>:</strong> il numero di ingressi <code>in</code> è fornito esplicitamente. Non è necessario calcolare le dimensioni spaziali prodotte dagli strati precedenti.</li>
+<li><strong>Layer <code>POOL</code> senza argomenti aggiuntivi:</strong> la riga contiene solo la parola <code>POOL</code>.</li>
+<li><strong>Layer <code>FC</code>:</strong> il numero di ingressi <code>in</code> è fornito esplicitamente. Non è necessario calcolare le dimensioni spaziali prodotte dai layer precedenti.</li>
 <li>Tutti i valori numerici di ingresso sono interi non negativi.</li>
 </ul>
 </div>
@@ -110,11 +110,11 @@ CONV 3 3 8 16 1</code></pre>
 <tbody>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>c</em>_in</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Numero di canali ricevuti dallo strato</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Numero di canali ricevuti dal layer</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>c</em>_out</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Numero di filtri e, quindi, di canali prodotti dallo strato</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Numero di filtri e, quindi, di canali prodotti dal layer</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Filtro convoluzionale</td>
@@ -130,10 +130,10 @@ CONV 3 3 8 16 1</code></pre>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Pooling</em></td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Può modificare <em>H</em> × <em>W</em>, ma non ha parametri addestrabili e preserva il numero di canali</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Può alterare <em>H</em> × <em>W</em>, ma non ha parametri addestrabili e preserva il numero di canali</td>
 </tr>
 <tr>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Strato <code>FC</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Layer <code>FC</code></td>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ha un peso per ogni combinazione tra ingresso e neurone di uscita</td>
 </tr>
 </tbody>
@@ -141,16 +141,16 @@ CONV 3 3 8 16 1</code></pre>
 </div>
 <div>
 <h4> 🧩 Metodi di <code>morph.py</code> che possono aiutare</h4>
-<p>Questo esercizio è puramente aritmetico e non utilizza direttamente funzioni di <code>morph.py</code>. Il conteggio può, tuttavia, essere verificato in un’architettura reale implementata in PyTorch tramite:</p>
+<p>Questo esercizio è puramente aritmetico e non utilizza direttamente le funzioni di <code>morph.py</code>. Il conteggio può, tuttavia, essere verificato in un’architettura reale implementata in PyTorch tramite:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a aria-hidden="true" href="#cb75-1" tabindex="-1"></a><span class="bu">sum</span>(p.numel() <span class="cf">for</span> p <span class="kw">in</span> modelo.parameters())</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
-<p>Questa espressione conta i parametri del modello, inclusi pesi e bias.</p>
+<p>Questa espressione calcola i parametri del modello, inclusi pesi e bias.</p>
 </div>
 <div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
 <h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Ingresso e Uscita (VPL)</h4>
 <p><strong>Ingresso:</strong></p>
 <ul>
 <li>Riga 1: Intero <em>L</em>.</li>
-<li>Prossime <em>L</em> righe: descrizione di ogni strato, nel formato <code>CONV kh kw cin cout bias</code>, <code>POOL</code> o <code>FC in out bias</code>.</li>
+<li>Prossime <em>L</em> righe: descrizione di ogni layer, nel formato <code>CONV kh kw cin cout bias</code>, <code>POOL</code> o <code>FC in out bias</code>.</li>
 </ul>
 <p><strong>Uscita:</strong></p>
 <ul>
@@ -178,7 +178,7 @@ FC 1352 10 1</td>
 Camada 2: 0<br/>
 Camada 3: 13530<br/>
 Total: 13610</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Rete semplice con una convoluzione, <em>pooling</em> e strato di classificazione.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Rete semplice con una convoluzione, <em>pooling</em> e layer di classificazione.</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
@@ -193,7 +193,7 @@ Camada 3: 1168<br/>
 Camada 4: 0<br/>
 Camada 5: 4010<br/>
 Total: 5258</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Piccola CNN con due convoluzioni, due <em>pooling</em> e uno strato completamente connesso.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Piccola CNN con due convoluzioni, due <em>pooling</em> e un layer completamente connesso.</td>
 </tr>
 <tr>
 <td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">6<br/>
@@ -210,7 +210,7 @@ Camada 4: 0<br/>
 Camada 5: 8224<br/>
 Camada 6: 330<br/>
 Total: 9802</td>
-<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Piccola CNN con due convoluzioni, <em>pooling</em> intermedio e due strati completamente connessi per la classificazione.</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Piccola CNN con due convoluzioni, <em>pooling</em> intermedio e due layer completamente connessi per la classificazione.</td>
 </tr>
 </tbody>
 </table>
@@ -299,7 +299,7 @@ Total: 9802</td>
           🔄 Ripristina
         </button>
 <button id="ep0903_auto_layout_btn" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:4px 8px;border-radius:16px;cursor:pointer;font-size:10px;font-weight:bold;backdrop-filter:blur(5px);transition:all 0.3s;">
-          📐 Auto
+          📐 Automatico
         </button>
 </div>
 <canvas id="ep0903_canvas" style="width:100%;height:340px;display:block;cursor:grab;"></canvas>
@@ -925,7 +925,7 @@ Total: 9802</td>
           '<input type="number" id="ep0903_cout_' + index + '" value="' + (index === 0 ? '8' : '16') + '" min="1" max="64" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="filtri">';
       } else if (type === 'POOL') {
         paramsDiv.innerHTML = 
-          '<input type="number" id="ep0903_pool_size_' + index + '" value="2" min="2" max="4" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="dimensione pool">';
+          '<input type="number" id="ep0903_pool_size_' + index + '" value="2" min="2" max="4" style="width:32px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="pool size">';
       } else if (type === 'FC') {
         paramsDiv.innerHTML = 
           '<input type="number" id="ep0903_fcout_' + index + '" value="10" min="1" max="100" style="width:36px;padding:2px;border:1px solid #ccc;border-radius:3px;font-size:9px;" title="uscite">';
