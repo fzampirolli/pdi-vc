@@ -1,0 +1,274 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP04_08.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP04_08.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_08 🌋 Gradiente Morfologico, Top-hat e Black-hat</h2>
+<p>Nell’<strong>ispezione automatica dei circuiti stampati</strong>, tre domande sorgono continuamente: dove sono i <strong>bordi</strong> dei componenti? Quali <strong>dettagli chiari e piccoli</strong> (come i punti di saldatura) si distinguono dallo sfondo? Quali <strong>rientranze scure</strong> (come le cricche) lo sfondo nasconde? Un’unica coppia erosione/dilatazione risponde a tutte e tre: il <strong>gradiente morfologico</strong> evidenzia i contorni, il <strong>top-hat</strong> rivela i picchi stretti e il <strong>black-hat</strong> rivela le valli strette — tre strumenti, un solo intorno. Vedi in Figura 4.37 una simulazione di questo EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
+<ol type="1">
+<li><strong>Dimensioni dell’immagine:</strong> Leggere gli interi <em>L</em> (righe) e <em>C</em> (colonne) di <em>f</em>.</li>
+<li><strong>Dimensioni di <em>B</em>:</strong> Leggere gli interi <em>L</em>_<em>B</em> (righe) e <em>C</em>_<em>B</em> (colonne) dell’elemento strutturante.</li>
+<li><strong>Elemento strutturante:</strong> Leggere la matrice <em>B</em> con valori 0 o 1, riga per riga.</li>
+<li><strong>Dati:</strong> Leggere la matrice <em>f</em> (l’immagine originale, in toni di grigio), riga per riga.</li>
+<li><strong>Operatori di base:</strong> Calcolare, esattamente come negli EP 04_03 fino a 04_06:
+<ul>
+<li><em>d</em> = <em>f</em> \oplus <em>B</em> (dilatazione),</li>
+<li><em>e</em> = <em>f</em> \ominus <em>B</em> (erosione),</li>
+<li>apertura = <em>e</em> \oplus <em>B</em>,</li>
+<li>chiusura = <em>d</em> \ominus <em>B</em>.</li>
+</ul></li>
+<li><strong>Gradiente morfologico:</strong> grad(<em>y</em>,<em>x</em>) = <em>d</em>(<em>y</em>,<em>x</em>) - <em>e</em>(<em>y</em>,<em>x</em>).</li>
+<li><strong>Top-hat:</strong> tophat(<em>y</em>,<em>x</em>) = <em>f</em>(<em>y</em>,<em>x</em>) - apertura(<em>y</em>,<em>x</em>).</li>
+<li><strong>Black-hat:</strong> blackhat(<em>y</em>,<em>x</em>) = chiusura(<em>y</em>,<em>x</em>) - <em>f</em>(<em>y</em>,<em>x</em>).</li>
+<li><strong>Output:</strong> Visualizzare, <strong>in questo ordine</strong>, le tre matrici complete: gradiente, top-hat, black-hat.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Nessun padding in nessuna fase intermedia</strong> — dilatazione, erosione, apertura e chiusura seguono le stesse regole di vicinato degli EP precedenti.</li>
+<li><strong>Nessun <em>clipping</em>:</strong> le tre uscite possono contenere qualsiasi valore intero (il gradiente è sempre ≥ 0, ma anche top-hat e black-hat lo sono).</li>
+<li><strong>Riutilizzo:</strong> <em>d</em> e <em>e</em> devono essere calcolati <strong>una sola volta</strong> e riutilizzati per costruire apertura, chiusura e gradiente.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Operatore</th>
+<th style="padding:10px;border:1px solid #ddd;">Formula</th>
+<th style="padding:10px;border:1px solid #ddd;">Cosa rivela</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Gradiente</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>d</em> - <em>e</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Bordi: zero nelle regioni piatte, alto nelle transizioni</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Top-hat</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>f</em> - apertura(<em>f</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Elementi <strong>chiari e sottili</strong>, più piccoli di <em>B</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Black-hat</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">chiusura(<em>f</em>) - <em>f</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Elementi <strong>scuri e sottili</strong>, più piccoli di <em>B</em></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>L</em>.</li>
+<li>Riga 2: Intero <em>C</em>.</li>
+<li>Riga 3: Intero <em>L</em>_<em>B</em>.</li>
+<li>Riga 4: Intero <em>C</em>_<em>B</em>.</li>
+<li>Successive <em>L</em>_<em>B</em> righe: elementi interi (0 o 1) della matrice <em>B</em>.</li>
+<li>Successive <em>L</em> righe: elementi interi della matrice <em>f</em>.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Matrice gradiente in <em>L</em> righe e <em>C</em> colonne.</li>
+<li>Matrice top-hat in <em>L</em> righe e <em>C</em> colonne.</li>
+<li>Matrice black-hat in <em>L</em> righe e <em>C</em> colonne.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">9<br/>
+9<br/>
+3<br/>
+3<br/>
+1 1 1<br/>
+1 1 1<br/>
+1 1 1<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 80 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 2 10 10<br/>
+10 10 10 10 10 10 10 10 10<br/>
+10 10 10 10 10 10 10 10 10</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">(gradiente: alone 3×3=70 attorno a (2,2) e alone 3×3=8 attorno a (6,6), resto 0)<br/>
+(top-hat: unico 70 in (2,2), resto 0)<br/>
+(black-hat: unico 8 in (6,6), resto 0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Picco isolato diventa top-hat; valle isolata diventa black-hat; entrambi compaiono nel gradiente</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="56" data-quarto-private-1='{"key":"pdi","value":{"ck":"9a94efcb2778fb1cb573f2608a9ba0f3"}}' id="cell-fig-04-sim-ep0408-gradiente">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0408-gradiente-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 4.37: Simulatore EP04_08: Gradiente Morfologico, Top-hat e Black-hat
+</figcaption>
+</div>
+</div><div id="sim-ep0408-gradiente" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🌋 Simulatore EP04_08: Gradiente / Top-hat / Black-hat</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">3 operatori, 1 vicinanza</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Aggiungi picchi o valli nella matrice f e osserva il comportamento simultaneo degli operatori di gradiente, top-hat e black-hat.</p>
+<!-- Botões de Ação -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+<button id="sim_ep0408_btn_pico" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #b9770e;background:#fef5e7;color:#b9770e;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">☀️ Aggiungi Picco</button>
+<button id="sim_ep0408_btn_vale" style="padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #2980b9;background:#ebf4fd;color:#2980b9;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">🕳️ Aggiungi Valle</button>
+<button id="sim_ep0408_btn_reset" style="padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;transition:all 0.15s ease;">↩ Pulisci Tutto</button>
+</div>
+<!-- Comparativo em 4 Colunas: f, Gradiente, Top-hat, Black-hat -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;align-items:start;margin-bottom:14px;">
+<!-- Matriz f -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">f (Ingresso)</span>
+<div id="sim_ep0408_grid_f" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Gradiente -->
+<div style="background:#fafaf7;border:1px solid #8e44ad;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#8e44ad;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Gradiente</span>
+<div id="sim_ep0408_grid_grad" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Top-hat -->
+<div style="background:#fafaf7;border:1px solid #d35400;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#d35400;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Top-hat</span>
+<div id="sim_ep0408_grid_th" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Black-hat -->
+<div style="background:#fafaf7;border:1px solid #2980b9;border-radius:12px;padding:10px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Black-hat</span>
+<div id="sim_ep0408_grid_bh" style="display:grid;grid-template-columns:repeat(9, 20px);gap:1px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0408(root){
+    if (!root || root.dataset.simEp0408Init) return;
+    root.dataset.simEp0408Init = "1";
+
+    var gF   = root.querySelector('#sim_ep0408_grid_f');
+    var gGrad= root.querySelector('#sim_ep0408_grid_grad');
+    var gTh  = root.querySelector('#sim_ep0408_grid_th');
+    var gBh  = root.querySelector('#sim_ep0408_grid_bh');
+
+    var btnPico  = root.querySelector('#sim_ep0408_btn_pico');
+    var btnVale  = root.querySelector('#sim_ep0408_btn_vale');
+    var btnReset = root.querySelector('#sim_ep0408_btn_reset');
+
+    var L = 9, C = 9, f = [], B = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+
+    function resetMatrix() {
+      f = Array.from({ length: L }, function(){ return new Array(C).fill(10); });
+    }
+
+    function morph(img, Bm, mode) {
+      var Bref = mode === 'dil' ? Bm.slice().reverse().map(function(r){ return r.slice().reverse(); }) : Bm;
+      var HB = Bref.length, WB = Bref[0].length, oy = -HB / 2 + 0.5, ox = -WB / 2 + 0.5;
+      var g = img.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < HB; by++) {
+            for (var bx = 0; bx < WB; bx++) {
+              if (Bref[by][bx] !== 1) continue;
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C) {
+                if (mode === 'dil' && img[vy][vx] > g[y][x]) g[y][x] = img[vy][vx];
+                if (mode === 'ero' && img[vy][vx] < g[y][x]) g[y][x] = img[vy][vx];
+              }
+            }
+          }
+        }
+      }
+      return g;
+    }
+
+    function paint(grid, img, cmin, cmax, hue) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var v = img[y][x];
+          var t = cmax > cmin ? (v - cmin) / (cmax - cmin) : 0;
+          var c = document.createElement('div');
+          c.style.cssText = 'width:20px;height:20px;border-radius:3px;box-sizing:border-box;';
+          c.style.background = v === 0 ? '#fafaf7' : hue;
+          c.style.opacity = v === 0 ? '1' : (0.35 + 0.65 * Math.min(1, t));
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function render() {
+      var d = morph(f, B, 'dil');
+      var e = morph(f, B, 'ero');
+      var ab = morph(e, B, 'dil');
+      var fc = morph(d, B, 'ero');
+
+      var grad = f.map(function(r, y){ return r.map(function(_, x){ return d[y][x] - e[y][x]; }); });
+      var th   = f.map(function(r, y){ return r.map(function(v, x){ return v - ab[y][x]; }); });
+      var bh   = f.map(function(r, y){ return r.map(function(v, x){ return fc[y][x] - v; }); });
+
+      var maxF = Math.max.apply(null, f.map(function(r){ return Math.max.apply(null, r); }));
+      var maxG = Math.max.apply(null, grad.map(function(r){ return Math.max.apply(null, r); }));
+      var maxTh = Math.max.apply(null, th.map(function(r){ return Math.max.apply(null, r); }));
+      var maxBh = Math.max.apply(null, bh.map(function(r){ return Math.max.apply(null, r); }));
+
+      paint(gF, f, 10, maxF || 1, '#7f8c8d');
+      paint(gGrad, grad, 0, Math.max(1, maxG), '#8e44ad');
+      paint(gTh, th, 0, Math.max(1, maxTh), '#d35400');
+      paint(gBh, bh, 0, Math.max(1, maxBh), '#2980b9');
+    }
+
+    btnPico.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.min(255, f[y][x] + 60 + Math.floor(Math.random() * 30));
+      render();
+    });
+
+    btnVale.addEventListener('click', function(){
+      var y = 2 + Math.floor(Math.random() * 5), x = 2 + Math.floor(Math.random() * 5);
+      f[y][x] = Math.max(0, f[y][x] - 8 - Math.floor(Math.random() * 4));
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      resetMatrix();
+      f[2][2] = 80;
+      f[6][6] = 2;
+      render();
+    });
+
+    resetMatrix();
+    f[2][2] = 80;
+    f[6][6] = 2;
+    render();
+  }
+
+  function tryInitSimEP0408(){
+    var root = document.getElementById('sim-ep0408-gradiente');
+    if (root) initSimEP0408(root); else setTimeout(tryInitSimEP0408, 200);
+  }
+  tryInitSimEP0408();
+})();
+
+</script>
+</div></div>

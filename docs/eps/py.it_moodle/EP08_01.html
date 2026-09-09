@@ -1,0 +1,217 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_01 🟢 Distanza di Hamming e Corrispondenza di Descrittori Binari</h2>
+<p>L’ORB, utilizzato nel Progetto Pratico 1 di questo capitolo, descrive l’intorno di ogni punto di interesse come una sequenza di bit — e, pertanto, il confronto tra due descrittori non usa la distanza euclidea del k-NN del Capitolo 7, bensì la <strong>distanza di Hamming</strong>: il numero di posizioni in cui i bit differiscono. Prima di chiamare <code>cv2.BFMatcher(cv2.NORM_HAMMING)</code>, ti è stato affidato il compito di implementare manualmente questa corrispondenza (<em>matching</em>) per forza bruta — la stessa fase che, eseguita internamente da OpenCV, precede la stima robusta dell’omografia tramite RANSAC.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
+<ol type="1">
+<li><strong>Quantità:</strong> Leggere gli interi <em>N</em> e <em>M</em> — numero di descrittori estratti dall’immagine A e dall’immagine B, rispettivamente.</li>
+<li><strong>Descrittori di A:</strong> Leggere <em>N</em> righe, ciascuna contenente un descrittore binario (una <em>stringa</em> di caratteri <code>0</code> e <code>1</code>, tutti della stessa lunghezza).</li>
+<li><strong>Descrittori di B:</strong> Leggere <em>M</em> righe, nello stesso formato.</li>
+<li><strong>Soglia:</strong> Leggere l’intero \tau — distanza di Hamming massima accettabile per considerare valida una corrispondenza.</li>
+<li><strong>Distanza di Hamming:</strong> Per due descrittori binari <em>a</em> e <em>b</em> della stessa lunghezza, <em>d</em>_<em>H</em>(<em>a</em>, <em>b</em>) = ∑_k \mathbb1[<em>a</em>_<em>k</em> ≠ <em>b</em>_<em>k</em>], ovvero, il conteggio delle posizioni in cui i bit differiscono.</li>
+<li><strong>Corrispondenza per vicino più prossimo:</strong> Per ogni descrittore <em>a</em>_<em>i</em> di A (<em>i</em> nell’ordine di lettura, a partire da 0), calcolare la sua distanza di Hamming da <strong>tutti</strong> i descrittori di B e trovare quello con la distanza minima. In caso di parità tra due o più descrittori di B con la stessa distanza minima, scegliere quello con <strong>indice minore</strong>.</li>
+<li><strong>Filtraggio tramite soglia:</strong> Se la distanza minima trovata è \le \tau, la corrispondenza è valida; altrimenti, <em>a</em>_<em>i</em> non ha corrispondenza.</li>
+<li><strong>Output:</strong> Per ogni <em>i</em> da 0 a <em>N</em>-1, nell’ordine di lettura, stampare una riga: <code>i j d</code> se esiste una corrispondenza valida (dove <em>j</em> è l’indice del descrittore di B scelto e <em>d</em> la sua distanza), oppure <code>i -1</code> in caso contrario. Alla fine, stampare <code>Total correspondências válidas: X</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Stessa lunghezza:</strong> tutti i descrittori (di A e di B) hanno esattamente lo stesso numero di bit.</li>
+<li><strong>Forza bruta:</strong> confrontare ogni descrittore di A con <strong>tutti</strong> quelli di B — non è necessaria alcuna indicizzazione o struttura di accelerazione.</li>
+<li><strong>Pareggio risolto a favore dell’indice minore in B</strong>, e <strong>mai</strong> per ordine di lettura di A (che è già naturale, poiché ogni <em>a</em>_<em>i</em> viene trattato in modo indipendente).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti Teorici</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Ruolo nella corrispondenza ORB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Descrittore binario (BRIEF)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ogni bit è il risultato di un confronto di intensità tra due pixel dell’intorno</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distanza di Hamming</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Metrica di dissimmetria tra <em>stringhe</em> binarie; molto più rapida da calcolare rispetto alla distanza euclidea (operazione XOR + conteggio dei bit)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Vicino più prossimo</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Criterio di corrispondenza: ogni punto di A viene associato al punto di B con il descrittore più simile</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Soglia \tau</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Filtra corrispondenze poco affidabili già prima del RANSAC — ma, come discusso nel capitolo, alcune corrispondenze errate passano ancora, richiedendo la robustezza del RANSAC</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Interi <em>N</em> e <em>M</em>.</li>
+<li>Prossime <em>N</em> righe: un descrittore binario per riga (<em>stringa</em> di <code>0</code> e <code>1</code>).</li>
+<li>Prossime <em>M</em> righe: un descrittore binario per riga, nello stesso formato.</li>
+<li>Ultima riga: Intero \tau.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li><em>N</em> righe, una per descrittore di A, nel formato <code>i j d</code> oppure <code>i -1</code>.</li>
+<li>Ultima riga: <code>Total correspondências válidas: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+10101010<br/>
+11110000<br/>
+00001111<br/>
+10101011<br/>
+00001110<br/>
+11111111<br/>
+2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 1<br/>
+1 -1<br/>
+2 1 1<br/>
+Total correspondências válidas: 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il descrittore <code>11110000</code> non trova corrispondenza: il suo vicino più prossimo è a distanza 4, oltre la soglia \tau=2.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="20" data-quarto-private-1='{"key":"pdi","value":{"ck":"98d978e41eec1e47a4a9f0f3c45d5b71"}}' id="cell-fig-08-sim-ep0801">
+</div>
+</div><div id="sim-ep0801" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0801 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0801 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0801 button:hover { background: #e8dfcf; }
+  .sim-ep0801_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0801_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0801_bit { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 14px; user-select: none; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP08_01: Distanza di Hamming tra Descrittori Binari</span>
+<span class="sim-ep0801_pill">Descrittori a 8 Bit</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel Informativo de Instruções -->
+<div class="sim-ep0801_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center;">
+      Clicca su qualsiasi bit del <b>Descrittore B</b> per invertirlo e osserva la distanza di Hamming cambiare in tempo reale.
+    </div>
+</div>
+<!-- Grades dos Descritores -->
+<div class="sim-ep0801_panel" style="margin-bottom:14px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+<div>
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:6px; text-align:center; letter-spacing:0.04em;">
+        Descrittore A (Fisso)
+      </div>
+</div>
+<div>
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:6px; text-align:center; letter-spacing:0.04em;">
+        Descrittore B (Clicca per Invertire)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep01(root){
+    if (!root || root.dataset.sim08Ep01Init) return;
+    root.dataset.sim08Ep01Init = "1";
+
+    var A = [1, 0, 1, 0, 1, 0, 1, 0];
+    var B = [1, 0, 1, 0, 1, 0, 1, 1];
+
+    var aEl = root.querySelector('#sim-ep0801_a');
+    var bEl = root.querySelector('#sim-ep0801_b');
+    var dbg = root.querySelector('#sim-ep0801_debug');
+
+    function estiloBit(destacado, interativo){
+      var base = destacado 
+        ? 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;' 
+        : 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;';
+      var cursor = interativo ? ' cursor:pointer;' : ' cursor:default;';
+      return base + cursor;
+    }
+
+    function render(){
+      aEl.innerHTML = ''; 
+      bEl.innerHTML = '';
+      var dist = 0;
+
+      for (var k = 0; k < 8; k++){
+        var diff = A[k] !== B[k];
+        if (diff) dist++;
+
+        var da = document.createElement('div');
+        da.className = 'sim-ep0801_bit';
+        da.style.cssText = estiloBit(diff, false);
+        da.textContent = A[k];
+        aEl.appendChild(da);
+
+        var db = document.createElement('div');
+        db.className = 'sim-ep0801_bit';
+        db.style.cssText = estiloBit(diff, true);
+        db.textContent = B[k];
+        
+        (function(idx){
+          db.addEventListener('click', function(){
+            B[idx] = 1 - B[idx];
+            render();
+          });
+        })(k);
+
+        bEl.appendChild(db);
+      }
+
+      if (dist === 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#e4dcc8';
+        dbg.style.background  = '#fafaf7';
+        dbg.style.color       = '#26241d';
+      }
+
+      dbg.textContent = 'A = ' + A.join('') + '   B = ' + B.join('') + '   →   Distância de Hamming = ' + dist;
+    }
+
+    render();
+  }
+
+  function tryInitSim08Ep01(){
+    var root = document.getElementById('sim-ep0801');
+    if (root) initSim08Ep01(root); else setTimeout(tryInitSim08Ep01, 200);
+  }
+  tryInitSim08Ep01();
+})();
+
+</script>
+</div><div id="sim-ep0801_a" style="display:grid; grid-template-columns:repeat(8, 36px); gap:4px;"></div><div id="sim-ep0801_b" style="display:grid; grid-template-columns:repeat(8, 36px); gap:4px;"></div><div class="sim-ep0801_panel" id="sim-ep0801_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

@@ -1,0 +1,255 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.es/EP07_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.es/EP07_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_02 🟡 Normalización Z-score y Robustez del k-NN ante Escalas Distintas</h2>
+<p>Este ejercicio revisita el clasificador implementado en el <strong>EP07_01</strong>, esta vez bajo la óptica discutida en la sección <em>El Impacto de la Escala y la Normalización de Características</em> del capítulo: el k-NN decide basándose en la distancia entre vectores, de modo que una característica medida en una escala mucho mayor que las demás tiende a <strong>dominar</strong> el cálculo de la distancia, incluso cuando no es la más relevante para separar las clases.</p>
+<p>Un sistema de inspección registra, para cada pieza, su <strong>área</strong> (en píxeles, pudiendo llegar a cientos o miles) y su <strong>circularidad</strong> (siempre entre 0 y 1). Usted ha sido encargado de clasificar nuevas piezas mediante k-NN de dos formas — con y sin la estandarización <em>Z-score</em> presentada en el capítulo — y de reportar en qué casos ambas aproximaciones <strong>divergen</strong>.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Cantidad y parámetro:</strong> Leer el entero <em>N</em> (número de ejemplos de entrenamiento) y el entero impar <em>k</em>.</li>
+<li><strong>Ejemplos de entrenamiento:</strong> Para cada uno de los <em>N</em> ejemplos, leer tres valores: el área <em>x</em>_1 (real), la circularidad <em>x</em>_2 (real) y la etiqueta <em>r</em> (entero, 0 o 1).</li>
+<li><strong>Consultas:</strong> Leer el entero <em>Q</em> y, a continuación, las coordenadas <em>x</em>_1, <em>x</em>_2 de cada consulta.</li>
+<li><strong>Clasificación sin normalización:</strong> Para cada consulta, clasifíquela mediante k-NN directamente sobre (<em>x</em>_1, <em>x</em>_2), con distancia euclidiana y las mismas reglas de desempate del EP07_01 (orden de lectura para distancias empatadas; vecino más cercano entre clases empatadas en la votación).</li>
+<li><strong>Parámetros de normalización:</strong> Calcular la media μ_<em>j</em> y la desviación estándar <strong>poblacional</strong> σ_<em>j</em> (división por <em>N</em>, no por <em>N</em>-1 — la misma convención adoptada por la clase <code>StandardScaler</code>) de cada característica <em>j</em> ∈ 1,2, <strong>exclusivamente sobre el conjunto de entrenamiento</strong>.</li>
+<li><strong>Estandarización:</strong> Transformar cada característica de entrenamiento y de consulta mediante <em>z</em>_<em>j</em> = (<em>x</em>_<em>j</em> - μ_<em>j</em>)/(σ_<em>j</em>). Si σ_<em>j</em> = 0 (característica constante en el entrenamiento), definir <em>z</em>_<em>j</em> = 0 para todas las muestras de esa característica, evitando la división por cero.</li>
+<li><strong>Clasificación con normalización:</strong> Repetir la clasificación k-NN del punto 4, ahora sobre los vectores estandarizados (<em>z</em>_1, <em>z</em>_2), con las mismas reglas de desempate.</li>
+<li><strong>Salida:</strong> Para cada consulta, en el orden de entrada, imprimir las dos clases previstas. Al final, imprimir el número de consultas en las que las dos clasificaciones <strong>divergen</strong>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li><strong>Ajuste solo en el entrenamiento:</strong> μ_<em>j</em> y σ_<em>j</em> se calculan únicamente a partir del conjunto de entrenamiento y se reaplican a las consultas — nunca se recalculan a partir de ellas. Esta práctica evita la <strong>fuga de datos</strong> (<em>data leakage</em>), mencionada en la sección de normalización del capítulo.</li>
+<li><strong>Desviación estándar poblacional:</strong> utilizar σ_<em>j</em> = √(\frac1)N∑_<em>i</em> (<em>x</em>_i,<em>j</em>-μ_<em>j</em>)^2, y no la versión muestral (división por <em>N</em>-1).</li>
+<li><strong>Característica constante:</strong> tratar σ_<em>j</em> = 0 como caso especial (punto 6); no debe ocurrir un error de división por cero.</li>
+<li><strong>Reglas de desempate:</strong> reutilizar exactamente las convenciones del EP07_01, tanto en la selección de los <em>k</em> vecinos como en la votación mayoritaria.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Estandarización <em>Z-score</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Reescala cada característica para media 0 y desviación estándar 1, haciendo comparables escalas heterogéneas</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ajuste (<em>fit</em>) solo en el entrenamiento</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Garantiza que la evaluación sobre las consultas refleje únicamente lo que el modelo aprendió en el entrenamiento</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distancia euclidiana sin normalización</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Dominada por la característica de mayor amplitud — aquí, el área</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Predicción divergente</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Evidencia que la escala de las características, y no solo el algoritmo o los datos, puede determinar la frontera de decisión del k-NN</td>
+</tr>
+</tbody>
+</table>
+<p>Este ejercicio refuerza, de forma controlada, la razón por la cual el <code>StandardScaler</code> se aplica antes del k-NN a lo largo del capítulo: sin esta etapa, las características de circularidad — incluso siendo altamente discriminativas — pueden ser prácticamente ignoradas por el clasificador frente a una característica de área con amplitud cientos de veces mayor.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Enteros <em>N</em> y <em>k</em>, separados por espacio.</li>
+<li>Siguientes <em>N</em> líneas: tres valores por línea — <em>x</em>_1, <em>x</em>_2 (reales) y <em>r</em> (entero ∈ 0,1), separados por espacio.</li>
+<li>Siguiente línea: entero <em>Q</em>.</li>
+<li>Siguientes <em>Q</em> líneas: dos valores por línea — <em>x</em>_1, <em>x</em>_2 (reales) de la consulta, separados por espacio.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li><em>Q</em> líneas, en el formato <code>SemNorm=&lt;0|1&gt; ComNorm=&lt;0|1&gt;</code>, en el orden de entrada de las consultas.</li>
+<li>Última línea: <code>Divergiu: &lt;int&gt;</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 3<br/>
+10 0.9 0<br/>
+12 0.85 0<br/>
+900 0.2 1<br/>
+950 0.25 1<br/>
+1<br/>
+500 0.88</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">SemNorm=1 ComNorm=0<br/>
+Divergiu: 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Sin normalización, el área (escala de cientos) domina la distancia y la consulta se clasifica como clase <code>1</code>. Tras la estandarización, la circularidad — mucho más cercana a las muestras de clase <code>0</code> — pasa a pesar de forma comparable, y la predicción cambia a <code>0</code>.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 1<br/>
+0 0.5 0<br/>
+100 0.5 1<br/>
+1<br/>
+60 0.5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">SemNorm=1 ComNorm=1<br/>
+Divergiu: 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La circularidad es constante en el entrenamiento (σ_2=0); por la regla del punto 6, <em>z</em>_2=0 para todas las muestras, y la clasificación depende solo del área en ambos casos.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="24" data-quarto-private-1='{"key":"pdi","value":{"ck":"dac5704905a3be64c3c04b7db3ffa0fa"}}' id="cell-fig-07-sim-ep0702">
+</div>
+</div><div id="sim-ep0702" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0702 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0702 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0702 button:hover { background: #e8dfcf; }
+  #sim-ep0702 button.sim-ep0702_active { background: #26241d !important; border-color: #26241d !important; color: #7ee7c6 !important; }
+  .sim-ep0702_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0702_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP07_02: Normalización Z-score y Distancia k-NN</span>
+<span class="sim-ep0702_pill">Estandarización de Características</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Descrição e Seleção de Modo -->
+<div class="sim-ep0702_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:8px;">
+      Cada ejemplo posee dos características: área (px) y circularidad [0, 1]. Alterne la normalización y observe el cambio en la clase prevista.
+    </div>
+<div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+<button class="sim-ep0702_active" id="sim-ep0702_btn_raw">Sin Normalización</button>
+<button id="sim-ep0702_btn_norm">Con Normalización (Z-score)</button>
+</div>
+</div>
+<!-- Cards de Amostras -->
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim07Ep02(root){
+    if (!root || root.dataset.sim07Ep02Init) return;
+    root.dataset.sim07Ep02Init = "1";
+
+    var pontos = [
+      {nome: "P1", x1: 10,  x2: 0.90, r: 0},
+      {nome: "P2", x1: 12,  x2: 0.85, r: 0},
+      {nome: "P3", x1: 900, x2: 0.20, r: 1},
+      {nome: "P4", x1: 950, x2: 0.25, r: 1}
+    ];
+
+    pontos.forEach(function(p, i){ p.idx = i; });
+    var query = {x1: 500, x2: 0.88};
+    var k = 3;
+
+    function stats(vals){
+      var m = vals.reduce(function(a, b){ return a + b; }, 0) / vals.length;
+      var v = vals.reduce(function(a, s){ return a + (s - m) * (s - m); }, 0) / vals.length;
+      return {mean: m, std: Math.sqrt(v)};
+    }
+
+    var s1 = stats(pontos.map(function(p){ return p.x1; }));
+    var s2 = stats(pontos.map(function(p){ return p.x2; }));
+
+    function z(x, s){ return s.std === 0 ? 0 : (x - s.mean) / s.std; }
+
+    var cards   = root.querySelector('#sim-ep0702_cards');
+    var dbg     = root.querySelector('#sim-ep0702_debug');
+    var qEl     = root.querySelector('#sim-ep0702_query');
+    var btnRaw  = root.querySelector('#sim-ep0702_btn_raw');
+    var btnNorm = root.querySelector('#sim-ep0702_btn_norm');
+    var modoNorm = false;
+
+    function render(){
+      btnRaw.classList.toggle('sim-ep0702_active', !modoNorm);
+      btnNorm.classList.toggle('sim-ep0702_active', modoNorm);
+
+      qEl.textContent = '★ Consulta: Área = ' + query.x1 + ', Circularidade = ' + query.x2 +
+        (modoNorm ? ' → z_área = ' + z(query.x1, s1).toFixed(3) + ', z_circ = ' + z(query.x2, s2).toFixed(3) : '');
+
+      var qx1 = modoNorm ? z(query.x1, s1) : query.x1;
+      var qx2 = modoNorm ? z(query.x2, s2) : query.x2;
+
+      var lista = pontos.map(function(p){
+        var px1 = modoNorm ? z(p.x1, s1) : p.x1;
+        var px2 = modoNorm ? z(p.x2, s2) : p.x2;
+        var d = Math.sqrt((px1 - qx1) * (px1 - qx1) + (px2 - qx2) * (px2 - qx2));
+        return {nome: p.nome, r: p.r, d: d, idx: p.idx, area: p.x1, circ: p.x2, va: px1, vc: px2};
+      });
+
+      lista.sort(function(a, b){ return (a.d - b.d) || (a.idx - b.idx); });
+
+      cards.innerHTML = '';
+      var votos = [0, 0];
+
+      lista.forEach(function(p, i){
+        var dentro = i < k;
+        if (dentro) votos[p.r]++;
+
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center; border-radius:10px; padding:10px 6px; font-size:11px; transition:all 0.15s ease;' +
+          (dentro 
+            ? (p.r === 0 
+                ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' 
+                : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;') 
+            : 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;');
+
+        var valorUsado = modoNorm
+          ? ('z = (' + p.va.toFixed(2) + ', ' + p.vc.toFixed(2) + ')')
+          : ('área = ' + p.area + ', circ = ' + p.circ);
+
+        div.innerHTML = '<div style="font-weight:700; margin-bottom:4px;">' + p.nome + ' (r = ' + p.r + ')</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px; font-size:10px;">' + valorUsado + '</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px;">d = ' + p.d.toFixed(3) + '</div>' +
+          '<div style="font-weight:700; font-size:10px;">' + (dentro ? 'VOTA' : '&ndash;') + '</div>';
+
+        cards.appendChild(div);
+      });
+
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : lista[0].r);
+
+      if (previsto === 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = (modoNorm ? 'COM Normalização' : 'SEM Normalização') +
+        '  |  k = ' + k + '  |  Votos Classe 0: ' + votos[0] + ', Classe 1: ' + votos[1] +
+        '  |  Classe prevista: ' + previsto;
+    }
+
+    btnRaw.addEventListener('click', function(){ modoNorm = false; render(); });
+    btnNorm.addEventListener('click', function(){ modoNorm = true; render(); });
+    render();
+  }
+
+  function tryInitSim07Ep02(){
+    var root = document.getElementById('sim-ep0702');
+    if (root) initSim07Ep02(root); else setTimeout(tryInitSim07Ep02, 200);
+  }
+  tryInitSim07Ep02();
+})();
+
+</script>
+</div><div id="sim-ep0702_query" style="font-size:11px; color:#26241d; text-align:center; font-family:monospace; font-weight:700; margin-bottom:10px;"></div><div id="sim-ep0702_cards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px; margin-bottom:14px;"></div><div class="sim05_ep01_panel" id="sim-ep0702_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center; background:#fafaf7; border:1px solid #e9e3d3; border-radius:12px; padding:12px;">
+    –
+  </div></div>

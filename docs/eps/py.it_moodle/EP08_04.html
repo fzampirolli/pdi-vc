@@ -1,0 +1,221 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP08_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_04 🟢 IoU e Soppressione Non-Massima (NMS)</h2>
+<p>La figura di questa sezione ha mostrato l’effetto della Soppressione Non-Massima su un insieme di riquadri prodotti da un rilevatore di tipo <em>sliding window</em>: molteplici rilevazioni ridondanti per oggetto sono state ridotte a un singolo riquadro per oggetto. Ti è stato affidato il compito di reimplementare, byte per byte, le due funzioni che hanno prodotto quel risultato — <code>calcolare_iou</code> e <code>soppressione_non_massima</code> — per confermare, con le tue mani, esattamente i numeri presentati nel capitolo.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
+<ol type="1">
+<li><p><strong>Input:</strong> Leggere l’intero <em>N</em> (numero di riquadri) e il reale \tau (soglia IoU). Successivamente, leggere <em>N</em> righe, ciascuna con cinque valori reali <em>x</em>_min\ <em>y</em>_min\ <em>x</em>_max\ <em>y</em>_max\ score.</p></li>
+<li><p><strong>Intersezione su Unione:</strong> Per due riquadri <em>A</em> e <em>B</em>, IoU(<em>A</em>,<em>B</em>) = \fracarea(<em>A</em> \cap <em>B</em>)area(<em>A</em> \cup <em>B</em>), con area di intersezione nulla quando i riquadri non si sovrappongono.</p></li>
+<li><p><strong>Algoritmo NMS</strong> (esattamente come descritto nel capitolo):</p>
+<ol type="a">
+<li><p>Ordinare i riquadri per <code>score</code> decrescente (i pareggi mantengono l’ordine di lettura originale).</p></li>
+<li><p>Selezionare il riquadro con il punteggio più alto tra quelli rimanenti; aggiungerlo all’output e rimuoverlo dalla lista.</p></li>
+<li><p>Scartare, dalla lista rimanente, <strong>tutti</strong> i riquadri il cui IoU con il riquadro selezionato sia <strong>maggiore o uguale</strong> a \tau — solo i riquadri con IoU &lt; \tau rimangono candidati.</p></li>
+<li><p>Ripetere i punti (b)–(c) finché la lista dei rimanenti non è vuota.</p></li>
+</ol></li>
+<li><p><strong>Output:</strong> Per ogni riquadro mantenuto, nell’ordine in cui è stato selezionato, stampare il suo indice originale (posizione di lettura, a partire da 0) e il suo <code>score</code>, con 2 cifre decimali. Alla fine, stampare <code>Totale mantenuti: X</code>.</p></li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Attenzione alla direzione della soglia:</strong> contrariamente a quanto si potrebbe supporre, un riquadro viene <strong>soppresso</strong> quando IoU \ge \tau (non solo quando IoU &gt; \tau) — segui esattamente questo criterio, lo stesso del codice di riferimento del capitolo.</li>
+<li><strong>Indici originali:</strong> l’output fa riferimento alla posizione di lettura di ciascun riquadro nell’input, non alla sua posizione dopo l’ordinamento per <code>score</code>.</li>
+<li><strong>Area senza aggiunta di 1 pixel:</strong> usa area = (<em>x</em>_max-<em>x</em>_min) × (<em>y</em>_max-<em>y</em>_min), esattamente come nel capitolo (senza l’aggiustamento “+1” talvolta usato in altre convenzioni).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamentazione Teorica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Ruolo nel post-elaborazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Quantifica la sovrapposizione spaziale tra due riquadri delimitanti</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>Sliding window</em> (Haar Cascade)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Produce tipicamente diverse rilevazioni sovrapposte per lo stesso oggetto, in posizioni e scale vicine</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Soglia \tau</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Controlla l’aggressività della soppressione: troppo bassa fonde oggetti vicini; troppo alta lascia passare ridondanze</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ordinamento per <code>score</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Garantisce che, tra riquadri ridondanti, quello con maggiore confidenza sopravviva sempre</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>N</em> e reale \tau.</li>
+<li>Prossime <em>N</em> righe: cinque valori reali <em>x</em>_min\ <em>y</em>_min\ <em>x</em>_max\ <em>y</em>_max\ score.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Una riga per ogni riquadro mantenuto, nell’ordine di selezione: <code>indice score</code> (score con 2 cifre decimali).</li>
+<li>Ultima riga: <code>Totale mantenuti: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5 0.4<br/>
+50 50 150 150 0.90<br/>
+60 55 155 145 0.75<br/>
+58 60 160 150 0.60<br/>
+300 300 400 420 0.95<br/>
+310 305 395 415 0.70</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 0.95<br/>
+0 0.90<br/>
+Totale mantenuti: 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Esattamente l’esempio della figura del capitolo: 5 riquadri ridondanti (2 oggetti) diventano 2 rilevazioni finali. Lo IoU tra il 1° e il 2° riquadro è \approx 0,775, ben sopra \tau=0,4.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="29" data-quarto-private-1='{"key":"pdi","value":{"ck":"1358f947a8972eb0367fc7b9c5b2ffd3"}}' id="cell-fig-08-sim-ep0804">
+</div>
+</div><div id="sim-ep0804" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0804 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0804 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0804 button:hover { background: #e8dfcf; }
+  #sim-ep0804 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0804_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0804_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP08_04: IoU e Soppressione Non-Massima (NMS)</span>
+<span class="sim-ep0804_pill">Soppressione se IoU ≥ τ</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0804_panel" style="margin-bottom:14px;">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+<div>
+<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Spostamento della Candidata (dx)</label>
+<span id="sim-ep0804_dx_v" style="font-family:monospace; font-weight:700; color:#26241d;">3</span>
+</div>
+<input id="sim-ep0804_dx" max="10" min="0" step="1" type="range" value="3"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Soglia (τ)</label>
+<span id="sim-ep0804_tau_v" style="font-family:monospace; font-weight:700; color:#26241d;">0.40</span>
+</div>
+<input id="sim-ep0804_tau" max="0.9" min="0.1" step="0.05" type="range" value="0.4"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      La casella blu (punteggio più alto) è già stata selezionata. Regola la sovrapposizione e la soglia τ per verificare la soppressione della casella rossa (candidata).
+    </div>
+</div>
+<!-- Canvas Visual de Caixas Delimitadoras -->
+<div class="sim-ep0804_panel" style="position:relative; width:100%; height:160px; margin-bottom:14px; overflow:hidden;">
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep04(root){
+    if (!root || root.dataset.sim08Ep04Init) return;
+    root.dataset.sim08Ep04Init = "1";
+
+    var dxEl   = root.querySelector('#sim-ep0804_dx');
+    var dxvEl  = root.querySelector('#sim-ep0804_dx_v');
+    var tauEl  = root.querySelector('#sim-ep0804_tau');
+    var tauvEl = root.querySelector('#sim-ep0804_tau_v');
+    var boxA   = root.querySelector('#sim-ep0804_boxA');
+    var boxB   = root.querySelector('#sim-ep0804_boxB');
+    var dbg    = root.querySelector('#sim-ep0804_debug');
+
+    var ESCALA = 10;
+    var A = {x1: 5, y1: 3, x2: 15, y2: 13};
+
+    function iou(a, b){
+      var ix1 = Math.max(a.x1, b.x1), iy1 = Math.max(a.y1, b.y1);
+      var ix2 = Math.min(a.x2, b.x2), iy2 = Math.min(a.y2, b.y2);
+      var iw  = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+      var inter = iw * ih;
+      var areaA = (a.x2 - a.x1) * (a.y2 - a.y1);
+      var areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
+      return inter / (areaA + areaB - inter);
+    }
+
+    function render(){
+      var dx  = parseInt(dxEl.value, 10);
+      var tau = parseFloat(tauEl.value);
+
+      dxvEl.textContent  = dx;
+      tauvEl.textContent = tau.toFixed(2);
+
+      var B = {x1: 5 + dx, y1: 3 + dx * 0.4, x2: 15 + dx, y2: 13 + dx * 0.4};
+
+      boxA.style.left   = (A.x1 * ESCALA) + 'px';
+      boxA.style.top    = (A.y1 * ESCALA) + 'px';
+      boxA.style.width  = ((A.x2 - A.x1) * ESCALA) + 'px';
+      boxA.style.height = ((A.y2 - A.y1) * ESCALA) + 'px';
+
+      boxB.style.left   = (B.x1 * ESCALA) + 'px';
+      boxB.style.top    = (B.y1 * ESCALA) + 'px';
+      boxB.style.width  = ((B.x2 - B.x1) * ESCALA) + 'px';
+      boxB.style.height = ((B.y2 - B.y1) * ESCALA) + 'px';
+
+      var val = iou(A, B);
+      var suprimida = val >= tau;
+
+      if (suprimida) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'IoU(A,B) = ' + val.toFixed(4) + '  |  τ = ' + tau.toFixed(2) + '  →  Candidata (Vermelha) ' + 
+        (suprimida ? 'SUPRIMIDA (IoU ≥ τ)' : 'MANTIDA (IoU < τ)');
+    }
+
+    dxEl.addEventListener('input', render);
+    tauEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim08Ep04(){
+    var root = document.getElementById('sim-ep0804');
+    if (root) initSim08Ep04(root); else setTimeout(tryInitSim08Ep04, 200);
+  }
+  tryInitSim08Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0804_boxA" style="position:absolute; border:2px solid #2980b9; background:rgba(41,128,185,0.20); border-radius:4px; transition:all 0.15s ease;"></div><div id="sim-ep0804_boxB" style="position:absolute; border:2px solid #c0392b; background:rgba(192,57,43,0.20); border-radius:4px; transition:all 0.15s ease;"></div><div class="sim-ep0804_panel" id="sim-ep0804_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

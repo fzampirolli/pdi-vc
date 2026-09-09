@@ -1,0 +1,198 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/cpp.es/EP05_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/cpp.es/EP05_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_04 🔴 Implementando la DFT 2D a partir de la definición</h2>
+<p>Un laboratorio de investigación en <strong>astronomía computacional</strong> recibió, de una misión antigua, un pequeño sensor experimental cuyos datos brutos no pueden ser procesados por bibliotecas modernas de FFT — el entorno de validación está aislado y solo permite operaciones aritméticas básicas. El equipo necesita <strong>reimplementar la Transformada de Fourier Discreta 2D a partir de la propia definición matemática</strong>, célula por célula, para después comparar bit a bit con <code>np.fft.fft2</code> en otro entorno.</p>
+<p>Este es el ejercicio más conceptual de la lista: no hay atajos. Vas a implementar el doble sumatorio de la Ecuación 5.1 directamente, evidenciando <em>por qué</em> existe la FFT — y el costo computacional que evita.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de implementación</h4>
+<ol type="1">
+<li><strong>Dimensiones:</strong> Leer los enteros <em>M</em> (filas) y <em>N</em> (columnas) de la imagen <em>f</em>(<em>x</em>,<em>y</em>).</li>
+<li><strong>Datos:</strong> Leer los valores enteros de <em>f</em>(<em>x</em>,<em>y</em>), fila a fila.</li>
+<li><strong>DFT 2D:</strong> Para cada par de frecuencias (<em>u</em>,<em>v</em>) con u=0,…,<em>M</em>-1 y v=0,…,<em>N</em>-1, calcular <em>F</em>(<em>u</em>,<em>v</em>) = ∑_x=0^M-1∑_y=0^N-1 <em>f</em>(<em>x</em>,<em>y</em>)\, <em>e</em>^-<em>j</em>2\pi\left((ux)/(<em>M</em>)+(vy)/(<em>N</em>)\right) usando la identidad de Euler <em>e</em>^-<em>j</em>\theta = \cos(\theta) - <em>j</em>\sin(\theta) para separar parte real e imaginaria — <strong>no se debe utilizar ninguna función de FFT predefinida</strong>.</li>
+<li><strong>Magnitud:</strong> Calcular |<em>F</em>(<em>u</em>,<em>v</em>)| = √(Re)(<em>F</em>)^2 + \textIm(<em>F</em>)^2 y redondear al entero más cercano.</li>
+<li><strong>Salida:</strong> Mostrar la matriz de magnitudes redondeadas, <em>M</em> × <em>N</em>, en el mismo orden (sin <code>fftshift</code> — el DC permanece en (0,0)).</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones computacionales</h4>
+<ul>
+<li><strong>Prohibido usar bibliotecas de FFT:</strong> la implementación debe calcular los sumatorios dobles explícitamente (bucles anidados), aunque sea más lenta.</li>
+<li><strong>Sin <code>fftshift</code>:</strong> la salida mantiene la convención cruda de la DFT, con el componente DC en <em>F</em>(0,0) (esquina superior izquierda).</li>
+<li><strong>Redondeo:</strong> la magnitud final debe redondearse al entero más cercano; en los casos de prueba no hay ambigüedad <code>.5</code>.</li>
+<li><strong>Precisión:</strong> pequeños errores de punto flotante (del orden de 10^-6) antes del redondeo son esperados y no afectan al resultado entero final.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>F</em>(0,0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Componente DC — suma de todos los píxeles, <em>F</em>(0,0) = ∑ <em>f</em>(<em>x</em>,<em>y</em>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parte real Re(<em>F</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Proyección de la señal sobre cosenos</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parte imaginaria Im(<em>F</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Proyección de la señal sobre senos</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Complejidad de esta implementación</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">\mathcalO((MN)^2) — por eso la FFT, con \mathcalO(MN\log(MN)), resulta indispensable en imágenes reales</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de entrada y salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Entero <em>M</em>.</li>
+<li>Línea 2: Entero <em>N</em>.</li>
+<li>Líneas siguientes: Elementos enteros de <em>f</em>(<em>x</em>,<em>y</em>), <em>M</em> líneas.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li>Matriz de magnitudes |<em>F</em>(<em>u</em>,<em>v</em>)| redondeadas, <em>M</em> × <em>N</em>, separadas por espacios.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+1 2<br/>
+3 4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 2<br/>
+4 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>F</em>(0,0)=1+2+3+4=10 (DC = suma total). <em>F</em>(0,1)=(1-2)+(3-4)=-2 \to |<em>F</em>|=2. <em>F</em>(1,0)=(1+2)-(3+4)=-4\to|<em>F</em>|=4. <em>F</em>(1,1)=(1-2)-(3-4)=0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="84" id="cell-fig-05-sim-ep0504">
+</div>
+</div><div id="sim-ep0504" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0504 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0504 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0504 button:hover { background: #e8dfcf; }
+  .sim-ep0504_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0504_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0504_cell { width: 52px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP05_04: DFT 2D — Definición Directa</span>
+<span class="sim-ep0504_pill">ΣΣ f(x,y) e<sup>-j2π(…)</sup></span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Instrução -->
+<div class="sim-ep0504_panel" style="margin-bottom:14px; text-align:center;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600;">
+      Haz clic en las celdas de f(x,y) para cambiar los valores (incrementa +1; Shift + clic decrementa -1) y observa |F(u,v)| recalculado en vivo.
+    </div>
+</div>
+<!-- Exibição das Grades 2x2 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0504_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        f(x,y) — Dominio Espacial
+      </div>
+</div>
+<div class="sim-ep0504_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        |F(u,v)| — Magnitud (Sin Shift)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep04(root){
+    if (!root || root.dataset.sim05Ep04Init) return;
+    root.dataset.sim05Ep04Init = "1";
+
+    var f = [[1, 2], [3, 4]];
+    var gf  = root.querySelector('#sim-ep0504_grid_f');
+    var gF  = root.querySelector('#sim-ep0504_grid_F');
+    var dbg = root.querySelector('#sim-ep0504_debug');
+
+    function render(){
+      gf.innerHTML = '';
+      gF.innerHTML = '';
+
+      for (var x = 0; x < 2; x++){
+        for (var y = 0; y < 2; y++){
+          (function(xx, yy){
+            var c = document.createElement('div');
+            c.className = 'sim-ep0504_cell';
+            c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7; cursor:pointer;';
+            c.textContent = f[xx][yy];
+            c.addEventListener('click', function(e){
+              if (e.shiftKey){ f[xx][yy]--; } else { f[xx][yy]++; }
+              render();
+            });
+            gf.appendChild(c);
+          })(x, y);
+        }
+      }
+
+      var M = 2, N = 2;
+      for (var u = 0; u < M; u++){
+        for (var v = 0; v < N; v++){
+          var re = 0, im = 0;
+          for (var x = 0; x < M; x++){
+            for (var y = 0; y < N; y++){
+              var theta = 2 * Math.PI * (u * x / M + v * y / N);
+              re += f[x][y] * Math.cos(theta);
+              im -= f[x][y] * Math.sin(theta);
+            }
+          }
+          var mag = Math.round(Math.sqrt(re * re + im * im));
+          var c = document.createElement('div');
+          c.className = 'sim-ep0504_cell';
+          c.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          c.textContent = mag;
+          gF.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'F(0,0) = suma de todos los píxeles = ' + (f[0][0] + f[0][1] + f[1][0] + f[1][1]) + ' (componente DC)';
+    }
+
+    render();
+  }
+
+  function tryInitSim05Ep04(){
+    var root = document.getElementById('sim-ep0504');
+    if (root) initSim05Ep04(root); else setTimeout(tryInitSim05Ep04, 200);
+  }
+  tryInitSim05Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0504_grid_f" style="display:grid; grid-template-columns:repeat(2, 52px); gap:6px; justify-content:center;"></div><div id="sim-ep0504_grid_F" style="display:grid; grid-template-columns:repeat(2, 52px); gap:6px; justify-content:center;"></div><div class="sim-ep0504_panel" id="sim-ep0504_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

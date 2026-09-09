@@ -1,0 +1,293 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP06_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP06_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_07 🟣 Pipeline di Ispezione Industriale: Registrazione per Traslazione e Sottrazione</h2>
+<p>In una linea di produzione, una telecamera fissa fotografa ogni pezzo che passa sul nastro trasportatore, confrontandolo con un’immagine di riferimento priva di difetti. Il problema: piccole vibrazioni del nastro spostano il pezzo rispetto alla posizione di riferimento a ogni acquisizione. Se la sottrazione delle immagini viene applicata direttamente, senza correzione, lo spostamento di per sé genera già differenze enormi — <strong>falsi positivi</strong> che mascherano i difetti reali.</p>
+<p>Questo è l’esercizio più completo del capitolo: devi <strong>prima registrare</strong> (allineare geometricamente) l’immagine acquisita utilizzando uno spostamento noto (dx, dy), fornito da un sensore di posizione del nastro, e <strong>solo successivamente applicare la sottrazione</strong> con sogliatura, esattamente come descritto nella sezione sull’ispezione industriale.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
+<ol type="1">
+<li><strong>Dimensioni e parametri:</strong> Leggere <em>L</em>, <em>C</em> (dimensioni delle immagini), lo spostamento intero noto dx, dy (che può essere negativo) e la soglia di rilevamento <em>T</em> (intero).</li>
+<li><strong>Immagini:</strong> Leggere la matrice di riferimento (<code>ref</code>, <em>L</em>× <em>C</em>, senza difetti) e la matrice acquisita (<code>cap</code>, <em>L</em>× <em>C</em>, possibilmente spostata e con difetto).</li>
+<li><strong>Registrazione per traslazione:</strong> Costruire l’immagine allineata <code>alin</code> applicando lo spostamento (dx,dy) ricevuto: alin(<em>i</em>,<em>j</em>) = cap(<em>i</em>+dy,\; <em>j</em>+dx), se (<em>i</em>+dy,\ <em>j</em>+dx) ∈ [0,<em>L</em>)×[0,<em>C</em>); 0, altrimenti</li>
+<li><strong>Riempimento dei bordi:</strong> Le posizioni che “escono” dall’immagine acquisita dopo lo spostamento ricevono il valore <strong>0</strong> (<em>zero-padding</em> — fuori dal campo visivo della telecamera; <strong>nota che questo esercizio usa zero, diversamente dalla replicazione dei bordi dell’EP06_06</strong>).</li>
+<li><strong>Differenza assoluta:</strong> Calcolare, pixel per pixel, diff(<em>i</em>,<em>j</em>) = |ref(<em>i</em>,<em>j</em>) - alin(<em>i</em>,<em>j</em>)|</li>
+<li><strong>Sogliatura:</strong> Definire maschera(<em>i</em>,<em>j</em>) = 1 se diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>; altrimenti, maschera(<em>i</em>,<em>j</em>) = 0.</li>
+<li><strong>Output:</strong> In questo ordine — (a) la matrice <code>alin</code> (<em>L</em>× <em>C</em>); (b) la maschera del difetto (<em>L</em>× <em>C</em>); (c) un’ultima riga con il numero totale di pixel classificati come difettosi.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong><em>Zero-padding</em>, non replicazione:</strong> le posizioni fuori dai limiti dell’immagine acquisita, dopo lo spostamento, valgono esattamente 0 — questo è il punto che differenzia maggiormente questo esercizio dall’EP06_06.</li>
+<li><strong>Confronto rigoroso:</strong> diff(<em>i</em>,<em>j</em>) &gt; <em>T</em>.</li>
+<li><strong>Segno di (dx,dy):</strong> lo spostamento può essere positivo o negativo; la formula del passo 3 deve essere applicata letteralmente, senza invertire i segni.</li>
+<li><strong>Tutti i valori sono interi:</strong> non c’è arrotondamento in questa fase.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Fase omessa</th>
+<th style="padding:10px;border:1px solid #ddd;">Conseguenza</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Saltare la registrazione geometrica</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">L’intero bordo dell’immagine (introdotto dallo spostamento) viene marcato come “difetto” — falso positivo sistematico</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Registrazione con (dx,dy) errato</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il pezzo e il riferimento rimangono disallineati; la sottrazione rileva contorni spostati, non difetti reali</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Soglia <em>T</em> troppo bassa</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il rumore di acquisizione (variazioni di 1–2 livelli di grigio) viene confuso con un difetto</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Soglia <em>T</em> troppo alta</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">I difetti sottili non vengono rilevati</td>
+</tr>
+</tbody>
+</table>
+<p>La registrazione geometrica e la sottrazione sono fasi complementari: la prima garantisce che entrambe le immagini rappresentino esattamente la stessa scena nello stesso sistema di riferimento spaziale; la seconda isola ciò che è realmente cambiato tra di esse — idealmente, solo i difetti.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>L</em>.</li>
+<li>Riga 2: Intero <em>C</em>.</li>
+<li>Riga 3: Due interi dx e dy, separati da spazio.</li>
+<li>Riga 4: Intero <em>T</em>.</li>
+<li>Prossime <em>L</em> righe: elementi interi della matrice <code>ref</code>.</li>
+<li>Prossime <em>L</em> righe: elementi interi della matrice <code>cap</code>.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li><em>L</em> righe con la matrice <code>alin</code>.</li>
+<li><em>L</em> righe con la maschera del difetto (0/1).</li>
+<li>Ultima riga: <code>Totale dei pixel difettosi: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+1 0<br/>
+30<br/>
+50 50 50<br/>
+50 50 50<br/>
+50 50 50<br/>
+0 50 50<br/>
+0 50 90<br/>
+0 50 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 50 0<br/>
+50 90 0<br/>
+50 50 0<br/>
+0 0 1<br/>
+0 1 1<br/>
+0 0 1<br/>
+Totale dei pixel difettosi: 4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">dx=1 sposta la lettura di una colonna a destra; l’ultima colonna di <code>alin</code> rimane senza corrispondenza <br/>
+(diventa 0) e viene sistematicamente marcata; anche il difetto reale (90) viene rilevato.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+20<br/>
+10 10<br/>
+10 10<br/>
+10 10<br/>
+10 60</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">10 10<br/>
+10 60<br/>
+0 0<br/>
+0 1<br/>
+Totale dei pixel difettosi: 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Senza spostamento (dx=dy=0): <code>alin</code> è identica a <code>cap</code>; viene rilevato solo il difetto reale (60).</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="49" data-quarto-private-1='{"key":"pdi","value":{"ck":"904d1e4dd7fc7ad6a0ce197b92fa0290"}}' id="cell-fig-06-sim-ep0607">
+</div>
+</div><div id="sim-ep0607" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0607 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0607 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0607 button:hover { background: #e8dfcf; }
+  #sim-ep0607 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0607_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0607_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0607_cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 10px; font-weight: 700; font-family: monospace; border: 1px solid #e4dcc8; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP06_07: Registro per Traslazione + Sottrazione</span>
+<span class="sim-ep0607_pill">|ref − alin(dx,dy)| &gt; T</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0607_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Spostamento Orizzontale (dx): <span id="sim-ep0607_vl_dx" style="font-family:monospace; color:#26241d;">1</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_dx" max="2" min="-2" step="1" type="range" value="1"/>
+<div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Soglia (T): <span id="sim-ep0607_vl_t" style="font-family:monospace; color:#26241d;">30</span>
+</label>
+</div>
+<input id="sim-ep0607_sl_t" max="100" min="0" step="5" type="range" value="30"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Regola lo spostamento del nastro (dx) e la soglia T. Osserva come il bordo "fantasma" scompare quando dx = 0.
+    </div>
+</div>
+<!-- Exibição das Grades 3x3 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        ref
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        alin (registrata)
+      </div>
+</div>
+<div class="sim-ep0607_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        maschera
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep07(root){
+    if (!root || root.dataset.sim06Ep07Init) return;
+    root.dataset.sim06Ep07Init = "1";
+
+    var N = 3;
+    var ref = [[50, 50, 50], [50, 50, 50], [50, 50, 50]];
+    // cap representa a peça deslocada 1 px à direita (col 0 = 0) mais um defeito em (1,2)
+    var cap = [[0, 50, 50], [0, 50, 90], [0, 50, 50]];
+
+    var slDx  = root.querySelector('#sim-ep0607_sl_dx');
+    var vlDx  = root.querySelector('#sim-ep0607_vl_dx');
+    var slT   = root.querySelector('#sim-ep0607_sl_t');
+    var vlT   = root.querySelector('#sim-ep0607_vl_t');
+    var gRef  = root.querySelector('#sim-ep0607_g_ref');
+    var gAlin = root.querySelector('#sim-ep0607_g_alin');
+    var gMask = root.querySelector('#sim-ep0607_g_mask');
+    var dbg   = root.querySelector('#sim-ep0607_debug');
+
+    function cellStyle(g){
+      var v = Math.max(0, Math.min(255, g));
+      return 'background:rgb(' + v + ',' + v + ',' + v + '); color:' + (v > 140 ? '#000000' : '#ffffff') + ';';
+    }
+
+    function render(){
+      var dx = parseInt(slDx.value, 10);
+      var T  = parseInt(slT.value, 10);
+      vlDx.textContent = dx;
+      vlT.textContent  = T;
+
+      gRef.innerHTML  = '';
+      gAlin.innerHTML = '';
+      gMask.innerHTML = '';
+
+      var alin = [], mask = [], total = 0;
+
+      for (var i = 0; i < N; i++){
+        var rowA = [], rowM = [];
+        for (var j = 0; j < N; j++){
+          var pj = j + dx;
+          var v = (pj >= 0 && pj < N) ? cap[i][pj] : 0;
+          rowA.push(v);
+
+          var diff = Math.abs(ref[i][j] - v);
+          var m = diff > T ? 1 : 0;
+          if (m) total++;
+          rowM.push(m);
+        }
+        alin.push(rowA);
+        mask.push(rowM);
+      }
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var cr = document.createElement('div');
+          cr.className = 'sim-ep0607_cell';
+          cr.style.cssText = cellStyle(ref[i][j]);
+          cr.textContent = ref[i][j];
+          gRef.appendChild(cr);
+
+          var ca = document.createElement('div');
+          ca.className = 'sim-ep0607_cell';
+          ca.style.cssText = cellStyle(alin[i][j]);
+          ca.textContent = alin[i][j];
+          gAlin.appendChild(ca);
+
+          var m = mask[i][j];
+          var cm = document.createElement('div');
+          cm.className = 'sim-ep0607_cell';
+          if (m) {
+            cm.style.cssText = 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+          } else {
+            cm.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+          }
+          cm.textContent = m;
+          gMask.appendChild(cm);
+        }
+      }
+
+      if (total > 0) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      }
+
+      dbg.textContent = 'dx = ' + dx + '  |  T = ' + T + '  |  Total de pixels defeituosos: ' + total + ' / 9';
+    }
+
+    slDx.addEventListener('input', render);
+    slT.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep07(){
+    var root = document.getElementById('sim-ep0607');
+    if (root) initSim06Ep07(root); else setTimeout(tryInitSim06Ep07, 200);
+  }
+  tryInitSim06Ep07();
+})();
+
+</script>
+</div><div id="sim-ep0607_g_ref" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_alin" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div id="sim-ep0607_g_mask" style="display:grid; grid-template-columns:repeat(3, 40px); gap:3px; justify-content:center;"></div><div class="sim-ep0607_panel" id="sim-ep0607_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

@@ -1,0 +1,368 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.es/EP08_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.es/EP08_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP08_03 🟢 Imagen Integral: Sumas Rectangulares en Tiempo Constante</h2>
+<p>Imagina una cámara de seguridad procesando 30 fotogramas por segundo, y para cada fotograma el sistema necesita recorrer la imagen en decenas de posiciones y escalas diferentes, probando en cada una un conjunto de características rectangulares para decidir “¿hay una cara aquí?”. Si calcular la suma de intensidades de cada rectángulo requiriese sumar píxel a píxel, el sistema no tendría la menor oportunidad de evaluar en tiempo real — el cuello de botella estaría justamente en la parte más repetida del algoritmo. Es exactamente ese cuello de botella el que la imagen integral elimina.</p>
+<p>El Haar Cascade evalúa miles de características rectangulares por ventana, en múltiples posiciones y escalas — algo inviable en tiempo real si cada rectángulo requiriese sumar sus píxeles uno a uno. La <strong>imagen integral</strong>, definida en la sección sobre Haar Cascade, resuelve este problema: una vez precomputada, la suma de intensidades de <strong>cualquier</strong> región rectangular se obtiene con solo cuatro consultas y tres operaciones aritméticas, independientemente del tamaño del rectángulo.</p>
+<p>Se te ha encargado implementar esta estructura desde cero: primero, calcular la imagen integral a partir de la imagen original; luego, responder a consultas rectangulares arbitrarias.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Entrada:</strong> Leer las dimensiones <em>H</em> × <em>W</em> de la imagen y sus <em>H</em> × <em>W</em> valores enteros de intensidad.</li>
+<li><strong>Imagen integral:</strong> Calcular, para cada posición (<em>i</em>,<em>j</em>) (indexación desde 0, <code>[fila][columna]</code>), II(<em>i</em>,<em>j</em>) = ∑_i' \le <em>i</em>,\ <em>j</em>' \le <em>j</em> <em>I</em>(<em>i</em>', <em>j</em>'), es decir, la suma de todos los píxeles arriba y a la izquierda de (<em>i</em>,<em>j</em>), incluyendo la propia posición.</li>
+<li><strong>Consultas:</strong> Leer el entero <em>Q</em> y, a continuación, <em>Q</em> líneas, cada una con cuatro enteros <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2 — las esquinas superior-izquierda e inferior-derecha de un rectángulo, <strong>ambas inclusivas</strong>, con 0 \le <em>x</em>_1 \le <em>x</em>_2 &lt; <em>W</em> y 0 \le <em>y</em>_1 \le <em>y</em>_2 &lt; <em>H</em>.</li>
+<li><strong>Suma rectangular en O(1):</strong> Para cada consulta, calcular la suma de intensidades dentro del rectángulo usando exclusivamente valores ya presentes en II (sin recorrer los píxeles originales): <em>S</em>(<em>x</em>_1,<em>y</em>_1,<em>x</em>_2,<em>y</em>_2) = II(<em>y</em>_2,<em>x</em>_2) - II(<em>y</em>_2, <em>x</em>_1-1) - II(<em>y</em>_1-1, <em>x</em>_2) + II(<em>y</em>_1-1, <em>x</em>_1-1), tratando cualquier término con índice de fila o columna igual a -1 como 0.</li>
+<li><strong>Salida:</strong> Primero, imprimir la imagen integral completa — <em>H</em> líneas con <em>W</em> enteros cada una. Luego, para cada consulta, imprimir un único entero: la suma de la región correspondiente.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li><strong>No recalcular por fuerza bruta:</strong> la respuesta a cada consulta debe usar la fórmula de cuatro términos sobre II, no una suma directa de los píxeles del rectángulo (aunque el resultado numérico sea el mismo, el objetivo del ejercicio es justamente esa técnica).</li>
+<li><strong>Rectángulos con coordenadas inclusivas:</strong> (<em>x</em>_1,<em>y</em>_1) y (<em>x</em>_2,<em>y</em>_2) pertenecen a la región sumada.</li>
+<li><strong>Tratamiento de borde:</strong> al consultar II con índice -1 (cuando <em>x</em>_1=0 o <em>y</em>_1=0), utilizar el valor 0.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel en el Haar Cascade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Imagen integral II</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Precomputada una única vez por imagen, en tiempo <em>O</em>(HW)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Consulta en O(1)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Cada característica Haar (diferencia entre sumas de regiones rectangulares) se evalúa con pocas operaciones, independientemente del área del rectángulo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Escalabilidad</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Es esa constancia la que hace viable evaluar miles de características, en múltiples posiciones y escalas, en tiempo real</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Principio de inclusión-exclusión</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Los cuatro términos de la fórmula suman la región deseada y restan exactamente las áreas contadas en exceso</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Enteros <em>H</em> y <em>W</em>.</li>
+<li>Siguientes <em>H</em> líneas: <em>W</em> enteros cada una (imagen original).</li>
+<li>Siguiente línea: Entero <em>Q</em>.</li>
+<li>Siguientes <em>Q</em> líneas: cuatro enteros <em>x</em>_1\ <em>y</em>_1\ <em>x</em>_2\ <em>y</em>_2.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li><em>H</em> líneas con <em>W</em> enteros cada una (la imagen integral).</li>
+<li><em>Q</em> líneas, una por consulta, con la suma de la región correspondiente.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 3<br/>
+4 5 6<br/>
+7 8 9<br/>
+1<br/>
+0 0 2 2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 3 6<br/>
+5 12 21<br/>
+12 27 45<br/>
+45</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La consulta cubre la imagen completa; la suma coincide con II(2,2) y con la suma de todos los 9 valores.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3 3<br/>
+1 2 3<br/>
+4 5 6<br/>
+7 8 9<br/>
+2<br/>
+1 1 2 2<br/>
+0 0 1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 3 6<br/>
+5 12 21<br/>
+12 27 45<br/>
+28<br/>
+12</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La primera consulta usa los cuatro términos de la fórmula; la segunda coincide directamente con II(1,1), pues comienza en el origen.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="26" data-quarto-private-1='{"key":"pdi","value":{"ck":"f8c19d38a045b9c02bfcc8dc96e28723"}}' id="cell-fig-08-sim-ep0803">
+</div>
+</div><div id="sim-ep0803" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0803 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0803 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0803 button:hover { background: #e8dfcf; }
+  #sim-ep0803 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0803_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0803_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP08_03: Soma Rectangular con Imagen Integral</span>
+<span class="sim-ep0803_pill" id="sim-ep0803_badge">Interno</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Descrição e Botões de Preset -->
+<div class="sim-ep0803_panel" style="margin-bottom:14px;">
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; text-align:center; margin-bottom:10px;">
+      Elija un rectángulo (x<sub>1</sub>, y<sub>1</sub>) – (x<sub>2</sub>, y<sub>2</sub>). La imagen integral II incluye borde virtual (−1) con ceros para validación sin excepciones.
+    </div>
+<div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+<button data-preset="0,0,3,3">Desde el Origen</button>
+<button data-preset="0,1,2,3">Borde Izquierdo</button>
+<button data-preset="1,0,3,2">Borde Superior</button>
+<button data-preset="1,1,2,2">Totalmente Interno</button>
+<button data-preset="2,2,2,2">Píxel Único</button>
+</div>
+</div>
+<!-- Sliders de Seleção das Coordenadas -->
+<div class="sim-ep0803_panel" style="margin-bottom:14px;">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+<div>
+<div style="font-size:11px; font-weight:700; color:#5e5a4a; margin-bottom:4px;">
+          Esquina Superior-Izquierda (x<sub>1</sub>, y<sub>1</sub>) = <span id="sim-ep0803_v_tl" style="font-family:monospace; color:#26241d;">(1,1)</span>
+</div>
+<div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#8a8371; font-weight:600;">x<sub>1</sub></div>
+<input id="sim-ep0803_x1" max="3" min="0" step="1" type="range" value="1"/>
+<div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#8a8371; font-weight:600; margin-top:4px;">y<sub>1</sub></div>
+<input id="sim-ep0803_y1" max="3" min="0" step="1" type="range" value="1"/>
+</div>
+<div>
+<div style="font-size:11px; font-weight:700; color:#5e5a4a; margin-bottom:4px;">
+          Esquina Inferior-Derecha (x<sub>2</sub>, y<sub>2</sub>) = <span id="sim-ep0803_v_br" style="font-family:monospace; color:#26241d;">(2,2)</span>
+</div>
+<div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#8a8371; font-weight:600;">x<sub>2</sub></div>
+<input id="sim-ep0803_x2" max="3" min="0" step="1" type="range" value="2"/>
+<div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#8a8371; font-weight:600; margin-top:4px;">y<sub>2</sub></div>
+<input id="sim-ep0803_y2" max="3" min="0" step="1" type="range" value="2"/>
+</div>
+</div>
+</div>
+<!-- Grades das Matrizes -->
+<div style="display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-bottom:14px;">
+<div class="sim-ep0803_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.04em;">
+        Imagen Original I (4×4)
+      </div>
+</div>
+<div class="sim-ep0803_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.04em;">
+        Imagen Integral II (Con Borde Virtual −1)
+      </div>
+</div>
+</div>
+<!-- Legenda das Operações -->
+<div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; font-size:10px; font-weight:700; color:#5e5a4a;">
+<span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#2980b9; border-radius:2px; display:inline-block;"></span> + II(y<sub>2</sub>, x<sub>2</sub>)</span>
+<span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#d35400; border-radius:2px; display:inline-block;"></span> − II(y<sub>2</sub>, x<sub>1</sub>−1)</span>
+<span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#d35400; border-radius:2px; display:inline-block;"></span> − II(y<sub>1</sub>−1, x<sub>2</sub>)</span>
+<span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#27ae60; border-radius:2px; display:inline-block;"></span> + II(y<sub>1</sub>−1, x<sub>1</sub>−1)</span>
+</div>
+<!-- Painéis Informativos / Resultados -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim08Ep03(root){
+    if (!root || root.dataset.sim08Ep03Init) return;
+    root.dataset.sim08Ep03Init = "1";
+
+    var I = [
+      [2, 1, 3, 4],
+      [5, 6, 1, 2],
+      [3, 2, 4, 1],
+      [1, 3, 2, 5]
+    ];
+    var N = 4;
+    var II = [];
+    for (var i = 0; i < N; i++){ II.push([0, 0, 0, 0]); }
+    
+    for (var i = 0; i < N; i++){
+      for (var j = 0; j < N; j++){
+        II[i][j] = I[i][j] +
+          (i > 0 ? II[i - 1][j] : 0) + 
+          (j > 0 ? II[i][j - 1] : 0) - 
+          (i > 0 && j > 0 ? II[i - 1][j - 1] : 0);
+      }
+    }
+
+    var x1El     = root.querySelector('#sim-ep0803_x1');
+    var y1El     = root.querySelector('#sim-ep0803_y1');
+    var x2El     = root.querySelector('#sim-ep0803_x2');
+    var y2El     = root.querySelector('#sim-ep0803_y2');
+    var vTl      = root.querySelector('#sim-ep0803_v_tl');
+    var vBr      = root.querySelector('#sim-ep0803_v_br');
+    var gridI    = root.querySelector('#sim-ep0803_gridI');
+    var gridII   = root.querySelector('#sim-ep0803_gridII');
+    var formulaEl= root.querySelector('#sim-ep0803_formula');
+    var verifyEl = root.querySelector('#sim-ep0803_verify');
+    var badge    = root.querySelector('#sim-ep0803_badge');
+
+    var CELL = 34, HEAD = 20;
+
+    function cellDiv(text, size, extraStyle){
+      var d = document.createElement('div');
+      d.style.cssText = 'display:flex; align-items:center; justify-content:center; font-family:monospace; font-size:' + size + 'px;' + extraStyle;
+      d.textContent = text;
+      return d;
+    }
+
+    function clampAndRender(changed){
+      var x1 = +x1El.value, y1 = +y1El.value, x2 = +x2El.value, y2 = +y2El.value;
+      if (changed === 'x1' && x1 > x2) x2El.value = x1;
+      if (changed === 'x2' && x2 < x1) x1El.value = x2;
+      if (changed === 'y1' && y1 > y2) y2El.value = y1;
+      if (changed === 'y2' && y2 < y1) y1El.value = y2;
+      render();
+    }
+
+    function render(){
+      var x1 = +x1El.value, y1 = +y1El.value, x2 = +x2El.value, y2 = +y2El.value;
+      vTl.textContent = '(' + x1 + ',' + y1 + ')';
+      vBr.textContent = '(' + x2 + ',' + y2 + ')';
+
+      var sit;
+      if (x1 === x2 && y1 === y2) sit = 'Pixel Único';
+      else if (x1 === 0 && y1 === 0) sit = 'Desde a Origem';
+      else if (x1 === 0) sit = 'Borda Esquerda';
+      else if (y1 === 0) sit = 'Borda Superior';
+      else sit = 'Interno';
+
+      badge.textContent = sit;
+
+      // Grade I
+      gridI.style.gridTemplateColumns = HEAD + 'px repeat(' + N + ',' + CELL + 'px)';
+      gridI.style.gridTemplateRows = HEAD + 'px repeat(' + N + ',' + CELL + 'px)';
+      gridI.innerHTML = '';
+      gridI.appendChild(cellDiv('', 10, 'color:#8a8371;'));
+      for (var c = 0; c < N; c++) gridI.appendChild(cellDiv(c, 10, 'color:#8a8371; font-weight:700;'));
+      
+      for (var r = 0; r < N; r++){
+        gridI.appendChild(cellDiv(r, 10, 'color:#8a8371; font-weight:700;'));
+        for (var c = 0; c < N; c++){
+          var dentro = (r >= y1 && r <= y2 && c >= x1 && c <= x2);
+          gridI.appendChild(cellDiv(I[r][c], 12, 'border-radius:4px; transition:all 0.15s ease;' +
+            (dentro 
+              ? 'background:#f1ead7; border:2px solid #26241d; font-weight:700; color:#26241d;'
+              : 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;')));
+        }
+      }
+
+      // Grade II (5x5 dados)
+      var M = N + 1;
+      gridII.style.gridTemplateColumns = HEAD + 'px repeat(' + M + ',' + CELL + 'px)';
+      gridII.style.gridTemplateRows = HEAD + 'px repeat(' + M + ',' + CELL + 'px)';
+      gridII.innerHTML = '';
+      gridII.appendChild(cellDiv('', 10, 'color:#8a8371;'));
+      for (var c2 = 0; c2 < M; c2++) gridII.appendChild(cellDiv(c2 - 1, 10, 'color:#8a8371; font-weight:700;'));
+
+      var t1 = [y2 + 1, x2 + 1];
+      var t2 = [y2 + 1, x1];
+      var t3 = [y1, x2 + 1];
+      var t4 = [y1, x1];
+
+      function styleFor(r2, c2){
+        var isVirtual = (r2 === 0 || c2 === 0);
+        var base = isVirtual
+          ? 'border-radius:4px; background:#fafaf7; border:1px dashed #e4dcc8; color:#8a8371;'
+          : 'border-radius:4px; background:#fafaf7; border:1px solid #e4dcc8; color:#26241d;';
+        
+        function match(t, color, tcolor){
+          if (r2 === t[0] && c2 === t[1]) {
+            return 'border-radius:4px; font-weight:700; background:' + color + '; border:2px solid ' + tcolor + '; color:#ffffff;';
+          }
+          return null;
+        }
+
+        return match(t1, '#2980b9', '#1c5d85') || 
+               match(t2, '#d35400', '#a04000') ||
+               match(t3, '#d35400', '#a04000') || 
+               match(t4, '#27ae60', '#1e8449') || base;
+      }
+
+      for (var r2 = 0; r2 < M; r2++){
+        gridII.appendChild(cellDiv(r2 - 1, 10, 'color:#8a8371; font-weight:700;'));
+        for (var c2 = 0; c2 < M; c2++){
+          var val = (r2 === 0 || c2 === 0) ? 0 : II[r2 - 1][c2 - 1];
+          gridII.appendChild(cellDiv(val, 12, styleFor(r2, c2)));
+        }
+      }
+
+      function term(y, x){ return (y < 0 || x < 0) ? 0 : II[y][x]; }
+      var a = term(y2, x2), b = term(y2, x1 - 1), c3 = term(y1 - 1, x2), d = term(y1 - 1, x1 - 1);
+      var S = a - b - c3 + d;
+
+      formulaEl.innerHTML =
+        'S = II(' + y2 + ',' + x2 + ') &minus; II(' + y2 + ',' + (x1 - 1) + ') &minus; II(' + (y1 - 1) + ',' + x2 + ') + II(' + (y1 - 1) + ',' + (x1 - 1) + ')<br>' +
+        'S = ' + a + ' &minus; ' + b + ' &minus; ' + c3 + ' + ' + d + ' = <b>' + S + '</b>';
+
+      var direta = 0;
+      for (var rr = y1; rr <= y2; rr++){
+        for (var cc = x1; cc <= x2; cc++){
+          direta += I[rr][cc];
+        }
+      }
+
+      if (direta === S) {
+        verifyEl.style.borderColor = '#a3e4d7';
+        verifyEl.style.background  = '#eafaf1';
+        verifyEl.style.color       = '#04342C';
+      } else {
+        verifyEl.style.borderColor = '#f5b7b1';
+        verifyEl.style.background  = '#fdecea';
+        verifyEl.style.color       = '#c0392b';
+      }
+
+      verifyEl.innerHTML = '&#10004; Verificação (Soma Direta dos Pixels) = ' + direta + (direta === S ? ' &rarr; Bate com S' : ' &rarr; Erro');
+    }
+
+    x1El.addEventListener('input', function(){ clampAndRender('x1'); });
+    y1El.addEventListener('input', function(){ clampAndRender('y1'); });
+    x2El.addEventListener('input', function(){ clampAndRender('x2'); });
+    y2El.addEventListener('input', function(){ clampAndRender('y2'); });
+
+    root.querySelectorAll('button[data-preset]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var p = btn.getAttribute('data-preset').split(',').map(Number);
+        x1El.value = p[0]; y1El.value = p[1]; x2El.value = p[2]; y2El.value = p[3];
+        render();
+      });
+    });
+
+    render();
+  }
+
+  function tryInitSim08Ep03(){
+    var root = document.getElementById('sim-ep0803');
+    if (root) initSim08Ep03(root); else setTimeout(tryInitSim08Ep03, 200);
+  }
+  tryInitSim08Ep03();
+})();
+
+</script>
+</div><div id="sim-ep0803_gridI" style="display:grid; justify-content:center;"></div><div id="sim-ep0803_gridII" style="display:grid; justify-content:center;"></div><div class="sim-ep0803_panel" id="sim-ep0803_formula" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center; margin-bottom:8px;"></div><div class="sim-ep0803_panel" id="sim-ep0803_verify" style="font-family:monospace; font-size:11px; color:#04342C; background:#eafaf1; border-color:#a3e4d7; text-align:center;"></div></div>

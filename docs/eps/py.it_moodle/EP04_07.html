@@ -1,0 +1,255 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP04_07.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP04_07.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP04_07 ⛰️ Dilatazione ed Erosione con Pesi (mm.dil1 / mm.ero1)</h2>
+<p>Finora, l’elemento strutturante diceva solo “questo vicino conta” o “non conta” — ma nei <strong>modelli digitali di elevazione</strong> (usati nei GIS e nella pianificazione del drenaggio urbano), ogni vicino dovrebbe avere un <strong>peso diverso</strong> a seconda della distanza o della direzione del rilievo. Le versioni <strong>ponderate</strong> della dilatazione e dell’erosione, implementate in <code>morph.py</code> come <code>mm.dil1(f, b)</code> e <code>mm.ero1(f, b)</code>, sommano (o sottraggono) il peso di ciascun vicino prima di prendere il massimo (o il minimo) — generalizzando tutto ciò che è stato fatto negli EP precedenti. Vedere nella Figura 4.36 una simulazione di questo EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida di Implementazione</h4>
+<ol type="1">
+<li><strong>Dimensioni dell’immagine:</strong> Leggere gli interi <em>L</em> (righe) e <em>C</em> (colonne) di <em>f</em>.</li>
+<li><strong>Dimensioni di <em>b</em>:</strong> Leggere gli interi <em>L</em>_<em>B</em> (righe) e <em>C</em>_<em>B</em> (colonne) dell’elemento strutturante ponderato.</li>
+<li><strong>Pesi:</strong> Leggere la matrice <em>b</em> di pesi <strong>interi</strong> (possono essere negativi, zero o positivi), riga per riga.</li>
+<li><strong>Dati:</strong> Leggere la matrice <em>f</em> (l’immagine originale), riga per riga.</li>
+<li><strong>Vicinato senza padding:</strong> Per ogni pixel (<em>y</em>,<em>x</em>), scorrere <strong>tutte</strong> le posizioni (by,bx) di <em>b</em> (non solo dove varrebbe 1 — qui <strong>tutti</strong> i pesi partecipano), usando lo stesso spostamento degli EP precedenti: <em>v</em>_<em>y</em> = <em>y</em> + by + <em>o</em>_<em>y</em>,\quad <em>v</em>_<em>x</em> = <em>x</em> + bx + <em>o</em>_<em>x</em>,\quad <em>o</em>_y=-\tfracL_<em>B</em>2+0,5,\quad <em>o</em>_x=-\tfracC_<em>B</em>2+0,5 <strong>Scartare</strong> ogni (<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) fuori da [0,<em>L</em>)×[0,<em>C</em>).</li>
+<li><strong>Dilatazione ponderata:</strong> Calcolare <em>g</em>_dil(<em>y</em>,<em>x</em>) = \max\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \max_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ valido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) + <em>b</em>(by,bx)\big)\Big)</li>
+<li><strong>Erosione ponderata:</strong> Calcolare, <strong>usando lo stesso <em>b</em> e senza riflessione</strong>: <em>g</em>_ero(<em>y</em>,<em>x</em>) = \min\Big(<em>f</em>(<em>y</em>,<em>x</em>),\ \min_(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>)\ valido \big(<em>f</em>(<em>v</em>_<em>y</em>,<em>v</em>_<em>x</em>) - <em>b</em>(by,bx)\big)\Big)</li>
+<li><strong>Uscita:</strong> Mostrare <strong>prima</strong> la matrice completa <em>g</em>_dil, e <strong>poi</strong> la matrice completa <em>g</em>_ero.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Nessuna delle due riflette <em>b</em></strong> — la versione ponderata non usa riflessione, nemmeno nella dilatazione (diversamente da <code>mm.dil0</code>).</li>
+<li><strong>Tutti i pesi partecipano:</strong> Qui non esiste il filtro “B=1”; anche il peso 0 entra nel calcolo.</li>
+<li><strong>Senza padding:</strong> i vicini fuori dall’immagine vengono ignorati, mai riempiti virtualmente.</li>
+<li><strong>Tipo:</strong> L’uscita può contenere valori negativi o maggiori di 255 — <strong>non</strong> c’è <em>clipping</em> in questo EP.</li>
+<li><strong>Suggerimento:</strong> Per rimuovere i messaggi di overflow quando si superano i limiti del tipo uint8, includere all’inizio del codice:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a aria-hidden="true" href="#cb66-1" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb66-2"><a aria-hidden="true" href="#cb66-2" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span></code></pre></div><button class="code-copy-button" title="Copia negli appunti"><i class="bi"></i></button></div>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti Teorici</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concetto</th>
+<th style="padding:10px;border:1px solid #ddd;">Significato</th>
+<th style="padding:10px;border:1px solid #ddd;">Impatto Visivo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Peso positivo</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">“Spinge” il valore del vicino verso l’alto nella dilatazione</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simula un rilievo che sale in quella direzione</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Peso negativo</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Riduce il contributo del vicino</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Simula distanza o attenuazione direzionale</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Dualità ponderata</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">ero1(<em>f</em>,<em>b</em>) = -dil1(-<em>f</em>,<em>b</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La simmetria tra le due operazioni si mantiene anche con i pesi</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>L</em>.</li>
+<li>Riga 2: Intero <em>C</em>.</li>
+<li>Riga 3: Intero <em>L</em>_<em>B</em>.</li>
+<li>Riga 4: Intero <em>C</em>_<em>B</em>.</li>
+<li>Successive <em>L</em>_<em>B</em> righe: elementi interi (possono essere negativi) della matrice <em>b</em>.</li>
+<li>Successive <em>L</em> righe: elementi interi della matrice <em>f</em>.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Prima la matrice <em>g</em>_dil in <em>L</em> righe e <em>C</em> colonne.</li>
+<li>Poi la matrice <em>g</em>_ero in <em>L</em> righe e <em>C</em> colonne.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3<br/>
+3<br/>
+3<br/>
+3<br/>
+0 1 0<br/>
+1 2 1<br/>
+0 1 0<br/>
+10 20 30<br/>
+40 50 60<br/>
+70 80 90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 60 61<br/>
+80 90 91<br/>
+81 91 92<br/>
+8 9 19<br/>
+9 10 20<br/>
+39 40 50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Il peso centrale 2 accelera la crescita nella dilatazione e il restringimento nell’erosione</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="53" data-quarto-private-1='{"key":"pdi","value":{"ck":"17b97e56fd3617faf2a9e34a85f5764a"}}' id="cell-fig-04-sim-ep0407-pesos">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-04-sim-ep0407-pesos-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 4.36: Simulatore EP04_07: Dilatazione ed Erosione con Pesi (mm.dil1 / mm.ero1)
+</figcaption>
+</div>
+</div><div id="sim-ep0407-pesos" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">⛰️ Simulatore EP04_07: Pesi nell'Elemento Strutturante</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">dil1 / ero1</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Regola i pesi dell'elemento strutturante b con i cursori e osserva l'effetto di dilatazione ed erosione con pesi sulla matrice f.</p>
+<!-- Painel dos Pesos b -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#d35400;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;">Pesi b (Regola i Cursori per Cella)</span>
+<div id="sim_ep0407_grid_b" style="display:grid;grid-template-columns:repeat(3, 70px);gap:8px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- Comparativo em 3 Colunas: f original vs dil1 vs ero1 -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:14px;align-items:start;margin-bottom:14px;">
+<!-- f Original -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">f Originale</span>
+<div id="sim_ep0407_grid_f" style="display:grid;grid-template-columns:repeat(3, 52px);gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- dil1(f,b) -->
+<div style="background:#fafaf7;border:1px solid #27ae60;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">dil1(f, b) (Dilatazione)</span>
+<div id="sim_ep0407_grid_d" style="display:grid;grid-template-columns:repeat(3, 52px);gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+<!-- ero1(f,b) -->
+<div style="background:#fafaf7;border:1px solid #c0392b;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#c0392b;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">ero1(f, b) (Erosione)</span>
+<div id="sim_ep0407_grid_e" style="display:grid;grid-template-columns:repeat(3, 52px);gap:4px;justify-content:center;user-select:none;"></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0407(root){
+    if (!root || root.dataset.simEp0407Init) return;
+    root.dataset.simEp0407Init = "1";
+
+    var gB = root.querySelector('#sim_ep0407_grid_b');
+    var gF = root.querySelector('#sim_ep0407_grid_f');
+    var gD = root.querySelector('#sim_ep0407_grid_d');
+    var gE = root.querySelector('#sim_ep0407_grid_e');
+
+    var b = [[0, 1, 0], [1, 2, 1], [0, 1, 0]];
+    var f = [[10, 20, 30], [40, 50, 60], [70, 80, 90]];
+    var L = 3, C = 3;
+
+    function compute() {
+      var oy = -3 / 2 + 0.5, ox = -3 / 2 + 0.5;
+      var dil = f.map(function(r){ return r.slice(); });
+      var ero = f.map(function(r){ return r.slice(); });
+
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          for (var by = 0; by < 3; by++) {
+            for (var bx = 0; bx < 3; bx++) {
+              var vy = Math.trunc(y + by + oy), vx = Math.trunc(x + bx + ox);
+              if (vy >= 0 && vy < L && vx >= 0 && vx < C) {
+                var cd = f[vy][vx] + b[by][bx];
+                if (cd > dil[y][x]) dil[y][x] = cd;
+                var ce = f[vy][vx] - b[by][bx];
+                if (ce < ero[y][x]) ero[y][x] = ce;
+              }
+            }
+          }
+        }
+      }
+      return { dil: dil, ero: ero };
+    }
+
+    function renderB() {
+      gB.innerHTML = '';
+      for (var by = 0; by < 3; by++) {
+        for (var bx = 0; bx < 3; bx++) {
+          (function(row, col){
+            var wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;background:#fafaf7;border:1px solid #e4dcc8;border-radius:6px;padding:4px;box-sizing:border-box;';
+
+            var val = document.createElement('div');
+            val.style.cssText = 'font-family:monospace;font-weight:700;font-size:11px;color:#d35400;margin-bottom:2px;';
+            val.textContent = b[row][col];
+
+            var sl = document.createElement('input');
+            sl.type = 'range';
+            sl.min = '-5';
+            sl.max = '5';
+            sl.step = '1';
+            sl.value = b[row][col];
+            sl.style.cssText = 'width:56px;cursor:pointer;';
+
+            sl.addEventListener('input', function(){
+              b[row][col] = parseInt(sl.value, 10);
+              val.textContent = b[row][col];
+              renderAll();
+            });
+
+            wrap.appendChild(val);
+            wrap.appendChild(sl);
+            gB.appendChild(wrap);
+          })(by, bx);
+        }
+      }
+    }
+
+    function paint(grid, img) {
+      grid.innerHTML = '';
+      for (var y = 0; y < L; y++) {
+        for (var x = 0; x < C; x++) {
+          var c = document.createElement('div');
+          var v = img[y][x];
+          var inten = Math.min(255, Math.max(0, v));
+          var fg = inten > 128 ? '#000000' : '#ffffff';
+          c.style.cssText = 'width:52px;height:42px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + inten + ',' + inten + ',' + inten + ');color:' + fg + ';box-sizing:border-box;';
+          c.textContent = v;
+          grid.appendChild(c);
+        }
+      }
+    }
+
+    function renderAll() {
+      var res = compute();
+      paint(gF, f);
+      paint(gD, res.dil);
+      paint(gE, res.ero);
+    }
+
+    renderB();
+    renderAll();
+  }
+
+  function tryInitSimEP0407(){
+    var root = document.getElementById('sim-ep0407-pesos');
+    if (root) initSimEP0407(root); else setTimeout(tryInitSimEP0407, 200);
+  }
+  tryInitSimEP0407();
+})();
+
+</script>
+</div></div>

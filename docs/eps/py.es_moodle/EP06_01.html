@@ -1,0 +1,323 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.es/EP06_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.es/EP06_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_01 🟢 Evaluación de Segmentación por IoU ( Intersection over Union )</h2>
+<p>A lo largo de este capítulo, diversas etapas del <em>pipeline</em> producen <strong>máscaras binarias</strong>, como en la segmentación de documentos, la localización de <em>QRCodes</em> y la detección de defectos. Para evaluar objetivamente la calidad de estas segmentaciones, es necesario compararlas con una máscara de referencia (<em>ground truth</em>).</p>
+<p>Una de las métricas más utilizadas para este fin es la <strong>IoU</strong> (<em>Intersection over Union</em>, o Intersección sobre Unión), definida como la razón entre el área de intersección y el área de unión de dos máscaras binarias. Cuanto mayor sea el valor de la IoU, mayor será la concordancia entre la segmentación producida por el algoritmo y la referencia.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Dimensiones:</strong> Leer los enteros <em>L</em> (número de filas) y <em>C</em> (número de columnas).</li>
+<li><strong>Máscara de referencia:</strong> Leer los <em>L</em> × <em>C</em> elementos binarios (0 o 1) de la matriz <code>ref</code>.</li>
+<li><strong>Máscara predicha:</strong> Leer los <em>L</em> × <em>C</em> elementos binarios (0 o 1) de la matriz <code>pred</code>.</li>
+<li><strong>Intersección:</strong> Contar el número de posiciones (<em>i</em>,<em>j</em>) para las cuales <code>ref[i][j] = 1</code> y <code>pred[i][j] = 1</code>.</li>
+<li><strong>Unión:</strong> Contar el número de posiciones (<em>i</em>,<em>j</em>) para las cuales <code>ref[i][j] = 1</code> o <code>pred[i][j] = 1</code>.</li>
+<li><strong>Caso degenerado:</strong> Si la unión es igual a 0, definir IoU=1,0, ya que ambas máscaras están vacías.</li>
+<li><strong>Cálculo:</strong> Si la unión es mayor que cero, calcular</li>
+</ol>
+<p>IoU=
+\frac|Interseccion|
+|Union|.</p>
+<ol start="8" type="1">
+<li><strong>Clasificación:</strong> Determinar la clasificación cualitativa utilizando el valor de IoU <strong>antes</strong> del redondeo.</li>
+<li><strong>Redondeo:</strong> Mostrar la IoU con cuatro decimales.</li>
+<li><strong>Salida:</strong> Imprimir, en este orden, la intersección, la unión, la IoU y la clasificación.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li>Si la unión es igual a 0, no se debe realizar la división; la IoU debe definirse como 1,0.</li>
+<li>Los rangos de clasificación utilizan comparaciones no estrictas (≥).</li>
+<li>La clasificación debe realizarse utilizando el valor de la IoU en precisión completa, antes del redondeo para la visualización.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<p>La IoU se define por</p>
+<p>IoU=
+\frac|<em>R</em>\cap <em>P</em>|
+|<em>R</em>\cup <em>P</em>|,</p>
+<p>donde:</p>
+<ul>
+<li><em>R</em> representa el conjunto de píxeles que pertenecen a la máscara de referencia;</li>
+<li><em>P</em> representa el conjunto de píxeles que pertenecen a la máscara predicha;</li>
+<li>|<em>R</em>\cap <em>P</em>| corresponde al número de píxeles que pertenecen simultáneamente a ambas máscaras;</li>
+<li>|<em>R</em>\cup <em>P</em>| corresponde al número de píxeles que pertenecen al menos a una de las máscaras.</li>
+</ul>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Rango de IoU</th>
+<th style="padding:10px;border:1px solid #ddd;">Clasificación</th>
+<th style="padding:10px;border:1px solid #ddd;">Interpretación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU≥0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>EXCELENTE</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Concordancia muy elevada entre las máscaras.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,70≤IoU&lt;0,90</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>BUENO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequeñas diferencias entre las máscaras.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0,50≤IoU&lt;0,70</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>ACEPTABLE</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Concordancia parcial entre las máscaras.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">IoU&lt;0,50</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><code>MALO</code></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Baja concordancia entre las máscaras.</td>
+</tr>
+</tbody>
+</table>
+<p>La IoU depende únicamente de la superposición entre las máscaras y, por lo tanto, es independiente del tamaño de la imagen.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: entero <em>L</em>.</li>
+<li>Línea 2: entero <em>C</em>.</li>
+<li>Siguientes <em>L</em> líneas: elementos binarios (0 o 1) de la matriz <code>ref</code>.</li>
+<li>Siguientes <em>L</em> líneas: elementos binarios (0 o 1) de la matriz <code>pred</code>.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li>Línea 1: <code>Interseccion: X</code></li>
+<li>Línea 2: <code>Union: Y</code></li>
+<li>Línea 3: <code>IoU: Z</code></li>
+<li>Línea 4: <code>Clasificacion: NOMBRE</code></li>
+</ul>
+<p>El valor de <code>IoU</code> debe imprimirse con cuatro decimales.</p>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+1 1<br/>
+0 0<br/>
+1 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Interseccion: 1<br/>
+Union: 2<br/>
+IoU: 0.5000<br/>
+Clasificacion: ACEPTABLE</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La mitad de la región de referencia fue segmentada correctamente.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2<br/>
+2<br/>
+0 0<br/>
+0 0<br/>
+0 0<br/>
+0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Interseccion: 0<br/>
+Union: 0<br/>
+IoU: 1.0000<br/>
+Clasificacion: EXCELENTE</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ambas máscaras están vacías; por convención, IoU=1,0.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="31" data-quarto-private-1='{"key":"pdi","value":{"ck":"539daf2e4361be602e1ea1e5b8c683e8"}}' id="cell-fig-06-sim-ep0601">
+</div>
+</div><div id="sim-ep0601" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0601 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0601 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0601 button:hover { background: #e8dfcf; }
+  #sim-ep0601 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0601_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0601_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0601_grid_ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .sim-ep0601_px { width: 24px; height: 24px; border: 1px solid #e4dcc8; box-sizing: border-border; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP06_01: IoU (Intersección sobre Unión)</span>
+<span class="sim-ep0601_pill">IoU = |A ∩ B| / |A ∪ B|</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Controles -->
+<div class="sim-ep0601_panel" style="margin-bottom:14px;">
+<div class="sim-ep0601_grid_ctrls">
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Desplazamiento H (Δx)</label>
+<span id="sim-ep0601_vdx" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0601_dx" max="3" min="-3" step="1" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Desplazamiento V (Δy)</label>
+<span id="sim-ep0601_vdy" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0601_dy" max="3" min="-3" step="1" type="range" value="0"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Lado del Cuadrado</label>
+<span id="sim-ep0601_vsz" style="font-family:monospace; font-weight:700; color:#26241d;">6</span>
+</div>
+<input id="sim-ep0601_sz" max="8" min="2" step="1" type="range" value="6"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:10px; text-align:center;">
+      Desplace y redimensione la máscara predicha para evaluar la alineación.
+    </div>
+</div>
+<!-- Exibição das Máscaras 10x10 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:14px;">
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        Referencia (A)
+      </div>
+</div>
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        Predicha (B)
+      </div>
+</div>
+<div class="sim-ep0601_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">
+        Superposición (A ∩ B)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep01(root){
+    if (!root || root.dataset.sim06Ep01Init) return;
+    root.dataset.sim06Ep01Init = "1";
+
+    var dx = root.querySelector("#sim-ep0601_dx");
+    var dy = root.querySelector("#sim-ep0601_dy");
+    var sz = root.querySelector("#sim-ep0601_sz");
+
+    var vdx = root.querySelector("#sim-ep0601_vdx");
+    var vdy = root.querySelector("#sim-ep0601_vdy");
+    var vsz = root.querySelector("#sim-ep0601_vsz");
+
+    var gRef  = root.querySelector("#sim-ep0601_ref");
+    var gPred = root.querySelector("#sim-ep0601_pred");
+    var gMix  = root.querySelector("#sim-ep0601_mix");
+
+    var dbg = root.querySelector("#sim-ep0601_dbg");
+
+    var N = 10;
+    var ref = {x: 2, y: 2, w: 6, h: 6};
+
+    function inside(x, y, r){
+      return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    }
+
+    function pixel(color){
+      var d = document.createElement("div");
+      d.className = "sim-ep0601_px";
+      d.style.background = color;
+      return d;
+    }
+
+    function classe(i){
+      if (i >= 0.90) return "Excelente";
+      if (i >= 0.75) return "Muito boa";
+      if (i >= 0.50) return "Aceitável";
+      return "Ruim";
+    }
+
+    function render(){
+      vdx.textContent = dx.value;
+      vdy.textContent = dy.value;
+      vsz.textContent = sz.value;
+
+      gRef.innerHTML  = "";
+      gPred.innerHTML = "";
+      gMix.innerHTML  = "";
+
+      var pred = {
+        x: ref.x + parseInt(dx.value, 10),
+        y: ref.y + parseInt(dy.value, 10),
+        w: parseInt(sz.value, 10),
+        h: parseInt(sz.value, 10)
+      };
+
+      var inter = 0;
+      var uniao = 0;
+
+      for (var y = 0; y < N; y++){
+        for (var x = 0; x < N; x++){
+          var r = inside(x, y, ref);
+          var p = inside(x, y, pred);
+
+          gRef.appendChild(pixel(r ? "#7fdc92" : "#ffffff"));
+          gPred.appendChild(pixel(p ? "#7fbfff" : "#ffffff"));
+
+          if (r && p){
+            gMix.appendChild(pixel("#9b59b6"));
+            inter++;
+          }
+          else if (r){
+            gMix.appendChild(pixel("#7fdc92"));
+            uniao++;
+          }
+          else if (p){
+            gMix.appendChild(pixel("#7fbfff"));
+            uniao++;
+          }
+          else{
+            gMix.appendChild(pixel("#ffffff"));
+          }
+
+          if (r && p) uniao++;
+        }
+      }
+
+      var iou = inter / uniao;
+
+      dbg.innerHTML =
+        "<b>Interseção</b> = " + inter + " pixels &nbsp;&nbsp;&nbsp;" +
+        "<b>União</b> = " + uniao + " pixels<br><br>" +
+        "IoU = <b>" + inter + " / " + uniao + " = " + iou.toFixed(4) + "</b><br><br>" +
+        "<span style='font-weight:700; color:#04342C;'>" + classe(iou) + "</span>";
+    }
+
+    dx.addEventListener('input', render);
+    dy.addEventListener('input', render);
+    sz.addEventListener('input', render);
+
+    render();
+  }
+
+  function tryInitSim06Ep01(){
+    var root = document.getElementById('sim-ep0601');
+    if (root) initSim06Ep01(root); else setTimeout(tryInitSim06Ep01, 200);
+  }
+  tryInitSim06Ep01();
+})();
+
+</script>
+</div><div id="sim-ep0601_ref" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div id="sim-ep0601_pred" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div id="sim-ep0601_mix" style="display:grid; grid-template-columns:repeat(10, 24px); gap:2px; justify-content:center;"></div><div class="sim-ep0601_panel" id="sim-ep0601_dbg" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

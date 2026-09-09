@@ -1,0 +1,235 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.es/EP07_01.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.es/EP07_01.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP07_01 🟢 Clasificador k-NN Paso a Paso</h2>
+<p>El <code>KNeighborsClassifier</code> de <code>scikit-learn</code>, utilizado a lo largo del capítulo, oculta detrás de una única llamada (<code>.fit</code> / <code>.predict</code>) una regla de decisión bastante simple: para cada nueva observación, calcular la distancia a todos los ejemplos de entrenamiento, seleccionar los <em>k</em> más cercanos y votar por la clase mayoritaria entre ellos.</p>
+<p>Antes de confiar en la biblioteca, se te ha encargado implementar esta regla desde cero, para un espacio de características bidimensional, exactamente como el simulador interactivo de frontera de decisión del capítulo lo hace internamente en cada clic del usuario.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Cantidad y parámetro:</strong> Leer el entero <em>N</em> (número de ejemplos de entrenamiento) y el entero impar <em>k</em> (número de vecinos).</li>
+<li><strong>Ejemplos de entrenamiento:</strong> Para cada uno de los <em>N</em> ejemplos, leer tres valores: las coordenadas <em>x</em> e <em>y</em> (reales) y la etiqueta <em>r</em> (entera, 0 o 1).</li>
+<li><strong>Consultas:</strong> Leer el entero <em>Q</em> (número de puntos de consulta) y, a continuación, las coordenadas <em>x</em>_<em>q</em>, <em>y</em>_<em>q</em> (reales) de cada consulta.</li>
+<li><strong>Distancia:</strong> Para cada consulta, calcular la distancia euclidiana hasta <strong>todos</strong> los ejemplos de entrenamiento: <em>d</em>(<em>x</em>_<em>q</em>, <em>x</em>_<em>i</em>) = √((<em>x</em>_<em>q</em> - <em>x</em>_<em>i</em>)^2 + (<em>y</em>_<em>q</em> - <em>y</em>_<em>i</em>)^2).</li>
+<li><strong>Selección de vecinos:</strong> Ordenar los ejemplos por distancia creciente y seleccionar los <em>k</em> primeros. En caso de <strong>empate de distancia</strong> en la frontera del k-ésimo vecino, desempatar por el ejemplo leído <strong>primero</strong> en la entrada (orden de lectura estable).</li>
+<li><strong>Votación mayoritaria:</strong> Contar los votos de cada clase entre los <em>k</em> vecinos seleccionados. Si hay <strong>empate en la votación</strong> (solo posible cuando <em>k</em> es par, lo que no debería ocurrir según la directriz del punto 1, pero tratar defensivamente), asignar la clase del vecino más cercano entre las clases empatadas.</li>
+<li><strong>Salida:</strong> Para cada consulta, en el orden de entrada, imprimir la clase predicha. Al final, imprimir el total de consultas clasificadas como clase <code>1</code>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li><strong>Métrica fija:</strong> utilizar exclusivamente la distancia euclidiana (no la <em>distancia al cuadrado</em>) para la ordenación, aunque el resultado de la comparación sea el mismo.</li>
+<li><strong>k siempre impar:</strong> la entrada garantiza <em>k</em> impar y <em>k</em> \le <em>N</em>; aun así, implementar el desempate del punto 6 por robustez.</li>
+<li><strong>Estabilidad:</strong> al ordenar por distancia, preservar el orden relativo de ejemplos con la misma distancia (ordenación estable).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Elemento</th>
+<th style="padding:10px;border:1px solid #ddd;">Papel en el k-NN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Espacio de características</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Conjunto de todos los vectores (<em>x</em>, <em>y</em>) posibles</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Distancia euclidiana</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Medida de similitud entre observaciones</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>k</em> pequeño</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Frontera irregular, alta varianza</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>k</em> grande</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Frontera suave, alto sesgo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Votación mayoritaria</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Regla de decisión \hat <em>y</em> = \operatornamemoday_<em>i</em> : <em>x</em>_<em>i</em> ∈ <em>N</em>_<em>k</em>(<em>x</em>)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Enteros <em>N</em> y <em>k</em>, separados por espacio.</li>
+<li>Siguientes <em>N</em> líneas: tres valores por línea — <em>x</em>, <em>y</em> (reales) y <em>r</em> (entero ∈ 0,1), separados por espacio.</li>
+<li>Siguiente línea: entero <em>Q</em>.</li>
+<li>Siguientes <em>Q</em> líneas: dos valores por línea — <em>x</em>_<em>q</em>, <em>y</em>_<em>q</em> (reales), separados por espacio.</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li><em>Q</em> líneas, cada una con la clase predicha (<code>0</code> o <code>1</code>) para la respectiva consulta, en el orden de entrada.</li>
+<li>Última línea: <code>Total clase 1: X</code>.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 3<br/>
+0 0 0<br/>
+1 0 0<br/>
+5 5 1<br/>
+6 5 1<br/>
+1<br/>
+1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0<br/>
+Total clase 1: 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Consulta cercana al agrupamiento de clase 0.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4 1<br/>
+0 0 0<br/>
+1 0 0<br/>
+5 5 1<br/>
+6 5 1<br/>
+2<br/>
+0.9 0.1<br/>
+5.5 5.1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0<br/>
+1<br/>
+Total clase 1: 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Con k=1, cada consulta hereda la clase del vecino más cercano.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="21" data-quarto-private-1='{"key":"pdi","value":{"ck":"87d09074dacdb2521b0c4fa1ded37ca5"}}' id="cell-fig-07-sim-ep0701">
+</div>
+</div><div id="sim-ep0701" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0701 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0701 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0701 button:hover { background: #e8dfcf; }
+  #sim-ep0701 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0701_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0701_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP07_01: Clasificador k-NN Paso a Paso</span>
+<span class="sim-ep0701_pill">Votación Mayoritaria</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0701_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Número de Vecinos (k): <span id="sim-ep0701_vl" style="font-family:monospace; color:#26241d;">3</span>
+</label>
+</div>
+<input id="sim-ep0701_sl" max="7" min="1" step="2" type="range" value="3"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajusta k y observa qué ejemplos de entrenamiento (ordenados por distancia) participan en la votación para la consulta fija (★ en x = 3, y = 3).
+    </div>
+</div>
+<!-- Cards de Amostras -->
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim07Ep01(root){
+    if (!root || root.dataset.sim07Ep01Init) return;
+    root.dataset.sim07Ep01Init = "1";
+
+    var query = {x: 3, y: 3};
+    var pontos = [
+      {nome: "A", x: 0, y: 0, r: 0},
+      {nome: "B", x: 1, y: 0, r: 0},
+      {nome: "C", x: 5, y: 5, r: 1},
+      {nome: "D", x: 6, y: 5, r: 1},
+      {nome: "E", x: 2, y: 2, r: 0},
+      {nome: "F", x: 4, y: 4, r: 1},
+      {nome: "G", x: 0, y: 2, r: 0},
+      {nome: "H", x: 6, y: 3, r: 1}
+    ];
+
+    pontos.forEach(function(p, i){
+      p.d = Math.sqrt(Math.pow(p.x - query.x, 2) + Math.pow(p.y - query.y, 2));
+      p.idx = i;
+    });
+
+    pontos.sort(function(a, b){
+      return (a.d - b.d) || (a.idx - b.idx);
+    });
+
+    var slEl  = root.querySelector('#sim-ep0701_sl');
+    var vlEl  = root.querySelector('#sim-ep0701_vl');
+    var cards = root.querySelector('#sim-ep0701_cards');
+    var dbg   = root.querySelector('#sim-ep0701_debug');
+
+    function render(){
+      var k = parseInt(slEl.value, 10);
+      vlEl.textContent = k;
+      cards.innerHTML = '';
+      var votos = [0, 0];
+
+      pontos.forEach(function(p, i){
+        var dentro = i < k;
+        if (dentro) votos[p.r]++;
+
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center; border-radius:10px; padding:10px 6px; font-size:11px; transition:all 0.15s ease;' +
+          (dentro 
+            ? (p.r === 0 
+                ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' 
+                : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;') 
+            : 'background:#fafaf7; border:1px solid #e4dcc8; color:#8a8371;');
+
+        div.innerHTML = '<div style="font-weight:700; margin-bottom:4px;">' + p.nome + ' (r = ' + p.r + ')</div>' +
+          '<div style="font-family:monospace; margin-bottom:4px; font-size:10px;">d = ' + p.d.toFixed(2) + '</div>' +
+          '<div style="font-weight:700; font-size:10px;">' + (dentro ? 'VOTA' : '&ndash;') + '</div>';
+
+        cards.appendChild(div);
+      });
+
+      var previsto = votos[1] > votos[0] ? 1 : (votos[0] > votos[1] ? 0 : pontos[0].r);
+
+      if (previsto === 0) {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+      } else {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+      }
+
+      dbg.textContent = 'k = ' + k + '  |  Votos Classe 0: ' + votos[0] + ', Classe 1: ' + votos[1] + '  |  Classe prevista: ' + previsto;
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim07Ep01(){
+    var root = document.getElementById('sim-ep0701');
+    if (root) initSim07Ep01(root); else setTimeout(tryInitSim07Ep01, 200);
+  }
+  tryInitSim07Ep01();
+})();
+
+</script>
+</div><div id="sim-ep0701_cards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px; margin-bottom:14px;"></div><div class="sim-ep0701_panel" id="sim-ep0701_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

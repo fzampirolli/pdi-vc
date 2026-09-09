@@ -1,0 +1,212 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versión con fórmulas matemáticas:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.es/EP05_03.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.es/EP05_03.html</a>
+<br><span style="font-size:11px;color:#555;">(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_03 🟠 Cuantización DCT: la Verdadera Fuente de Compresión</h2>
+<p>Una aplicación de <strong>galería de fotos</strong> necesita reducir el tamaño de miles de imágenes antes de hacer <em>upload</em> a la nube, sin recodificar todo desde cero. El ingeniero responsable ya tiene los <strong>coeficientes DCT</strong> de cada bloque 4×4 calculados (la etapa costosa computacionalmente ya se ha realizado) — solo falta aplicar la <strong>tabla de cuantización</strong>, la etapa que realmente descarta información y genera compresión. Los coeficientes de alta frecuencia, menos perceptibles al ojo humano, reciben divisores grandes y tienden a convertirse en <strong>cero</strong>; los coeficientes de baja frecuencia, más perceptibles, reciben divisores pequeños y sobreviven casi intactos.</p>
+<p>Vas a implementar exactamente esta etapa: <strong>cuantizar y descuantizar</strong> (dividir, redondear, multiplicar de vuelta) — el corazón de la compresión <em>lossy</em> del JPEG.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Directrices de Implementación</h4>
+<ol type="1">
+<li><strong>Dimensión del bloque:</strong> Leer el entero <em>N</em> (bloque <em>N</em> × <em>N</em>).</li>
+<li><strong>Coeficientes:</strong> Leer la matriz <em>C</em> de coeficientes DCT, <em>N</em> filas con <em>N</em> enteros cada una (pueden ser negativos).</li>
+<li><strong>Tabla de cuantización:</strong> Leer la matriz <em>Q</em>, <em>N</em> filas con <em>N</em> enteros positivos cada una.</li>
+<li><strong>Cuantización:</strong> Para cada posición (<em>u</em>,<em>v</em>), calcular el índice cuantizado \tildeC(<em>u</em>,<em>v</em>) = round\!\left((<em>C</em>(<em>u</em>,<em>v</em>))/(<em>Q</em>(<em>u</em>,<em>v</em>))\right) usando redondeo estándar al entero más cercano (los valores intermedios <code>.5</code> nunca ocurren en los casos de prueba).</li>
+<li><strong>Descuantización (reconstrucción):</strong> Calcular <em>C</em>'(<em>u</em>,<em>v</em>) = \tildeC(<em>u</em>,<em>v</em>) × <em>Q</em>(<em>u</em>,<em>v</em>)</li>
+<li><strong>Salida:</strong> Mostrar la matriz reconstruida <em>C</em>', <em>N</em> × <em>N</em>, enteros.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Restricciones Computacionales</h4>
+<ul>
+<li><strong><em>Round-trip</em> completo:</strong> la salida es el coeficiente <strong>reconstruido</strong> (\tildeC × <em>Q</em>), no el índice cuantizado aislado.</li>
+<li><strong>División en punto flotante:</strong> la división <em>C</em>(<em>u</em>,<em>v</em>)/<em>Q</em>(<em>u</em>,<em>v</em>) debe realizarse en punto flotante antes del redondeo — la división entera truncada producirá un resultado incorrecto.</li>
+<li><strong>Signo preservado:</strong> los coeficientes negativos mantienen el signo después de la cuantización y la reconstrucción.</li>
+<li><strong><em>Q</em>(<em>u</em>,<em>v</em>) &gt; 0 siempre:</strong> no hay necesidad de tratar la división por cero.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fundamentación Teórica</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Coeficiente</th>
+<th style="padding:10px;border:1px solid #ddd;">Frecuencia</th>
+<th style="padding:10px;border:1px solid #ddd;">Valor típico de <em>Q</em></th>
+<th style="padding:10px;border:1px solid #ddd;">Efecto de la cuantización</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(0,0)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">DC (promedio del bloque)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequeño</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Casi siempre sobrevive — domina la energía</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(<em>u</em>,<em>v</em>) bajo <em>u</em>+<em>v</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Baja frecuencia</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pequeño/medio</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Parcialmente preservado</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(<em>u</em>,<em>v</em>) alto <em>u</em>+<em>v</em></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Alta frecuencia</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Grande</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Frecuentemente se convierte en cero — fuente de la compresión</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Especificación de Entrada y Salida (VPL)</h4>
+<p><strong>Entrada:</strong></p>
+<ul>
+<li>Línea 1: Entero <em>N</em>.</li>
+<li><em>N</em> líneas siguientes: matriz <em>C</em> (coeficientes DCT, enteros, pueden ser negativos).</li>
+<li><em>N</em> líneas siguientes: matriz <em>Q</em> (tabla de cuantización, enteros positivos).</li>
+</ul>
+<p><strong>Salida:</strong></p>
+<ul>
+<li>Matriz reconstruida <em>C</em>', <em>N</em> × <em>N</em>, enteros separados por espacio.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Ejemplos</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Entrada</th>
+<th style="padding:10px;border:1px solid #ddd;">Salida</th>
+<th style="padding:10px;border:1px solid #ddd;">Observación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+50 10 -5 0<br/>
+8 -3 2 1<br/>
+0 1 0 0<br/>
+2 0 0 -1<br/>
+2 5 7 8<br/>
+4 7 8 11<br/>
+6 8 11 12<br/>
+9 11 12 14</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">50 10 -7 0<br/>
+8 0 0 0<br/>
+0 0 0 0<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>C</em>(0,0)=50/2=25 \to 25×2=50 (preservado). <em>C</em>(0,2)=-5/7\approx-0.71\to-1\to-1×7=-7. Ya <em>C</em>(1,1)=-3/7\approx-0.43\to0: anulado por la cuantización — la mayor parte del bloque se convierte en cero, ilustrando la compactación de energía en la esquina superior izquierda.</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="39" data-quarto-private-1='{"key":"pdi","value":{"ck":"8dd785491d6a54105ad34532304261a3"}}' id="cell-fig-05-sim-ep0503">
+</div>
+</div><div id="sim-ep0503" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0503 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0503 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0503 button:hover { background: #e8dfcf; }
+  #sim-ep0503 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0503_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0503_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0503_cell { width: 46px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulador EP05_03: Cuantización DCT</span>
+<span class="sim-ep0503_pill">round(C / Q) × Q</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0503_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Escala de Q (Agresividad): <span id="sim-ep0503_vl_s" style="font-family:monospace; color:#26241d;">1.00×</span>
+</label>
+</div>
+<input id="sim-ep0503_sl_s" max="4" min="0.25" step="0.25" type="range" value="1"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Ajuste la escala de Q y vea cuántos coeficientes sobreviven (no cero) tras el round-trip.
+    </div>
+</div>
+<!-- Exibição das Grades 4x4 -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px;">
+<div class="sim-ep0503_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Coeficientes DCT (C)
+      </div>
+</div>
+<div class="sim-ep0503_panel" style="text-align:center;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+        Reconstruido (round(C / Q) · Q)
+      </div>
+</div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep03(root){
+    if (!root || root.dataset.sim05Ep03Init) return;
+    root.dataset.sim05Ep03Init = "1";
+
+    var C = [[50, 10, -5, 0], [8, -3, 2, 1], [0, 1, 0, 0], [2, 0, 0, -1]];
+    var Qbase = [[2, 5, 7, 8], [4, 7, 8, 11], [6, 8, 11, 12], [9, 11, 12, 14]];
+
+    var s   = root.querySelector('#sim-ep0503_sl_s');
+    var sv  = root.querySelector('#sim-ep0503_vl_s');
+    var gc  = root.querySelector('#sim-ep0503_grid_c');
+    var gr  = root.querySelector('#sim-ep0503_grid_r');
+    var dbg = root.querySelector('#sim-ep0503_debug');
+
+    function cell(v, faded){
+      var c = document.createElement('div');
+      c.className = 'sim-ep0503_cell';
+      if (faded) {
+        c.style.cssText = 'background:#fafaf7; color:#8a8371; border:1px solid #e4dcc8;';
+      } else {
+        c.style.cssText = 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      }
+      c.textContent = v;
+      return c;
+    }
+
+    function render(){
+      var scale = parseFloat(s.value);
+      sv.innerHTML = scale.toFixed(2) + '&times;';
+      gc.innerHTML = '';
+      gr.innerHTML = '';
+      var zeros = 0, total = 16;
+
+      for (var i = 0; i < 4; i++){
+        for (var j = 0; j < 4; j++){
+          gc.appendChild(cell(C[i][j], false));
+          var Q = Qbase[i][j] * scale;
+          var q = Math.round(C[i][j] / Q);
+          var rec = Math.round(q * Q);
+          if (rec === 0) zeros++;
+          gr.appendChild(cell(rec, rec === 0));
+        }
+      }
+
+      dbg.textContent = 'Ceros: ' + zeros + ' / ' + total + '  |  Quanto maior a escala de Q, mais zeros — maior compressão, menor qualidade.';
+    }
+
+    s.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim05Ep03(){
+    var root = document.getElementById('sim-ep0503');
+    if (root) initSim05Ep03(root); else setTimeout(tryInitSim05Ep03, 200);
+  }
+  tryInitSim05Ep03();
+})();
+
+</script>
+</div><div id="sim-ep0503_grid_c" style="display:grid; grid-template-columns:repeat(4, 46px); gap:4px; justify-content:center;"></div><div id="sim-ep0503_grid_r" style="display:grid; grid-template-columns:repeat(4, 46px); gap:4px; justify-content:center;"></div><div class="sim-ep0503_panel" id="sim-ep0503_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

@@ -1,0 +1,320 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP03_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP03_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP03_04 📊 Equalizzazione dell’istogramma (B bit)</h2>
+<p>Nelle immagini satellitari di telerilevamento, la variazione dell’illuminazione durante il giorno produce immagini a basso contrasto. L’<strong>equalizzazione dell’istogramma</strong> viene applicata automaticamente su satelliti come il Landsat per ridistribuire i toni, rivelando dettagli di vegetazione, rilievo e zone urbane invisibili nell’immagine originale.</p>
+<p>Vedi in Figura 3.29 una simulazione di questo EP.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee guida di implementazione</h4>
+<ol type="1">
+<li><strong>Dimensioni:</strong> Leggere gli interi <em>L</em> (righe), <em>C</em> (colonne) e <em>B</em> (numero di bit, con <em>L</em>_\max = 2^<em>B</em>).</li>
+<li><strong>Dati:</strong> Leggere la matrice di pixel <em>f</em> con valori in [0, 2^<em>B</em> - 1].</li>
+<li><strong>Istogramma:</strong> Calcolare <em>h</em>[<em>k</em>] = numero di pixel con intensità <em>k</em>, per <em>k</em> = 0 … 2^<em>B</em>-1.</li>
+<li><strong>Probabilità:</strong> <em>p</em>[<em>k</em>] = <em>h</em>[<em>k</em>] / (<em>L</em> · <em>C</em>).</li>
+<li><strong>CDF:</strong> cdf[<em>k</em>] = ∑_j=0^k <em>p</em>[<em>j</em>]; funzione di distribuzione cumulativa.</li>
+<li><strong>LUT:</strong> lut[<em>k</em>] = round\left(cdf[<em>k</em>] · (2^<em>B</em> - 1)\right); <em>Look-Up Table</em> (tabella di consultazione).</li>
+<li><strong>Applicazione:</strong> <em>g</em>[<em>i</em>,<em>j</em>] = lut[<em>f</em>[<em>i</em>,<em>j</em>]].</li>
+<li><strong>Uscita:</strong> Visualizzare la matrice equalizzata <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli computazionali</h4>
+<ul>
+<li><strong>Arrotondamento:</strong> Utilizzare l’arrotondamento matematico (<code>round</code>) nella LUT.</li>
+<li><strong>Bit:</strong> Il numero di livelli è 2^<em>B</em> (es.: B=3 \Rightarrow 8 livelli, B=8 \Rightarrow 256 livelli).</li>
+<li><strong>CDF cumulativa:</strong> cdf[<em>k</em>] = ∑_j=0^k <em>p</em>[<em>j</em>], con cdf[2^<em>B</em>-1] = 1.0.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamenti teorici</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Fase</th>
+<th style="padding:10px;border:1px solid #ddd;">Operazione</th>
+<th style="padding:10px;border:1px solid #ddd;">Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Istogramma</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>h</em>[<em>k</em>] \leftarrow n. pixel con intensità <em>k</em></td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Probabilità</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>p</em>[<em>k</em>] = <em>h</em>[<em>k</em>] / (<em>L</em> · <em>C</em>)</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">3</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">CDF</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">cdf[<em>k</em>] = ∑_j=0^k <em>p</em>[<em>j</em>]</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">LUT</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">lut[<em>k</em>] = round(cdf[<em>k</em>] · (2^<em>B</em>-1))</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Applicazione</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><em>g</em>[<em>i</em>,<em>j</em>] = lut[<em>f</em>[<em>i</em>,<em>j</em>]]</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di input e output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>L</em>.</li>
+<li>Riga 2: Intero <em>C</em>.</li>
+<li>Riga 3: Intero <em>B</em> (numero di bit).</li>
+<li>Righe successive: Elementi interi della matrice.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Matrice equalizzata in <em>L</em> righe e <em>C</em> colonne.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+5<br/>
+3<br/>
+3 4 2 3 4<br/>
+4 3 3 4 3<br/>
+2 3 4 3 2<br/>
+3 4 3 2 3<br/>
+4 3 2 3 4</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5 7 1 5 7<br/>
+7 5 5 7 5<br/>
+1 5 7 5 1<br/>
+5 7 5 1 5<br/>
+7 5 1 5 7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Esempio a 3 bit del capitolo</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1<br/>
+4<br/>
+3<br/>
+0 0 7 7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">0 0 7 7</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Istogramma bimodale estremo</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="44" data-quarto-private-1='{"key":"pdi","value":{"ck":"2d26ad5a40243cd3540585f38642b7bf"}}' id="cell-fig-03-sim-ep0304-equalizacao">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-03-sim-ep0304-equalizacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 3.29: Simulatore EP03_04: Equalizzazione dell’istogramma (Livelli L = 2^B)
+</figcaption>
+</div>
+</div><div id="sim-ep0304-equalizacao" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">📊 Simulatore EP03_04: Equalizzazione dell'Istogramma</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">lut[k] = round(cdf[k] · (L − 1))</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Scegli la profondità di bit (B) e genera immagini per analizzare la dispersione dinamica dell'istogramma e la tabella di rimappatura (LUT) in tempo reale.</p>
+<!-- Controle de Bits B -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<label style="font-size:11px;font-weight:700;color:#16a085;">Profondità di Bit (B)</label>
+<span id="sim_ep0304_vl_bits" style="font-family:monospace;font-size:12px;font-weight:700;color:#16a085;">3 bit → 8 livelli</span>
+</div>
+<input id="sim_ep0304_sl_bits" max="8" min="1" step="1" style="width:100%;cursor:pointer;" type="range" value="3"/>
+<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#8a8371;font-family:monospace;">
+<span>1 bit (2 livelli)</span>
+<span>4 bit (16 livelli)</span>
+<span>8 bit (256 livelli)</span>
+</div>
+</div>
+<!-- Comparativo Lado a Lado: Entrada vs Equalizada -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:16px;">
+<!-- Entrada Original -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Input Originale</span>
+<div id="sim_ep0304_grid_orig" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0304_btnNew" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:9px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">🎲 Nuova Immagine</button>
+</div>
+<!-- Resultado Equalizado -->
+<div style="background:#fafaf7;border:1px solid #16a085;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Risultato Equalizzato</span>
+<div id="sim_ep0304_grid_eq" style="display:grid;grid-template-columns:repeat(4, 42px);gap:4px;justify-content:center;user-select:none;"></div>
+<button id="sim_ep0304_btnReset" style="margin-top:12px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:9px;white-space:nowrap;transition:all 0.15s ease;">↩ Nuovo Campionamento</button>
+</div>
+</div>
+<!-- Histogramas Lado a Lado -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:16px;">
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;">
+<span style="font-size:10px;font-weight:700;color:#7f8c8d;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;text-align:center;">Istogramma Originale</span>
+<canvas height="80" id="sim_ep0304_hist_orig" style="width:100%;height:80px;display:block;" width="340"></canvas>
+</div>
+<div style="background:#fafaf7;border:1px solid #16a085;border-radius:12px;padding:12px;">
+<span style="font-size:10px;font-weight:700;color:#16a085;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px;text-align:center;">Istogramma Equalizzato</span>
+<canvas height="80" id="sim_ep0304_hist_eq" style="width:100%;height:80px;display:block;" width="340"></canvas>
+</div>
+</div>
+<!-- Tabela LUT -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px 14px;margin-bottom:14px;overflow-x:auto;">
+<span style="font-size:10px;font-weight:700;color:#5e5a4a;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px;">LUT (Tabella di Rimappatura k → v)</span>
+<div id="sim_ep0304_lut_table" style="font-family:monospace;font-size:11px;color:#26241d;white-space:nowrap;"></div>
+</div>
+<!-- Painel Explicativo Dinâmico -->
+<div id="sim_ep0304_debug" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      lut[k] = round(cdf[k] · 7) | B=3, livelli=8
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0304(root){
+    if (!root || root.dataset.simEp0304Init) return;
+    root.dataset.simEp0304Init = "1";
+
+    var slBits     = root.querySelector('#sim_ep0304_sl_bits');
+    var vlBits     = root.querySelector('#sim_ep0304_vl_bits');
+    var debugDiv   = root.querySelector('#sim_ep0304_debug');
+    var gridOrig   = root.querySelector('#sim_ep0304_grid_orig');
+    var gridEq     = root.querySelector('#sim_ep0304_grid_eq');
+    var lutTable   = root.querySelector('#sim_ep0304_lut_table');
+    var histOrig   = root.querySelector('#sim_ep0304_hist_orig');
+    var histEq     = root.querySelector('#sim_ep0304_hist_eq');
+
+    var btnNew     = root.querySelector('#sim_ep0304_btnNew');
+    var btnReset   = root.querySelector('#sim_ep0304_btnReset');
+
+    var ROWS = 4, COLS = 4;
+    var pixels = [];
+
+    function generatePixels() {
+      var b = parseInt(slBits.value) || 3;
+      var levels = Math.pow(2, b);
+      var lo = Math.floor(levels * 0.2);
+      var hi = Math.floor(levels * 0.5);
+      pixels = Array.from({ length: ROWS * COLS }, function(){
+        return lo + Math.floor(Math.random() * (hi - lo + 1));
+      });
+    }
+
+    function computeEqualization(pixArr, b) {
+      var levels = Math.pow(2, b);
+      var N = pixArr.length;
+      var h = new Array(levels).fill(0);
+      pixArr.forEach(function(p){ h[p]++; });
+
+      var cdf = new Array(levels).fill(0);
+      cdf[0] = h[0] / N;
+      for (var k = 1; k < levels; k++) {
+        cdf[k] = cdf[k - 1] + h[k] / N;
+      }
+
+      var lut = cdf.map(function(c){ return Math.round(c * (levels - 1)); });
+      var result = pixArr.map(function(p){ return lut[p]; });
+      return { h: h, cdf: cdf, lut: lut, result: result };
+    }
+
+    function drawHistogram(canvas, counts, levels, color) {
+      var ctx = canvas.getContext('2d');
+      var W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      var maxVal = Math.max.apply(null, counts.concat([1]));
+      var barW = W / levels;
+
+      counts.forEach(function(c, i){
+        var barH = (c / maxVal) * (H - 6);
+        ctx.fillStyle = color;
+        ctx.fillRect(i * barW + 1, H - barH, barW - 2, barH);
+      });
+    }
+
+    function toGray(val, levels) {
+      return Math.round((val / (levels - 1)) * 255);
+    }
+
+    function render() {
+      var b = parseInt(slBits.value) || 3;
+      var levels = Math.pow(2, b);
+      vlBits.textContent = b + ' bit' + (b > 1 ? 's' : '') + ' → ' + levels + ' níveis';
+
+      var eqData = computeEqualization(pixels, b);
+      var hOrig = eqData.h;
+      var lut = eqData.lut;
+      var result = eqData.result;
+
+      var hEq = new Array(levels).fill(0);
+      result.forEach(function(p){ hEq[p]++; });
+
+      lutTable.innerHTML = lut.map(function(v, k){
+        return '<span style="display:inline-block;margin-right:10px;color:#8a8371;">' + k + ' → <b style="color:#16a085;">' + v + '</b></span>';
+      }).join('');
+
+      debugDiv.innerHTML = '<b>lut[k] = round(cdf[k] · ' + (levels - 1) + ')</b> &nbsp;|&nbsp; B = ' + b + ', níveis = ' + levels;
+
+      gridOrig.innerHTML = '';
+      gridEq.innerHTML = '';
+
+      pixels.forEach(function(p, i) {
+        var grayO = toGray(p, levels);
+        var fgO = grayO > 128 ? '#000000' : '#ffffff';
+        var cellO = document.createElement('div');
+        cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;background:rgb(' + grayO + ',' + grayO + ',' + grayO + ');color:' + fgO + ';box-sizing:border-box;';
+        cellO.textContent = p;
+        gridOrig.appendChild(cellO);
+
+        var r = result[i];
+        var grayR = toGray(r, levels);
+        var fgR = grayR > 128 ? '#000000' : '#ffffff';
+        var cellR = document.createElement('div');
+        cellR.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:monospace;border-radius:6px;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;background:rgb(' + grayR + ',' + grayR + ',' + grayR + ');color:' + fgR + ';box-sizing:border-box;';
+        cellR.textContent = r;
+        gridEq.appendChild(cellR);
+      });
+
+      drawHistogram(histOrig, hOrig, levels, '#95a5a6');
+      drawHistogram(histEq, hEq, levels, '#16a085');
+    }
+
+    slBits.addEventListener('input', function(){
+      generatePixels();
+      render();
+    });
+
+    btnNew.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    btnReset.addEventListener('click', function(){
+      generatePixels();
+      render();
+    });
+
+    generatePixels();
+    render();
+  }
+
+  function tryInitSimEP0304(){
+    var root = document.getElementById('sim-ep0304-equalizacao');
+    if (root) initSimEP0304(root); else setTimeout(tryInitSimEP0304, 200);
+  }
+  tryInitSimEP0304();
+})();
+
+</script>
+</div></div>

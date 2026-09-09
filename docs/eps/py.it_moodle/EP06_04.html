@@ -1,0 +1,203 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP06_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP06_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP06_04 🟡 Stimatore dell’Inclinazione tramite Mediana Angolare ( Deskew )</h2>
+<p>Dopo il rilevamento dei bordi e l’applicazione della Trasformata di Hough, si ottiene un insieme di rette candidate all’orientamento predominante del documento. Ogni retta fornisce una stima dell’angolo di inclinazione, calcolata tramite</p>
+<p>angolo = \operatornamerad2deg(\theta) - 90.</p>
+<p>Tuttavia, non tutte le rette corrispondono alle linee del documento: alcune derivano da rumori, ombre o altri elementi dell’immagine. In questo esercizio, implementerai la fase di stima robusta dell’angolo di inclinazione, filtrando i valori plausibili e calcolandone la mediana.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida per l’Implementazione</h4>
+<ol type="1">
+<li><strong>Quantità:</strong> Leggere l’intero <em>M</em>, corrispondente al numero di angoli stimati.</li>
+<li><strong>Angoli:</strong> Leggere gli <em>M</em> valori reali, in gradi.</li>
+<li><strong>Filtraggio:</strong> Mantenere solo gli angoli che soddisfino <strong>strettamente</strong> -45 &lt; angolo &lt; 45.</li>
+<li><strong>Assenza di candidati:</strong> Se nessun angolo rimane dopo il filtraggio, stampare esattamente <code>SEM_CORRECAO</code>.</li>
+<li><strong>Mediana:</strong> Nel caso in cui esistano angoli validi:
+<ul>
+<li>se la quantità è dispari, la mediana è l’elemento centrale della sequenza ordinata;</li>
+<li>se è pari, la mediana è la media aritmetica dei due elementi centrali.</li>
+</ul></li>
+<li><strong>Output:</strong> Stampare la mediana arrotondata a due cifre decimali (arrotondamento standard, <em>round half away from zero</em>, con <code>np.floor(img + 0.5)</code>).</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Intervallo aperto:</strong> gli angoli uguali a -45 o 45 non devono essere considerati.</li>
+<li><strong>Precisione:</strong> calcolare la mediana utilizzando i valori originali; l’arrotondamento deve essere eseguito solo in output.</li>
+<li><strong>Caso vuoto:</strong> se non ci sono angoli validi, nessuna mediana deve essere calcolata.</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Situazione</th>
+<th style="padding:10px;border:1px solid #ddd;">Risultato</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Maggior parte degli angoli concentrata attorno all’inclinazione reale</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La mediana approssima l’orientamento del documento.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Pochi angoli discrepanti (<em>outliers</em>)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La mediana subisce poca influenza da questi valori.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Angoli al di fuori dell’intervallo (-45^\circ,45^\circ)</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Vengono scartati prima del calcolo.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nessun angolo valido</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Non viene applicata alcuna correzione (<code>SEM_CORRECAO</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>La mediana è utilizzata perché è più robusta della media in presenza di pochi valori discrepanti, producendo una stima più stabile dell’inclinazione predominante del documento.</p>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>M</em>.</li>
+<li>Riga 2: <em>M</em> numeri reali, corrispondenti agli angoli in gradi.</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Un’unica riga contenente l’angolo stimato, con due cifre decimali, oppure la parola <code>SEM_CORRECAO</code> se nessun angolo è valido.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+-50 -10.5 2.3 2.3 47</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2.30</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Solo gli angoli nell’intervallo (-45,45) vengono considerati; la mediana è 2,3.</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+-46 50 45 -45</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">SEM_CORRECAO</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Nessun angolo appartiene all’intervallo aperto (-45,45).</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="40" data-quarto-private-1='{"key":"pdi","value":{"ck":"f42357043c5cc372047ef0951d3bbebc"}}' id="cell-fig-06-sim-ep0604">
+</div>
+</div><div id="sim-ep0604" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0604 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0604 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0604 button:hover { background: #e8dfcf; }
+  #sim-ep0604 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0604_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0604_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP06_04: Stimatore di Inclinazione per Mediana Angolare (Deskew)</span>
+<span class="sim-ep0604_pill">mediana(-45° &lt; θ &lt; 45°)</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0604_panel" style="margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">
+        Angolo del Rumore Extra (θ_rumore): <span id="sim-ep0604_vl" style="font-family:monospace; color:#26241d;">47</span>°
+      </label>
+</div>
+<input id="sim-ep0604_sl" max="80" min="-80" step="1" type="range" value="47"/>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:8px; text-align:center;">
+      Trascina l'angolo del rumore extra dentro o fuori dall'intervallo [-45°, +45°] e osserva come la mediana rimane stabile.
+    </div>
+</div>
+<!-- Exibição dos Ângulos Amostrados -->
+<div class="sim-ep0604_panel" style="margin-bottom:14px;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; text-align:center; letter-spacing:0.04em;">
+      Campioni di Angoli (Verde = Dentro l'Intervallo, Rosso = Rumore Scartato)
+    </div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim06Ep04(root){
+    if (!root || root.dataset.sim06Ep04Init) return;
+    root.dataset.sim06Ep04Init = "1";
+
+    var base = [-10.5, 2.3, 2.3];
+    var slEl  = root.querySelector('#sim-ep0604_sl');
+    var vlEl  = root.querySelector('#sim-ep0604_vl');
+    var ptsEl = root.querySelector('#sim-ep0604_pts');
+    var dbg   = root.querySelector('#sim-ep0604_debug');
+
+    function median(arr){
+      var a = arr.slice().sort(function(x, y){ return x - y; });
+      var n = a.length;
+      if (n === 0) return null;
+      var mid = Math.floor(n / 2);
+      return (n % 2 === 1) ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+    }
+
+    function render(){
+      var extra = parseFloat(slEl.value);
+      vlEl.textContent = extra;
+      var todos = base.concat([extra, -50]);
+      var validos = todos.filter(function(a){ return a > -45 && a < 45; });
+      
+      ptsEl.innerHTML = '';
+      todos.forEach(function(a){
+        var ok = a > -45 && a < 45;
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:8px 12px; border-radius:8px; font-family:monospace; font-size:12px; font-weight:700; transition:all 0.15s ease;' +
+          (ok ? 'background:#eafaf1; border:1px solid #a3e4d7; color:#04342C;' : 'background:#fdecea; border:1px solid #f5b7b1; color:#c0392b;');
+        div.textContent = a + '°';
+        ptsEl.appendChild(div);
+      });
+
+      var med = median(validos);
+
+      if (med === null) {
+        dbg.style.borderColor = '#f5b7b1';
+        dbg.style.background  = '#fdecea';
+        dbg.style.color       = '#c0392b';
+        dbg.textContent = 'Válidos: []  |  Mediana estimada: SEM_CORRECAO';
+      } else {
+        dbg.style.borderColor = '#a3e4d7';
+        dbg.style.background  = '#eafaf1';
+        dbg.style.color       = '#04342C';
+        dbg.textContent = 'Validi: [' + validos.join(', ') + ']  |  Mediana estimada: ' + med.toFixed(2) + '°';
+      }
+    }
+
+    slEl.addEventListener('input', render);
+    render();
+  }
+
+  function tryInitSim06Ep04(){
+    var root = document.getElementById('sim-ep0604');
+    if (root) initSim06Ep04(root); else setTimeout(tryInitSim06Ep04, 200);
+  }
+  tryInitSim06Ep04();
+})();
+
+</script>
+</div><div id="sim-ep0604_pts" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;"></div><div class="sim-ep0604_panel" id="sim-ep0604_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

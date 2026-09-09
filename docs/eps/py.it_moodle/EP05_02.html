@@ -1,0 +1,242 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/py.it/EP05_02.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/py.it/EP05_02.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP05_02 🟡 Filtro Notch : Rimozione dei Picchi Periodici</h2>
+<p>Una telecamera di <strong>ispezione industriale</strong> acquisisce immagini di circuiti stampati, ma l’alimentazione della linea di produzione introduce un’<strong>interferenza elettrica periodica</strong> — un motivo di striature quasi impercettibile a occhio nudo, ma che appare nello spettro di Fourier come <strong>coppie di picchi luminosi</strong> posizionati simmetricamente attorno al centro. Il team di visione artificiale non può riprocessare l’acquisizione: deve <strong>localizzare e cancellare chirurgicamente</strong> queste coppie di picchi nello spettro, preservando tutte le altre informazioni utili dell’immagine.</p>
+<p>Questo è il ruolo del <strong>filtro elimina-banda <em>notch</em></strong>: a differenza del passa-basso (che interessa una regione continua), esso agisce su <strong>punti specifici e sui loro simmetrici</strong>, lasciando intatto il resto dello spettro.</p>
+<div style="background-color:#f4f6fb;border-left:5px solid #a3b1cc;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#4a5a78;">📋 Linee Guida per l’Implementazione</h4>
+<ol type="1">
+<li><strong>Dimensioni:</strong> Leggere gli interi <em>L</em> (righe) e <em>C</em> (colonne) dello spettro di magnitudine centrato.</li>
+<li><strong>Dati:</strong> Leggere i valori interi della matrice di magnitudine, riga per riga.</li>
+<li><strong>Picchi:</strong> Leggere l’intero <em>K</em> (numero di coppie di picchi da rimuovere).</li>
+<li><strong>Per ciascuno dei <em>K</em> picchi:</strong> leggere tre interi \Delta <em>v</em>, \Delta <em>u</em>, <em>r</em> — spostamento verticale, spostamento orizzontale e raggio del <em>notch</em>.</li>
+<li><strong>Centro dello spettro:</strong> (<em>c</em>_<em>y</em>, <em>c</em>_<em>x</em>) = (<em>L</em> \mathbin// 2,\; <em>C</em> \mathbin// 2).</li>
+<li><strong>Soppressione simmetrica:</strong> per ogni picco, azzerare <strong>tutte</strong> le posizioni (<em>u</em>,<em>v</em>) tali che la distanza dal punto (<em>c</em>_<em>y</em>+\Delta <em>v</em>,\, <em>c</em>_<em>x</em>+\Delta <em>u</em>) sia \le <em>r</em>, <strong>e anche</strong> tutte le posizioni con distanza \le <em>r</em> dal punto simmetrico (<em>c</em>_<em>y</em>-\Delta <em>v</em>,\, <em>c</em>_<em>x</em>-\Delta <em>u</em>).</li>
+<li><strong>Uscita:</strong> Visualizzare la matrice risultante con dimensioni <em>L</em> × <em>C</em>.</li>
+</ol>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Vincoli Computazionali</h4>
+<ul>
+<li><strong>Simmetria obbligatoria:</strong> ogni picco indicato genera <strong>due</strong> dischi azzerati (il punto e il suo simmetrico rispetto al centro) — dimenticare il simmetrico è l’errore più comune.</li>
+<li><strong>Sovrapposizione:</strong> se due dischi si sovrappongono, la posizione rimane azzerata (non vi è alcuna “somma” o ripristino).</li>
+<li><strong>Confronto non stretto:</strong> una posizione viene azzerata se distanza \le <em>r</em>.</li>
+<li><strong>Ordine di lettura:</strong> i <em>K</em> picchi devono essere processati nell’ordine in cui appaiono in input, ma il risultato finale non dipende dall’ordine (le operazioni di azzeramento sono commutative).</li>
+</ul>
+</div>
+<div style="background-color:#eafaf1;border-left:5px solid #7dcea0;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#1e8449;">🧠 Fondamento Teorico</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Concetto</th>
+<th style="padding:10px;border:1px solid #ddd;">Ruolo nel filtro <em>notch</em></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Picco in (\Delta <em>v</em>, \Delta <em>u</em>)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Frequenza dell’interferenza periodica rilevata visivamente nello spettro</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Punto simmetrico (-\Delta <em>v</em>,-\Delta <em>u</em>)</strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Ogni DFT di un segnale reale è hermitiana: i picchi compaiono sempre in coppie simmetriche rispetto al centro</td>
+</tr>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;"><strong>Raggio <em>r</em></strong></td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Controlla la “larghezza” della reiezione — un <em>r</em> grande rimuove più energia attorno al picco, ma anche informazioni utili</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#f5eef8;border-left:5px solid #c39bd3;padding:15px;border-radius:8px;margin-bottom:20px;">
+<h4 style="margin-top:0;color:#7d3c98;">📦 Specifica di Input e Output (VPL)</h4>
+<p><strong>Input:</strong></p>
+<ul>
+<li>Riga 1: Intero <em>L</em>.</li>
+<li>Riga 2: Intero <em>C</em>.</li>
+<li>Righe successive: Elementi interi della matrice di magnitudine (centrata), <em>L</em> righe.</li>
+<li>Riga successiva: Intero <em>K</em>.</li>
+<li><em>K</em> righe successive: tre interi \Delta <em>v</em>, \Delta <em>u</em>, <em>r</em> (separati da spazio).</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>Matrice risultante in <em>L</em> righe e <em>C</em> colonne, separate da spazio.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">5<br/>
+5<br/>
+1 2 3 4 5<br/>
+6 7 8 9 10<br/>
+11 12 13 14 15<br/>
+16 17 18 19 20<br/>
+21 22 23 24 25<br/>
+1<br/>
+1 1 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">1 2 3 4 5<br/>
+6 0 8 9 10<br/>
+11 12 13 14 15<br/>
+16 17 18 0 20<br/>
+21 22 23 24 25</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">Centro (<em>c</em>_<em>y</em>, <em>c</em>_<em>x</em>) = (2, 2). Il picco indicato (\Delta <em>v</em>, \Delta <em>u</em>) = (1, 1) genera il punto (3, 3) (valore 19) e il suo simmetrico (1, 1) (valore 7), entrambi azzerati con r=0 (solo i punti esatti).</td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-execution_count="36" data-quarto-private-1='{"key":"pdi","value":{"ck":"8a3793320e48e123d124e43388a3ade8"}}' id="cell-fig-05-sim-ep0502">
+</div>
+</div><div id="sim-ep0502" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<style>
+  #sim-ep0502 * { box-sizing: border-box; margin: 0; padding: 0; }
+  #sim-ep0502 button { font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid #e4dcc8; background: #f1ead7; color: #5e5a4a; cursor: pointer; transition: all 0.15s ease; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  #sim-ep0502 button:hover { background: #e8dfcf; }
+  #sim-ep0502 input[type=range] { width: 100%; cursor: pointer; height: 4px; }
+  .sim-ep0502_pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 40px; border: 1px solid #e4dcc8; background: #26241d; color: #7ee7c6; font-family: monospace; }
+  .sim-ep0502_panel { background: #fafaf7; border: 1px solid #e9e3d3; border-radius: 12px; padding: 12px; }
+  .sim-ep0502_grid_ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .sim-ep0502_cell { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; transition: all 0.15s ease; }
+</style>
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">🎮 Simulatore EP05_02: Filtro Notch</span>
+<span class="sim-ep0502_pill">Coppia Simmetrica</span>
+<div style="padding:16px;background:#ffffff;">
+<!-- Painel de Controles -->
+<div class="sim-ep0502_panel" style="margin-bottom:14px;">
+<div class="sim-ep0502_grid_ctrls">
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Δv</label>
+<span id="sim-ep0502_vl_dv" style="font-family:monospace; font-weight:700; color:#26241d;">1</span>
+</div>
+<input id="sim-ep0502_sl_dv" max="2" min="-2" step="1" type="range" value="1"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Δu</label>
+<span id="sim-ep0502_vl_du" style="font-family:monospace; font-weight:700; color:#26241d;">1</span>
+</div>
+<input id="sim-ep0502_sl_du" max="2" min="-2" step="1" type="range" value="1"/>
+</div>
+<div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<label style="font-size:11px; font-weight:700; color:#5e5a4a;">Raggio (r)</label>
+<span id="sim-ep0502_vl_r" style="font-family:monospace; font-weight:700; color:#26241d;">0</span>
+</div>
+<input id="sim-ep0502_sl_r" max="2" min="0" step="1" type="range" value="0"/>
+</div>
+</div>
+<div style="font-size:10.5px; color:#8a8371; font-weight:600; margin-top:10px; text-align:center;">
+      Muovi Δv e Δu per scegliere il picco — osserva che anche la coppia simmetrica viene filtrata.
+    </div>
+</div>
+<!-- Espectro 5x5 -->
+<div class="sim-ep0502_panel" style="text-align:center; margin-bottom:14px;">
+<div style="font-size:10px; font-weight:700; color:#8a8371; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.04em;">
+      Spettro 5×5 (Rosso = Rimosso dal Filtro)
+    </div>
+</div>
+<!-- Painel Informativo / Debug -->
+</div>
+</div>
+<script>
+
+(function(){
+  function initSim05Ep02(root){
+    if (!root || root.dataset.sim05Ep02Init) return;
+    root.dataset.sim05Ep02Init = "1";
+
+    var N = 5, cy = Math.floor(N / 2), cx = Math.floor(N / 2);
+    var mag = [];
+    for (var i = 0; i < N; i++){
+      var row = [];
+      for (var j = 0; j < N; j++){
+        row.push(i * 5 + j + 1);
+      }
+      mag.push(row);
+    }
+
+    var dv  = root.querySelector('#sim-ep0502_sl_dv');
+    var du  = root.querySelector('#sim-ep0502_sl_du');
+    var r   = root.querySelector('#sim-ep0502_sl_r');
+    var dvv = root.querySelector('#sim-ep0502_vl_dv');
+    var duv = root.querySelector('#sim-ep0502_vl_du');
+    var rv  = root.querySelector('#sim-ep0502_vl_r');
+
+    var grid = root.querySelector('#sim-ep0502_grid');
+    var dbg  = root.querySelector('#sim-ep0502_debug');
+
+    function cellStyle(kill){
+      if (kill) {
+        return 'background:#fdecea; color:#c0392b; border:1px solid #f5b7b1;';
+      } else {
+        return 'background:#eafaf1; color:#04342C; border:1px solid #a3e4d7;';
+      }
+    }
+
+    function render(){
+      var DV = parseInt(dv.value, 10);
+      var DU = parseInt(du.value, 10);
+      var R  = parseInt(r.value, 10);
+
+      dvv.textContent = DV;
+      duv.textContent = DU;
+      rv.textContent  = R;
+
+      var p1 = [cy + DV, cx + DU];
+      var p2 = [cy - DV, cx - DU];
+
+      grid.innerHTML = '';
+      var removed = 0;
+
+      for (var i = 0; i < N; i++){
+        for (var j = 0; j < N; j++){
+          var d1 = Math.sqrt((i - p1[0]) * (i - p1[0]) + (j - p1[1]) * (j - p1[1]));
+          var d2 = Math.sqrt((i - p2[0]) * (i - p2[0]) + (j - p2[1]) * (j - p2[1]));
+          var kill = (d1 <= R) || (d2 <= R);
+
+          if (kill) removed++;
+
+          var c = document.createElement('div');
+          c.className = 'sim-ep0502_cell';
+          c.style.cssText = cellStyle(kill);
+          c.textContent = kill ? 0 : mag[i][j];
+          grid.appendChild(c);
+        }
+      }
+
+      dbg.textContent = 'Centro = (' + cy + ', ' + cx + ')  |  Pico = (' + p1[0] + ', ' + p1[1] + ')  |  Simétrico = (' + p2[0] + ', ' + p2[1] + ')  |  Removidos: ' + removed;
+    }
+
+    [dv, du, r].forEach(function(el){
+      el.addEventListener('input', render);
+    });
+
+    render();
+  }
+
+  function tryInitSim05Ep02(){
+    var root = document.getElementById('sim-ep0502');
+    if (root) initSim05Ep02(root); else setTimeout(tryInitSim05Ep02, 200);
+  }
+  tryInitSim05Ep02();
+})();
+
+</script>
+</div><div id="sim-ep0502_grid" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px; justify-content:center;"></div><div class="sim-ep0502_panel" id="sim-ep0502_debug" style="font-family:monospace; font-size:11px; color:#26241d; text-align:center;">
+    –
+  </div></div>

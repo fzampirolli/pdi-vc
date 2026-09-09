@@ -1,0 +1,319 @@
+<div style="font-family:sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;background:white;">
+<div style="font-family:sans-serif;background:#e8f4fd;border-left:4px solid #2980b9;padding:10px 15px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#1a5276;">
+📐 <strong>Versione con formule matematiche:</strong> <a href="https://fzampirolli.github.io/pdi-vc/eps/cpp.it/EP02_04.html" target="_blank" style="color:#2980b9;">https://fzampirolli.github.io/pdi-vc/eps/cpp.it/EP02_04.html</a>
+<br><span style="font-size:11px;color:#555;">(Formule renderizzate da MathJax — aprire in una nuova scheda)</span>
+</div>
+<h2 style="color:#0056b3;border-bottom:2px solid #0056b3;padding-bottom:10px;">EP02_04 📐 Trasformata di Distanza in Immagine Binaria</h2>
+<p>Data un’immagine binaria in cui i pixel di valore <strong>1</strong> rappresentano l’<em>oggetto</em> e i pixel <strong>0</strong> rappresentano lo <em>sfondo</em>, la distanza di un pixel di sfondo riceve la <strong>minore distanza al pixel dell’oggetto più vicino</strong>. I pixel dell’oggetto ricevono distanza <strong>0</strong>. Per semplicità, si consideri che l’immagine ha <strong>un solo oggetto con un singolo pixel di valore 1</strong>.</p>
+<p><strong>Problema:</strong> Leggere un’immagine binaria <em>L</em> × <em>C</em> e una metrica, e calcolare questa distanza semplificata applicando una delle tre formule:</p>
+<p><em>d</em>_Euclidea = √((\Delta <em>r</em>)^2 + (\Delta <em>c</em>)^2)</p>
+<p><em>d</em>_City-block = |\Delta <em>r</em>| + |\Delta <em>c</em>|</p>
+<p><em>d</em>_Scacchiera = \max(|\Delta <em>r</em>|,\; |\Delta <em>c</em>|)</p>
+<p>dove \Delta <em>r</em> è la differenza di righe e \Delta <em>c</em> la differenza di colonne tra due pixel.</p>
+<div>
+<h4> 🖼️ Perché è importante? - Applicazioni della DT</h4>
+<p>La Trasformata di Distanza (DT) compare in decine di pipeline di visione artificiale:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 27%"/>
+<col style="width: 53%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Metrica</th>
+<th style="text-align: left;">Complessità</th>
+<th style="text-align: left;">Applicazione tipica</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Euclidea</td>
+<td style="text-align: left;">🔴 <em>O</em>(<em>n</em>^2) ingenuo</td>
+<td style="text-align: left;">Scheletrizzazione, matching di forme</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">City-block</td>
+<td style="text-align: left;">🟡 <em>O</em>(<em>n</em>) con 2 passaggi</td>
+<td style="text-align: left;">Morfologia, dilatazione/erosione</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Scacchiera</td>
+<td style="text-align: left;">🟢 <em>O</em>(<em>n</em>) con 2 passaggi</td>
+<td style="text-align: left;">Morfologia, dilatazione/erosione</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Requisiti Tecnici</h4>
+<ul>
+<li><strong>Input:</strong> * Prima riga: <em>L</em> e <em>C</em> (interi).
+<ul>
+<li>Seconda riga: nome della metrica (<code>euclidean</code>, <code>cityblock</code> o <code>chessboard</code>).<br/>
+</li>
+<li>Successivamente, la matrice binaria <em>L</em> × <em>C</em> (valori 0 o 1).</li>
+</ul></li>
+<li><strong>Pixel dell’oggetto (1):</strong> distanza = 0 (o 0.00 per euclidea).<br/>
+</li>
+<li><strong>Pixel di sfondo (0):</strong> distanza all’unico pixel dell’oggetto nell’immagine.<br/>
+</li>
+<li><strong>Arrotondamento (euclidea):</strong> stampare con <strong>2 cifre decimali</strong> (formato <code>:.2f</code>). City-block e Scacchiera producono interi — stampare senza decimali.<br/>
+</li>
+<li><strong>Output:</strong> valori separati da spazio, una riga per ogni riga della matrice.</li>
+<li>Vedere in Figura 2.15 una simulazione di questo EP.</li>
+</ul>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Esempi</h4>
+<table style="width:100%;border-collapse:collapse;background-color:#fff;text-align:left;margin-bottom:20px;">
+<thead>
+<tr style="background-color:#f1f1f1;">
+<th style="padding:10px;border:1px solid #ddd;">Input</th>
+<th style="padding:10px;border:1px solid #ddd;">Output</th>
+<th style="padding:10px;border:1px solid #ddd;">Osservazione</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">4<br/>
+4<br/>
+chessboard<br/>
+0 0 0 0<br/>
+0 0 0 0<br/>
+0 0 1 0<br/>
+0 0 0 0</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">2 2 2 2<br/>
+2 1 1 1<br/>
+2 1 0 1<br/>
+2 1 1 1</td>
+<td style="padding:10px;border:1px solid #ddd;font-family:monospace;vertical-align:top;">La distanza Scacchiera è \max(\|dx\|, \|dy\|). L’unico pixel oggetto è (2,2)=0; gli altri memorizzano la loro distanza minima fino ad esso.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="background-color:#fef9e7;border-left:5px solid #f7dc6f;padding:15px;border-radius:8px;margin-bottom:25px;">
+<h4 style="margin-top:0;color:#9a7d0a;">📌 Osservazioni finali</h4>
+<ul>
+<li>Poiché l’immagine ha <strong>un solo oggetto di un pixel</strong>, la distanza di ogni pixel di sfondo è semplicemente la distanza di quel pixel all’unico punto dell’oggetto.</li>
+<li>L’implementazione può usare la forza bruta (percorrere tutti i pixel dell’immagine e calcolare la distanza direttamente), poiché <em>L</em> e <em>C</em> sono piccoli nei casi di test.</li>
+<li>Questo problema è un riscaldamento per la Trasformata di Distanza generale, che verrà affrontata nei capitoli successivi con più oggetti e algoritmi ottimizzati.</li>
+</ul>
+<div class="cell" data-execution_count="42" id="cell-fig-02-sim-ep0204-distancia">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-02-sim-ep0204-distancia-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura 2.15: Simulatore EP02_04: Trasformata della Distanza in Immagine Binaria (Scacchiera, City-block ed Euclidea)
+</figcaption>
+</div>
+</div><div id="sim-ep0204-distancia" style="background-color:#fbf7ee;border-radius:18px;border:1px solid #e4dcc8;overflow:hidden;margin-top:20px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 1px 2px rgba(38,36,29,0.04);position:relative;">
+<!-- Cabeçalho -->
+<div style="background:#f1ead7;padding:8px 16px;font-size:11.5px;color:#5e5a4a;border-bottom:1px solid #e4dcc8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+<span style="font-weight:600;color:#26241d;">📐 Simulatore EP02_04: Trasformata della Distanza Interattiva</span>
+<span style="background:#26241d;color:#7ee7c6;border-radius:40px;padding:3px 12px;font-weight:600;font-size:10px;font-family:monospace;">Metriche: L₁, L₂ e L_∞</span>
+<div style="padding:16px;background:#ffffff;">
+<p style="font-size:11px;color:#777;margin-bottom:12px;text-align:center;">Clicca sulle celle dell'<b>Immagine Binaria</b> per alternare i pixel dell'oggetto (1) e osserva la mappa della distanza minima calcolata nella matrice risultante.</p>
+<!-- Barra de Seletor de Métrica e Ações -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:10px 14px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+<span style="font-size:11px;font-weight:700;color:#26241d;">Metri:</span>
+<label style="font-size:11px;font-weight:600;color:#5e5a4a;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+<input checked="" name="sim_ep0204_metric" style="cursor:pointer;" type="radio" value="chessboard"/> Chessboard (L_∞)
+        </label>
+<label style="font-size:11px;font-weight:600;color:#5e5a4a;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+<input name="sim_ep0204_metric" style="cursor:pointer;" type="radio" value="cityblock"/> City-block (L₁)
+        </label>
+<label style="font-size:11px;font-weight:600;color:#5e5a4a;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+<input name="sim_ep0204_metric" style="cursor:pointer;" type="radio" value="euclidean"/> Euclidea (L₂)
+        </label>
+</div>
+<div style="display:flex;gap:6px;">
+<button id="sim_ep0204_btnClear" style="padding:5px 10px;font-size:11px;font-weight:600;border:1px solid #e4dcc8;background:#f1ead7;color:#5e5a4a;cursor:pointer;border-radius:8px;white-space:nowrap;transition:all 0.15s ease;">🗑 Pulisci</button>
+<button id="sim_ep0204_btnExample" style="padding:5px 10px;font-size:11px;font-weight:700;border:1px solid #26241d;background:#26241d;color:#7ee7c6;cursor:pointer;border-radius:8px;white-space:nowrap;font-family:monospace;transition:all 0.15s ease;">📋 Esempio (2,2)</button>
+</div>
+</div>
+<!-- Comparativo Lado a Lado: Entrada Binária vs Transformada -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:start;margin-bottom:14px;">
+<!-- Entrada Binária -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#27ae60;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Immagine Binaria (Clicca per Modificare)</span>
+<div id="sim_ep0204_grid_input" style="display:inline-grid;gap:3px;border:1px solid #e4dcc8;padding:6px;border-radius:8px;background:#ffffff;user-select:none;"></div>
+</div>
+<!-- Transformada de Distância -->
+<div style="background:#fafaf7;border:1px solid #e9e3d3;border-radius:12px;padding:12px;text-align:center;">
+<span style="font-size:10px;font-weight:700;color:#2980b9;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:10px;">Trasformata della Distanza</span>
+<div id="sim_ep0204_grid_output" style="display:inline-grid;gap:3px;border:1px solid #e4dcc8;padding:6px;border-radius:8px;background:#ffffff;user-select:none;"></div>
+</div>
+</div>
+<!-- Painel de Informação Explicativo -->
+<div id="sim_ep0204_info" style="background:#f1ead7;border:1px solid #e4dcc8;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;font-family:monospace;color:#26241d;">
+      Griglia 5×5 · 1 pixel di oggetto · Metrica: Chessboard (intero)
+    </div>
+</div>
+</div>
+<script>
+
+(function(){
+  function initSimEP0204(root){
+    if (!root || root.dataset.simEp0204Init) return;
+    root.dataset.simEp0204Init = "1";
+
+    var ROWS = 5, COLS = 5;
+    var binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+
+    // Estado inicial: objeto centralizado no ponto (2, 2)
+    binary[2][2] = 1;
+
+    var gI = root.querySelector('#sim_ep0204_grid_input');
+    var gO = root.querySelector('#sim_ep0204_grid_output');
+    var infoDiv = root.querySelector('#sim_ep0204_info');
+
+    var btnClear   = root.querySelector('#sim_ep0204_btnClear');
+    var btnExample = root.querySelector('#sim_ep0204_btnExample');
+
+    function getMetric() {
+      var selected = root.querySelector('input[name="sim_ep0204_metric"]:checked');
+      return selected ? selected.value : 'chessboard';
+    }
+
+    function computeDT(bin, metric) {
+      var L = bin.length, C = bin[0].length;
+      var dt = Array.from({ length: L }, function(){ return Array(C).fill(0); });
+
+      for (var i = 0; i < L; i++) {
+        for (var j = 0; j < C; j++) {
+          if (bin[i][j] === 1) {
+            dt[i][j] = 0;
+            continue;
+          }
+          var minD = Infinity;
+          for (var oi = 0; oi < L; oi++) {
+            for (var oj = 0; oj < C; oj++) {
+              if (bin[oi][oj] !== 1) continue;
+              var dr = Math.abs(i - oi), dc = Math.abs(j - oj);
+              var d = 0;
+              if (metric === 'euclidean') d = Math.sqrt(dr * dr + dc * dc);
+              else if (metric === 'cityblock') d = dr + dc;
+              else d = Math.max(dr, dc);
+
+              if (d < minD) minD = d;
+            }
+          }
+          dt[i][j] = minD === Infinity ? -1 : minD;
+        }
+      }
+      return dt;
+    }
+
+    function cellColor(val, isObj, maxVal) {
+      if (isObj) return { bg: '#26241d', text: '#7ee7c6' };
+      if (val < 0) return { bg: '#fafaf7', text: '#8a8371' };
+      
+      var t = maxVal > 0 ? val / maxVal : 0;
+      var r = 255;
+      var g = Math.round(255 - t * 160);
+      var b = Math.round(255 - t * 180);
+      return {
+        bg: 'rgb(' + r + ',' + g + ',' + b + ')',
+        text: t > 0.55 ? '#78281f' : '#26241d'
+      };
+    }
+
+    function formatVal(val, metric) {
+      if (val === 0) return '0';
+      if (val < 0) return '—';
+      return metric === 'euclidean' ? val.toFixed(2) : String(val);
+    }
+
+    function render() {
+      var metric = getMetric();
+      var dt = computeDT(binary, metric);
+
+      var allVals = [];
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (dt[r][c] > 0) allVals.push(dt[r][c]);
+        }
+      }
+
+      var maxVal = allVals.length ? Math.max.apply(null, allVals) : 1;
+      var hasObj = binary.some(function(row){ return row.some(function(v){ return v === 1; }); });
+
+      // Renderiza Imagem Binária (Input)
+      gI.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gI.innerHTML = '';
+      for (var i = 0; i < ROWS; i++) {
+        for (var j = 0; j < COLS; j++) {
+          (function(rowIdx, colIdx){
+            var isObj = binary[rowIdx][colIdx] === 1;
+            var cell = document.createElement('div');
+            cell.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:monospace;border-radius:6px;cursor:pointer;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+            cell.style.background = isObj ? '#26241d' : '#ffffff';
+            cell.style.color = isObj ? '#7ee7c6' : '#8a8371';
+            cell.textContent = isObj ? '1' : '0';
+
+            cell.addEventListener('click', function() {
+              binary[rowIdx][colIdx] = binary[rowIdx][colIdx] === 1 ? 0 : 1;
+              render();
+            });
+
+            gI.appendChild(cell);
+          })(i, j);
+        }
+      }
+
+      // Renderiza Transformada de Distância (Output)
+      gO.style.gridTemplateColumns = 'repeat(' + COLS + ', 42px)';
+      gO.innerHTML = '';
+      for (var r2 = 0; r2 < ROWS; r2++) {
+        for (var c2 = 0; c2 < COLS; c2++) {
+          var isObjOut = binary[r2][c2] === 1;
+          var colors = cellColor(dt[r2][c2], isObjOut, maxVal);
+          var cellO = document.createElement('div');
+          cellO.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;font-family:monospace;border-radius:6px;box-sizing:border-box;border:1px solid #e4dcc8;user-select:none;transition:all 0.15s ease;';
+          cellO.style.background = hasObj ? colors.bg : '#fafaf7';
+          cellO.style.color = hasObj ? colors.text : '#8a8371';
+          cellO.textContent = hasObj ? formatVal(dt[r2][c2], metric) : '—';
+          gO.appendChild(cellO);
+        }
+      }
+
+      var metricLabel = {
+        euclidean: 'Euclidiana (L₂ - 2 decimais)',
+        cityblock: 'City-block (L₁ - inteiro)',
+        chessboard: 'Chessboard (L_∞ - inteiro)'
+      };
+
+      var objCount = binary.reduce(function(acc, row){
+        return acc + row.filter(function(v){ return v === 1; }).length;
+      }, 0);
+
+      infoDiv.innerHTML = 'Grade ' + ROWS + '×' + COLS + ' · <b>' + objCount + '</b> pixel(s) de objeto · Métrica: <b>' + metricLabel[metric] + '</b>';
+    }
+
+    var radios = root.querySelectorAll('input[name="sim_ep0204_metric"]');
+    radios.forEach(function(r) {
+      r.addEventListener('change', render);
+    });
+
+    btnClear.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      render();
+    });
+
+    btnExample.addEventListener('click', function() {
+      binary = Array.from({ length: ROWS }, function(){ return Array(COLS).fill(0); });
+      binary[2][2] = 1;
+      render();
+    });
+
+    render();
+  }
+
+  function tryInitSimEP0204(){
+    var root = document.getElementById('sim-ep0204-distancia');
+    if (root) initSimEP0204(root); else setTimeout(tryInitSimEP0204, 200);
+  }
+  tryInitSimEP0204();
+})();
+
+</script>
+</div></div>
