@@ -3,7 +3,7 @@
 Notebooks dos capítulos com referências bibliográficas, figuras, tabelas e equações renderizadas para Jupyter/Colab.
 
 ## Estrutura
-Uma árvore por combo `<linguagem>.<idioma>/` (presentes: cpp.en, cpp.fr, cpp.pt, py.en, py.fr, py.pt):
+Uma árvore por combo `<linguagem>.<idioma>/` (presentes: cpp.en, cpp.es, cpp.fr, cpp.it, cpp.pt, py.en, py.es, py.fr, py.it, py.pt):
 
 `<combo>/capXX/capXX_aluno.ipynb` — notebook do capítulo XX
 `<combo>/capXX/capXX.EPs_aluno.ipynb` — exercícios do capítulo XX
@@ -11,7 +11,7 @@ Uma árvore por combo `<linguagem>.<idioma>/` (presentes: cpp.en, cpp.fr, cpp.pt
 
 ## Como usar
 ```bash
-jupyter lab py.fr/cap01/cap01_aluno.ipynb
+jupyter lab cpp.it/cap01/cap01_aluno.ipynb
 ```
 
 ## Características
