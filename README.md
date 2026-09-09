@@ -4,11 +4,11 @@
 > Escreva **uma vez** em formato Quarto (Markdown+Python). O pipeline traduz o resto.
 
 🚧 **Em construção!**
-Os 9 capítulos estão ativos no build e foram aplicados em turmas de PDI na UFABC. O livro é publicado em 6 combos: **Python** × **pt/en/fr** (livro completo, 9 capítulos) e **C++** × **pt/en/fr** (capítulos 1 a 5 — ver "Execução real de código em C++"). **Espanhol** e **italiano** já têm suporte no pipeline (`LOCALES` em `pipeline/config.py`) e estão em preparação.
+Os 9 capítulos estão ativos no build e foram aplicados em turmas de PDI na UFABC. O livro é publicado em **10 combos**: **Python** × **pt/en/fr/es/it** (livro completo, 9 capítulos) e **C++** × **pt/en/fr/es/it** (capítulos 1 a 5 — ver "Execução real de código em C++").
 
 [![Livro Online](https://img.shields.io/badge/Livro-Online-blue?logo=github)](https://fzampirolli.github.io/pdi-vc)
 [![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fzampirolli/pdi-vc/blob/master/notebooks_alunos/py.pt/cap01/cap01_aluno.ipynb)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20784606.svg)](https://doi.org/10.5281/zenodo.20784606)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20784605.svg)](https://doi.org/10.5281/zenodo.20784605)
 [![Licença](https://img.shields.io/badge/Licença-CC--BY--NC--SA--4.0-green)](LICENSE)
 
 ---
