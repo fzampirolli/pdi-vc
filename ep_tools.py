@@ -52,6 +52,7 @@ RE_CAP_FILE = re.compile(r'cap(\d{2})', re.IGNORECASE)
 _CC = '<a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a>'
 I18N = {
     "pt": {
+        "acronym":       'PDI+VC',
         "subtitle":     "Processamento Digital de Imagens e Visão Computacional",
         "university":    "Universidade Federal do ABC (UFABC)",
         "license_line":  f"Material didático aberto sob licença {_CC}",
@@ -63,9 +64,9 @@ I18N = {
         "index_h1":      "PDI+VC · Exercícios de Programação (EPs)",
         "eyebrow":       "PDI+VC · Exercício de Programação",
         "moodle_math_version": "Versão com fórmulas matemáticas:",
-        "moodle_math_note":    "(Fórmulas renderizadas pelo MathJax — abrir em nova aba)",
-    },
+        "moodle_math_note":    "(Fórmulas renderizadas pelo MathJax — abrir em nova aba)",},
     "en": {
+        "acronym":       'DIP+CV',
         "subtitle":     "Digital Image Processing and Computer Vision",
         "university":    "Federal University of ABC (UFABC)",
         "license_line":  f"Open educational material under {_CC} license",
@@ -73,13 +74,13 @@ I18N = {
         "back_to_book":  "📖 Back to the Book",
         "view_book":     "📖 View the book",
         "index_general": "📂 General index",
-        "index_title":   "Programming Exercises (EPs) | PDI+VC",
-        "index_h1":      "PDI+VC · Programming Exercises (EPs)",
-        "eyebrow":       "PDI+VC · Programming Exercise",
+        "index_title":   "Programming Exercises (EPs) | DIP+CV",
+        "index_h1":      "DIP+CV · Programming Exercises (EPs)",
+        "eyebrow":       "DIP+CV · Programming Exercise",
         "moodle_math_version": "Version with mathematical formulas:",
-        "moodle_math_note":    "(Formulas rendered by MathJax — open in a new tab)",
-    },
+        "moodle_math_note":    "(Formulas rendered by MathJax — open in a new tab)",},
     "fr": {
+        "acronym":       'TNI+VO',
         "subtitle":     "Traitement Numérique d'Images et Vision par Ordinateur",
         "university":    "Université Fédérale de l'ABC (UFABC)",
         "license_line":  f"Matériel pédagogique ouvert sous licence {_CC}",
@@ -87,13 +88,13 @@ I18N = {
         "back_to_book":  "📖 Retour au Livre",
         "view_book":     "📖 Voir le livre",
         "index_general": "📂 Index général",
-        "index_title":   "Exercices de Programmation (EPs) | PDI+VC",
-        "index_h1":      "PDI+VC · Exercices de Programmation (EPs)",
-        "eyebrow":       "PDI+VC · Exercice de Programmation",
+        "index_title":   "Exercices de Programmation (EPs) | TNI+VO",
+        "index_h1":      "TNI+VO · Exercices de Programmation (EPs)",
+        "eyebrow":       "TNI+VO · Exercice de Programmation",
         "moodle_math_version": "Version avec formules mathématiques :",
-        "moodle_math_note":    "(Formules rendues par MathJax — ouvrir dans un nouvel onglet)",
-    },
+        "moodle_math_note":    "(Formules rendues par MathJax — ouvrir dans un nouvel onglet)",},
     "es": {
+        "acronym":       'PDI+VC',
         "subtitle":     "Procesamiento Digital de Imágenes y Visión por Computador",
         "university":    "Universidad Federal del ABC (UFABC)",
         "license_line":  f"Material didáctico abierto bajo licencia {_CC}",
@@ -105,9 +106,9 @@ I18N = {
         "index_h1":      "PDI+VC · Ejercicios de Programación (EPs)",
         "eyebrow":       "PDI+VC · Ejercicio de Programación",
         "moodle_math_version": "Versión con fórmulas matemáticas:",
-        "moodle_math_note":    "(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)",
-    },
+        "moodle_math_note":    "(Fórmulas renderizadas por MathJax — abrir en una pestaña nueva)",},
     "it": {
+        "acronym":       'EDI+VA',
         "subtitle":     "Elaborazione Digitale delle Immagini e Visione Artificiale",
         "university":    "Università Federale dell'ABC (UFABC)",
         "license_line":  f"Materiale didattico aperto sotto licenza {_CC}",
@@ -115,12 +116,11 @@ I18N = {
         "back_to_book":  "📖 Torna al Libro",
         "view_book":     "📖 Vedi il libro",
         "index_general": "📂 Indice generale",
-        "index_title":   "Esercizi di Programmazione (EPs) | PDI+VC",
-        "index_h1":      "PDI+VC · Esercizi di Programmazione (EPs)",
-        "eyebrow":       "PDI+VC · Esercizio di Programmazione",
+        "index_title":   "Esercizi di Programmazione (EPs) | EDI+VA",
+        "index_h1":      "EDI+VA · Esercizi di Programmazione (EPs)",
+        "eyebrow":       "EDI+VA · Esercizio di Programmazione",
         "moodle_math_version": "Versione con formule matematiche:",
-        "moodle_math_note":    "(Formule renderizzate da MathJax — aprire in una nuova scheda)",
-    },
+        "moodle_math_note":    "(Formule renderizzate da MathJax — aprire in una nuova scheda)",},
 }
 
 def versao_lang(name: str) -> str:
@@ -144,7 +144,7 @@ HTML_TEMPLATE = """\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{ep_id} — {title} | PDI+VC</title>
+  <title>{ep_id} — {title} | {acronym}</title>
   {favicon} 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -347,7 +347,7 @@ HTML_TEMPLATE = """\
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="ep-frame-footer">
   <p>
-    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+    <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">{acronym} — {subtitle}</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://ufabc.edu.br/" target="_blank">{university}</a>.<br>
     {license_line} ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -491,7 +491,7 @@ INDEX_TEMPLATE = """\
   </main>
   <footer>
     <p>
-      <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+      <strong><a href="https://fzampirolli.github.io/pdi-vc/" target="_blank">{acronym} — {subtitle}</a></strong><br>
       © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
       <a href="{book_url}" target="_blank">{back_to_book}</a>
     </p>
@@ -628,6 +628,7 @@ def build_ep_html(ep: dict, styles: str, scripts: str, lang: str, prev_id: str |
 
     return HTML_TEMPLATE.format(
         lang=lang,
+        acronym=t(lang, "acronym"),
         ep_id=ep["ep_id"],
         title=ep["title"],
         favicon=favicon_tag,
@@ -783,6 +784,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
         index_content = INDEX_TEMPLATE.format(
             chapters_html="\n".join(chapters_index_html),
             lang=idx_lang,
+            acronym=t(idx_lang, "acronym"),
             index_title=t(idx_lang, "index_title"),
             index_h1=t(idx_lang, "index_h1"),
             subtitle=t(idx_lang, "subtitle"),

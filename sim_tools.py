@@ -47,6 +47,7 @@ STOP_WORDS = {"sim", "fig", "ep", "cap", "cap01", "cap02", "cap03", "cap04", "ca
 _CC = '<a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank">CC BY-SA 4.0</a>'
 I18N = {
     "pt": {
+        "acronym":       'PDI+VC',
         "subtitle":      "Processamento Digital de Imagens e Visão Computacional",
         "university":     "Universidade Federal do ABC (UFABC)",
         "license_line":   f"Material didático aberto sob licença {_CC}",
@@ -57,9 +58,9 @@ I18N = {
         "index_title":    "Simuladores Interativos | PDI+VC",
         "index_h1":       "PDI+VC · Simuladores Interativos",
         "eyebrow":        "PDI+VC · Simulador Interativo",
-        "description":    "Descrição:",
-    },
+        "description":    "Descrição:",},
     "en": {
+        "acronym":       'DIP+CV',
         "subtitle":      "Digital Image Processing and Computer Vision",
         "university":     "Federal University of ABC (UFABC)",
         "license_line":   f"Open educational material under {_CC} license",
@@ -67,12 +68,12 @@ I18N = {
         "back_to_book":   "📖 Back to the Book",
         "view_book":      "📖 View the book",
         "index_general":  "📂 General index",
-        "index_title":    "Interactive Simulators | PDI+VC",
-        "index_h1":       "PDI+VC · Interactive Simulators",
-        "eyebrow":        "PDI+VC · Interactive Simulator",
-        "description":    "Description:",
-    },
+        "index_title":    "Interactive Simulators | DIP+CV",
+        "index_h1":       "DIP+CV · Interactive Simulators",
+        "eyebrow":        "DIP+CV · Interactive Simulator",
+        "description":    "Description:",},
     "fr": {
+        "acronym":       'TNI+VO',
         "subtitle":      "Traitement Numérique d'Images et Vision par Ordinateur",
         "university":     "Université Fédérale de l'ABC (UFABC)",
         "license_line":   f"Matériel pédagogique ouvert sous licence {_CC}",
@@ -80,12 +81,12 @@ I18N = {
         "back_to_book":   "📖 Retour au Livre",
         "view_book":      "📖 Voir le livre",
         "index_general":  "📂 Index général",
-        "index_title":    "Simulateurs Interactifs | PDI+VC",
-        "index_h1":       "PDI+VC · Simulateurs Interactifs",
-        "eyebrow":        "PDI+VC · Simulateur Interactif",
-        "description":    "Description :",
-    },
+        "index_title":    "Simulateurs Interactifs | TNI+VO",
+        "index_h1":       "TNI+VO · Simulateurs Interactifs",
+        "eyebrow":        "TNI+VO · Simulateur Interactif",
+        "description":    "Description :",},
     "es": {
+        "acronym":       'PDI+VC',
         "subtitle":      "Procesamiento Digital de Imágenes y Visión por Computador",
         "university":     "Universidad Federal del ABC (UFABC)",
         "license_line":   f"Material didáctico abierto bajo licencia {_CC}",
@@ -96,9 +97,9 @@ I18N = {
         "index_title":    "Simuladores Interactivos | PDI+VC",
         "index_h1":       "PDI+VC · Simuladores Interactivos",
         "eyebrow":        "PDI+VC · Simulador Interactivo",
-        "description":    "Descripción:",
-    },
+        "description":    "Descripción:",},
     "it": {
+        "acronym":       'EDI+VA',
         "subtitle":      "Elaborazione Digitale delle Immagini e Visione Artificiale",
         "university":     "Università Federale dell'ABC (UFABC)",
         "license_line":   f"Materiale didattico aperto sotto licenza {_CC}",
@@ -106,11 +107,10 @@ I18N = {
         "back_to_book":   "📖 Torna al Libro",
         "view_book":      "📖 Vedi il libro",
         "index_general":  "📂 Indice generale",
-        "index_title":    "Simulatori Interattivi | PDI+VC",
-        "index_h1":       "PDI+VC · Simulatori Interattivi",
-        "eyebrow":        "PDI+VC · Simulatore Interattivo",
-        "description":    "Descrizione:",
-    },
+        "index_title":    "Simulatori Interattivi | EDI+VA",
+        "index_h1":       "EDI+VA · Simulatori Interattivi",
+        "eyebrow":        "EDI+VA · Simulatore Interattivo",
+        "description":    "Descrizione:",},
 }
 
 def t(lang: str, key: str) -> str:
@@ -128,7 +128,7 @@ HTML_TEMPLATE = """\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{sim_title} | PDI+VC</title>
+  <title>{sim_title} | {acronym}</title>
   {favicon} 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -353,7 +353,7 @@ HTML_TEMPLATE = """\
 <!-- RODAPÉ COMPLETO E ÚNICO -->
 <footer class="sim-frame-footer">
   <p>
-    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+    <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">{acronym} — {subtitle}</a></strong><br>
     © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
     {license_line} ·
     DOI: <a href="https://doi.org/10.5281/zenodo.20784606" target="_blank">10.5281/zenodo.20784606</a>
@@ -496,7 +496,7 @@ INDEX_TEMPLATE = """\
   </main>
   <footer>
     <p>
-      <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">PDI+VC — {subtitle}</a></strong><br>
+      <strong><a href="https://github.com/fzampirolli/pdi-vc" target="_blank">{acronym} — {subtitle}</a></strong><br>
       © 2026 <a href="https://sites.google.com/site/fzampirolli/" target="_blank">Francisco de Assis Zampirolli</a> — <a href="https://sites.google.com/site/fzampirolli/" target="_blank">{university}</a>.<br>
       <a href="{book_url}" target="_blank">{back_to_book}</a>
     </p>
@@ -709,6 +709,7 @@ def build_sim_html(
 
     return HTML_TEMPLATE.format(
         lang=lang,
+        acronym=t(lang, "acronym"),
         sim_id=sim["sim_id"],
         sim_title=sim["sim_title"],
         full_title=sim["full_title"].replace('"', '&quot;'),
@@ -901,6 +902,7 @@ def cmd_extrair(args: argparse.Namespace) -> None:
         index_content = INDEX_TEMPLATE.format(
             chapters_html="\n".join(chapters_index_html),
             lang=idx_lang,
+            acronym=t(idx_lang, "acronym"),
             index_title=t(idx_lang, "index_title"),
             index_h1=t(idx_lang, "index_h1"),
             subtitle=t(idx_lang, "subtitle"),
