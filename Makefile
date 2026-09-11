@@ -146,7 +146,7 @@ publish-parallel: sync-morph
 	RUN1='c="{}"; L=$${c%.*}; O=$${c#*.}; s=$$(date +%s); \
 	  python dev.py --once $(INCREMENTAL) --langs $$L --locales $$O --render all \
 	    > gen/_publog/$$c.log 2>&1; \
-	  rc=$$?; e=$$(date +%s); echo "$$rc $$((e-s))" > gen/_publog/$$c.rc; \
+	  rc=$$?; e=$$(date +%s); echo "$$rc $$((e-s)) $$s $$e" > gen/_publog/$$c.rc; \
 	  [ $$rc = 0 ] && echo "  ✓ [$$(date +%H:%M:%S)] $$c ($$((e-s))s)" \
 	              || echo "  ✗ [$$(date +%H:%M:%S)] $$c rc=$$rc ($$((e-s))s) gen/_publog/$$c.log"'; \
 	w1=$$(printf '%s\n' $$all | grep -E "\.pt$$"  || true); \
@@ -157,7 +157,7 @@ publish-parallel: sync-morph
 	  printf '%s\n' $$w2 | xargs -P $(or $(JOBS),0) -I{} sh -c "$$RUN1"; fi; \
 	fail=0; echo ">> tempos por combo:"; \
 	for c in $$all; do \
-	  read rc dt < gen/_publog/$$c.rc 2>/dev/null || { rc=1; dt=0; }; \
+	  read rc dt s0 e0 < gen/_publog/$$c.rc 2>/dev/null || { rc=1; dt=0; }; \
 	  printf '   %-8s %s  %ss\n' "$$c" "$$([ $$rc = 0 ] && echo OK || echo FALHA)" "$$dt"; \
 	  [ "$$rc" = 0 ] || fail=1; done; \
 	TR=$$(($$(date +%s)-T0)); echo ">> render total (parede): $$((TR/60))m$$((TR%60))s"; \
