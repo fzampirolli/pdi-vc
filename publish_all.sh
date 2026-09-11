@@ -84,62 +84,73 @@ else
   echo "            Usando arquivos existentes em gen/book/"
 fi
 
+# Combos lang.locale usados pelos passos 2b/2c/2d (cada um roda em paralelo,
+# um processo por combo via xargs -P 0 — combos são independentes: cada um
+# lê/escreve seu próprio diretório, sem contenção de cache entre eles, ao
+# contrário da tradução via LLM em dev.py).
+IFS=',' read -ra LANG_LIST  <<< "$LANGS"
+IFS=',' read -ra LOCALE_LIST <<< "$LOCALES"
+_ALL_COMBOS=()
+for lang in "${LANG_LIST[@]}"; do
+  for locale in "${LOCALE_LIST[@]}"; do
+    _ALL_COMBOS+=("${lang}.${locale}")
+  done
+done
+
 # ===================================================================
 # Passo 2b: Gerar notebooks para alunos
 # ===================================================================
 echo ""
-echo "[2b/6] Gerando notebooks para alunos (uma árvore por combo)..."
-IFS=',' read -ra _AL_LANGS  <<< "$LANGS"
-IFS=',' read -ra _AL_LOCALES <<< "$LOCALES"
-for lang in "${_AL_LANGS[@]}"; do
-  for locale in "${_AL_LOCALES[@]}"; do
-    echo "      → ${lang}.${locale}"
-    python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos \
-      --lang "$lang" --locale "$locale"
-  done
-done
+echo "[2b/6] Gerando notebooks para alunos (uma árvore por combo, em paralelo)..."
+_gen_notebooks_alunos() {
+  local combo="$1" lang="${1%.*}" locale="${1#*.}"
+  echo "      → ${lang}.${locale}"
+  python gerar_notebooks_alunos.py --batch references.bib --out-dir notebooks_alunos \
+    --lang "$lang" --locale "$locale"
+}
+export -f _gen_notebooks_alunos
+printf '%s\n' "${_ALL_COMBOS[@]}" | xargs -P 0 -I{} bash -c '_gen_notebooks_alunos "$@"' _ {}
 echo "      ✓ notebooks_alunos/"
 
 # ===================================================================
 # Passo 2c: Extrair EPs e gerar fragmentos Moodle
 # ===================================================================
 echo ""
-echo "[2c/6] Extraindo EPs e gerando fragmentos Moodle..."
-IFS=',' read -ra LANG_LIST  <<< "$LANGS"
-IFS=',' read -ra LOCALE_LIST <<< "$LOCALES"
-for lang in "${LANG_LIST[@]}"; do
-  for locale in "${LOCALE_LIST[@]}"; do
-    versao="${lang}.${locale}"
-    src="gen/book/${versao}"
-    eps_dir="gen/book/eps/${versao}"
-    moodle_dir="gen/book/eps/${versao}_moodle"
-    if [ -d "$src" ]; then
-      echo "      → extraindo EPs de ${versao}..."
-      python ep_tools.py extrair --input "$src" --out-dir "$eps_dir" --quiet
-      echo "      → gerando fragmentos Moodle para ${versao}..."
-      python ep_tools.py limpar "$eps_dir" "$moodle_dir" \
-        --base-url "https://fzampirolli.github.io/pdi-vc/eps/${versao}"
-      ep_count=$(find "$moodle_dir" -name "EP*.html" 2>/dev/null | wc -l)
-      echo "      ✓ ${ep_count} EPs Moodle em ${moodle_dir}/"
-    fi
-  done
-done
+echo "[2c/6] Extraindo EPs e gerando fragmentos Moodle (em paralelo)..."
+_extract_eps() {
+  local combo="$1" lang="${1%.*}" locale="${1#*.}"
+  local versao="${lang}.${locale}"
+  local src="gen/book/${versao}"
+  local eps_dir="gen/book/eps/${versao}"
+  local moodle_dir="gen/book/eps/${versao}_moodle"
+  [ -d "$src" ] || return 0
+  echo "      → extraindo EPs de ${versao}..."
+  python ep_tools.py extrair --input "$src" --out-dir "$eps_dir" --quiet
+  echo "      → gerando fragmentos Moodle para ${versao}..."
+  python ep_tools.py limpar "$eps_dir" "$moodle_dir" \
+    --base-url "https://fzampirolli.github.io/pdi-vc/eps/${versao}"
+  local ep_count
+  ep_count=$(find "$moodle_dir" -name "EP*.html" 2>/dev/null | wc -l)
+  echo "      ✓ ${ep_count} EPs Moodle em ${moodle_dir}/"
+}
+export -f _extract_eps
+printf '%s\n' "${_ALL_COMBOS[@]}" | xargs -P 0 -I{} bash -c '_extract_eps "$@"' _ {}
 
 # ===================================================================
 # Passo 2d: Extrair Simuladores Interativos
 # ===================================================================
 echo ""
-echo "[2d/6] Extraindo Simuladores Interativos..."
-for lang in "${LANG_LIST[@]}"; do
-  for locale in "${LOCALE_LIST[@]}"; do
-    versao="${lang}.${locale}"
-    src="gen/book/${versao}"
-    if [ -d "$src" ]; then
-      echo "      → extraindo simuladores de ${versao}..."
-      python sim_tools.py extrair --input "$src" --quiet
-    fi
-  done
-done
+echo "[2d/6] Extraindo Simuladores Interativos (em paralelo)..."
+_extract_sims() {
+  local combo="$1" lang="${1%.*}" locale="${1#*.}"
+  local versao="${lang}.${locale}"
+  local src="gen/book/${versao}"
+  [ -d "$src" ] || return 0
+  echo "      → extraindo simuladores de ${versao}..."
+  python sim_tools.py extrair --input "$src" --quiet
+}
+export -f _extract_sims
+printf '%s\n' "${_ALL_COMBOS[@]}" | xargs -P 0 -I{} bash -c '_extract_sims "$@"' _ {}
 
 # ===================================================================
 # Passo 3: Gerar página principal (índice) dentro de gen/book/
