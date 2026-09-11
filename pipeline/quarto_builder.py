@@ -129,11 +129,19 @@ def _locale_asset(base_path: Path, locale: str) -> Path:
 
 def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
     """
-    Lê um .qmd de includes/<filename>, aplicando substituição i18n.
-    Se existir uma versão traduzida includes/<nome>_<locale><ext> para o
-    locale do combo (ex.: prefacio_en.qmd), ela é usada no lugar do arquivo
-    em Português. Retorna None se nenhum dos dois existir (quem chama decide
-    o fallback).
+    Lê um .qmd de includes/<filename>, aplicando substituição i18n e até
+    dois níveis de override sobre o padrão (Python/PT):
+
+      - locale: includes/<nome>_<locale><ext>       (ex.: prefacio_en.qmd)
+      - lang:   includes/<resolvido pelo locale>.<lang><ext>
+                (ex.: biblioteca.cpp.qmd, biblioteca_en.cpp.qmd)
+
+    O override de lang é resolvido POR CIMA do de locale, nessa ordem — por
+    isso o nome de uma variante cpp em inglês é biblioteca_en.cpp.qmd, não
+    biblioteca.cpp_en.qmd. Cada nível é independente: um arquivo pode ter só
+    override de locale (prefacio_en.qmd, sem variante .cpp) ou só de lang.
+    Retorna None se nenhuma variante nem o arquivo base existirem (quem
+    chama decide o fallback).
     """
     path = Path('includes') / filename
     if combo.locale != BASE_LOCALE:
@@ -141,6 +149,11 @@ def _read_include_qmd(filename: str, combo: Combo) -> Optional[str]:
         localized = Path('includes') / f'{stem}_{combo.locale}{ext}'
         if localized.exists():
             path = localized
+    if combo.lang != BASE_LANG:
+        stem, ext = os.path.splitext(path.name)
+        lang_path = path.parent / f'{stem}.{combo.lang}{ext}'
+        if lang_path.exists():
+            path = lang_path
     if not path.exists():
         return None
     content = path.read_text(encoding='utf-8')
@@ -208,14 +221,26 @@ def _with_no_code_tools(content: str) -> str:
 
 def _prefacio_qmd(combo: Combo) -> str:
     """
-    Lê o prefácio do arquivo includes/prefacio.qmd e acrescenta o gatilho
-    \\mainmatter (raw LaTeX, ignorado em HTML) ao final.
+    Lê o prefácio do arquivo includes/prefacio.qmd, substitui o placeholder
+    {{biblioteca}} pelo conteúdo específico da trilha (includes/biblioteca.qmd
+    para py, includes/biblioteca.cpp.qmd — ou sua variante de locale — para
+    cpp) e acrescenta o gatilho \\mainmatter (raw LaTeX, ignorado em HTML) ao
+    final.
     """
     content = _read_include_qmd('prefacio.qmd', combo)
     if content is None:
         raise FileNotFoundError(
             'includes/prefacio.qmd não encontrado — arquivo obrigatório.'
         )
+
+    if '{{biblioteca}}' in content:
+        biblioteca = _read_include_qmd('biblioteca.qmd', combo)
+        if biblioteca is None:
+            raise FileNotFoundError(
+                'includes/biblioteca.qmd não encontrado — arquivo obrigatório '
+                '(referenciado por {{biblioteca}} em prefacio.qmd).'
+            )
+        content = content.replace('{{biblioteca}}', biblioteca)
 
     content += (
         '\n\n```{=latex}\n'

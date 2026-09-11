@@ -1,0 +1,59 @@
+## The `morph.hpp` library {.unnumbered}
+
+The **`morph.hpp`** library [@zampirolli2025morph] accompanies the whole work as a teaching-support tool. Its goal is not to replace established libraries such as **OpenCV**, nor to compete with them in performance or scope. Instead, it seeks to **make the fundamental algorithms of Digital Image Processing and Computer Vision (DIP-CV) transparent**, allowing students to understand their implementation, modify the code, and develop new functionality.
+
+It is the C++ counterpart of `morph.py`: header-only (just `#include "morph.hpp"`), with the **same function names** in the `mm::` namespace — anyone already familiar with `mm.dil()`, `mm.dil0()`, or `mm.gradm()` in Python immediately recognizes `mm::dil()`, `mm::dil0()`, and `mm::gradm()` in C++. A name mismatch between the two versions is treated as a defect of the library, not a design choice.
+
+::: {.callout-note}
+
+### Technical Heritage {.unnumbered}
+
+The structure of `morph.hpp` (like its `morph.py` counterpart) is based on Mathematical Morphology tools developed in Brazil, such as **MMachLib** [@lotufo1997mmachlib] and **MMach** [@barrera1998mmach], as well as **mmorph**, used in the work of @dougherty2003hands. These libraries served as references for teaching in the field for decades.
+
+:::
+
+This philosophy can be observed, for example, in the morphological dilation operators:
+
+- `mm::dil0`: didactic implementation of dilation for **planar structuring elements**, following directly the classic definition of Mathematical Morphology;
+- `mm::dil1`: didactic implementation of dilation for **structuring functions (non-planar *kernels*)**, rigorously following its mathematical formulation;
+- `mm::dil`: by default, delegates to `mm::dil0()` — the planar didactic version, numerically equivalent to `cv::dilate` for that kind of structuring element. The optimized implementation, based on **OpenCV** (`cv::dilate`), only kicks in if the program is compiled with the `-DMM_USE_OPENCV` flag.
+
+::: {.callout-important}
+
+### A deliberate difference from `morph.py` {.unnumbered}
+
+In Python, `mm.dil()` (no suffix) is **already** the optimized implementation by default. In C++, `mm::dil()` (same name, same signature) only becomes the optimized version if OpenCV is explicitly linked at compile time; without that — which is precisely the default case, including on Moodle/VPL — `mm::dil()` behaves like `mm::dil0()`. This choice keeps the C++ track from depending on OpenCV just to compile and run a simple exercise: `g++ file.cpp -o file` is already enough. Those who want the accelerated version locally can compile with `g++ -DMM_USE_OPENCV file.cpp -o file $(pkg-config --cflags --libs opencv4)`.
+
+:::
+
+The library also provides functions for reading, displaying, color conversion, filtering, and mathematical morphology through a simple interface:
+
+```cpp
+#include "morph.hpp"
+
+int main() {
+    mm::Image img = mm::gray(mm::read("lena.jpg"));  // read and convert to grayscale
+    mm::Image grad = mm::gradm(img);                 // morphological gradient
+    mm::show(grad, "output.png");                    // display (writes to a file)
+}
+```
+
+Unlike the Python version, `mm::show()` requires an explicit output path: each C++ code cell in the book runs as its own isolated process (compiled and executed via `%%writefile` + `!g++ ...` on Colab), without the global figure counter that only makes sense within a single Jupyter process.
+
+In addition, all **Gemini Notebook** projects in the C++ track include the `morph.hpp` file, allowing direct consultation and discussion of the implementation of the algorithms presented in the book. This way, students can use Gemini Notebook itself as a study assistant, asking questions such as:
+
+> Explain how the `mm::dil0` function from `morph.hpp` was implemented, showing the code and commenting on each step in a didactic way. Also explain the difference between `mm::dil0()` and `mm::dil()` without the `-DMM_USE_OPENCV` flag.
+
+::: {.callout-important}
+
+### Didactic implementations and optimized implementations {.unnumbered}
+
+In several chapters, the same algorithm is presented in two versions. Functions with a suffix `0`, `1`, etc. (for example, `mm::dil0()` and `mm::dil1()`) are didactic implementations, developed to facilitate understanding of the algorithms and available regardless of the compilation flag. Functions without a suffix (such as `mm::dil()`) use the OpenCV-based optimized implementation **only** when compiled with `-DMM_USE_OPENCV`; otherwise, they behave like the corresponding didactic version.
+
+In activities graded by **Moodle's VPL**, compilation follows the default without `-DMM_USE_OPENCV` — not because of memory limitations (as with scikit-learn/scikit-image in the Python track), but so that no C++ EP depends on OpenCV being installed in the execution environment. In practice, this means that, on VPL, `mm::dil()` and `mm::dil0()` produce exactly the same result. Locally — for example, in **VS Code** or **Google Colab** — students can choose to compile with `-DMM_USE_OPENCV` to compare against the optimized version.
+
+:::
+
+The library's source code is available at:
+
+**<https://github.com/fzampirolli/pdi-vc/tree/master/morph/cpp>**

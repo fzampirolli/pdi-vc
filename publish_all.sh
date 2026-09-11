@@ -220,25 +220,46 @@ for lang in "${LANG_LIST[@]}"; do
   done
 done
 
-# Comprime PDFs grandes (>50MB) com Ghostscript
-find docs -name "*.pdf" | while read pdf; do
+# Comprime PDFs grandes (>50MB) com Ghostscript, em paralelo (um processo
+# `gs` por PDF, via xargs -P) e com cache por hash de conteúdo. docs/ é
+# recriado do zero a cada publish, então sem o cache o mesmo PDF — byte a
+# byte igual ao de um publish anterior, ex. em --skip-render — seria
+# recomprimido do zero toda vez; sem o paralelismo, os PDFs grandes (tipo
+# 100MB+) seriam comprimidos um de cada vez mesmo com CPU ociosa sobrando.
+PDF_CACHE_DIR=".cache/pdf_compress"
+mkdir -p "$PDF_CACHE_DIR"
+
+_compress_pdf() {
+  local pdf="$1" size hash cached tmp new_size
   size=$(du -m "$pdf" | cut -f1)
-  if [ "$size" -gt 50 ]; then
-    echo "      ⚙ Comprimindo $pdf (${size}MB)..."
-    tmp="${pdf%.pdf}_tmp.pdf"
-    if gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite \
-          -dPDFSETTINGS=/ebook \
-          -dCompatibilityLevel=1.5 \
-          -sOutputFile="$tmp" "$pdf" 2>/dev/null; then
-      mv "$tmp" "$pdf"
-      new_size=$(du -m "$pdf" | cut -f1)
-      echo "      ✓ Comprimido: ${size}MB → ${new_size}MB"
-    else
-      rm -f "$tmp"
-      echo "      ⚠ Falha ao comprimir, mantendo original"
-    fi
+  [ "$size" -gt 50 ] || return 0
+  hash=$(sha256sum "$pdf" | cut -d' ' -f1)
+  cached="$PDF_CACHE_DIR/${hash}.pdf"
+  if [ -f "$cached" ]; then
+    cp "$cached" "$pdf"
+    new_size=$(du -m "$pdf" | cut -f1)
+    echo "      ✓ Cache hit $pdf (${size}MB → ${new_size}MB, sem recomprimir)"
+    return 0
   fi
-done
+  echo "      ⚙ Comprimindo $pdf (${size}MB)..."
+  tmp="${pdf%.pdf}_tmp.pdf"
+  if gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite \
+        -dPDFSETTINGS=/ebook \
+        -dCompatibilityLevel=1.5 \
+        -sOutputFile="$tmp" "$pdf" 2>/dev/null; then
+    mv "$tmp" "$pdf"
+    cp "$pdf" "$cached"
+    new_size=$(du -m "$pdf" | cut -f1)
+    echo "      ✓ Comprimido: ${size}MB → ${new_size}MB (cache salvo)"
+  else
+    rm -f "$tmp"
+    echo "      ⚠ Falha ao comprimir, mantendo original: $pdf"
+  fi
+}
+export -f _compress_pdf
+export PDF_CACHE_DIR
+
+find docs -name "*.pdf" -print0 | xargs -0 -P 0 -I{} bash -c '_compress_pdf "$@"' _ {}
 echo "      ✓ docs/ pronta"
 
 # ===================================================================

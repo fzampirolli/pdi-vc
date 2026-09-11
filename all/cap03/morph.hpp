@@ -11,7 +11,8 @@
 // morph.py: sufixo 0 = didática planar, sufixo 1 = didática com pesos, sem
 // sufixo = clássica. O caminho clássico usa cv::Mat SOMENTE quando compilado
 // com -DMM_USE_OPENCV; sem o macro (padrão, inclusive Moodle/VPL) mm::dil()
-// delega a mm::dil1() e nada de OpenCV é exigido.
+// delega a mm::dil0() (planar — validação de 2026-09-05 confirmou bater com
+// cv::dilate pra SE planar tipo box/cross/disk) e nada de OpenCV é exigido.
 //
 // Cada célula `%%writefile ....cpp` é seu próprio processo isolado — por
 // isso `show()` exige um `out_path` explícito (sem o contador global que a
@@ -55,7 +56,7 @@
 // Backend OpenCV é OPT-IN: compile com `-DMM_USE_OPENCV $(pkg-config --cflags
 // --libs opencv4)` para que mm::dil()/mm::ero()/SE::disk() usem cv::Mat. Sem
 // o macro (padrão — `g++ arquivo.cpp -o arquivo`, inclusive no Moodle/VPL),
-// mm::dil() cai em mm::dil1() e nenhuma dependência de sistema é exigida.
+// mm::dil() cai em mm::dil0() e nenhuma dependência de sistema é exigida.
 #ifdef MM_USE_OPENCV
 #include <opencv2/opencv.hpp>
 #endif
