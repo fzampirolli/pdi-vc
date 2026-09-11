@@ -166,7 +166,10 @@ publish-parallel: sync-morph
 	echo ">> [$$(date +%H:%M:%S)] todos os combos OK — índice + deploy"; \
 	./publish_all.sh --langs $(_PUB_LANGS) --locales $(_PUB_LOCALES) --skip-render \
 	  $(if $(filter 1,$(NP)),--skip-git,); \
-	TT=$$(($$(date +%s)-T0)); echo ">> [$$(date +%H:%M:%S)] publish-parallel completo: $$((TT/60))m$$((TT%60))s"
+	TT=$$(($$(date +%s)-T0)); echo ">> [$$(date +%H:%M:%S)] publish-parallel completo: $$((TT/60))m$$((TT%60))s"; \
+	python -m pipeline.publish_history --publog-dir gen/_publog \
+	  --render-seconds $$TR --total-seconds $$TT \
+	  --pub-langs "$(_PUB_LANGS)" --pub-locales "$(_PUB_LOCALES)"
 
 
 # ── Publicação de notebook único ──────────────────────────────────────────────

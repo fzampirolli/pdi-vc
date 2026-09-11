@@ -11,7 +11,7 @@ Uma árvore por combo `<linguagem>.<idioma>/` (presentes: cpp.en, cpp.es, cpp.fr
 
 ## Como usar
 ```bash
-jupyter lab py.it/cap01/cap01_aluno.ipynb
+jupyter lab py.fr/cap01/cap01_aluno.ipynb
 ```
 
 ## Características

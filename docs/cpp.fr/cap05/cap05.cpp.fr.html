@@ -5841,125 +5841,115 @@ Table&nbsp;5.9: Synthèse des étapes du <em>pipeline</em> de compression JPEG e
 <p>L’isolation et la suppression des pics harmoniques dans le domaine fréquentiel au moyen du masque <em>notch</em> éliminent les franges d’interférence sinusoïdales réparties sur l’espace bidimensionnel. Comme le montrent les données imprimées de <a href="#fig-05-pipeline-denoising" class="quarto-xref">Figure&nbsp;<span>5.30</span></a>, ce filtrage chirurgical induit un saut immédiat et substantiel de la métrique PSNR. Toutefois, le bruit gaussien haute fréquence reste actif de manière homogène dans le spectre, exigeant une approche complémentaire.</p>
 <p>La restauration finale est consolidée dans le domaine spatial avec l’introduction du filtre bilatéral. Contrairement aux opérateurs passe-bas classiques (tels que le filtre gaussien ou le filtre moyenneur), qui lisseraient indifféremment le bruit et les contours structurels, le filtrage bilatéral calcule des poids pondérés par la proximité géométrique et par la différence d’intensité radiométrique. Ce comportement adaptatif atténue les fluctuations stochastiques résiduelles dans les régions de transition douce et préserve la netteté des bords spatiaux.</p>
 <p>La convergence des deux approches aboutit à une <strong>amélioration substantielle et simultanée</strong> du PSNR et du SSIM par rapport à l’image bruitée — bien que les valeurs finales demeurent inférieures à celles de l’image originale (PSNR = <span class="math inline">\(\infty\)</span>, SSIM = 1,0), en raison de la perte inévitable d’informations spectrales et texturales lors des processus de filtrage. L’atténuation douce (gaussienne) des pics dans le spectre évite les artefacts de <em>ringing</em>, tandis que le filtre bilatéral élimine le bruit stochastique résiduel sans compromettre la netteté des bords. Les résultats prouvent l’efficacité et la complémentarité pratique des outils d’analyse fréquentielle présentés dans ce chapitre, démontrant que le filtrage hybride (fréquence + spatial) est supérieur à toute approche isolée pour la restauration d’images dégradées par un bruit mixte.</p>
-<div id="4f9f0427d2d3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5a99e068aa1eaf9581a59d239d46562e&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="73">
+<div id="7d747b6638d1" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;5a99e068aa1eaf9581a59d239d46562e&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="73">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb108"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_05_pipeline_denoising.cpp</span>
 <span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_05_pipeline_denoising.png"</span></span>
-<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>pipeline<span class="op">-</span>denoising</span>
-<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"*Pipeline* completo de remoção de ruído misto: (1) adição de ruído gaussiano e periódico; (2) identificação de picos de interferência no espectro de frequências; (3) aplicação de máscara *notch* com atenuação gaussiana suave; (4) pós-processamento via filtro bilateral para eliminação do ruído estocástico residual."</span></span>
-<span id="cb108-5"><a href="#cb108-5" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> echo: true</span>
-<span id="cb108-6"><a href="#cb108-6" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> output: true</span>
-<span id="cb108-7"><a href="#cb108-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-8"><a href="#cb108-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
-<span id="cb108-9"><a href="#cb108-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iostream&gt;</span></span>
-<span id="cb108-10"><a href="#cb108-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
-<span id="cb108-11"><a href="#cb108-11" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
-<span id="cb108-12"><a href="#cb108-12" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cmath&gt;</span></span>
-<span id="cb108-13"><a href="#cb108-13" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;random&gt;</span></span>
-<span id="cb108-14"><a href="#cb108-14" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
-<span id="cb108-15"><a href="#cb108-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-16"><a href="#cb108-16" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
-<span id="cb108-17"><a href="#cb108-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> Cameraman (asset do capítulo), <span class="dv">256</span><span class="er">x256</span> — mesma imagem da trilha py.</span>
-<span id="cb108-18"><a href="#cb108-18" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray_mat <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
-<span id="cb108-19"><a href="#cb108-19" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_resized<span class="op">;</span></span>
-<span id="cb108-20"><a href="#cb108-20" aria-hidden="true" tabindex="-1"></a>    cv::resize(img_gray_mat, img_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
-<span id="cb108-21"><a href="#cb108-21" aria-hidden="true" tabindex="-1"></a>    mm::Image img_gray <span class="op">=</span> mm::gray(img_resized)<span class="op">;</span></span>
-<span id="cb108-22"><a href="#cb108-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> h_img <span class="op">=</span> img_gray.h<span class="op">;</span></span>
-<span id="cb108-23"><a href="#cb108-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> w_img <span class="op">=</span> img_gray.w<span class="op">;</span></span>
-<span id="cb108-24"><a href="#cb108-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-25"><a href="#cb108-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">1.</span> Ruído misto: gaussiano <span class="op">+</span> periódico ───────────────────────────────────</span>
+<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
+<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cmath&gt;</span></span>
+<span id="cb108-5"><a href="#cb108-5" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;random&gt;</span></span>
+<span id="cb108-6"><a href="#cb108-6" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb108-7"><a href="#cb108-7" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb108-8"><a href="#cb108-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iostream&gt;</span></span>
+<span id="cb108-9"><a href="#cb108-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iomanip&gt;</span></span>
+<span id="cb108-10"><a href="#cb108-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
+<span id="cb108-11"><a href="#cb108-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-12"><a href="#cb108-12" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb108-13"><a href="#cb108-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> Cameraman (asset do capítulo), <span class="dv">256</span><span class="er">x256</span> — mesma imagem da trilha py.</span>
+<span id="cb108-14"><a href="#cb108-14" aria-hidden="true" tabindex="-1"></a>    cv::Mat cam <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>)<span class="op">;</span></span>
+<span id="cb108-15"><a href="#cb108-15" aria-hidden="true" tabindex="-1"></a>    cv::Mat cam_resized<span class="op">;</span></span>
+<span id="cb108-16"><a href="#cb108-16" aria-hidden="true" tabindex="-1"></a>    cv::resize(cam, cam_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
+<span id="cb108-17"><a href="#cb108-17" aria-hidden="true" tabindex="-1"></a>    mm::Image img_gray <span class="op">=</span> mm::gray(mm::Image(cam_resized))<span class="op">;</span></span>
+<span id="cb108-18"><a href="#cb108-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> h_img <span class="op">=</span> img_gray.h<span class="op">;</span></span>
+<span id="cb108-19"><a href="#cb108-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> w_img <span class="op">=</span> img_gray.w<span class="op">;</span></span>
+<span id="cb108-20"><a href="#cb108-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-21"><a href="#cb108-21" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">1.</span> Ruído misto: gaussiano <span class="op">+</span> periódico ───────────────────────────────────</span>
+<span id="cb108-22"><a href="#cb108-22" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray_f<span class="op">;</span></span>
+<span id="cb108-23"><a href="#cb108-23" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray_cv(img_gray.h, img_gray.w, CV_8UC1, img_gray.data.data())<span class="op">;</span></span>
+<span id="cb108-24"><a href="#cb108-24" aria-hidden="true" tabindex="-1"></a>    img_gray_cv.convertTo(img_gray_f, CV_64F)<span class="op">;</span></span>
+<span id="cb108-25"><a href="#cb108-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb108-26"><a href="#cb108-26" aria-hidden="true" tabindex="-1"></a>    std::mt19937 gen(<span class="dv">42</span>)<span class="op">;</span></span>
 <span id="cb108-27"><a href="#cb108-27" aria-hidden="true" tabindex="-1"></a>    std::normal_distribution<span class="op">&lt;</span>double<span class="op">&gt;</span> dist(<span class="fl">0.0</span>, <span class="fl">15.0</span>)<span class="op">;</span></span>
-<span id="cb108-28"><a href="#cb108-28" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray64<span class="op">;</span></span>
-<span id="cb108-29"><a href="#cb108-29" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray_float<span class="op">;</span></span>
-<span id="cb108-30"><a href="#cb108-30" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_gray_8u <span class="op">=</span> cv::Mat(h_img, w_img, CV_8UC1, img_gray.data.data())<span class="op">;</span></span>
-<span id="cb108-31"><a href="#cb108-31" aria-hidden="true" tabindex="-1"></a>    img_gray_8u.convertTo(img_gray_float, CV_64F)<span class="op">;</span></span>
-<span id="cb108-32"><a href="#cb108-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-33"><a href="#cb108-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> u0_val <span class="op">=</span> <span class="dv">15</span>, v0_val <span class="op">=</span> <span class="dv">10</span><span class="op">;</span></span>
-<span id="cb108-34"><a href="#cb108-34" aria-hidden="true" tabindex="-1"></a>    cv::Mat ruido_gauss(h_img, w_img, CV_64F)<span class="op">;</span></span>
-<span id="cb108-35"><a href="#cb108-35" aria-hidden="true" tabindex="-1"></a>    cv::Mat ruido_period(h_img, w_img, CV_64F)<span class="op">;</span></span>
-<span id="cb108-36"><a href="#cb108-36" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_noisy_float(h_img, w_img, CV_64F)<span class="op">;</span></span>
-<span id="cb108-37"><a href="#cb108-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-38"><a href="#cb108-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> y <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> y <span class="op">&lt;</span> h_img<span class="op">;</span> y<span class="op">++</span>) {</span>
-<span id="cb108-39"><a href="#cb108-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (<span class="bu">int</span> x <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> x <span class="op">&lt;</span> w_img<span class="op">;</span> x<span class="op">++</span>) {</span>
-<span id="cb108-40"><a href="#cb108-40" aria-hidden="true" tabindex="-1"></a>            double gaussian_noise <span class="op">=</span> dist(gen)<span class="op">;</span></span>
-<span id="cb108-41"><a href="#cb108-41" aria-hidden="true" tabindex="-1"></a>            ruido_gauss.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">=</span> gaussian_noise<span class="op">;</span></span>
-<span id="cb108-42"><a href="#cb108-42" aria-hidden="true" tabindex="-1"></a>            double periodic_noise <span class="op">=</span> <span class="fl">30.0</span> <span class="op">*</span> sin(<span class="fl">2.0</span> <span class="op">*</span> M_PI <span class="op">*</span> (u0_val <span class="op">*</span> x <span class="op">/</span> (double)w_img <span class="op">+</span> v0_val <span class="op">*</span> y <span class="op">/</span> (double)h_img))<span class="op">;</span></span>
-<span id="cb108-43"><a href="#cb108-43" aria-hidden="true" tabindex="-1"></a>            ruido_period.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">=</span> periodic_noise<span class="op">;</span></span>
-<span id="cb108-44"><a href="#cb108-44" aria-hidden="true" tabindex="-1"></a>            double noisy_val <span class="op">=</span> img_gray_float.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">+</span> gaussian_noise <span class="op">+</span> periodic_noise<span class="op">;</span></span>
-<span id="cb108-45"><a href="#cb108-45" aria-hidden="true" tabindex="-1"></a>            img_noisy_float.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">=</span> std::<span class="bu">max</span>(<span class="fl">0.0</span>, std::<span class="bu">min</span>(<span class="fl">255.0</span>, noisy_val))<span class="op">;</span></span>
-<span id="cb108-46"><a href="#cb108-46" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb108-47"><a href="#cb108-47" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb108-48"><a href="#cb108-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-49"><a href="#cb108-49" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_noisy_8u<span class="op">;</span></span>
-<span id="cb108-50"><a href="#cb108-50" aria-hidden="true" tabindex="-1"></a>    img_noisy_float.convertTo(img_noisy_8u, CV_8U)<span class="op">;</span></span>
-<span id="cb108-51"><a href="#cb108-51" aria-hidden="true" tabindex="-1"></a>    mm::Image img_noisy <span class="op">=</span> img_noisy_8u<span class="op">;</span></span>
-<span id="cb108-52"><a href="#cb108-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-53"><a href="#cb108-53" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">2.</span> Espectro (log<span class="op">-</span>magnitude) da imagem ruidosa ──────────────────────────</span>
-<span id="cb108-54"><a href="#cb108-54" aria-hidden="true" tabindex="-1"></a>    mm::Image mag_n <span class="op">=</span> mm::spectrumMag(img_noisy)<span class="op">;</span></span>
-<span id="cb108-55"><a href="#cb108-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-56"><a href="#cb108-56" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">3.</span> Máscara notch gaussiana nos <span class="dv">4</span> picos periódicos ──────────────────────</span>
-<span id="cb108-57"><a href="#cb108-57" aria-hidden="true" tabindex="-1"></a>    auto suprimir_pico_gaussiano <span class="op">=</span> [](cv::Mat<span class="op">&amp;</span> mask, <span class="bu">int</span> cy, <span class="bu">int</span> cx, double sigma_val) {</span>
-<span id="cb108-58"><a href="#cb108-58" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (<span class="bu">int</span> y <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> y <span class="op">&lt;</span> mask.rows<span class="op">;</span> y<span class="op">++</span>) {</span>
-<span id="cb108-59"><a href="#cb108-59" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> (<span class="bu">int</span> x <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> x <span class="op">&lt;</span> mask.cols<span class="op">;</span> x<span class="op">++</span>) {</span>
-<span id="cb108-60"><a href="#cb108-60" aria-hidden="true" tabindex="-1"></a>                double dist_sq <span class="op">=</span> (y <span class="op">-</span> cy) <span class="op">*</span> (y <span class="op">-</span> cy) <span class="op">+</span> (x <span class="op">-</span> cx) <span class="op">*</span> (x <span class="op">-</span> cx)<span class="op">;</span></span>
-<span id="cb108-61"><a href="#cb108-61" aria-hidden="true" tabindex="-1"></a>                double notch <span class="op">=</span> exp(<span class="op">-</span>dist_sq <span class="op">/</span> (<span class="fl">2.0</span> <span class="op">*</span> sigma_val <span class="op">*</span> sigma_val))<span class="op">;</span></span>
-<span id="cb108-62"><a href="#cb108-62" aria-hidden="true" tabindex="-1"></a>                mask.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">*=</span> (<span class="fl">1.0</span> <span class="op">-</span> notch)<span class="op">;</span></span>
-<span id="cb108-63"><a href="#cb108-63" aria-hidden="true" tabindex="-1"></a>            }</span>
-<span id="cb108-64"><a href="#cb108-64" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb108-65"><a href="#cb108-65" aria-hidden="true" tabindex="-1"></a>    }<span class="op">;</span></span>
-<span id="cb108-66"><a href="#cb108-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-67"><a href="#cb108-67" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> cy0 <span class="op">=</span> h_img <span class="op">/</span> <span class="dv">2</span>, cx0 <span class="op">=</span> w_img <span class="op">/</span> <span class="dv">2</span><span class="op">;</span></span>
-<span id="cb108-68"><a href="#cb108-68" aria-hidden="true" tabindex="-1"></a>    cv::Mat mascara_notch <span class="op">=</span> cv::Mat::ones(h_img, w_img, CV_64F)<span class="op">;</span></span>
-<span id="cb108-69"><a href="#cb108-69" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::pair<span class="op">&lt;</span><span class="bu">int</span>, <span class="bu">int</span><span class="op">&gt;&gt;</span> peaks <span class="op">=</span> {{v0_val, u0_val}, {<span class="op">-</span>v0_val, <span class="op">-</span>u0_val}, {v0_val, <span class="op">-</span>u0_val}, {<span class="op">-</span>v0_val, u0_val}}<span class="op">;</span></span>
-<span id="cb108-70"><a href="#cb108-70" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (const auto<span class="op">&amp;</span> peak : peaks) {</span>
-<span id="cb108-71"><a href="#cb108-71" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> dy <span class="op">=</span> peak.first<span class="op">;</span></span>
-<span id="cb108-72"><a href="#cb108-72" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> dx <span class="op">=</span> peak.second<span class="op">;</span></span>
-<span id="cb108-73"><a href="#cb108-73" aria-hidden="true" tabindex="-1"></a>        suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, <span class="fl">3.0</span>)<span class="op">;</span></span>
-<span id="cb108-74"><a href="#cb108-74" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb108-75"><a href="#cb108-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-76"><a href="#cb108-76" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">4.</span> Filtragem: notch no domínio da frequência <span class="op">+</span> bilateral ───────────────</span>
-<span id="cb108-77"><a href="#cb108-77" aria-hidden="true" tabindex="-1"></a>    mm::Image img_notch <span class="op">=</span> mm::freqFilter(img_noisy, mascara_notch)<span class="op">;</span></span>
-<span id="cb108-78"><a href="#cb108-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-79"><a href="#cb108-79" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_notch_mat <span class="op">=</span> cv::Mat(img_notch.h, img_notch.w, CV_8UC1, img_notch.data.data())<span class="op">;</span></span>
-<span id="cb108-80"><a href="#cb108-80" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_den_mat<span class="op">;</span></span>
-<span id="cb108-81"><a href="#cb108-81" aria-hidden="true" tabindex="-1"></a>    cv::bilateralFilter(img_notch_mat, img_den_mat, <span class="dv">7</span>, <span class="dv">25</span>, <span class="dv">7</span>)<span class="op">;</span></span>
-<span id="cb108-82"><a href="#cb108-82" aria-hidden="true" tabindex="-1"></a>    mm::Image img_den <span class="op">=</span> img_den_mat<span class="op">;</span></span>
-<span id="cb108-83"><a href="#cb108-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-84"><a href="#cb108-84" aria-hidden="true" tabindex="-1"></a>    cv::Mat mascara_vis_mat<span class="op">;</span></span>
-<span id="cb108-85"><a href="#cb108-85" aria-hidden="true" tabindex="-1"></a>    mascara_notch.convertTo(mascara_vis_mat, CV_8U, <span class="fl">255.0</span>)<span class="op">;</span></span>
-<span id="cb108-86"><a href="#cb108-86" aria-hidden="true" tabindex="-1"></a>    mm::Image mascara_vis <span class="op">=</span> mascara_vis_mat<span class="op">;</span></span>
-<span id="cb108-87"><a href="#cb108-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-88"><a href="#cb108-88" aria-hidden="true" tabindex="-1"></a>    double psnr_n <span class="op">=</span> mm::psnr(img_gray, img_noisy)<span class="op">;</span></span>
-<span id="cb108-89"><a href="#cb108-89" aria-hidden="true" tabindex="-1"></a>    double psnr_no <span class="op">=</span> mm::psnr(img_gray, img_notch)<span class="op">;</span></span>
-<span id="cb108-90"><a href="#cb108-90" aria-hidden="true" tabindex="-1"></a>    double psnr_d <span class="op">=</span> mm::psnr(img_gray, img_den)<span class="op">;</span></span>
-<span id="cb108-91"><a href="#cb108-91" aria-hidden="true" tabindex="-1"></a>    std::cout <span class="op">&lt;&lt;</span> <span class="st">"Ruidosa: PSNR="</span> <span class="op">&lt;&lt;</span> psnr_n <span class="op">&lt;&lt;</span> <span class="st">" dB | Apos notch: "</span> <span class="op">&lt;&lt;</span> psnr_no <span class="op">&lt;&lt;</span> <span class="st">" dB | Notch+bilateral: "</span> <span class="op">&lt;&lt;</span> psnr_d <span class="op">&lt;&lt;</span> <span class="st">" dB"</span> <span class="op">&lt;&lt;</span> std::endl<span class="op">;</span></span>
-<span id="cb108-92"><a href="#cb108-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-93"><a href="#cb108-93" aria-hidden="true" tabindex="-1"></a>    char buf[<span class="dv">128</span>]<span class="op">;</span></span>
-<span id="cb108-94"><a href="#cb108-94" aria-hidden="true" tabindex="-1"></a>    std::snprintf(buf, sizeof(buf), <span class="st">"Ruidosa (PSNR=</span><span class="sc">%.1f</span><span class="st"> dB)"</span>, psnr_n)<span class="op">;</span></span>
-<span id="cb108-95"><a href="#cb108-95" aria-hidden="true" tabindex="-1"></a>    std::string title1 <span class="op">=</span> buf<span class="op">;</span></span>
-<span id="cb108-96"><a href="#cb108-96" aria-hidden="true" tabindex="-1"></a>    std::snprintf(buf, sizeof(buf), <span class="st">"Apos notch (PSNR=</span><span class="sc">%.1f</span><span class="st"> dB)"</span>, psnr_no)<span class="op">;</span></span>
-<span id="cb108-97"><a href="#cb108-97" aria-hidden="true" tabindex="-1"></a>    std::string title4 <span class="op">=</span> buf<span class="op">;</span></span>
-<span id="cb108-98"><a href="#cb108-98" aria-hidden="true" tabindex="-1"></a>    std::snprintf(buf, sizeof(buf), <span class="st">"Notch + bilateral (PSNR=</span><span class="sc">%.1f</span><span class="st"> dB)"</span>, psnr_d)<span class="op">;</span></span>
-<span id="cb108-99"><a href="#cb108-99" aria-hidden="true" tabindex="-1"></a>    std::string title5 <span class="op">=</span> buf<span class="op">;</span></span>
-<span id="cb108-100"><a href="#cb108-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-101"><a href="#cb108-101" aria-hidden="true" tabindex="-1"></a>    mm::show(</span>
-<span id="cb108-102"><a href="#cb108-102" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den},</span>
-<span id="cb108-103"><a href="#cb108-103" aria-hidden="true" tabindex="-1"></a>        MM_OUT,</span>
-<span id="cb108-104"><a href="#cb108-104" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span>{</span>
-<span id="cb108-105"><a href="#cb108-105" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Original"</span>,</span>
-<span id="cb108-106"><a href="#cb108-106" aria-hidden="true" tabindex="-1"></a>            title1,</span>
-<span id="cb108-107"><a href="#cb108-107" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Espectro (picos visiveis)"</span>,</span>
-<span id="cb108-108"><a href="#cb108-108" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Mascara notch (gaussiana)"</span>,</span>
-<span id="cb108-109"><a href="#cb108-109" aria-hidden="true" tabindex="-1"></a>            title4,</span>
-<span id="cb108-110"><a href="#cb108-110" aria-hidden="true" tabindex="-1"></a>            title5</span>
-<span id="cb108-111"><a href="#cb108-111" aria-hidden="true" tabindex="-1"></a>        },</span>
-<span id="cb108-112"><a href="#cb108-112" aria-hidden="true" tabindex="-1"></a>        <span class="dv">6</span></span>
-<span id="cb108-113"><a href="#cb108-113" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
-<span id="cb108-114"><a href="#cb108-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb108-115"><a href="#cb108-115" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb108-116"><a href="#cb108-116" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb108-28"><a href="#cb108-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> u0 <span class="op">=</span> <span class="dv">15</span>, v0 <span class="op">=</span> <span class="dv">10</span><span class="op">;</span></span>
+<span id="cb108-29"><a href="#cb108-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-30"><a href="#cb108-30" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_noisy_f <span class="op">=</span> img_gray_f.clone()<span class="op">;</span></span>
+<span id="cb108-31"><a href="#cb108-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> y <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> y <span class="op">&lt;</span> h_img<span class="op">;</span> y<span class="op">++</span>) {</span>
+<span id="cb108-32"><a href="#cb108-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (<span class="bu">int</span> x <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> x <span class="op">&lt;</span> w_img<span class="op">;</span> x<span class="op">++</span>) {</span>
+<span id="cb108-33"><a href="#cb108-33" aria-hidden="true" tabindex="-1"></a>            double ruido_gauss <span class="op">=</span> dist(gen)<span class="op">;</span></span>
+<span id="cb108-34"><a href="#cb108-34" aria-hidden="true" tabindex="-1"></a>            double ruido_period <span class="op">=</span> <span class="fl">30.0</span> <span class="op">*</span> std::sin(<span class="fl">2.0</span> <span class="op">*</span> M_PI <span class="op">*</span> (u0 <span class="op">*</span> x <span class="op">/</span> (double)w_img <span class="op">+</span> v0 <span class="op">*</span> y <span class="op">/</span> (double)h_img))<span class="op">;</span></span>
+<span id="cb108-35"><a href="#cb108-35" aria-hidden="true" tabindex="-1"></a>            double val <span class="op">=</span> img_gray_f.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">+</span> ruido_gauss <span class="op">+</span> ruido_period<span class="op">;</span></span>
+<span id="cb108-36"><a href="#cb108-36" aria-hidden="true" tabindex="-1"></a>            val <span class="op">=</span> std::<span class="bu">max</span>(<span class="fl">0.0</span>, std::<span class="bu">min</span>(<span class="fl">255.0</span>, val))<span class="op">;</span></span>
+<span id="cb108-37"><a href="#cb108-37" aria-hidden="true" tabindex="-1"></a>            img_noisy_f.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">=</span> val<span class="op">;</span></span>
+<span id="cb108-38"><a href="#cb108-38" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb108-39"><a href="#cb108-39" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb108-40"><a href="#cb108-40" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_noisy_cv<span class="op">;</span></span>
+<span id="cb108-41"><a href="#cb108-41" aria-hidden="true" tabindex="-1"></a>    img_noisy_f.convertTo(img_noisy_cv, CV_8U)<span class="op">;</span></span>
+<span id="cb108-42"><a href="#cb108-42" aria-hidden="true" tabindex="-1"></a>    mm::Image img_noisy(img_noisy_cv)<span class="op">;</span></span>
+<span id="cb108-43"><a href="#cb108-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-44"><a href="#cb108-44" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">2.</span> Espectro (log<span class="op">-</span>magnitude) da imagem ruidosa ──────────────────────────</span>
+<span id="cb108-45"><a href="#cb108-45" aria-hidden="true" tabindex="-1"></a>    mm::Image mag_n <span class="op">=</span> mm::spectrumMag(img_noisy)<span class="op">;</span></span>
+<span id="cb108-46"><a href="#cb108-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-47"><a href="#cb108-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">3.</span> Máscara notch gaussiana nos <span class="dv">4</span> picos periódicos ──────────────────────</span>
+<span id="cb108-48"><a href="#cb108-48" aria-hidden="true" tabindex="-1"></a>    auto suprimir_pico_gaussiano <span class="op">=</span> [](cv::Mat<span class="op">&amp;</span> mask, <span class="bu">int</span> cy, <span class="bu">int</span> cx, double sigma) {</span>
+<span id="cb108-49"><a href="#cb108-49" aria-hidden="true" tabindex="-1"></a>        cv::Mat notch(mask.rows, mask.cols, CV_64F)<span class="op">;</span></span>
+<span id="cb108-50"><a href="#cb108-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (<span class="bu">int</span> y <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> y <span class="op">&lt;</span> mask.rows<span class="op">;</span> y<span class="op">++</span>) {</span>
+<span id="cb108-51"><a href="#cb108-51" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> (<span class="bu">int</span> x <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> x <span class="op">&lt;</span> mask.cols<span class="op">;</span> x<span class="op">++</span>) {</span>
+<span id="cb108-52"><a href="#cb108-52" aria-hidden="true" tabindex="-1"></a>                double d <span class="op">=</span> (y <span class="op">-</span> cy) <span class="op">*</span> (y <span class="op">-</span> cy) <span class="op">+</span> (x <span class="op">-</span> cx) <span class="op">*</span> (x <span class="op">-</span> cx)<span class="op">;</span></span>
+<span id="cb108-53"><a href="#cb108-53" aria-hidden="true" tabindex="-1"></a>                notch.at<span class="op">&lt;</span>double<span class="op">&gt;</span>(y, x) <span class="op">=</span> std::exp(<span class="op">-</span>d <span class="op">/</span> (<span class="fl">2.0</span> <span class="op">*</span> sigma <span class="op">*</span> sigma))<span class="op">;</span></span>
+<span id="cb108-54"><a href="#cb108-54" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb108-55"><a href="#cb108-55" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb108-56"><a href="#cb108-56" aria-hidden="true" tabindex="-1"></a>        cv::Mat resultado <span class="op">=</span> mask.mul(cv::Scalar(<span class="fl">1.0</span>) <span class="op">-</span> notch)<span class="op">;</span></span>
+<span id="cb108-57"><a href="#cb108-57" aria-hidden="true" tabindex="-1"></a>        mask <span class="op">=</span> resultado<span class="op">;</span></span>
+<span id="cb108-58"><a href="#cb108-58" aria-hidden="true" tabindex="-1"></a>    }<span class="op">;</span></span>
+<span id="cb108-59"><a href="#cb108-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-60"><a href="#cb108-60" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> cy0 <span class="op">=</span> h_img <span class="op">/</span> <span class="dv">2</span>, cx0 <span class="op">=</span> w_img <span class="op">/</span> <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb108-61"><a href="#cb108-61" aria-hidden="true" tabindex="-1"></a>    cv::Mat mascara_notch <span class="op">=</span> cv::Mat::ones(h_img, w_img, CV_64F)<span class="op">;</span></span>
+<span id="cb108-62"><a href="#cb108-62" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::pair<span class="op">&lt;</span><span class="bu">int</span>,<span class="bu">int</span><span class="op">&gt;&gt;</span> deslocamentos_dy_dx <span class="op">=</span> {</span>
+<span id="cb108-63"><a href="#cb108-63" aria-hidden="true" tabindex="-1"></a>        {v0, u0}, {<span class="op">-</span>v0, <span class="op">-</span>u0}, {v0, <span class="op">-</span>u0}, {<span class="op">-</span>v0, u0}</span>
+<span id="cb108-64"><a href="#cb108-64" aria-hidden="true" tabindex="-1"></a>    }<span class="op">;</span></span>
+<span id="cb108-65"><a href="#cb108-65" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (auto<span class="op">&amp;</span> dd : deslocamentos_dy_dx) {</span>
+<span id="cb108-66"><a href="#cb108-66" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> dy <span class="op">=</span> dd.first<span class="op">;</span></span>
+<span id="cb108-67"><a href="#cb108-67" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> dx <span class="op">=</span> dd.second<span class="op">;</span></span>
+<span id="cb108-68"><a href="#cb108-68" aria-hidden="true" tabindex="-1"></a>        suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, <span class="fl">3.0</span>)<span class="op">;</span></span>
+<span id="cb108-69"><a href="#cb108-69" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb108-70"><a href="#cb108-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-71"><a href="#cb108-71" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> ── <span class="fl">4.</span> Filtragem: notch no domínio da frequência <span class="op">+</span> bilateral ───────────────</span>
+<span id="cb108-72"><a href="#cb108-72" aria-hidden="true" tabindex="-1"></a>    mm::Image img_notch <span class="op">=</span> mm::freqFilter(img_noisy, mascara_notch)<span class="op">;</span></span>
+<span id="cb108-73"><a href="#cb108-73" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_notch_cv <span class="op">=</span> img_notch<span class="op">;</span></span>
+<span id="cb108-74"><a href="#cb108-74" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_den_cv<span class="op">;</span></span>
+<span id="cb108-75"><a href="#cb108-75" aria-hidden="true" tabindex="-1"></a>    cv::bilateralFilter(img_notch_cv, img_den_cv, <span class="dv">7</span>, <span class="dv">25</span>, <span class="dv">7</span>)<span class="op">;</span></span>
+<span id="cb108-76"><a href="#cb108-76" aria-hidden="true" tabindex="-1"></a>    mm::Image img_den(img_den_cv)<span class="op">;</span></span>
+<span id="cb108-77"><a href="#cb108-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-78"><a href="#cb108-78" aria-hidden="true" tabindex="-1"></a>    cv::Mat mascara_vis_cv<span class="op">;</span></span>
+<span id="cb108-79"><a href="#cb108-79" aria-hidden="true" tabindex="-1"></a>    mascara_notch.convertTo(mascara_vis_cv, CV_8U, <span class="fl">255.0</span>)<span class="op">;</span></span>
+<span id="cb108-80"><a href="#cb108-80" aria-hidden="true" tabindex="-1"></a>    mm::Image mascara_vis(mascara_vis_cv)<span class="op">;</span></span>
+<span id="cb108-81"><a href="#cb108-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-82"><a href="#cb108-82" aria-hidden="true" tabindex="-1"></a>    double psnr_n  <span class="op">=</span> mm::psnr(img_gray, img_noisy)<span class="op">;</span></span>
+<span id="cb108-83"><a href="#cb108-83" aria-hidden="true" tabindex="-1"></a>    double psnr_no <span class="op">=</span> mm::psnr(img_gray, img_notch)<span class="op">;</span></span>
+<span id="cb108-84"><a href="#cb108-84" aria-hidden="true" tabindex="-1"></a>    double psnr_d  <span class="op">=</span> mm::psnr(img_gray, img_den)<span class="op">;</span></span>
+<span id="cb108-85"><a href="#cb108-85" aria-hidden="true" tabindex="-1"></a>    std::cout <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">2</span>)<span class="op">;</span></span>
+<span id="cb108-86"><a href="#cb108-86" aria-hidden="true" tabindex="-1"></a>    std::cout <span class="op">&lt;&lt;</span> <span class="st">"Ruidosa: PSNR="</span> <span class="op">&lt;&lt;</span> psnr_n <span class="op">&lt;&lt;</span> <span class="st">" dB | Apos notch: "</span> <span class="op">&lt;&lt;</span> psnr_no</span>
+<span id="cb108-87"><a href="#cb108-87" aria-hidden="true" tabindex="-1"></a>              <span class="op">&lt;&lt;</span> <span class="st">" dB | Notch+bilateral: "</span> <span class="op">&lt;&lt;</span> psnr_d <span class="op">&lt;&lt;</span> <span class="st">" dB"</span> <span class="op">&lt;&lt;</span> std::endl<span class="op">;</span></span>
+<span id="cb108-88"><a href="#cb108-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-89"><a href="#cb108-89" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> titles <span class="op">=</span> {</span>
+<span id="cb108-90"><a href="#cb108-90" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Original"</span>,</span>
+<span id="cb108-91"><a href="#cb108-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Ruidosa (PSNR="</span> <span class="op">+</span> [<span class="op">&amp;</span>]{ std::ostringstream o<span class="op">;</span> o <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">1</span>) <span class="op">&lt;&lt;</span> psnr_n<span class="op">;</span> <span class="cf">return</span> o.<span class="bu">str</span>()<span class="op">;</span> }() <span class="op">+</span> <span class="st">" dB)"</span>,</span>
+<span id="cb108-92"><a href="#cb108-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Espectro (picos visiveis)"</span>,</span>
+<span id="cb108-93"><a href="#cb108-93" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Mascara notch (gaussiana)"</span>,</span>
+<span id="cb108-94"><a href="#cb108-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Apos notch (PSNR="</span> <span class="op">+</span> [<span class="op">&amp;</span>]{ std::ostringstream o<span class="op">;</span> o <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">1</span>) <span class="op">&lt;&lt;</span> psnr_no<span class="op">;</span> <span class="cf">return</span> o.<span class="bu">str</span>()<span class="op">;</span> }() <span class="op">+</span> <span class="st">" dB)"</span>,</span>
+<span id="cb108-95"><a href="#cb108-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Notch + bilateral (PSNR="</span> <span class="op">+</span> [<span class="op">&amp;</span>]{ std::ostringstream o<span class="op">;</span> o <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">1</span>) <span class="op">&lt;&lt;</span> psnr_d<span class="op">;</span> <span class="cf">return</span> o.<span class="bu">str</span>()<span class="op">;</span> }() <span class="op">+</span> <span class="st">" dB)"</span></span>
+<span id="cb108-96"><a href="#cb108-96" aria-hidden="true" tabindex="-1"></a>    }<span class="op">;</span></span>
+<span id="cb108-97"><a href="#cb108-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-98"><a href="#cb108-98" aria-hidden="true" tabindex="-1"></a>    mm::show(</span>
+<span id="cb108-99"><a href="#cb108-99" aria-hidden="true" tabindex="-1"></a>        {img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den},</span>
+<span id="cb108-100"><a href="#cb108-100" aria-hidden="true" tabindex="-1"></a>        MM_OUT,</span>
+<span id="cb108-101"><a href="#cb108-101" aria-hidden="true" tabindex="-1"></a>        titles,</span>
+<span id="cb108-102"><a href="#cb108-102" aria-hidden="true" tabindex="-1"></a>        <span class="dv">6</span></span>
+<span id="cb108-103"><a href="#cb108-103" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb108-104"><a href="#cb108-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb108-105"><a href="#cb108-105" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb108-106"><a href="#cb108-106" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing tmp/fig_05_pipeline_denoising.cpp</code></pre>
+<pre><code>Overwriting tmp/fig_05_pipeline_denoising.cpp</code></pre>
 </div>
 </div>
 <div id="69fba1d6f064" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="74">
@@ -5968,7 +5958,7 @@ Table&nbsp;5.9: Synthèse des étapes du <em>pipeline</em> de compression JPEG e
 <span id="cb110-3"><a href="#cb110-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_05_pipeline_denoising.png"</span> <span class="op">\</span></span>
 <span id="cb110-4"><a href="#cb110-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">||</span> echo <span class="st">"⚠ mm::show não gravou tmp/fig_05_pipeline_denoising.png"</span></span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Ruidosa: PSNR=20.1968 dB | Apos notch: 22.3552 dB | Notch+bilateral: 23.5442 dB
+<pre><code>Ruidosa: PSNR=20.20 dB | Apos notch: 22.36 dB | Notch+bilateral: 23.54 dB
 [1] Original
 [2] Ruidosa (PSNR=20.2 dB)
 [3] Espectro (picos visiveis)

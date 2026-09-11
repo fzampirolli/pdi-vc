@@ -534,7 +534,7 @@ f(x,y) = i(x,y) \cdot r(x,y)
 <p>La conversion entre plages d’intensité est directe et donnée par :</p>
 <p><span class="math display">\[f_{\text{norm}}(x,y) = \frac{f(x,y)}{255}\]</span></p>
 <p>où <span class="math inline">\(f(x,y) \in [0,\,255]\)</span> et <span class="math inline">\(f_{\text{norm}}(x,y) \in [0,\,1]\)</span>.</p>
-<p><strong>Convention de représentation dans <code>morph.hpp</code> :</strong> la bibliothèque de ce livre adopte une convention unique (<a href="#tbl-02-bibliotecas" class="quarto-xref">Table&nbsp;<span>2.1</span></a>), sans les ambiguïtés de plage et d’ordre des canaux qui apparaissent lors de la combinaison de plusieurs bibliothèques Python.</p>
+<p><strong>Convention de représentation dans <code>morph.hpp</code> :</strong> la bibliothèque de ce livre adopte une convention unique (<a href="#tbl-02-bibliotecas" class="quarto-xref">Table&nbsp;<span>2.1</span></a>), sans les ambiguïtés de plage et d’ordre des canaux qui surgissent lorsqu’on combine plusieurs bibliothèques Python.</p>
 <div id="tbl-02-bibliotecas" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-bibliotecas-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -574,8 +574,8 @@ Table&nbsp;2.1: Convention de représentation des images dans morph.hpp — plag
 </div>
 </figure>
 </div>
-<p>La <code>struct Image</code> stocke les pixels dans un <code>std::vector&lt;unsigned char&gt;</code> linéaire, avec les champs <code>h</code>, <code>w</code> et <code>channels</code>. La fonction <code>mm::read</code> décode avec <code>stb_image</code> en forçant 3 canaux (ou 1, lorsque <code>grayscale=true</code>) ; par conséquent, <strong>un éventuel canal alpha du fichier est ignoré à la lecture</strong>. Pour travailler en virgule flottante, la même relation <span class="math inline">\(f_{\text{norm}} = f/255\)</span> s’applique.</p>
-<p>Dans la cellule d’exemple suivante, la version RGBA (<span class="math inline">\(M \times N \times 4\)</span>) est assemblée en empilant un canal alpha synthétique sur le tableau lu — le noyau du notebook est Python, et l’affichage reçoit le <code>ndarray</code> dans cette disposition <span class="math inline">\(H \times W \times C\)</span>.</p>
+<p>La <code>struct Image</code> stocke les pixels dans un <code>std::vector&lt;unsigned char&gt;</code> linéaire, avec les champs <code>h</code>, <code>w</code> et <code>channels</code>. La fonction <code>mm::read</code> décode avec <code>stb_image</code> en forçant 3 canaux (ou 1, lorsque <code>grayscale=true</code>) ; par conséquent <strong>un éventuel canal alpha du fichier est écarté à la lecture</strong>. Pour travailler en virgule flottante, la même relation <span class="math inline">\(f_{\text{norm}} = f/255\)</span> s’applique.</p>
+<p>Dans la cellule d’exemple suivante, la version RGBA (<span class="math inline">\(M \times N \times 4\)</span>) est assemblée en empilant un canal alpha synthétique sur le tableau lu — le noyau du notebook est en Python, et l’affichage reçoit le <code>ndarray</code> dans cette disposition <span class="math inline">\(H \times W \times C\)</span>.</p>
 </section>
 <section id="préparation-de-lenvironnement-pratique" class="level3" data-number="2.4.2">
 <h3 data-number="2.4.2" class="anchored" data-anchor-id="préparation-de-lenvironnement-pratique"><span class="header-section-number">2.4.2</span> Préparation de l’environnement pratique</h3>
@@ -1614,7 +1614,7 @@ Figure&nbsp;2.9: Exemplo de rotação da imagem do pássaro em 30° e 45° usand
 </section>
 <section id="échelle-redimensionnement" class="level3" data-number="2.8.3">
 <h3 data-number="2.8.3" class="anchored" data-anchor-id="échelle-redimensionnement"><span class="header-section-number">2.8.3</span> Échelle (Redimensionnement)</h3>
-<p>Le redimensionnement par des facteurs <span class="math inline">\((s_x, s_y)\)</span> est une transformation affine dont la matrice est :</p>
+<p>Le redimensionnement par facteurs <span class="math inline">\((s_x, s_y)\)</span> est une transformation affine de matrice :</p>
 <p><span id="eq-02-escala"><span class="math display">\[
 \mathbf{T}_{\text{échelle}} =
 \begin{bmatrix}
@@ -1623,7 +1623,7 @@ s_x &amp; 0   &amp; 0 \\
 0   &amp; 0   &amp; 1
 \end{bmatrix}
 \tag{2.5}\]</span></span></p>
-<p>Lorsque <span class="math inline">\(s &gt; 1\)</span> (agrandissement), les pixels de l’image de destination correspondent à des positions non entières dans l’image source — ce qui exige une interpolation pour estimer la valeur. Lorsque <span class="math inline">\(s &lt; 1\)</span> (réduction), plusieurs pixels sources contribuent à un seul pixel de destination — ce qui exige une <strong>décimation</strong>. Les trois mêmes méthodes décrites pour la rotation sont disponibles dans <code>mm::resize</code>, avec la différence qu’ici l’impact visuel est plus perceptible : lors de l’agrandissement, <code>nearest</code> produit un effet de bloc (<em>pixelisation</em>), tandis que <code>bicubic</code> préserve mieux la netteté des bords, comme illustré dans la <a href="#tbl-02-interp" class="quarto-xref">Table&nbsp;<span>2.5</span></a>:</p>
+<p>Lorsque <span class="math inline">\(s &gt; 1\)</span> (agrandissement), les pixels de l’image cible correspondent à des positions non entières dans l’image source — ce qui exige une interpolation pour estimer la valeur. Lorsque <span class="math inline">\(s &lt; 1\)</span> (réduction), plusieurs pixels source contribuent à un seul pixel cible — ce qui exige une <strong>décimation</strong>. Les trois mêmes méthodes décrites pour la rotation sont disponibles dans <code>mm::resize</code>, à la différence près qu’ici l’impact visuel est plus perceptible : en agrandissement, <code>nearest</code> produit un effet de blocs (<em>pixelation</em>), tandis que <code>bicubic</code> préserve mieux la netteté des contours, conformément à <a href="#tbl-02-interp" class="quarto-xref">Table&nbsp;<span>2.5</span></a>:</p>
 <div id="tbl-02-interp" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-02-interp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -1632,9 +1632,9 @@ Table&nbsp;2.5: Méthodes d’interpolation disponibles dans mm.resize et leurs 
 <div aria-describedby="tbl-02-interp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 29%">
-<col style="width: 16%">
-<col style="width: 54%">
+<col style="width: 27%">
+<col style="width: 17%">
+<col style="width: 55%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1647,24 +1647,24 @@ Table&nbsp;2.5: Méthodes d’interpolation disponibles dans mm.resize et leurs 
 <tr class="odd">
 <td style="text-align: left;"><code>'nearest'</code></td>
 <td style="text-align: center;">1</td>
-<td style="text-align: left;">Rapide ; produit un effet de blocs (<em>pixelisation</em>)</td>
+<td style="text-align: left;">Rapide ; produit un effet de blocs (<em>pixelation</em>)</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>'bilinear'</code></td>
 <td style="text-align: center;">4</td>
-<td style="text-align: left;">Bon compromis qualité/coût ; bords lisses</td>
+<td style="text-align: left;">Bon compromis qualité/coût ; contours lisses</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>'bicubic'</code></td>
 <td style="text-align: center;">16</td>
-<td style="text-align: left;">Plus grande netteté ; préféré dans les logiciels professionnels</td>
+<td style="text-align: left;">Netteté accrue ; préférée dans les logiciels professionnels</td>
 </tr>
 </tbody>
 </table>
 </div>
 </figure>
 </div>
-<p>Le paramètre <code>size_or_factor</code> accepte aussi bien un scalaire (facteur uniforme, p.&nbsp;ex. <code>0.5</code> pour réduire de moitié) qu’un tuple <code>(largeur, hauteur)</code> pour des dimensions absolues.</p>
+<p>Le paramètre <code>size_or_factor</code> accepte aussi bien un scalaire (facteur uniforme, e.g.&nbsp;<code>0.5</code> pour réduire de moitié) qu’un tuple <code>(largeur, hauteur)</code> pour des dimensions absolues.</p>
 <div id="2cdba273c99a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;73d4fc31420a3ba3af42f5127d832e09&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="26">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_02_escala_detalhe.cpp</span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_02_escala_detalhe.png"</span></span>
