@@ -5258,39 +5258,110 @@ Figura&nbsp;5.27: Análise comparativa de artefatos de compressão sob fator de 
 <h4 data-number="5.8.4.1" class="anchored" data-anchor-id="curve-di-rateo-distorsione"><span class="header-section-number">5.8.4.1</span> Curve di Rateo-Distorsione</h4>
 <p>La <a href="#fig-05-formatos-comparacao" class="quarto-xref">Figura&nbsp;<span>5.28</span></a> presenta la valutazione empirica del <em>pipeline</em> JPEG e WebP tramite <strong>curve di rateo-distorsione</strong>, che monitorano il guadagno di compressione (dimensione del file in KB) in funzione del PSNR. Il formato PNG funge da linea di base ideale (<span class="math inline">\(\text{PSNR} = \infty\)</span>), poiché la sua natura <em>lossless</em> impedisce qualsiasi degradazione, sebbene richieda un volume di dati notevolmente maggiore.</p>
 <p>L’analisi delle curve dimostra la superiorità e l’efficienza dello standard WebP rispetto al JPEG tradizionale: per raggiungere lo stesso livello di fedeltà matematica (come la fascia di qualità eccellente, dove <span class="math inline">\(\text{PSNR} &gt; 40\text{ dB}\)</span>), il codificatore WebP genera file significativamente più piccoli. Questo comportamento riflette l’impatto pratico dell’evoluzione degli algoritmi nell’ottimizzazione dei sistemi di trasmissione e archiviazione digitale.</p>
-<div id="cell-fig-05-formatos-comparacao" class="cell" data-execution_count="65">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> cv2</span>
-<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, cv2</span>
-<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a>src <span class="op">=</span> mm.gray(cv2.resize(mm.read(<span class="st">"imagens/cameraman.png"</span>), (<span class="dv">256</span>, <span class="dv">256</span>)))</span>
-<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a>jpeg_kb, jpeg_psnr <span class="op">=</span> [], []</span>
-<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> q <span class="kw">in</span> [<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">90</span>, <span class="dv">95</span>]:</span>
-<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="ss">f"tmp/fmt_q</span><span class="sc">{</span>q<span class="sc">}</span><span class="ss">.jpg"</span></span>
-<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a>    cv2.imwrite(p, src, [cv2.IMWRITE_JPEG_QUALITY, q])</span>
-<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a>    rec <span class="op">=</span> cv2.imread(p, cv2.IMREAD_GRAYSCALE)</span>
-<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a>    jpeg_kb.append(os.path.getsize(p) <span class="op">/</span> <span class="fl">1024.0</span>)</span>
-<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a>    jpeg_psnr.append(mm.psnr(src, rec))</span>
-<span id="cb95-13"><a href="#cb95-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-14"><a href="#cb95-14" aria-hidden="true" tabindex="-1"></a>webp_kb, webp_psnr <span class="op">=</span> [], []</span>
-<span id="cb95-15"><a href="#cb95-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> q <span class="kw">in</span> [<span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">70</span>, <span class="dv">85</span>, <span class="dv">95</span>]:</span>
-<span id="cb95-16"><a href="#cb95-16" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="ss">f"tmp/fmt_w</span><span class="sc">{</span>q<span class="sc">}</span><span class="ss">.webp"</span></span>
-<span id="cb95-17"><a href="#cb95-17" aria-hidden="true" tabindex="-1"></a>    cv2.imwrite(p, src, [cv2.IMWRITE_WEBP_QUALITY, q])</span>
-<span id="cb95-18"><a href="#cb95-18" aria-hidden="true" tabindex="-1"></a>    rec <span class="op">=</span> cv2.imread(p, cv2.IMREAD_GRAYSCALE)</span>
-<span id="cb95-19"><a href="#cb95-19" aria-hidden="true" tabindex="-1"></a>    webp_kb.append(os.path.getsize(p) <span class="op">/</span> <span class="fl">1024.0</span>)</span>
-<span id="cb95-20"><a href="#cb95-20" aria-hidden="true" tabindex="-1"></a>    webp_psnr.append(mm.psnr(src, rec))</span>
-<span id="cb95-21"><a href="#cb95-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-22"><a href="#cb95-22" aria-hidden="true" tabindex="-1"></a>p_png <span class="op">=</span> <span class="st">"tmp/fmt.png"</span></span>
-<span id="cb95-23"><a href="#cb95-23" aria-hidden="true" tabindex="-1"></a>cv2.imwrite(p_png, src, [cv2.IMWRITE_PNG_COMPRESSION, <span class="dv">9</span>])</span>
-<span id="cb95-24"><a href="#cb95-24" aria-hidden="true" tabindex="-1"></a>png_kb <span class="op">=</span> os.path.getsize(p_png) <span class="op">/</span> <span class="fl">1024.0</span></span>
-<span id="cb95-25"><a href="#cb95-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-26"><a href="#cb95-26" aria-hidden="true" tabindex="-1"></a>chart <span class="op">=</span> mm.lineChart(</span>
-<span id="cb95-27"><a href="#cb95-27" aria-hidden="true" tabindex="-1"></a>    [jpeg_kb, webp_kb], [jpeg_psnr, webp_psnr],</span>
-<span id="cb95-28"><a href="#cb95-28" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>[<span class="st">"JPEG"</span>, <span class="st">"WebP"</span>],</span>
-<span id="cb95-29"><a href="#cb95-29" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="ss">f"Curva Taxa-Distorcao (PNG sem perda: </span><span class="sc">{</span>png_kb<span class="sc">:.1f}</span><span class="ss"> KB)"</span>,</span>
-<span id="cb95-30"><a href="#cb95-30" aria-hidden="true" tabindex="-1"></a>    xlabel<span class="op">=</span><span class="st">"Tamanho do arquivo (KB)"</span>, ylabel<span class="op">=</span><span class="st">"PSNR (dB)"</span></span>
-<span id="cb95-31"><a href="#cb95-31" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb95-32"><a href="#cb95-32" aria-hidden="true" tabindex="-1"></a>mm.show([chart], titles<span class="op">=</span>[<span class="st">"JPEG vs WebP vs PNG"</span>], cols<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="bb54da3b69e6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;20d1cb90bd5ad1af77e2c855032ad841&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="65">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_05_formatos_comparacao.cpp</span>
+<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_05_formatos_comparacao.png"</span></span>
+<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Compilar: g<span class="op">++</span> <span class="op">-</span>O2 <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> snippet.cpp <span class="op">-</span>o snippet $(pkg<span class="op">-</span>config <span class="op">--</span>cflags <span class="op">--</span>libs opencv4)</span>
+<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
+<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
+<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;sstream&gt;</span></span>
+<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iomanip&gt;</span></span>
+<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
+<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb95-13"><a href="#cb95-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>formatos<span class="op">-</span>comparacao</span>
+<span id="cb95-14"><a href="#cb95-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"Curva taxa-distorção: PSNR vs tamanho de arquivo para JPEG, WebP e PNG aplicada à imagem do *Cameraman*."</span></span>
+<span id="cb95-15"><a href="#cb95-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> echo: true</span>
+<span id="cb95-16"><a href="#cb95-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> output: true</span>
+<span id="cb95-17"><a href="#cb95-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-18"><a href="#cb95-18" aria-hidden="true" tabindex="-1"></a>    std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb95-19"><a href="#cb95-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-20"><a href="#cb95-20" aria-hidden="true" tabindex="-1"></a>    cv::Mat src_full <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_COLOR)<span class="op">;</span></span>
+<span id="cb95-21"><a href="#cb95-21" aria-hidden="true" tabindex="-1"></a>    cv::Mat src_resized<span class="op">;</span></span>
+<span id="cb95-22"><a href="#cb95-22" aria-hidden="true" tabindex="-1"></a>    cv::resize(src_full, src_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
+<span id="cb95-23"><a href="#cb95-23" aria-hidden="true" tabindex="-1"></a>    mm::Image src <span class="op">=</span> mm::gray(mm::Image(src_resized))<span class="op">;</span></span>
+<span id="cb95-24"><a href="#cb95-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-25"><a href="#cb95-25" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>double<span class="op">&gt;</span> jpeg_kb, jpeg_psnr<span class="op">;</span></span>
+<span id="cb95-26"><a href="#cb95-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : {<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">90</span>, <span class="dv">95</span>}) {</span>
+<span id="cb95-27"><a href="#cb95-27" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_q"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".jpg"</span><span class="op">;</span></span>
+<span id="cb95-28"><a href="#cb95-28" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
+<span id="cb95-29"><a href="#cb95-29" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_JPEG_QUALITY, q}<span class="op">;</span></span>
+<span id="cb95-30"><a href="#cb95-30" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, src_mat, params)<span class="op">;</span></span>
+<span id="cb95-31"><a href="#cb95-31" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec <span class="op">=</span> cv::imread(p, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
+<span id="cb95-32"><a href="#cb95-32" aria-hidden="true" tabindex="-1"></a>        jpeg_kb.push_back((double)std::filesystem::file_size(p) <span class="op">/</span> <span class="fl">1024.0</span>)<span class="op">;</span></span>
+<span id="cb95-33"><a href="#cb95-33" aria-hidden="true" tabindex="-1"></a>        jpeg_psnr.push_back(mm::psnr(src, mm::Image(rec)))<span class="op">;</span></span>
+<span id="cb95-34"><a href="#cb95-34" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb95-35"><a href="#cb95-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-36"><a href="#cb95-36" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>double<span class="op">&gt;</span> webp_kb, webp_psnr<span class="op">;</span></span>
+<span id="cb95-37"><a href="#cb95-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : {<span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">70</span>, <span class="dv">85</span>, <span class="dv">95</span>}) {</span>
+<span id="cb95-38"><a href="#cb95-38" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_w"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".webp"</span><span class="op">;</span></span>
+<span id="cb95-39"><a href="#cb95-39" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
+<span id="cb95-40"><a href="#cb95-40" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_WEBP_QUALITY, q}<span class="op">;</span></span>
+<span id="cb95-41"><a href="#cb95-41" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, src_mat, params)<span class="op">;</span></span>
+<span id="cb95-42"><a href="#cb95-42" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec <span class="op">=</span> cv::imread(p, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
+<span id="cb95-43"><a href="#cb95-43" aria-hidden="true" tabindex="-1"></a>        webp_kb.push_back((double)std::filesystem::file_size(p) <span class="op">/</span> <span class="fl">1024.0</span>)<span class="op">;</span></span>
+<span id="cb95-44"><a href="#cb95-44" aria-hidden="true" tabindex="-1"></a>        webp_psnr.push_back(mm::psnr(src, mm::Image(rec)))<span class="op">;</span></span>
+<span id="cb95-45"><a href="#cb95-45" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb95-46"><a href="#cb95-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-47"><a href="#cb95-47" aria-hidden="true" tabindex="-1"></a>    std::string p_png <span class="op">=</span> <span class="st">"tmp/fmt.png"</span><span class="op">;</span></span>
+<span id="cb95-48"><a href="#cb95-48" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb95-49"><a href="#cb95-49" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
+<span id="cb95-50"><a href="#cb95-50" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_PNG_COMPRESSION, <span class="dv">9</span>}<span class="op">;</span></span>
+<span id="cb95-51"><a href="#cb95-51" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p_png, src_mat, params)<span class="op">;</span></span>
+<span id="cb95-52"><a href="#cb95-52" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb95-53"><a href="#cb95-53" aria-hidden="true" tabindex="-1"></a>    double png_kb <span class="op">=</span> (double)std::filesystem::file_size(p_png) <span class="op">/</span> <span class="fl">1024.0</span><span class="op">;</span></span>
+<span id="cb95-54"><a href="#cb95-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-55"><a href="#cb95-55" aria-hidden="true" tabindex="-1"></a>    std::ostringstream titulo<span class="op">;</span></span>
+<span id="cb95-56"><a href="#cb95-56" aria-hidden="true" tabindex="-1"></a>    titulo <span class="op">&lt;&lt;</span> <span class="st">"Curva Taxa-Distorcao (PNG sem perda: "</span> <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">1</span>) <span class="op">&lt;&lt;</span> png_kb <span class="op">&lt;&lt;</span> <span class="st">" KB)"</span><span class="op">;</span></span>
+<span id="cb95-57"><a href="#cb95-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-58"><a href="#cb95-58" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> xs <span class="op">=</span> {jpeg_kb, webp_kb}<span class="op">;</span></span>
+<span id="cb95-59"><a href="#cb95-59" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> ys <span class="op">=</span> {jpeg_psnr, webp_psnr}<span class="op">;</span></span>
+<span id="cb95-60"><a href="#cb95-60" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> labels <span class="op">=</span> {<span class="st">"JPEG"</span>, <span class="st">"WebP"</span>}<span class="op">;</span></span>
+<span id="cb95-61"><a href="#cb95-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-62"><a href="#cb95-62" aria-hidden="true" tabindex="-1"></a>    mm::Image chart <span class="op">=</span> mm::lineChart(</span>
+<span id="cb95-63"><a href="#cb95-63" aria-hidden="true" tabindex="-1"></a>        xs, ys,</span>
+<span id="cb95-64"><a href="#cb95-64" aria-hidden="true" tabindex="-1"></a>        labels,</span>
+<span id="cb95-65"><a href="#cb95-65" aria-hidden="true" tabindex="-1"></a>        {},  <span class="op">//</span> colors</span>
+<span id="cb95-66"><a href="#cb95-66" aria-hidden="true" tabindex="-1"></a>        titulo.<span class="bu">str</span>(),</span>
+<span id="cb95-67"><a href="#cb95-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Tamanho do arquivo (KB)"</span>, <span class="st">"PSNR (dB)"</span></span>
+<span id="cb95-68"><a href="#cb95-68" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb95-69"><a href="#cb95-69" aria-hidden="true" tabindex="-1"></a>    mm::show(std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{chart}, MM_OUT, {<span class="st">"JPEG x WebP x PNG"</span>}, <span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb95-70"><a href="#cb95-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-71"><a href="#cb95-71" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb95-72"><a href="#cb95-72" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
+<span id="cb95-73"><a href="#cb95-73" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb95-74"><a href="#cb95-74" aria-hidden="true" tabindex="-1"></a>mm::write(chart, <span class="st">"tmp/fig_05_formatos_comparacao_0.png"</span>)<span class="op">;</span></span>
+<span id="cb95-75"><a href="#cb95-75" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
+<span id="cb95-76"><a href="#cb95-76" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb95-77"><a href="#cb95-77" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing tmp/fig_05_formatos_comparacao.cpp</code></pre>
+</div>
+</div>
+<div id="fc00323d0cb0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="66">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb97"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> <span class="op">-</span>DMM_USE_OPENCV <span class="op">-</span>I<span class="op">/</span>usr<span class="op">/</span>include<span class="op">/</span>opencv4 tmp<span class="op">/</span>fig_05_formatos_comparacao.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_05_formatos_comparacao <span class="op">-</span>lopencv_stitching <span class="op">-</span>lopencv_alphamat <span class="op">-</span>lopencv_aruco <span class="op">-</span>lopencv_barcode <span class="op">-</span>lopencv_bgsegm <span class="op">-</span>lopencv_bioinspired <span class="op">-</span>lopencv_ccalib <span class="op">-</span>lopencv_dnn_objdetect <span class="op">-</span>lopencv_dnn_superres <span class="op">-</span>lopencv_dpm <span class="op">-</span>lopencv_face <span class="op">-</span>lopencv_freetype <span class="op">-</span>lopencv_fuzzy <span class="op">-</span>lopencv_hdf <span class="op">-</span>lopencv_hfs <span class="op">-</span>lopencv_img_hash <span class="op">-</span>lopencv_intensity_transform <span class="op">-</span>lopencv_line_descriptor <span class="op">-</span>lopencv_mcc <span class="op">-</span>lopencv_quality <span class="op">-</span>lopencv_rapid <span class="op">-</span>lopencv_reg <span class="op">-</span>lopencv_rgbd <span class="op">-</span>lopencv_saliency <span class="op">-</span>lopencv_shape <span class="op">-</span>lopencv_stereo <span class="op">-</span>lopencv_structured_light <span class="op">-</span>lopencv_phase_unwrapping <span class="op">-</span>lopencv_superres <span class="op">-</span>lopencv_optflow <span class="op">-</span>lopencv_surface_matching <span class="op">-</span>lopencv_tracking <span class="op">-</span>lopencv_highgui <span class="op">-</span>lopencv_datasets <span class="op">-</span>lopencv_text <span class="op">-</span>lopencv_plot <span class="op">-</span>lopencv_ml <span class="op">-</span>lopencv_videostab <span class="op">-</span>lopencv_videoio <span class="op">-</span>lopencv_viz <span class="op">-</span>lopencv_wechat_qrcode <span class="op">-</span>lopencv_ximgproc <span class="op">-</span>lopencv_video <span class="op">-</span>lopencv_xobjdetect <span class="op">-</span>lopencv_objdetect <span class="op">-</span>lopencv_calib3d <span class="op">-</span>lopencv_imgcodecs <span class="op">-</span>lopencv_features2d <span class="op">-</span>lopencv_dnn <span class="op">-</span>lopencv_flann <span class="op">-</span>lopencv_xphoto <span class="op">-</span>lopencv_photo <span class="op">-</span>lopencv_imgproc <span class="op">-</span>lopencv_core <span class="op">\</span></span>
+<span id="cb97-2"><a href="#cb97-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_05_formatos_comparacao <span class="op">\</span></span>
+<span id="cb97-3"><a href="#cb97-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_05_formatos_comparacao.png"</span> <span class="op">\</span></span>
+<span id="cb97-4"><a href="#cb97-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">||</span> echo <span class="st">"⚠ mm::show não gravou tmp/fig_05_formatos_comparacao.png"</span></span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] JPEG x WebP x PNG</code></pre>
+</div>
+</div>
+<div id="cell-fig-05-formatos-comparacao" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="67">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb99"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a>    mm.show(</span>
+<span id="cb99-3"><a href="#cb99-3" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb99-4"><a href="#cb99-4" aria-hidden="true" tabindex="-1"></a>            mm.read(<span class="st">"tmp/fig_05_formatos_comparacao_0.png"</span>),</span>
+<span id="cb99-5"><a href="#cb99-5" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb99-6"><a href="#cb99-6" aria-hidden="true" tabindex="-1"></a>        titles<span class="op">=</span>[</span>
+<span id="cb99-7"><a href="#cb99-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">'JPEG x WebP x PNG'</span>,</span>
+<span id="cb99-8"><a href="#cb99-8" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb99-9"><a href="#cb99-9" aria-hidden="true" tabindex="-1"></a>        cols<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb99-10"><a href="#cb99-10" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb99-11"><a href="#cb99-11" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> _e:</span>
+<span id="cb99-12"><a href="#cb99-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"figura indisponivel nesta trilha (C++): "</span> <span class="op">+</span> <span class="bu">repr</span>(_e) <span class="op">+</span> <span class="st">" tmp/fig_05_formatos_comparacao_0.png (ver a versao Python)"</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-05-formatos-comparacao" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -5298,7 +5369,7 @@ Figura&nbsp;5.27: Análise comparativa de artefatos de compressão sob fator de 
 <img src="cap05.cpp.it_files/figure-html/fig-05-formatos-comparacao-output-1.png" width="735" height="451" class="figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-05-formatos-comparacao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figura&nbsp;5.28: Curva distorsione-tasso: PSNR vs dimensione del file per JPEG, WebP e PNG applicata all’immagine del <em>Cameraman</em>.
+Figura&nbsp;5.28: Curva taxa-distorção: PSNR vs tamanho de arquivo para JPEG, WebP e PNG aplicada à imagem do <em>Cameraman</em>.
 </figcaption>
 </figure>
 </div>
@@ -5327,117 +5398,117 @@ Figura&nbsp;5.28: Curva distorsione-tasso: PSNR vs dimensione del file per JPEG,
 <li><strong>A qualità aggressive (<span class="math inline">\(Q=50\)</span> a <span class="math inline">\(Q=25\)</span>):</strong> L’errore assume una struttura a maglia ortogonale regolarizzata. Questo pattern geometrico evidenzia l’emergere degli <strong>artefatti a blocchi</strong> (<em>blocking artifacts</em>), indicando che la quantizzazione severa ha corrotto la correlazione spaziale tra blocchi adiacenti di <span class="math inline">\(8 \times 8\)</span> pixel.</li>
 </ul>
 <p>L’SSIM cattura questa degradazione morfologica in modo molto più sensibile rispetto al PSNR, penalizzando il punteggio finale man mano che l’organizzazione strutturale e le trame fini — alle quali il sistema visivo umano è altamente reattivo — vengono eliminate dal codificatore.</p>
-<div id="cd47df936283" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;0d43b1282cf6722d8c0e6c4397444104&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="66">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb96"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_05_ssim_artefatos.cpp</span>
-<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_05_ssim_artefatos.png"</span></span>
-<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>ssim<span class="op">-</span>artefatos</span>
-<span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"Análise espacial de degradação: imagens reconstruídas e respectivos mapas de erro absoluto normalizados para diferentes fatores de qualidade JPEG."</span></span>
-<span id="cb96-5"><a href="#cb96-5" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> echo: true</span>
-<span id="cb96-6"><a href="#cb96-6" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> output: true</span>
-<span id="cb96-7"><a href="#cb96-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-8"><a href="#cb96-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
-<span id="cb96-9"><a href="#cb96-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
-<span id="cb96-10"><a href="#cb96-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
-<span id="cb96-11"><a href="#cb96-11" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cmath&gt;</span></span>
-<span id="cb96-12"><a href="#cb96-12" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cstdio&gt;</span></span>
-<span id="cb96-13"><a href="#cb96-13" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
-<span id="cb96-14"><a href="#cb96-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-15"><a href="#cb96-15" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Implementazione SSIM (Wang et al.) con finestra gaussiana</span>
-<span id="cb96-16"><a href="#cb96-16" aria-hidden="true" tabindex="-1"></a>static double compute_ssim(const cv::Mat<span class="op">&amp;</span> img1, const cv::Mat<span class="op">&amp;</span> img2) {</span>
-<span id="cb96-17"><a href="#cb96-17" aria-hidden="true" tabindex="-1"></a>    const double C1 <span class="op">=</span> <span class="fl">6.5025</span>, C2 <span class="op">=</span> <span class="fl">58.5225</span><span class="op">;</span></span>
-<span id="cb96-18"><a href="#cb96-18" aria-hidden="true" tabindex="-1"></a>    cv::Mat I1, I2<span class="op">;</span></span>
-<span id="cb96-19"><a href="#cb96-19" aria-hidden="true" tabindex="-1"></a>    img1.convertTo(I1, CV_64F)<span class="op">;</span></span>
-<span id="cb96-20"><a href="#cb96-20" aria-hidden="true" tabindex="-1"></a>    img2.convertTo(I2, CV_64F)<span class="op">;</span></span>
-<span id="cb96-21"><a href="#cb96-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-22"><a href="#cb96-22" aria-hidden="true" tabindex="-1"></a>    cv::Mat kernel <span class="op">=</span> cv::getGaussianKernel(<span class="dv">11</span>, <span class="fl">1.5</span>)<span class="op">;</span></span>
-<span id="cb96-23"><a href="#cb96-23" aria-hidden="true" tabindex="-1"></a>    cv::Mat window <span class="op">=</span> kernel <span class="op">*</span> kernel.t()<span class="op">;</span></span>
-<span id="cb96-24"><a href="#cb96-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-25"><a href="#cb96-25" aria-hidden="true" tabindex="-1"></a>    cv::Mat mu1, mu2, mu1_sq, mu2_sq, mu1_mu2<span class="op">;</span></span>
-<span id="cb96-26"><a href="#cb96-26" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1, mu1, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
-<span id="cb96-27"><a href="#cb96-27" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I2, mu2, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
-<span id="cb96-28"><a href="#cb96-28" aria-hidden="true" tabindex="-1"></a>    cv::<span class="bu">pow</span>(mu1, <span class="dv">2</span>, mu1_sq)<span class="op">;</span></span>
-<span id="cb96-29"><a href="#cb96-29" aria-hidden="true" tabindex="-1"></a>    cv::<span class="bu">pow</span>(mu2, <span class="dv">2</span>, mu2_sq)<span class="op">;</span></span>
-<span id="cb96-30"><a href="#cb96-30" aria-hidden="true" tabindex="-1"></a>    mu1_mu2 <span class="op">=</span> mu1.mul(mu2)<span class="op">;</span></span>
-<span id="cb96-31"><a href="#cb96-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-32"><a href="#cb96-32" aria-hidden="true" tabindex="-1"></a>    cv::Mat sigma1_sq, sigma2_sq, sigma12<span class="op">;</span></span>
-<span id="cb96-33"><a href="#cb96-33" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1.mul(I1), sigma1_sq, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
-<span id="cb96-34"><a href="#cb96-34" aria-hidden="true" tabindex="-1"></a>    sigma1_sq <span class="op">-=</span> mu1_sq<span class="op">;</span></span>
-<span id="cb96-35"><a href="#cb96-35" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I2.mul(I2), sigma2_sq, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
-<span id="cb96-36"><a href="#cb96-36" aria-hidden="true" tabindex="-1"></a>    sigma2_sq <span class="op">-=</span> mu2_sq<span class="op">;</span></span>
-<span id="cb96-37"><a href="#cb96-37" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1.mul(I2), sigma12, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
-<span id="cb96-38"><a href="#cb96-38" aria-hidden="true" tabindex="-1"></a>    sigma12 <span class="op">-=</span> mu1_mu2<span class="op">;</span></span>
-<span id="cb96-39"><a href="#cb96-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-40"><a href="#cb96-40" aria-hidden="true" tabindex="-1"></a>    cv::Mat ssim_map<span class="op">;</span></span>
-<span id="cb96-41"><a href="#cb96-41" aria-hidden="true" tabindex="-1"></a>    cv::Mat cs_map<span class="op">;</span></span>
-<span id="cb96-42"><a href="#cb96-42" aria-hidden="true" tabindex="-1"></a>    cv::Mat t1 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> mu1_mu2 <span class="op">+</span> C1<span class="op">;</span></span>
-<span id="cb96-43"><a href="#cb96-43" aria-hidden="true" tabindex="-1"></a>    cv::Mat t2 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> sigma12 <span class="op">+</span> C2<span class="op">;</span></span>
-<span id="cb96-44"><a href="#cb96-44" aria-hidden="true" tabindex="-1"></a>    cv::Mat t3 <span class="op">=</span> t1.mul(t2)<span class="op">;</span></span>
-<span id="cb96-45"><a href="#cb96-45" aria-hidden="true" tabindex="-1"></a>    cv::divide(t3, (mu1_sq <span class="op">+</span> mu2_sq <span class="op">+</span> C1).mul(sigma1_sq <span class="op">+</span> sigma2_sq <span class="op">+</span> C2), ssim_map)<span class="op">;</span></span>
-<span id="cb96-46"><a href="#cb96-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-47"><a href="#cb96-47" aria-hidden="true" tabindex="-1"></a>    cv::Scalar mssim <span class="op">=</span> cv::mean(ssim_map)<span class="op">;</span></span>
-<span id="cb96-48"><a href="#cb96-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mssim[<span class="dv">0</span>]<span class="op">;</span></span>
-<span id="cb96-49"><a href="#cb96-49" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb96-50"><a href="#cb96-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-51"><a href="#cb96-51" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
-<span id="cb96-52"><a href="#cb96-52" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> Cameraman (asset <span class="kw">del</span> capitolo), <span class="dv">256</span><span class="er">x256</span> — stessa immagine <span class="kw">del</span> percorso py.</span>
-<span id="cb96-53"><a href="#cb96-53" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_tmp <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
-<span id="cb96-54"><a href="#cb96-54" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_resized<span class="op">;</span></span>
-<span id="cb96-55"><a href="#cb96-55" aria-hidden="true" tabindex="-1"></a>    cv::resize(img_tmp, img_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
-<span id="cb96-56"><a href="#cb96-56" aria-hidden="true" tabindex="-1"></a>    mm::Image img_gray <span class="op">=</span> mm::gray(mm::Image(img_resized))<span class="op">;</span></span>
-<span id="cb96-57"><a href="#cb96-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-58"><a href="#cb96-58" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span> imgs_ssim<span class="op">;</span></span>
-<span id="cb96-59"><a href="#cb96-59" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> titles_ssim<span class="op">;</span></span>
-<span id="cb96-60"><a href="#cb96-60" aria-hidden="true" tabindex="-1"></a>    imgs_ssim.push_back(img_gray)<span class="op">;</span></span>
-<span id="cb96-61"><a href="#cb96-61" aria-hidden="true" tabindex="-1"></a>    titles_ssim.push_back(<span class="st">"Originale"</span>)<span class="op">;</span></span>
-<span id="cb96-62"><a href="#cb96-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-63"><a href="#cb96-63" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> qs[] <span class="op">=</span> {<span class="dv">25</span>, <span class="dv">50</span>, <span class="dv">75</span>, <span class="dv">95</span>}<span class="op">;</span></span>
-<span id="cb96-64"><a href="#cb96-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">4</span><span class="op">;</span> i<span class="op">++</span>) {</span>
-<span id="cb96-65"><a href="#cb96-65" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> q <span class="op">=</span> qs[i]<span class="op">;</span></span>
-<span id="cb96-66"><a href="#cb96-66" aria-hidden="true" tabindex="-1"></a>        mm::Image rec <span class="op">=</span> mm::jpegCompress(img_gray, q)<span class="op">;</span>  <span class="op">//</span> DCT <span class="dv">8</span><span class="er">x8</span> <span class="op">-&gt;</span> quant <span class="op">-&gt;</span> IDCT</span>
-<span id="cb96-67"><a href="#cb96-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-68"><a href="#cb96-68" aria-hidden="true" tabindex="-1"></a>        cv::Mat img_gray_cv <span class="op">=</span> img_gray<span class="op">;</span></span>
-<span id="cb96-69"><a href="#cb96-69" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec_cv <span class="op">=</span> rec<span class="op">;</span></span>
-<span id="cb96-70"><a href="#cb96-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-71"><a href="#cb96-71" aria-hidden="true" tabindex="-1"></a>        double psnr_v <span class="op">=</span> mm::psnr(img_gray, rec)<span class="op">;</span></span>
-<span id="cb96-72"><a href="#cb96-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-73"><a href="#cb96-73" aria-hidden="true" tabindex="-1"></a>        <span class="op">//</span> Calcola SSIM</span>
-<span id="cb96-74"><a href="#cb96-74" aria-hidden="true" tabindex="-1"></a>        double ssim_v <span class="op">=</span> compute_ssim(img_gray_cv, rec_cv)<span class="op">;</span></span>
-<span id="cb96-75"><a href="#cb96-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-76"><a href="#cb96-76" aria-hidden="true" tabindex="-1"></a>        <span class="op">//</span> Mappa di errore normalizzata</span>
-<span id="cb96-77"><a href="#cb96-77" aria-hidden="true" tabindex="-1"></a>        cv::Mat img_float, rec_float, diff<span class="op">;</span></span>
-<span id="cb96-78"><a href="#cb96-78" aria-hidden="true" tabindex="-1"></a>        img_gray_cv.convertTo(img_float, CV_64F)<span class="op">;</span></span>
-<span id="cb96-79"><a href="#cb96-79" aria-hidden="true" tabindex="-1"></a>        rec_cv.convertTo(rec_float, CV_64F)<span class="op">;</span></span>
-<span id="cb96-80"><a href="#cb96-80" aria-hidden="true" tabindex="-1"></a>        diff <span class="op">=</span> cv::<span class="bu">abs</span>(img_float <span class="op">-</span> rec_float)<span class="op">;</span></span>
-<span id="cb96-81"><a href="#cb96-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-82"><a href="#cb96-82" aria-hidden="true" tabindex="-1"></a>        cv::Mat diff_vis_m<span class="op">;</span></span>
-<span id="cb96-83"><a href="#cb96-83" aria-hidden="true" tabindex="-1"></a>        cv::normalize(diff, diff_vis_m, <span class="dv">0</span>, <span class="dv">255</span>, cv::NORM_MINMAX, CV_8U)<span class="op">;</span></span>
-<span id="cb96-84"><a href="#cb96-84" aria-hidden="true" tabindex="-1"></a>        mm::Image diff_vis(diff_vis_m)<span class="op">;</span></span>
-<span id="cb96-85"><a href="#cb96-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-86"><a href="#cb96-86" aria-hidden="true" tabindex="-1"></a>        imgs_ssim.push_back(rec)<span class="op">;</span></span>
-<span id="cb96-87"><a href="#cb96-87" aria-hidden="true" tabindex="-1"></a>        imgs_ssim.push_back(diff_vis)<span class="op">;</span></span>
-<span id="cb96-88"><a href="#cb96-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-89"><a href="#cb96-89" aria-hidden="true" tabindex="-1"></a>        char title_buf[<span class="dv">256</span>]<span class="op">;</span></span>
-<span id="cb96-90"><a href="#cb96-90" aria-hidden="true" tabindex="-1"></a>        std::snprintf(title_buf, sizeof(title_buf), <span class="st">"Q=</span><span class="sc">%d</span><span class="st"> (PSNR=</span><span class="sc">%.1f</span><span class="st">dB | SSIM=</span><span class="sc">%.3f</span><span class="st">)"</span>, q, psnr_v, ssim_v)<span class="op">;</span></span>
-<span id="cb96-91"><a href="#cb96-91" aria-hidden="true" tabindex="-1"></a>        titles_ssim.push_back(std::string(title_buf))<span class="op">;</span></span>
-<span id="cb96-92"><a href="#cb96-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-93"><a href="#cb96-93" aria-hidden="true" tabindex="-1"></a>        char err_buf[<span class="dv">256</span>]<span class="op">;</span></span>
-<span id="cb96-94"><a href="#cb96-94" aria-hidden="true" tabindex="-1"></a>        std::snprintf(err_buf, sizeof(err_buf), <span class="st">"Mappa di errore (Q=</span><span class="sc">%d</span><span class="st">) - bordi e blocco"</span>, q)<span class="op">;</span></span>
-<span id="cb96-95"><a href="#cb96-95" aria-hidden="true" tabindex="-1"></a>        titles_ssim.push_back(std::string(err_buf))<span class="op">;</span></span>
-<span id="cb96-96"><a href="#cb96-96" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb96-97"><a href="#cb96-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-98"><a href="#cb96-98" aria-hidden="true" tabindex="-1"></a>    mm::show(imgs_ssim, MM_OUT, titles_ssim, <span class="dv">3</span>)<span class="op">;</span></span>
-<span id="cb96-99"><a href="#cb96-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-100"><a href="#cb96-100" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb96-101"><a href="#cb96-101" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="4dba5e4f9427" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;0d43b1282cf6722d8c0e6c4397444104&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="68">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb100"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_05_ssim_artefatos.cpp</span>
+<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_05_ssim_artefatos.png"</span></span>
+<span id="cb100-3"><a href="#cb100-3" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>ssim<span class="op">-</span>artefatos</span>
+<span id="cb100-4"><a href="#cb100-4" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"Análise espacial de degradação: imagens reconstruídas e respectivos mapas de erro absoluto normalizados para diferentes fatores de qualidade JPEG."</span></span>
+<span id="cb100-5"><a href="#cb100-5" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> echo: true</span>
+<span id="cb100-6"><a href="#cb100-6" aria-hidden="true" tabindex="-1"></a><span class="op">//|</span> output: true</span>
+<span id="cb100-7"><a href="#cb100-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-8"><a href="#cb100-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
+<span id="cb100-9"><a href="#cb100-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb100-10"><a href="#cb100-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb100-11"><a href="#cb100-11" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cmath&gt;</span></span>
+<span id="cb100-12"><a href="#cb100-12" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;cstdio&gt;</span></span>
+<span id="cb100-13"><a href="#cb100-13" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
+<span id="cb100-14"><a href="#cb100-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-15"><a href="#cb100-15" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Implementazione SSIM (Wang et al.) con finestra gaussiana</span>
+<span id="cb100-16"><a href="#cb100-16" aria-hidden="true" tabindex="-1"></a>static double compute_ssim(const cv::Mat<span class="op">&amp;</span> img1, const cv::Mat<span class="op">&amp;</span> img2) {</span>
+<span id="cb100-17"><a href="#cb100-17" aria-hidden="true" tabindex="-1"></a>    const double C1 <span class="op">=</span> <span class="fl">6.5025</span>, C2 <span class="op">=</span> <span class="fl">58.5225</span><span class="op">;</span></span>
+<span id="cb100-18"><a href="#cb100-18" aria-hidden="true" tabindex="-1"></a>    cv::Mat I1, I2<span class="op">;</span></span>
+<span id="cb100-19"><a href="#cb100-19" aria-hidden="true" tabindex="-1"></a>    img1.convertTo(I1, CV_64F)<span class="op">;</span></span>
+<span id="cb100-20"><a href="#cb100-20" aria-hidden="true" tabindex="-1"></a>    img2.convertTo(I2, CV_64F)<span class="op">;</span></span>
+<span id="cb100-21"><a href="#cb100-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-22"><a href="#cb100-22" aria-hidden="true" tabindex="-1"></a>    cv::Mat kernel <span class="op">=</span> cv::getGaussianKernel(<span class="dv">11</span>, <span class="fl">1.5</span>)<span class="op">;</span></span>
+<span id="cb100-23"><a href="#cb100-23" aria-hidden="true" tabindex="-1"></a>    cv::Mat window <span class="op">=</span> kernel <span class="op">*</span> kernel.t()<span class="op">;</span></span>
+<span id="cb100-24"><a href="#cb100-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-25"><a href="#cb100-25" aria-hidden="true" tabindex="-1"></a>    cv::Mat mu1, mu2, mu1_sq, mu2_sq, mu1_mu2<span class="op">;</span></span>
+<span id="cb100-26"><a href="#cb100-26" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1, mu1, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
+<span id="cb100-27"><a href="#cb100-27" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I2, mu2, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
+<span id="cb100-28"><a href="#cb100-28" aria-hidden="true" tabindex="-1"></a>    cv::<span class="bu">pow</span>(mu1, <span class="dv">2</span>, mu1_sq)<span class="op">;</span></span>
+<span id="cb100-29"><a href="#cb100-29" aria-hidden="true" tabindex="-1"></a>    cv::<span class="bu">pow</span>(mu2, <span class="dv">2</span>, mu2_sq)<span class="op">;</span></span>
+<span id="cb100-30"><a href="#cb100-30" aria-hidden="true" tabindex="-1"></a>    mu1_mu2 <span class="op">=</span> mu1.mul(mu2)<span class="op">;</span></span>
+<span id="cb100-31"><a href="#cb100-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-32"><a href="#cb100-32" aria-hidden="true" tabindex="-1"></a>    cv::Mat sigma1_sq, sigma2_sq, sigma12<span class="op">;</span></span>
+<span id="cb100-33"><a href="#cb100-33" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1.mul(I1), sigma1_sq, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
+<span id="cb100-34"><a href="#cb100-34" aria-hidden="true" tabindex="-1"></a>    sigma1_sq <span class="op">-=</span> mu1_sq<span class="op">;</span></span>
+<span id="cb100-35"><a href="#cb100-35" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I2.mul(I2), sigma2_sq, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
+<span id="cb100-36"><a href="#cb100-36" aria-hidden="true" tabindex="-1"></a>    sigma2_sq <span class="op">-=</span> mu2_sq<span class="op">;</span></span>
+<span id="cb100-37"><a href="#cb100-37" aria-hidden="true" tabindex="-1"></a>    cv::filter2D(I1.mul(I2), sigma12, <span class="op">-</span><span class="dv">1</span>, window)<span class="op">;</span></span>
+<span id="cb100-38"><a href="#cb100-38" aria-hidden="true" tabindex="-1"></a>    sigma12 <span class="op">-=</span> mu1_mu2<span class="op">;</span></span>
+<span id="cb100-39"><a href="#cb100-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-40"><a href="#cb100-40" aria-hidden="true" tabindex="-1"></a>    cv::Mat ssim_map<span class="op">;</span></span>
+<span id="cb100-41"><a href="#cb100-41" aria-hidden="true" tabindex="-1"></a>    cv::Mat cs_map<span class="op">;</span></span>
+<span id="cb100-42"><a href="#cb100-42" aria-hidden="true" tabindex="-1"></a>    cv::Mat t1 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> mu1_mu2 <span class="op">+</span> C1<span class="op">;</span></span>
+<span id="cb100-43"><a href="#cb100-43" aria-hidden="true" tabindex="-1"></a>    cv::Mat t2 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> sigma12 <span class="op">+</span> C2<span class="op">;</span></span>
+<span id="cb100-44"><a href="#cb100-44" aria-hidden="true" tabindex="-1"></a>    cv::Mat t3 <span class="op">=</span> t1.mul(t2)<span class="op">;</span></span>
+<span id="cb100-45"><a href="#cb100-45" aria-hidden="true" tabindex="-1"></a>    cv::divide(t3, (mu1_sq <span class="op">+</span> mu2_sq <span class="op">+</span> C1).mul(sigma1_sq <span class="op">+</span> sigma2_sq <span class="op">+</span> C2), ssim_map)<span class="op">;</span></span>
+<span id="cb100-46"><a href="#cb100-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-47"><a href="#cb100-47" aria-hidden="true" tabindex="-1"></a>    cv::Scalar mssim <span class="op">=</span> cv::mean(ssim_map)<span class="op">;</span></span>
+<span id="cb100-48"><a href="#cb100-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mssim[<span class="dv">0</span>]<span class="op">;</span></span>
+<span id="cb100-49"><a href="#cb100-49" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb100-50"><a href="#cb100-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-51"><a href="#cb100-51" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb100-52"><a href="#cb100-52" aria-hidden="true" tabindex="-1"></a>    <span class="op">//</span> Cameraman (asset <span class="kw">del</span> capitolo), <span class="dv">256</span><span class="er">x256</span> — stessa immagine <span class="kw">del</span> percorso py.</span>
+<span id="cb100-53"><a href="#cb100-53" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_tmp <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
+<span id="cb100-54"><a href="#cb100-54" aria-hidden="true" tabindex="-1"></a>    cv::Mat img_resized<span class="op">;</span></span>
+<span id="cb100-55"><a href="#cb100-55" aria-hidden="true" tabindex="-1"></a>    cv::resize(img_tmp, img_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
+<span id="cb100-56"><a href="#cb100-56" aria-hidden="true" tabindex="-1"></a>    mm::Image img_gray <span class="op">=</span> mm::gray(mm::Image(img_resized))<span class="op">;</span></span>
+<span id="cb100-57"><a href="#cb100-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-58"><a href="#cb100-58" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span> imgs_ssim<span class="op">;</span></span>
+<span id="cb100-59"><a href="#cb100-59" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> titles_ssim<span class="op">;</span></span>
+<span id="cb100-60"><a href="#cb100-60" aria-hidden="true" tabindex="-1"></a>    imgs_ssim.push_back(img_gray)<span class="op">;</span></span>
+<span id="cb100-61"><a href="#cb100-61" aria-hidden="true" tabindex="-1"></a>    titles_ssim.push_back(<span class="st">"Originale"</span>)<span class="op">;</span></span>
+<span id="cb100-62"><a href="#cb100-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-63"><a href="#cb100-63" aria-hidden="true" tabindex="-1"></a>    <span class="bu">int</span> qs[] <span class="op">=</span> {<span class="dv">25</span>, <span class="dv">50</span>, <span class="dv">75</span>, <span class="dv">95</span>}<span class="op">;</span></span>
+<span id="cb100-64"><a href="#cb100-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">4</span><span class="op">;</span> i<span class="op">++</span>) {</span>
+<span id="cb100-65"><a href="#cb100-65" aria-hidden="true" tabindex="-1"></a>        <span class="bu">int</span> q <span class="op">=</span> qs[i]<span class="op">;</span></span>
+<span id="cb100-66"><a href="#cb100-66" aria-hidden="true" tabindex="-1"></a>        mm::Image rec <span class="op">=</span> mm::jpegCompress(img_gray, q)<span class="op">;</span>  <span class="op">//</span> DCT <span class="dv">8</span><span class="er">x8</span> <span class="op">-&gt;</span> quant <span class="op">-&gt;</span> IDCT</span>
+<span id="cb100-67"><a href="#cb100-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-68"><a href="#cb100-68" aria-hidden="true" tabindex="-1"></a>        cv::Mat img_gray_cv <span class="op">=</span> img_gray<span class="op">;</span></span>
+<span id="cb100-69"><a href="#cb100-69" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec_cv <span class="op">=</span> rec<span class="op">;</span></span>
+<span id="cb100-70"><a href="#cb100-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-71"><a href="#cb100-71" aria-hidden="true" tabindex="-1"></a>        double psnr_v <span class="op">=</span> mm::psnr(img_gray, rec)<span class="op">;</span></span>
+<span id="cb100-72"><a href="#cb100-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-73"><a href="#cb100-73" aria-hidden="true" tabindex="-1"></a>        <span class="op">//</span> Calcola SSIM</span>
+<span id="cb100-74"><a href="#cb100-74" aria-hidden="true" tabindex="-1"></a>        double ssim_v <span class="op">=</span> compute_ssim(img_gray_cv, rec_cv)<span class="op">;</span></span>
+<span id="cb100-75"><a href="#cb100-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-76"><a href="#cb100-76" aria-hidden="true" tabindex="-1"></a>        <span class="op">//</span> Mappa di errore normalizzata</span>
+<span id="cb100-77"><a href="#cb100-77" aria-hidden="true" tabindex="-1"></a>        cv::Mat img_float, rec_float, diff<span class="op">;</span></span>
+<span id="cb100-78"><a href="#cb100-78" aria-hidden="true" tabindex="-1"></a>        img_gray_cv.convertTo(img_float, CV_64F)<span class="op">;</span></span>
+<span id="cb100-79"><a href="#cb100-79" aria-hidden="true" tabindex="-1"></a>        rec_cv.convertTo(rec_float, CV_64F)<span class="op">;</span></span>
+<span id="cb100-80"><a href="#cb100-80" aria-hidden="true" tabindex="-1"></a>        diff <span class="op">=</span> cv::<span class="bu">abs</span>(img_float <span class="op">-</span> rec_float)<span class="op">;</span></span>
+<span id="cb100-81"><a href="#cb100-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-82"><a href="#cb100-82" aria-hidden="true" tabindex="-1"></a>        cv::Mat diff_vis_m<span class="op">;</span></span>
+<span id="cb100-83"><a href="#cb100-83" aria-hidden="true" tabindex="-1"></a>        cv::normalize(diff, diff_vis_m, <span class="dv">0</span>, <span class="dv">255</span>, cv::NORM_MINMAX, CV_8U)<span class="op">;</span></span>
+<span id="cb100-84"><a href="#cb100-84" aria-hidden="true" tabindex="-1"></a>        mm::Image diff_vis(diff_vis_m)<span class="op">;</span></span>
+<span id="cb100-85"><a href="#cb100-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-86"><a href="#cb100-86" aria-hidden="true" tabindex="-1"></a>        imgs_ssim.push_back(rec)<span class="op">;</span></span>
+<span id="cb100-87"><a href="#cb100-87" aria-hidden="true" tabindex="-1"></a>        imgs_ssim.push_back(diff_vis)<span class="op">;</span></span>
+<span id="cb100-88"><a href="#cb100-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-89"><a href="#cb100-89" aria-hidden="true" tabindex="-1"></a>        char title_buf[<span class="dv">256</span>]<span class="op">;</span></span>
+<span id="cb100-90"><a href="#cb100-90" aria-hidden="true" tabindex="-1"></a>        std::snprintf(title_buf, sizeof(title_buf), <span class="st">"Q=</span><span class="sc">%d</span><span class="st"> (PSNR=</span><span class="sc">%.1f</span><span class="st">dB | SSIM=</span><span class="sc">%.3f</span><span class="st">)"</span>, q, psnr_v, ssim_v)<span class="op">;</span></span>
+<span id="cb100-91"><a href="#cb100-91" aria-hidden="true" tabindex="-1"></a>        titles_ssim.push_back(std::string(title_buf))<span class="op">;</span></span>
+<span id="cb100-92"><a href="#cb100-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-93"><a href="#cb100-93" aria-hidden="true" tabindex="-1"></a>        char err_buf[<span class="dv">256</span>]<span class="op">;</span></span>
+<span id="cb100-94"><a href="#cb100-94" aria-hidden="true" tabindex="-1"></a>        std::snprintf(err_buf, sizeof(err_buf), <span class="st">"Mappa di errore (Q=</span><span class="sc">%d</span><span class="st">) - bordi e blocco"</span>, q)<span class="op">;</span></span>
+<span id="cb100-95"><a href="#cb100-95" aria-hidden="true" tabindex="-1"></a>        titles_ssim.push_back(std::string(err_buf))<span class="op">;</span></span>
+<span id="cb100-96"><a href="#cb100-96" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb100-97"><a href="#cb100-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-98"><a href="#cb100-98" aria-hidden="true" tabindex="-1"></a>    mm::show(imgs_ssim, MM_OUT, titles_ssim, <span class="dv">3</span>)<span class="op">;</span></span>
+<span id="cb100-99"><a href="#cb100-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-100"><a href="#cb100-100" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb100-101"><a href="#cb100-101" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting tmp/fig_05_ssim_artefatos.cpp</code></pre>
 </div>
 </div>
-<div id="4be5f637ac37" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="67">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb98"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> <span class="op">-</span>DMM_USE_OPENCV <span class="op">-</span>I<span class="op">/</span>usr<span class="op">/</span>include<span class="op">/</span>opencv4 tmp<span class="op">/</span>fig_05_ssim_artefatos.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_05_ssim_artefatos <span class="op">-</span>lopencv_stitching <span class="op">-</span>lopencv_alphamat <span class="op">-</span>lopencv_aruco <span class="op">-</span>lopencv_barcode <span class="op">-</span>lopencv_bgsegm <span class="op">-</span>lopencv_bioinspired <span class="op">-</span>lopencv_ccalib <span class="op">-</span>lopencv_dnn_objdetect <span class="op">-</span>lopencv_dnn_superres <span class="op">-</span>lopencv_dpm <span class="op">-</span>lopencv_face <span class="op">-</span>lopencv_freetype <span class="op">-</span>lopencv_fuzzy <span class="op">-</span>lopencv_hdf <span class="op">-</span>lopencv_hfs <span class="op">-</span>lopencv_img_hash <span class="op">-</span>lopencv_intensity_transform <span class="op">-</span>lopencv_line_descriptor <span class="op">-</span>lopencv_mcc <span class="op">-</span>lopencv_quality <span class="op">-</span>lopencv_rapid <span class="op">-</span>lopencv_reg <span class="op">-</span>lopencv_rgbd <span class="op">-</span>lopencv_saliency <span class="op">-</span>lopencv_shape <span class="op">-</span>lopencv_stereo <span class="op">-</span>lopencv_structured_light <span class="op">-</span>lopencv_phase_unwrapping <span class="op">-</span>lopencv_superres <span class="op">-</span>lopencv_optflow <span class="op">-</span>lopencv_surface_matching <span class="op">-</span>lopencv_tracking <span class="op">-</span>lopencv_highgui <span class="op">-</span>lopencv_datasets <span class="op">-</span>lopencv_text <span class="op">-</span>lopencv_plot <span class="op">-</span>lopencv_ml <span class="op">-</span>lopencv_videostab <span class="op">-</span>lopencv_videoio <span class="op">-</span>lopencv_viz <span class="op">-</span>lopencv_wechat_qrcode <span class="op">-</span>lopencv_ximgproc <span class="op">-</span>lopencv_video <span class="op">-</span>lopencv_xobjdetect <span class="op">-</span>lopencv_objdetect <span class="op">-</span>lopencv_calib3d <span class="op">-</span>lopencv_imgcodecs <span class="op">-</span>lopencv_features2d <span class="op">-</span>lopencv_dnn <span class="op">-</span>lopencv_flann <span class="op">-</span>lopencv_xphoto <span class="op">-</span>lopencv_photo <span class="op">-</span>lopencv_imgproc <span class="op">-</span>lopencv_core <span class="op">\</span></span>
-<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_05_ssim_artefatos <span class="op">\</span></span>
-<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_05_ssim_artefatos.png"</span> <span class="op">\</span></span>
-<span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">||</span> echo <span class="st">"⚠ mm::show não gravou tmp/fig_05_ssim_artefatos.png"</span></span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="39a2494d16a6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="69">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb102"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>g<span class="op">++</span> <span class="op">-</span>I. <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> <span class="op">-</span>DMM_USE_OPENCV <span class="op">-</span>I<span class="op">/</span>usr<span class="op">/</span>include<span class="op">/</span>opencv4 tmp<span class="op">/</span>fig_05_ssim_artefatos.cpp <span class="op">-</span>o tmp<span class="op">/</span>fig_05_ssim_artefatos <span class="op">-</span>lopencv_stitching <span class="op">-</span>lopencv_alphamat <span class="op">-</span>lopencv_aruco <span class="op">-</span>lopencv_barcode <span class="op">-</span>lopencv_bgsegm <span class="op">-</span>lopencv_bioinspired <span class="op">-</span>lopencv_ccalib <span class="op">-</span>lopencv_dnn_objdetect <span class="op">-</span>lopencv_dnn_superres <span class="op">-</span>lopencv_dpm <span class="op">-</span>lopencv_face <span class="op">-</span>lopencv_freetype <span class="op">-</span>lopencv_fuzzy <span class="op">-</span>lopencv_hdf <span class="op">-</span>lopencv_hfs <span class="op">-</span>lopencv_img_hash <span class="op">-</span>lopencv_intensity_transform <span class="op">-</span>lopencv_line_descriptor <span class="op">-</span>lopencv_mcc <span class="op">-</span>lopencv_quality <span class="op">-</span>lopencv_rapid <span class="op">-</span>lopencv_reg <span class="op">-</span>lopencv_rgbd <span class="op">-</span>lopencv_saliency <span class="op">-</span>lopencv_shape <span class="op">-</span>lopencv_stereo <span class="op">-</span>lopencv_structured_light <span class="op">-</span>lopencv_phase_unwrapping <span class="op">-</span>lopencv_superres <span class="op">-</span>lopencv_optflow <span class="op">-</span>lopencv_surface_matching <span class="op">-</span>lopencv_tracking <span class="op">-</span>lopencv_highgui <span class="op">-</span>lopencv_datasets <span class="op">-</span>lopencv_text <span class="op">-</span>lopencv_plot <span class="op">-</span>lopencv_ml <span class="op">-</span>lopencv_videostab <span class="op">-</span>lopencv_videoio <span class="op">-</span>lopencv_viz <span class="op">-</span>lopencv_wechat_qrcode <span class="op">-</span>lopencv_ximgproc <span class="op">-</span>lopencv_video <span class="op">-</span>lopencv_xobjdetect <span class="op">-</span>lopencv_objdetect <span class="op">-</span>lopencv_calib3d <span class="op">-</span>lopencv_imgcodecs <span class="op">-</span>lopencv_features2d <span class="op">-</span>lopencv_dnn <span class="op">-</span>lopencv_flann <span class="op">-</span>lopencv_xphoto <span class="op">-</span>lopencv_photo <span class="op">-</span>lopencv_imgproc <span class="op">-</span>lopencv_core <span class="op">\</span></span>
+<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> .<span class="op">/</span>tmp<span class="op">/</span>fig_05_ssim_artefatos <span class="op">\</span></span>
+<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;&amp;</span> test <span class="op">-</span>f <span class="st">"tmp/fig_05_ssim_artefatos.png"</span> <span class="op">\</span></span>
+<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">||</span> echo <span class="st">"⚠ mm::show não gravou tmp/fig_05_ssim_artefatos.png"</span></span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] Originale
 [2] Q=25 (PSNR=30.7dB | SSIM=0.860)
@@ -5450,11 +5521,11 @@ Figura&nbsp;5.28: Curva distorsione-tasso: PSNR vs dimensione del file per JPEG,
 [9] Mappa di errore (Q=95) - bordi e blocco</code></pre>
 </div>
 </div>
-<div id="cell-fig-05-ssim-artefatos" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="68">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb100"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
-<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a>    mm.show(mm.read(<span class="st">"tmp/fig_05_ssim_artefatos.png"</span>), figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="dv">14</span>))</span>
-<span id="cb100-3"><a href="#cb100-3" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> _e:</span>
-<span id="cb100-4"><a href="#cb100-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"figura indisponivel nesta trilha (C++): "</span> <span class="op">+</span> <span class="bu">repr</span>(_e) <span class="op">+</span> <span class="st">" tmp/fig_05_ssim_artefatos.png (ver a versao Python)"</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="cell-fig-05-ssim-artefatos" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="70">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb104"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>    mm.show(mm.read(<span class="st">"tmp/fig_05_ssim_artefatos.png"</span>), figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="dv">14</span>))</span>
+<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> _e:</span>
+<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"figura indisponivel nesta trilha (C++): "</span> <span class="op">+</span> <span class="bu">repr</span>(_e) <span class="op">+</span> <span class="st">" tmp/fig_05_ssim_artefatos.png (ver a versao Python)"</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-05-ssim-artefatos" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -5582,58 +5653,58 @@ Tabella&nbsp;5.9: Sintesi delle fasi del <em>pipeline</em> di compressione JPEG 
 <p>L’isolamento e la soppressione dei picchi armonici nel dominio della frequenza tramite la maschera <em>notch</em> rimuovono le frange di interferenza sinusoidali sparse nello spazio bidimensionale. Come evidenziato nei dati stampati della <a href="#fig-05-pipeline-denoising" class="quarto-xref">Figura&nbsp;<span>5.30</span></a>, questa filtrazione chirurgica promuove un salto immediato e sostanziale nella metrica PSNR. Tuttavia, il rumore gaussiano ad alta frequenza rimane attivo in modo omogeneo nello spettro, richiedendo un approccio complementare.</p>
 <p>Il restauro finale è consolidato nel dominio spaziale con l’introduzione del filtro bilaterale. Diversamente dagli operatori passa-basso convenzionali (come quello gaussiano o di media), che smusserebbero indiscriminatamente rumore e contorni strutturali, la filtrazione bilaterale calcola pesi ponderati in base alla prossimità geometrica e alla differenza di intensità radiometrica. Questo comportamento adattivo attenua le fluttuazioni stocastiche residue nelle regioni di transizione graduale e preserva la nitidezza dei bordi spaziali.</p>
 <p>La convergenza di entrambi gli approcci risulta in un <strong>miglioramento sostanziale e simultaneo</strong> di PSNR e SSIM rispetto all’immagine rumorosa — sebbene i valori finali rimangano inferiori a quelli dell’immagine originale (PSNR = <span class="math inline">\(\infty\)</span>, SSIM = 1,0), a causa della perdita inevitabile di informazioni spettrali e testurali durante i processi di filtrazione. L’attenuazione graduale (gaussiana) dei picchi nello spettro evita artefatti di <em>ringing</em>, mentre il filtro bilaterale elimina il rumore stocastico residuo senza compromettere la nitidezza dei bordi. I risultati confermano l’efficacia e la complementarità pratica degli strumenti di analisi di frequenza presentati in questo capitolo, dimostrando che la filtrazione ibrida (frequenza + spaziale) è superiore a qualsiasi approccio isolato per il restauro di immagini degradate da rumore misto.</p>
-<div id="cell-fig-05-pipeline-denoising" class="cell" data-execution_count="69">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb101"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np, cv2, os  <span class="co"># [pdi] passthrough: garante imports desta trilha</span></span>
-<span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np, cv2</span>
-<span id="cb101-3"><a href="#cb101-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-4"><a href="#cb101-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cameraman (asset del capitolo), 256x256 — stessa immagine della traccia py.</span></span>
-<span id="cb101-5"><a href="#cb101-5" aria-hidden="true" tabindex="-1"></a>img_gray <span class="op">=</span> mm.gray(cv2.resize(mm.read(<span class="st">"imagens/cameraman.png"</span>), (<span class="dv">256</span>, <span class="dv">256</span>)))</span>
-<span id="cb101-6"><a href="#cb101-6" aria-hidden="true" tabindex="-1"></a>h_img, w_img <span class="op">=</span> img_gray.shape</span>
-<span id="cb101-7"><a href="#cb101-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-8"><a href="#cb101-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 1. Rumore misto: gaussiano + periodico ───────────────────────────────────</span></span>
-<span id="cb101-9"><a href="#cb101-9" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
-<span id="cb101-10"><a href="#cb101-10" aria-hidden="true" tabindex="-1"></a>X2, Y2 <span class="op">=</span> np.meshgrid(np.arange(w_img), np.arange(h_img))</span>
-<span id="cb101-11"><a href="#cb101-11" aria-hidden="true" tabindex="-1"></a>u0, v0       <span class="op">=</span> <span class="dv">15</span>, <span class="dv">10</span></span>
-<span id="cb101-12"><a href="#cb101-12" aria-hidden="true" tabindex="-1"></a>ruido_gauss  <span class="op">=</span> np.random.normal(<span class="dv">0</span>, <span class="dv">15</span>, img_gray.shape)</span>
-<span id="cb101-13"><a href="#cb101-13" aria-hidden="true" tabindex="-1"></a>ruido_period <span class="op">=</span> <span class="dv">30</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (u0 <span class="op">*</span> X2 <span class="op">/</span> w_img <span class="op">+</span> v0 <span class="op">*</span> Y2 <span class="op">/</span> h_img))</span>
-<span id="cb101-14"><a href="#cb101-14" aria-hidden="true" tabindex="-1"></a>img_noisy    <span class="op">=</span> np.clip(img_gray.astype(<span class="bu">float</span>) <span class="op">+</span> ruido_gauss <span class="op">+</span> ruido_period, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb101-15"><a href="#cb101-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-16"><a href="#cb101-16" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 2. Spettro (log-magnitudine) dell'immagine rumorosa ─────────────────────────</span></span>
-<span id="cb101-17"><a href="#cb101-17" aria-hidden="true" tabindex="-1"></a>mag_n <span class="op">=</span> mm.spectrumMag(img_noisy)</span>
-<span id="cb101-18"><a href="#cb101-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-19"><a href="#cb101-19" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 3. Maschera notch gaussiana sui 4 picchi periodici ──────────────────────</span></span>
-<span id="cb101-20"><a href="#cb101-20" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico_gaussiano(mask, cy, cx, sigma<span class="op">=</span><span class="fl">3.0</span>):</span>
-<span id="cb101-21"><a href="#cb101-21" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.meshgrid(np.arange(mask.shape[<span class="dv">0</span>]), np.arange(mask.shape[<span class="dv">1</span>]), indexing<span class="op">=</span><span class="st">"ij"</span>)</span>
-<span id="cb101-22"><a href="#cb101-22" aria-hidden="true" tabindex="-1"></a>    notch <span class="op">=</span> np.exp(<span class="op">-</span>((yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span>) <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> sigma<span class="op">**</span><span class="dv">2</span>))</span>
-<span id="cb101-23"><a href="#cb101-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> notch)</span>
-<span id="cb101-24"><a href="#cb101-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-25"><a href="#cb101-25" aria-hidden="true" tabindex="-1"></a>cy0, cx0 <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
-<span id="cb101-26"><a href="#cb101-26" aria-hidden="true" tabindex="-1"></a>mascara_notch <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
-<span id="cb101-27"><a href="#cb101-27" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(v0, u0), (<span class="op">-</span>v0, <span class="op">-</span>u0), (v0, <span class="op">-</span>u0), (<span class="op">-</span>v0, u0)]:</span>
-<span id="cb101-28"><a href="#cb101-28" aria-hidden="true" tabindex="-1"></a>    mascara_notch <span class="op">=</span> suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, <span class="fl">3.0</span>)</span>
-<span id="cb101-29"><a href="#cb101-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-30"><a href="#cb101-30" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 4. Filtraggio: notch nel dominio della frequenza + bilaterale ───────────────</span></span>
-<span id="cb101-31"><a href="#cb101-31" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> mm.freqFilter(img_noisy, mascara_notch)</span>
-<span id="cb101-32"><a href="#cb101-32" aria-hidden="true" tabindex="-1"></a>img_den   <span class="op">=</span> cv2.bilateralFilter(img_notch, <span class="dv">7</span>, <span class="dv">25</span>, <span class="dv">7</span>)</span>
-<span id="cb101-33"><a href="#cb101-33" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara_notch <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb101-34"><a href="#cb101-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-35"><a href="#cb101-35" aria-hidden="true" tabindex="-1"></a>psnr_n  <span class="op">=</span> mm.psnr(img_gray, img_noisy)</span>
-<span id="cb101-36"><a href="#cb101-36" aria-hidden="true" tabindex="-1"></a>psnr_no <span class="op">=</span> mm.psnr(img_gray, img_notch)</span>
-<span id="cb101-37"><a href="#cb101-37" aria-hidden="true" tabindex="-1"></a>psnr_d  <span class="op">=</span> mm.psnr(img_gray, img_den)</span>
-<span id="cb101-38"><a href="#cb101-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Rumorosa: PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.2f}</span><span class="ss"> dB | Dopo notch: </span><span class="sc">{</span>psnr_no<span class="sc">:.2f}</span><span class="ss"> dB | Notch+bilaterale: </span><span class="sc">{</span>psnr_d<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb101-39"><a href="#cb101-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb101-40"><a href="#cb101-40" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
-<span id="cb101-41"><a href="#cb101-41" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den],</span>
-<span id="cb101-42"><a href="#cb101-42" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
-<span id="cb101-43"><a href="#cb101-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Originale"</span>,</span>
-<span id="cb101-44"><a href="#cb101-44" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Rumorosa (PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
-<span id="cb101-45"><a href="#cb101-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Spettro (picchi visibili)"</span>,</span>
-<span id="cb101-46"><a href="#cb101-46" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Maschera notch (gaussiana)"</span>,</span>
-<span id="cb101-47"><a href="#cb101-47" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Dopo notch (PSNR=</span><span class="sc">{</span>psnr_no<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
-<span id="cb101-48"><a href="#cb101-48" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Notch + bilaterale (PSNR=</span><span class="sc">{</span>psnr_d<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
-<span id="cb101-49"><a href="#cb101-49" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb101-50"><a href="#cb101-50" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">6</span>, figsize<span class="op">=</span>(<span class="dv">20</span>, <span class="dv">4</span>)</span>
-<span id="cb101-51"><a href="#cb101-51" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="cell-fig-05-pipeline-denoising" class="cell" data-execution_count="71">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np, cv2, os  <span class="co"># [pdi] passthrough: garante imports desta trilha</span></span>
+<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np, cv2</span>
+<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Cameraman (asset del capitolo), 256x256 — stessa immagine della traccia py.</span></span>
+<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>img_gray <span class="op">=</span> mm.gray(cv2.resize(mm.read(<span class="st">"imagens/cameraman.png"</span>), (<span class="dv">256</span>, <span class="dv">256</span>)))</span>
+<span id="cb105-6"><a href="#cb105-6" aria-hidden="true" tabindex="-1"></a>h_img, w_img <span class="op">=</span> img_gray.shape</span>
+<span id="cb105-7"><a href="#cb105-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-8"><a href="#cb105-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 1. Rumore misto: gaussiano + periodico ───────────────────────────────────</span></span>
+<span id="cb105-9"><a href="#cb105-9" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb105-10"><a href="#cb105-10" aria-hidden="true" tabindex="-1"></a>X2, Y2 <span class="op">=</span> np.meshgrid(np.arange(w_img), np.arange(h_img))</span>
+<span id="cb105-11"><a href="#cb105-11" aria-hidden="true" tabindex="-1"></a>u0, v0       <span class="op">=</span> <span class="dv">15</span>, <span class="dv">10</span></span>
+<span id="cb105-12"><a href="#cb105-12" aria-hidden="true" tabindex="-1"></a>ruido_gauss  <span class="op">=</span> np.random.normal(<span class="dv">0</span>, <span class="dv">15</span>, img_gray.shape)</span>
+<span id="cb105-13"><a href="#cb105-13" aria-hidden="true" tabindex="-1"></a>ruido_period <span class="op">=</span> <span class="dv">30</span> <span class="op">*</span> np.sin(<span class="dv">2</span> <span class="op">*</span> np.pi <span class="op">*</span> (u0 <span class="op">*</span> X2 <span class="op">/</span> w_img <span class="op">+</span> v0 <span class="op">*</span> Y2 <span class="op">/</span> h_img))</span>
+<span id="cb105-14"><a href="#cb105-14" aria-hidden="true" tabindex="-1"></a>img_noisy    <span class="op">=</span> np.clip(img_gray.astype(<span class="bu">float</span>) <span class="op">+</span> ruido_gauss <span class="op">+</span> ruido_period, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb105-15"><a href="#cb105-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-16"><a href="#cb105-16" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 2. Spettro (log-magnitudine) dell'immagine rumorosa ─────────────────────────</span></span>
+<span id="cb105-17"><a href="#cb105-17" aria-hidden="true" tabindex="-1"></a>mag_n <span class="op">=</span> mm.spectrumMag(img_noisy)</span>
+<span id="cb105-18"><a href="#cb105-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-19"><a href="#cb105-19" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 3. Maschera notch gaussiana sui 4 picchi periodici ──────────────────────</span></span>
+<span id="cb105-20"><a href="#cb105-20" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> suprimir_pico_gaussiano(mask, cy, cx, sigma<span class="op">=</span><span class="fl">3.0</span>):</span>
+<span id="cb105-21"><a href="#cb105-21" aria-hidden="true" tabindex="-1"></a>    yy, xx <span class="op">=</span> np.meshgrid(np.arange(mask.shape[<span class="dv">0</span>]), np.arange(mask.shape[<span class="dv">1</span>]), indexing<span class="op">=</span><span class="st">"ij"</span>)</span>
+<span id="cb105-22"><a href="#cb105-22" aria-hidden="true" tabindex="-1"></a>    notch <span class="op">=</span> np.exp(<span class="op">-</span>((yy <span class="op">-</span> cy)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> (xx <span class="op">-</span> cx)<span class="op">**</span><span class="dv">2</span>) <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> sigma<span class="op">**</span><span class="dv">2</span>))</span>
+<span id="cb105-23"><a href="#cb105-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> notch)</span>
+<span id="cb105-24"><a href="#cb105-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-25"><a href="#cb105-25" aria-hidden="true" tabindex="-1"></a>cy0, cx0 <span class="op">=</span> h_img <span class="op">//</span> <span class="dv">2</span>, w_img <span class="op">//</span> <span class="dv">2</span></span>
+<span id="cb105-26"><a href="#cb105-26" aria-hidden="true" tabindex="-1"></a>mascara_notch <span class="op">=</span> np.ones((h_img, w_img), dtype<span class="op">=</span>np.float64)</span>
+<span id="cb105-27"><a href="#cb105-27" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> dy, dx <span class="kw">in</span> [(v0, u0), (<span class="op">-</span>v0, <span class="op">-</span>u0), (v0, <span class="op">-</span>u0), (<span class="op">-</span>v0, u0)]:</span>
+<span id="cb105-28"><a href="#cb105-28" aria-hidden="true" tabindex="-1"></a>    mascara_notch <span class="op">=</span> suprimir_pico_gaussiano(mascara_notch, cy0 <span class="op">+</span> dy, cx0 <span class="op">+</span> dx, <span class="fl">3.0</span>)</span>
+<span id="cb105-29"><a href="#cb105-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-30"><a href="#cb105-30" aria-hidden="true" tabindex="-1"></a><span class="co"># ── 4. Filtraggio: notch nel dominio della frequenza + bilaterale ───────────────</span></span>
+<span id="cb105-31"><a href="#cb105-31" aria-hidden="true" tabindex="-1"></a>img_notch <span class="op">=</span> mm.freqFilter(img_noisy, mascara_notch)</span>
+<span id="cb105-32"><a href="#cb105-32" aria-hidden="true" tabindex="-1"></a>img_den   <span class="op">=</span> cv2.bilateralFilter(img_notch, <span class="dv">7</span>, <span class="dv">25</span>, <span class="dv">7</span>)</span>
+<span id="cb105-33"><a href="#cb105-33" aria-hidden="true" tabindex="-1"></a>mascara_vis <span class="op">=</span> (mascara_notch <span class="op">*</span> <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb105-34"><a href="#cb105-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-35"><a href="#cb105-35" aria-hidden="true" tabindex="-1"></a>psnr_n  <span class="op">=</span> mm.psnr(img_gray, img_noisy)</span>
+<span id="cb105-36"><a href="#cb105-36" aria-hidden="true" tabindex="-1"></a>psnr_no <span class="op">=</span> mm.psnr(img_gray, img_notch)</span>
+<span id="cb105-37"><a href="#cb105-37" aria-hidden="true" tabindex="-1"></a>psnr_d  <span class="op">=</span> mm.psnr(img_gray, img_den)</span>
+<span id="cb105-38"><a href="#cb105-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Rumorosa: PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.2f}</span><span class="ss"> dB | Dopo notch: </span><span class="sc">{</span>psnr_no<span class="sc">:.2f}</span><span class="ss"> dB | Notch+bilaterale: </span><span class="sc">{</span>psnr_d<span class="sc">:.2f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb105-39"><a href="#cb105-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb105-40"><a href="#cb105-40" aria-hidden="true" tabindex="-1"></a>mm.show(</span>
+<span id="cb105-41"><a href="#cb105-41" aria-hidden="true" tabindex="-1"></a>    [img_gray, img_noisy, mag_n, mascara_vis, img_notch, img_den],</span>
+<span id="cb105-42"><a href="#cb105-42" aria-hidden="true" tabindex="-1"></a>    titles<span class="op">=</span>[</span>
+<span id="cb105-43"><a href="#cb105-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Originale"</span>,</span>
+<span id="cb105-44"><a href="#cb105-44" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Rumorosa (PSNR=</span><span class="sc">{</span>psnr_n<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
+<span id="cb105-45"><a href="#cb105-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Spettro (picchi visibili)"</span>,</span>
+<span id="cb105-46"><a href="#cb105-46" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Maschera notch (gaussiana)"</span>,</span>
+<span id="cb105-47"><a href="#cb105-47" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Dopo notch (PSNR=</span><span class="sc">{</span>psnr_no<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
+<span id="cb105-48"><a href="#cb105-48" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"Notch + bilaterale (PSNR=</span><span class="sc">{</span>psnr_d<span class="sc">:.1f}</span><span class="ss"> dB)"</span>,</span>
+<span id="cb105-49"><a href="#cb105-49" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb105-50"><a href="#cb105-50" aria-hidden="true" tabindex="-1"></a>    cols<span class="op">=</span><span class="dv">6</span>, figsize<span class="op">=</span>(<span class="dv">20</span>, <span class="dv">4</span>)</span>
+<span id="cb105-51"><a href="#cb105-51" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rumorosa: PSNR=20.19 dB | Dopo notch: 22.40 dB | Notch+bilaterale: 23.61 dB</code></pre>
 </div>
@@ -5743,24 +5814,24 @@ Figura&nbsp;5.31: Mappa concettuale delle trasformazioni e delle proprietà nel 
 <section id="esempi-di-codici" class="level2" data-number="5.15">
 <h2 data-number="5.15" class="anchored" data-anchor-id="esempi-di-codici"><span class="header-section-number">5.15</span> <strong>5.3 Esempi di codici</strong></h2>
 <p>Di seguito alcuni frammenti di codice per illustrare le tecniche.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb103"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb103-2"><a href="#cb103-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> ndimage</span>
-<span id="cb103-3"><a href="#cb103-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb103-4"><a href="#cb103-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Applicazione di un filtro medio</span></span>
-<span id="cb103-5"><a href="#cb103-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filtro_medio(immagine, dimensione<span class="op">=</span><span class="dv">3</span>):</span>
-<span id="cb103-6"><a href="#cb103-6" aria-hidden="true" tabindex="-1"></a>    kernel <span class="op">=</span> np.ones((dimensione, dimensione)) <span class="op">/</span> (dimensione <span class="op">**</span> <span class="dv">2</span>)</span>
-<span id="cb103-7"><a href="#cb103-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ndimage.convolve(immagine, kernel)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb104"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtro di Sobel per il rilevamento dei contorni</span></span>
-<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filtro_sobel(immagine):</span>
-<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>    sobel_x <span class="op">=</span> np.array([[<span class="op">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>],</span>
-<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>                        [<span class="op">-</span><span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">2</span>],</span>
-<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>                        [<span class="op">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>]])</span>
-<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a>    sobel_y <span class="op">=</span> np.array([[<span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>],</span>
-<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a>                        [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
-<span id="cb104-8"><a href="#cb104-8" aria-hidden="true" tabindex="-1"></a>                        [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>]])</span>
-<span id="cb104-9"><a href="#cb104-9" aria-hidden="true" tabindex="-1"></a>    grad_x <span class="op">=</span> ndimage.convolve(immagine, sobel_x)</span>
-<span id="cb104-10"><a href="#cb104-10" aria-hidden="true" tabindex="-1"></a>    grad_y <span class="op">=</span> ndimage.convolve(immagine, sobel_y)</span>
-<span id="cb104-11"><a href="#cb104-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.sqrt(grad_x<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> grad_y<span class="op">**</span><span class="dv">2</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb107"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb107-2"><a href="#cb107-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> ndimage</span>
+<span id="cb107-3"><a href="#cb107-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb107-4"><a href="#cb107-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Applicazione di un filtro medio</span></span>
+<span id="cb107-5"><a href="#cb107-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filtro_medio(immagine, dimensione<span class="op">=</span><span class="dv">3</span>):</span>
+<span id="cb107-6"><a href="#cb107-6" aria-hidden="true" tabindex="-1"></a>    kernel <span class="op">=</span> np.ones((dimensione, dimensione)) <span class="op">/</span> (dimensione <span class="op">**</span> <span class="dv">2</span>)</span>
+<span id="cb107-7"><a href="#cb107-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ndimage.convolve(immagine, kernel)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb108"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtro di Sobel per il rilevamento dei contorni</span></span>
+<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filtro_sobel(immagine):</span>
+<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a>    sobel_x <span class="op">=</span> np.array([[<span class="op">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>],</span>
+<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a>                        [<span class="op">-</span><span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">2</span>],</span>
+<span id="cb108-5"><a href="#cb108-5" aria-hidden="true" tabindex="-1"></a>                        [<span class="op">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>]])</span>
+<span id="cb108-6"><a href="#cb108-6" aria-hidden="true" tabindex="-1"></a>    sobel_y <span class="op">=</span> np.array([[<span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb108-7"><a href="#cb108-7" aria-hidden="true" tabindex="-1"></a>                        [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb108-8"><a href="#cb108-8" aria-hidden="true" tabindex="-1"></a>                        [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>]])</span>
+<span id="cb108-9"><a href="#cb108-9" aria-hidden="true" tabindex="-1"></a>    grad_x <span class="op">=</span> ndimage.convolve(immagine, sobel_x)</span>
+<span id="cb108-10"><a href="#cb108-10" aria-hidden="true" tabindex="-1"></a>    grad_y <span class="op">=</span> ndimage.convolve(immagine, sobel_y)</span>
+<span id="cb108-11"><a href="#cb108-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.sqrt(grad_x<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> grad_y<span class="op">**</span><span class="dv">2</span>)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="esercizi-proposti" class="level2" data-number="5.16">
 <h2 data-number="5.16" class="anchored" data-anchor-id="esercizi-proposti"><span class="header-section-number">5.16</span> <strong>5.4 Esercizi proposti</strong></h2>
@@ -5809,19 +5880,19 @@ Figura&nbsp;5.31: Mappa concettuale delle trasformazioni e delle proprietà nel 
 <section id="download" class="level4 unnumbered">
 <h4 class="unnumbered anchored" data-anchor-id="download"><em>Download</em></h4>
 <p>Scarica <code>morph.py</code> e <code>testsuite.py</code> eseguendo la cella qui sotto:</p>
-<div id="6fb686af5d41" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;d7eae279516e8b7a83c5dd134e7ebcaa&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="70">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, urllib.request</span>
-<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>os.makedirs(<span class="st">"tmp/state"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph/config.py"</span></span>
-<span id="cb105-6"><a href="#cb105-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(<span class="st">"config.py"</span>):</span>
-<span id="cb105-7"><a href="#cb105-7" aria-hidden="true" tabindex="-1"></a>    urllib.request.urlretrieve(url, <span class="st">"config.py"</span>)</span>
-<span id="cb105-8"><a href="#cb105-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb105-9"><a href="#cb105-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> config</span>
-<span id="cb105-10"><a href="#cb105-10" aria-hidden="true" tabindex="-1"></a>config.setup(testsuite<span class="op">=</span><span class="va">True</span>, cpp<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb105-11"><a href="#cb105-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
-<span id="cb105-12"><a href="#cb105-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="65ed6e782957" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;d7eae279516e8b7a83c5dd134e7ebcaa&quot;,&quot;role&quot;:&quot;common&quot;}}" data-quarto-raw="true" data-execution_count="72">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb109"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, urllib.request</span>
+<span id="cb109-2"><a href="#cb109-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb109-3"><a href="#cb109-3" aria-hidden="true" tabindex="-1"></a>os.makedirs(<span class="st">"tmp/state"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb109-4"><a href="#cb109-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb109-5"><a href="#cb109-5" aria-hidden="true" tabindex="-1"></a>url <span class="op">=</span> <span class="st">"https://raw.githubusercontent.com/fzampirolli/pdi-vc/master/morph/config.py"</span></span>
+<span id="cb109-6"><a href="#cb109-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(<span class="st">"config.py"</span>):</span>
+<span id="cb109-7"><a href="#cb109-7" aria-hidden="true" tabindex="-1"></a>    urllib.request.urlretrieve(url, <span class="st">"config.py"</span>)</span>
+<span id="cb109-8"><a href="#cb109-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb109-9"><a href="#cb109-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> config</span>
+<span id="cb109-10"><a href="#cb109-10" aria-hidden="true" tabindex="-1"></a>config.setup(testsuite<span class="op">=</span><span class="va">True</span>, cpp<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb109-11"><a href="#cb109-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> morph <span class="im">import</span> mm</span>
+<span id="cb109-12"><a href="#cb109-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> testsuite <span class="im">import</span> TestSuite</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>✅ Ambiente pronto. Morph: 1.1.9 | OpenCV: 5.0.0 | TestSuite: 1.1.2</code></pre>
 </div>
@@ -5831,11 +5902,11 @@ Figura&nbsp;5.31: Mappa concettuale delle trasformazioni e delle proprietà nel 
 <h4 class="unnumbered anchored" data-anchor-id="esecuzione-dei-test">Esecuzione dei Test</h4>
 <p>Per valutare i test, esegui <code>TestSuite("EP05_01.estensione").run()</code> in una nuova cella, sostituendo l’estensione con quella del linguaggio utilizzato (<code>.py</code>, <code>.java</code>, <code>.c</code>, <code>.cpp</code>, <code>.js</code> o <code>.r</code>). Il sistema scarica i casi di test da GitHub, esegue il programma e calcola automaticamente il voto.</p>
 <p>Per testare il codice Python direttamente, senza salvare un file, usa <code>run_code(codice)</code> passando il codice come <em>stringa</em> in una variabile <code>codice</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb107"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a>codice <span class="op">=</span> <span class="st">"""</span></span>
-<span id="cb107-2"><a href="#cb107-2" aria-hidden="true" tabindex="-1"></a><span class="st">from morph import mm</span></span>
-<span id="cb107-3"><a href="#cb107-3" aria-hidden="true" tabindex="-1"></a><span class="st"># ... il tuo codice qui ...</span></span>
-<span id="cb107-4"><a href="#cb107-4" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
-<span id="cb107-5"><a href="#cb107-5" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_01"</span>).run_code(codice)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb111"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a>codice <span class="op">=</span> <span class="st">"""</span></span>
+<span id="cb111-2"><a href="#cb111-2" aria-hidden="true" tabindex="-1"></a><span class="st">from morph import mm</span></span>
+<span id="cb111-3"><a href="#cb111-3" aria-hidden="true" tabindex="-1"></a><span class="st"># ... il tuo codice qui ...</span></span>
+<span id="cb111-4"><a href="#cb111-4" aria-hidden="true" tabindex="-1"></a><span class="st">"""</span></span>
+<span id="cb111-5"><a href="#cb111-5" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_01"</span>).run_code(codice)</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="ep05_01-filtro-passa-basso-ideale-per-distanza-nello-spettro" class="level3" data-number="5.18.1">
@@ -5958,8 +6029,8 @@ H(u,v) = \begin{cases} 1, &amp; D(u,v) \le D_0 \\ 0, &amp; D(u,v) &gt; D_0 \end{
 </tr>
 </tbody>
 </table>
-<div id="cell-fig-05-sim-ep0501" class="cell" data-execution_count="71">
-<div id="fig-05-sim-ep0501" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="71">
+<div id="cell-fig-05-sim-ep0501" class="cell" data-execution_count="73">
+<div id="fig-05-sim-ep0501" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="73">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-05-sim-ep0501-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -6109,15 +6180,15 @@ Figura&nbsp;5.32: Simulatore EP05_01: Filtro Passa-Basso Ideale nello Spettro
 </figure>
 </div>
 </div>
-<div id="069a7a03418a" class="cell" data-execution_count="72">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb108"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_01.cpp</span>
-<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="3d47f83dee5a" class="cell" data-execution_count="74">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb112"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_01.cpp</span>
+<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP05_01.cpp</code></pre>
 </div>
 </div>
-<div id="68f7f8d8ad66" class="cell" data-execution_count="73">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb110"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_01.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="022f67a17250" class="cell" data-execution_count="75">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb114"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_01.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_01.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_01.cases
@@ -6232,8 +6303,8 @@ Figura&nbsp;5.32: Simulatore EP05_01: Filtro Passa-Basso Ideale nello Spettro
 </tr>
 </tbody>
 </table>
-<div id="cell-fig-05-sim-ep0502" class="cell" data-execution_count="74">
-<div id="fig-05-sim-ep0502" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="74">
+<div id="cell-fig-05-sim-ep0502" class="cell" data-execution_count="76">
+<div id="fig-05-sim-ep0502" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="76">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-05-sim-ep0502-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -6398,15 +6469,15 @@ Figura&nbsp;5.33: Simulatore EP05_02: Filtro Notch
 </figure>
 </div>
 </div>
-<div id="8f56f93242c4" class="cell" data-execution_count="75">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb111"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_02.cpp</span>
-<span id="cb111-2"><a href="#cb111-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="260774970849" class="cell" data-execution_count="77">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb115"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb115-1"><a href="#cb115-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_02.cpp</span>
+<span id="cb115-2"><a href="#cb115-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP05_02.cpp</code></pre>
 </div>
 </div>
-<div id="5ef7e43dc4cd" class="cell" data-execution_count="76">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb113"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb113-1"><a href="#cb113-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_02.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="d13cc5f46980" class="cell" data-execution_count="78">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb117"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb117-1"><a href="#cb117-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_02.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_02.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_02.cases
@@ -6531,8 +6602,8 @@ C'(u,v) = \tilde{C}(u,v) \times Q(u,v)
 </tr>
 </tbody>
 </table>
-<div id="cell-fig-05-sim-ep0503" class="cell" data-execution_count="77">
-<div id="fig-05-sim-ep0503" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="77">
+<div id="cell-fig-05-sim-ep0503" class="cell" data-execution_count="79">
+<div id="fig-05-sim-ep0503" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="79">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-05-sim-ep0503-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -6664,15 +6735,15 @@ Figura&nbsp;5.34: Simulatore EP05_03: Quantizzazione DCT (<em>round-trip</em>)
 </figure>
 </div>
 </div>
-<div id="337e63eb84e2" class="cell" data-execution_count="78">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb114"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_03.cpp</span>
-<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="0a3442d4ed97" class="cell" data-execution_count="80">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb118"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_03.cpp</span>
+<span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP05_03.cpp</code></pre>
 </div>
 </div>
-<div id="3dd19ad71096" class="cell" data-execution_count="79">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb116"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb116-1"><a href="#cb116-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_03.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="3d9c79048436" class="cell" data-execution_count="81">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb120"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_03.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_03.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_03.cases
@@ -6781,8 +6852,8 @@ F(u,v) = \sum_{x=0}^{M-1}\sum_{y=0}^{N-1} f(x,y)\, e^{-j2\pi\left(\frac{ux}{M}+\
 </tr>
 </tbody>
 </table>
-<div id="cell-fig-05-sim-ep0504" class="cell" data-execution_count="80">
-<div id="fig-05-sim-ep0504" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="80">
+<div id="cell-fig-05-sim-ep0504" class="cell" data-execution_count="82">
+<div id="fig-05-sim-ep0504" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="82">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-05-sim-ep0504-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -6910,15 +6981,15 @@ Figura&nbsp;5.35: Simulatore EP05_04: DFT 2D manuale
 </figure>
 </div>
 </div>
-<div id="b366ae9ce7aa" class="cell" data-execution_count="81">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb117"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb117-1"><a href="#cb117-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_04.cpp</span>
-<span id="cb117-2"><a href="#cb117-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="6900eacdc60a" class="cell" data-execution_count="83">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb121"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb121-1"><a href="#cb121-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_04.cpp</span>
+<span id="cb121-2"><a href="#cb121-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP05_04.cpp</code></pre>
 </div>
 </div>
-<div id="16ee5159c84a" class="cell" data-execution_count="82">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb119"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb119-1"><a href="#cb119-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_04.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="94b9fc9fb491" class="cell" data-execution_count="84">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb123"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb123-1"><a href="#cb123-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_04.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_04.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_04.cases
@@ -7048,8 +7119,8 @@ C(u,v) = \alpha(u)\,\alpha(v)\sum_{x=0}^{N-1}\sum_{y=0}^{N-1} g(x,y)\,\cos\!\lef
 <section id="suggerimento-per-il-debug" class="level4" data-number="5.18.5.6">
 <h4 data-number="5.18.5.6" class="anchored" data-anchor-id="suggerimento-per-il-debug"><span class="header-section-number">5.18.5.6</span> 💡 Suggerimento per il Debug</h4>
 <p>Se il risultato non corrisponde, verifica in questo ordine: (1) i coefficienti DCT grezzi (prima della quantizzazione) — devono ricostruire l’originale <strong>esattamente</strong> tramite IDCT se salti le fasi 6–7; (2) la tabella <span class="math inline">\(\alpha(u)\)</span> — un errore comune è applicare <span class="math inline">\(\sqrt{2/N}\)</span> anche per <span class="math inline">\(u=0\)</span>; (3) l’arrotondamento della quantizzazione, che deve avvenire <strong>prima</strong> di moltiplicare di nuovo per <span class="math inline">\(Q\)</span>.</p>
-<div id="cell-fig-05-sim-ep0505" class="cell" data-execution_count="83">
-<div id="fig-05-sim-ep0505" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="83">
+<div id="cell-fig-05-sim-ep0505" class="cell" data-execution_count="85">
+<div id="fig-05-sim-ep0505" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="85">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-05-sim-ep0505-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 
@@ -7237,15 +7308,15 @@ Figura&nbsp;5.36: Simulatore EP05_05: <em>Pipeline</em> JPEG completo a blocchi
 </figure>
 </div>
 </div>
-<div id="a373894b4498" class="cell" data-execution_count="84">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb120"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_05.cpp</span>
-<span id="cb120-2"><a href="#cb120-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="022a2b6d0a7f" class="cell" data-execution_count="86">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb124"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb124-1"><a href="#cb124-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile EP05_05.cpp</span>
+<span id="cb124-2"><a href="#cb124-2" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> your solution</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Overwriting EP05_05.cpp</code></pre>
 </div>
 </div>
-<div id="81eeb7b13e1d" class="cell" data-execution_count="85">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb122"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb122-1"><a href="#cb122-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_05.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="41d3e7b33810" class="cell" data-execution_count="87">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb126"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb126-1"><a href="#cb126-1" aria-hidden="true" tabindex="-1"></a>TestSuite(<span class="st">"EP05_05.cpp"</span>).run()</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <pre style="font-family:monospace;font-size:13px;line-height:1.5;margin:0">✔️ EP05_05.cases esiste già in casos/
 📋 5 caso/i caricato/i da casos/EP05_05.cases
