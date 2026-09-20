@@ -377,22 +377,35 @@ em `gen/_publog/<combo>.log`.
 
 #### Tempos de build
 
-Regeneração completa a partir do zero, com quatro processos em paralelo
-(`JOBS=4`), medida numa máquina local:
-
-| Combo    | Trilha | Idioma           | Render  |
-| :------- | :----- | :--------------- | ------: |
-| `py.pt`  | Python | Português (base) | ~8 min  |
-| `py.en`  | Python | Inglês           | ~32 min |
-| `py.fr`  | Python | Francês          | ~32 min |
-| `cpp.pt` | C++    | Português        | ~28 min |
-| `cpp.en` | C++    | Inglês           | ~32 min |
-| `cpp.fr` | C++    | Francês          | ~22 min |
+Cada `make publish-parallel` grava sua própria linha em `PUBLISH_HISTORY.csv`
+(raiz do repo) — tempo por combo, tempo total, e grau de paralelismo real
+(médio/pico, calculado a partir dos timestamps de início/fim de cada combo).
+`PUBLISH_HISTORY.md` é regenerado automaticamente a partir do CSV a cada
+execução (`pipeline/publish_history.py`, chamado no fim do alvo) e inclui uma
+linha de médias — é a fonte viva pra saber quanto tempo uma regeneração
+completa leva hoje, não um número fixo que fica velho.
 
 O combo-base `py.pt` **não reexecuta** os notebooks — só renderiza as saídas já
 gravadas em `all/capXX/*.ipynb` (ver `quarto_builder._quarto_yml`,
-`execute_enabled`). Tempo total de parede (2 ondas + índice + deploy): **~38 min**.
-Com o `.cache` quente e `INC=1`, um rebuild incremental é bem mais rápido.
+`execute_enabled`), por isso é sempre o mais rápido da onda 1. Com o `.cache`
+quente e `INC=1`, um rebuild incremental é bem mais rápido que os números do
+histórico (que medem regeneração completa).
+
+A tabela `tbl-00-tempos` do prefácio (`includes/prefacio*.qmd`, os 5 idiomas)
+mostra uma versão resumida (páginas do PDF + tempo) desses mesmos dados pro
+leitor do livro. Ela **não é recalculada automaticamente a cada publish** —
+depois de uma `make publish-parallel` completa (os 10 combos), rode:
+
+```bash
+python -m pipeline.update_prefacio_tempos
+```
+
+Isso lê a última linha de `PUBLISH_HISTORY.csv` + conta as páginas dos PDFs
+publicados em `docs/<combo>/livro.<locale>.<lang>.pdf`, e reescreve só as
+colunas de Páginas/Tempo nas 5 tabelas (preserva o resto da prosa/traduções).
+É preciso rodar `make publish-parallel` **de novo** depois, pra esses números
+novos entrarem de fato no HTML/PDF publicado — a tabela em si é conteúdo
+estático do livro, só o script fica em sincronia manual com o histórico real.
 
 ### Limpeza
 
