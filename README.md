@@ -378,12 +378,19 @@ em `gen/_publog/<combo>.log`.
 #### Tempos de build
 
 Cada `make publish-parallel` grava sua própria linha em `PUBLISH_HISTORY.csv`
-(raiz do repo) — tempo por combo, tempo total, e grau de paralelismo real
-(médio/pico, calculado a partir dos timestamps de início/fim de cada combo).
-`PUBLISH_HISTORY.md` é regenerado automaticamente a partir do CSV a cada
-execução (`pipeline/publish_history.py`, chamado no fim do alvo) e inclui uma
-linha de médias — é a fonte viva pra saber quanto tempo uma regeneração
-completa leva hoje, não um número fixo que fica velho.
+(raiz do repo) — tempo por combo, tempo total de parede, **soma serial dos
+combos** (quanto levaria rodando um de cada vez, sem paralelismo) e grau de
+paralelismo real (médio/pico, calculado a partir dos timestamps de início/fim
+de cada combo). `PUBLISH_HISTORY.md` é regenerado automaticamente a partir do
+CSV a cada execução (`pipeline/publish_history.py`, chamado no fim do alvo) e
+inclui uma linha de médias — é a fonte viva pra saber quanto tempo uma
+regeneração completa leva hoje, não um número fixo que fica velho.
+
+**Máquina usada nas medições registradas no histórico**: 1 CPU Intel Xeon
+E5-2690 v4 @ 2.60GHz, 14 núcleos físicos / 28 threads (hyper-threading). O
+paralelismo pico observado (8x) fica bem abaixo dos 28 threads disponíveis —
+os 10 combos não saturam a máquina; o gargalo de cada combo é majoritariamente
+chamada de API de tradução (E/S), não CPU.
 
 O combo-base `py.pt` **não reexecuta** os notebooks — só renderiza as saídas já
 gravadas em `all/capXX/*.ipynb` (ver `quarto_builder._quarto_yml`,

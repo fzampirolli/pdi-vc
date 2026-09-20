@@ -33,7 +33,7 @@ COMBOS = ['py.pt', 'py.en', 'py.fr', 'py.es', 'py.it',
 CSV_PATH = Path('PUBLISH_HISTORY.csv')
 MD_PATH = Path('PUBLISH_HISTORY.md')
 
-EXTRA_FIELDS = ['render_seconds', 'total_seconds', 'avg_parallelism', 'peak_parallelism', 'note']
+EXTRA_FIELDS = ['render_seconds', 'total_seconds', 'sum_seconds', 'avg_parallelism', 'peak_parallelism', 'note']
 FIELDNAMES = ['timestamp', 'pub_langs', 'pub_locales'] + COMBOS + EXTRA_FIELDS
 
 
@@ -110,6 +110,7 @@ def append_run(publog_dir: Path, render_seconds: int, total_seconds: int,
                pub_langs: str, pub_locales: str, note: str) -> None:
     results = _read_rc(publog_dir)
     avg_par, peak_par = _parallelism(results)
+    sum_seconds = sum(r.seconds for r in results.values() if r.seconds >= 0)
 
     row = {
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
@@ -117,6 +118,7 @@ def append_run(publog_dir: Path, render_seconds: int, total_seconds: int,
         'pub_locales': pub_locales,
         'render_seconds': render_seconds,
         'total_seconds': total_seconds,
+        'sum_seconds': sum_seconds,
         'avg_parallelism': f'{avg_par:.2f}' if avg_par is not None else '',
         'peak_parallelism': peak_par if peak_par is not None else '',
         'note': note,
@@ -169,28 +171,46 @@ def _regenerate_md() -> None:
         'tempo, pico é o máximo de combos rodando ao mesmo tempo em '
         'algum instante.',
         '',
+        '**Soma dos combos (serial)**: soma do tempo de cada combo '
+        'individualmente — quanto levaria rodando um de cada vez, sem '
+        'paralelismo. É bem maior que "Render (parede)" porque a máquina '
+        'roda vários combos ao mesmo tempo (ver CPU usada no README, § '
+        '"Tempos de build").',
+        '',
     ]
 
     header = (['Data', 'Langs', 'Locales'] + COMBOS +
-              ['Render (parede)', 'Total (c/ deploy)', 'Paralel. médio', 'Paralel. pico', 'Obs.'])
+              ['Render (parede)', 'Total (c/ deploy)', 'Soma dos combos (serial)',
+               'Paralel. médio', 'Paralel. pico', 'Obs.'])
     lines.append('| ' + ' | '.join(header) + ' |')
     lines.append('|' + '---|' * len(header))
 
     sums: dict[str, list[int]] = {c: [] for c in COMBOS}
     render_sums: list[int] = []
     total_sums: list[int] = []
+    sum_sums: list[int] = []
     avg_par_sums: list[float] = []
     peak_par_sums: list[int] = []
 
     for row in rows:
         cells = [row['timestamp'], row['pub_langs'], row['pub_locales']]
+        row_combo_secs: list[int] = []
         for combo in COMBOS:
             v = row.get(combo, '')
             cells.append(_fmt_time(v) if v != '' else '—')
             if v not in (None, '') and int(v) >= 0:
                 sums[combo].append(int(v))
+                row_combo_secs.append(int(v))
         cells.append(_fmt_time(row['render_seconds']))
         cells.append(_fmt_time(row['total_seconds']))
+
+        # Linhas antigas (de antes desta coluna existir) não têm
+        # sum_seconds gravado no CSV — recalcula a partir dos combos da
+        # própria linha em vez de mostrar "—" à toa.
+        sum_secs_raw = row.get('sum_seconds', '')
+        sum_secs = int(sum_secs_raw) if sum_secs_raw not in (None, '') else (
+            sum(row_combo_secs) if row_combo_secs else None)
+        cells.append(_fmt_time(sum_secs) if sum_secs is not None else '—')
 
         avg_par_raw = row.get('avg_parallelism', '')
         peak_par_raw = row.get('peak_parallelism', '')
@@ -203,6 +223,8 @@ def _regenerate_md() -> None:
             render_sums.append(int(row['render_seconds']))
         if row['total_seconds']:
             total_sums.append(int(row['total_seconds']))
+        if sum_secs is not None:
+            sum_sums.append(sum_secs)
         if avg_par_raw:
             avg_par_sums.append(float(avg_par_raw))
         if peak_par_raw:
@@ -215,6 +237,7 @@ def _regenerate_md() -> None:
             avg_cells.append(_fmt_time(round(sum(vals) / len(vals))) if vals else '—')
         avg_cells.append(_fmt_time(round(sum(render_sums) / len(render_sums))) if render_sums else '—')
         avg_cells.append(_fmt_time(round(sum(total_sums) / len(total_sums))) if total_sums else '—')
+        avg_cells.append(_fmt_time(round(sum(sum_sums) / len(sum_sums))) if sum_sums else '—')
         avg_cells.append(f'{sum(avg_par_sums) / len(avg_par_sums):.2f}x' if avg_par_sums else '—')
         avg_cells.append(f'{sum(peak_par_sums) / len(peak_par_sums):.1f}x' if peak_par_sums else '—')
         avg_cells.append('')
