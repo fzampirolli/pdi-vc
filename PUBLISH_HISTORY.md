@@ -12,4 +12,5 @@ Gerado a partir de `PUBLISH_HISTORY.csv` por `pipeline/publish_history.py`, cham
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-11 15:15 | py,cpp | pt,en,fr,es,it | 7m30s | 47m05s | 47m15s | 47m48s | 47m56s | 25m55s | 33m37s | 38m27s | 37m27s | 33m43s | 73m51s | 76m02s | 366m43s | 4.97x | 8x | publish completo (render all, PDF incl.) pós-fixes de prefácio; primeira entrada do histórico |
 | 2026-09-20 18:03 | py,cpp | pt,en,fr,es,it | 7m28s | 31m06s | 31m08s | 31m20s | 31m20s | 25m54s | 34m12s | 37m51s | 37m27s | 34m35s | 63m45s | 71m31s | 302m21s | 4.74x | 8x |  |
-| **Média (2 execuções)** |  |  | 7m29s | 39m06s | 39m12s | 39m34s | 39m38s | 25m54s | 33m54s | 38m09s | 37m27s | 34m09s | 68m48s | 73m46s | 334m32s | 4.86x | 8.0x |  |
+| 2026-09-20 19:36 | py,cpp | pt,en,fr,es,it | 7m29s | 49m02s | 49m21s | 50m21s | 50m18s | 25m57s | 34m53s | 39m27s | 38m52s | 35m35s | 76m18s | 89m43s | 381m15s | 5.00x | 8x |  |
+| **Média (3 execuções)** |  |  | 7m29s | 42m24s | 42m35s | 43m10s | 43m11s | 25m55s | 34m14s | 38m35s | 37m55s | 34m38s | 71m18s | 79m05s | 350m06s | 4.90x | 8.0x |  |
