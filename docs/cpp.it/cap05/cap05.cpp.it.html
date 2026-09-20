@@ -5258,86 +5258,84 @@ Figura&nbsp;5.27: Análise comparativa de artefatos de compressão sob fator de 
 <h4 data-number="5.8.4.1" class="anchored" data-anchor-id="curve-di-rateo-distorsione"><span class="header-section-number">5.8.4.1</span> Curve di Rateo-Distorsione</h4>
 <p>La <a href="#fig-05-formatos-comparacao" class="quarto-xref">Figura&nbsp;<span>5.28</span></a> presenta la valutazione empirica del <em>pipeline</em> JPEG e WebP tramite <strong>curve di rateo-distorsione</strong>, che monitorano il guadagno di compressione (dimensione del file in KB) in funzione del PSNR. Il formato PNG funge da linea di base ideale (<span class="math inline">\(\text{PSNR} = \infty\)</span>), poiché la sua natura <em>lossless</em> impedisce qualsiasi degradazione, sebbene richieda un volume di dati notevolmente maggiore.</p>
 <p>L’analisi delle curve dimostra la superiorità e l’efficienza dello standard WebP rispetto al JPEG tradizionale: per raggiungere lo stesso livello di fedeltà matematica (come la fascia di qualità eccellente, dove <span class="math inline">\(\text{PSNR} &gt; 40\text{ dB}\)</span>), il codificatore WebP genera file significativamente più piccoli. Questo comportamento riflette l’impatto pratico dell’evoluzione degli algoritmi nell’ottimizzazione dei sistemi di trasmissione e archiviazione digitale.</p>
-<div id="bb54da3b69e6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;20d1cb90bd5ad1af77e2c855032ad841&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="65">
+<div id="76edda2a3e0e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;ck&quot;:&quot;20d1cb90bd5ad1af77e2c855032ad841&quot;,&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="65">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>writefile tmp<span class="op">/</span>fig_05_formatos_comparacao.cpp</span>
 <span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="co">#define MM_OUT "tmp/fig_05_formatos_comparacao.png"</span></span>
-<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Compilar: g<span class="op">++</span> <span class="op">-</span>O2 <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> snippet.cpp <span class="op">-</span>o snippet $(pkg<span class="op">-</span>config <span class="op">--</span>cflags <span class="op">--</span>libs opencv4)</span>
-<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
-<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
-<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
-<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
-<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;sstream&gt;</span></span>
-<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iomanip&gt;</span></span>
-<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
-<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
-<span id="cb95-13"><a href="#cb95-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>formatos<span class="op">-</span>comparacao</span>
-<span id="cb95-14"><a href="#cb95-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"Curva taxa-distorção: PSNR vs tamanho de arquivo para JPEG, WebP e PNG aplicada à imagem do *Cameraman*."</span></span>
-<span id="cb95-15"><a href="#cb95-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> echo: true</span>
-<span id="cb95-16"><a href="#cb95-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> output: true</span>
-<span id="cb95-17"><a href="#cb95-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-18"><a href="#cb95-18" aria-hidden="true" tabindex="-1"></a>    std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
-<span id="cb95-19"><a href="#cb95-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-20"><a href="#cb95-20" aria-hidden="true" tabindex="-1"></a>    cv::Mat src_full <span class="op">=</span> cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_COLOR)<span class="op">;</span></span>
-<span id="cb95-21"><a href="#cb95-21" aria-hidden="true" tabindex="-1"></a>    cv::Mat src_resized<span class="op">;</span></span>
-<span id="cb95-22"><a href="#cb95-22" aria-hidden="true" tabindex="-1"></a>    cv::resize(src_full, src_resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
-<span id="cb95-23"><a href="#cb95-23" aria-hidden="true" tabindex="-1"></a>    mm::Image src <span class="op">=</span> mm::gray(mm::Image(src_resized))<span class="op">;</span></span>
+<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Compilar: g<span class="op">++</span> <span class="op">-</span>std<span class="op">=</span>c<span class="op">++</span><span class="dv">17</span> <span class="op">-</span>O2 snippet.cpp <span class="op">-</span>o snippet $(pkg<span class="op">-</span>config <span class="op">--</span>cflags <span class="op">--</span>libs opencv4)</span>
+<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> Executar: .<span class="op">/</span>snippet</span>
+<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;opencv2/opencv.hpp&gt;</span></span>
+<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;filesystem&gt;</span></span>
+<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;vector&gt;</span></span>
+<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;string&gt;</span></span>
+<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a><span class="co">#include &lt;iostream&gt;</span></span>
+<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a><span class="co">#include "morph.hpp"</span></span>
+<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-13"><a href="#cb95-13" aria-hidden="true" tabindex="-1"></a><span class="bu">int</span> main() {</span>
+<span id="cb95-14"><a href="#cb95-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> label: fig<span class="op">-</span><span class="dv">0</span><span class="er">5</span><span class="op">-</span>formatos<span class="op">-</span>comparacao</span>
+<span id="cb95-15"><a href="#cb95-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> fig<span class="op">-</span>cap: <span class="st">"Curva taxa-distorção: PSNR vs tamanho de arquivo para JPEG, WebP e PNG aplicada à imagem do *Cameraman*."</span></span>
+<span id="cb95-16"><a href="#cb95-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> echo: true</span>
+<span id="cb95-17"><a href="#cb95-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">//|</span> output: true</span>
+<span id="cb95-18"><a href="#cb95-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-19"><a href="#cb95-19" aria-hidden="true" tabindex="-1"></a>    std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb95-20"><a href="#cb95-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-21"><a href="#cb95-21" aria-hidden="true" tabindex="-1"></a>    cv::Mat resized<span class="op">;</span></span>
+<span id="cb95-22"><a href="#cb95-22" aria-hidden="true" tabindex="-1"></a>    cv::resize(cv::imread(<span class="st">"imagens/cameraman.png"</span>, cv::IMREAD_GRAYSCALE), resized, cv::Size(<span class="dv">256</span>, <span class="dv">256</span>))<span class="op">;</span></span>
+<span id="cb95-23"><a href="#cb95-23" aria-hidden="true" tabindex="-1"></a>    mm::Image src <span class="op">=</span> mm::gray(mm::Image(resized))<span class="op">;</span></span>
 <span id="cb95-24"><a href="#cb95-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb95-25"><a href="#cb95-25" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>double<span class="op">&gt;</span> jpeg_kb, jpeg_psnr<span class="op">;</span></span>
-<span id="cb95-26"><a href="#cb95-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : {<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">90</span>, <span class="dv">95</span>}) {</span>
-<span id="cb95-27"><a href="#cb95-27" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_q"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".jpg"</span><span class="op">;</span></span>
-<span id="cb95-28"><a href="#cb95-28" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
+<span id="cb95-26"><a href="#cb95-26" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> jpeg_q <span class="op">=</span> {<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">90</span>, <span class="dv">95</span>}<span class="op">;</span></span>
+<span id="cb95-27"><a href="#cb95-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : jpeg_q) {</span>
+<span id="cb95-28"><a href="#cb95-28" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_q"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".jpg"</span><span class="op">;</span></span>
 <span id="cb95-29"><a href="#cb95-29" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_JPEG_QUALITY, q}<span class="op">;</span></span>
-<span id="cb95-30"><a href="#cb95-30" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, src_mat, params)<span class="op">;</span></span>
+<span id="cb95-30"><a href="#cb95-30" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, cv::Mat(src), params)<span class="op">;</span></span>
 <span id="cb95-31"><a href="#cb95-31" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec <span class="op">=</span> cv::imread(p, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
 <span id="cb95-32"><a href="#cb95-32" aria-hidden="true" tabindex="-1"></a>        jpeg_kb.push_back((double)std::filesystem::file_size(p) <span class="op">/</span> <span class="fl">1024.0</span>)<span class="op">;</span></span>
 <span id="cb95-33"><a href="#cb95-33" aria-hidden="true" tabindex="-1"></a>        jpeg_psnr.push_back(mm::psnr(src, mm::Image(rec)))<span class="op">;</span></span>
 <span id="cb95-34"><a href="#cb95-34" aria-hidden="true" tabindex="-1"></a>    }</span>
 <span id="cb95-35"><a href="#cb95-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb95-36"><a href="#cb95-36" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>double<span class="op">&gt;</span> webp_kb, webp_psnr<span class="op">;</span></span>
-<span id="cb95-37"><a href="#cb95-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : {<span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">70</span>, <span class="dv">85</span>, <span class="dv">95</span>}) {</span>
-<span id="cb95-38"><a href="#cb95-38" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_w"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".webp"</span><span class="op">;</span></span>
-<span id="cb95-39"><a href="#cb95-39" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
+<span id="cb95-37"><a href="#cb95-37" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> webp_q <span class="op">=</span> {<span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">70</span>, <span class="dv">85</span>, <span class="dv">95</span>}<span class="op">;</span></span>
+<span id="cb95-38"><a href="#cb95-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="bu">int</span> q : webp_q) {</span>
+<span id="cb95-39"><a href="#cb95-39" aria-hidden="true" tabindex="-1"></a>        std::string p <span class="op">=</span> <span class="st">"tmp/fmt_w"</span> <span class="op">+</span> std::to_string(q) <span class="op">+</span> <span class="st">".webp"</span><span class="op">;</span></span>
 <span id="cb95-40"><a href="#cb95-40" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_WEBP_QUALITY, q}<span class="op">;</span></span>
-<span id="cb95-41"><a href="#cb95-41" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, src_mat, params)<span class="op">;</span></span>
+<span id="cb95-41"><a href="#cb95-41" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p, cv::Mat(src), params)<span class="op">;</span></span>
 <span id="cb95-42"><a href="#cb95-42" aria-hidden="true" tabindex="-1"></a>        cv::Mat rec <span class="op">=</span> cv::imread(p, cv::IMREAD_GRAYSCALE)<span class="op">;</span></span>
 <span id="cb95-43"><a href="#cb95-43" aria-hidden="true" tabindex="-1"></a>        webp_kb.push_back((double)std::filesystem::file_size(p) <span class="op">/</span> <span class="fl">1024.0</span>)<span class="op">;</span></span>
 <span id="cb95-44"><a href="#cb95-44" aria-hidden="true" tabindex="-1"></a>        webp_psnr.push_back(mm::psnr(src, mm::Image(rec)))<span class="op">;</span></span>
 <span id="cb95-45"><a href="#cb95-45" aria-hidden="true" tabindex="-1"></a>    }</span>
 <span id="cb95-46"><a href="#cb95-46" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb95-47"><a href="#cb95-47" aria-hidden="true" tabindex="-1"></a>    std::string p_png <span class="op">=</span> <span class="st">"tmp/fmt.png"</span><span class="op">;</span></span>
-<span id="cb95-48"><a href="#cb95-48" aria-hidden="true" tabindex="-1"></a>    {</span>
-<span id="cb95-49"><a href="#cb95-49" aria-hidden="true" tabindex="-1"></a>        cv::Mat src_mat <span class="op">=</span> src<span class="op">;</span></span>
-<span id="cb95-50"><a href="#cb95-50" aria-hidden="true" tabindex="-1"></a>        std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> params <span class="op">=</span> {cv::IMWRITE_PNG_COMPRESSION, <span class="dv">9</span>}<span class="op">;</span></span>
-<span id="cb95-51"><a href="#cb95-51" aria-hidden="true" tabindex="-1"></a>        cv::imwrite(p_png, src_mat, params)<span class="op">;</span></span>
-<span id="cb95-52"><a href="#cb95-52" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb95-53"><a href="#cb95-53" aria-hidden="true" tabindex="-1"></a>    double png_kb <span class="op">=</span> (double)std::filesystem::file_size(p_png) <span class="op">/</span> <span class="fl">1024.0</span><span class="op">;</span></span>
-<span id="cb95-54"><a href="#cb95-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-55"><a href="#cb95-55" aria-hidden="true" tabindex="-1"></a>    std::ostringstream titulo<span class="op">;</span></span>
-<span id="cb95-56"><a href="#cb95-56" aria-hidden="true" tabindex="-1"></a>    titulo <span class="op">&lt;&lt;</span> <span class="st">"Curva Taxa-Distorcao (PNG sem perda: "</span> <span class="op">&lt;&lt;</span> std::fixed <span class="op">&lt;&lt;</span> std::setprecision(<span class="dv">1</span>) <span class="op">&lt;&lt;</span> png_kb <span class="op">&lt;&lt;</span> <span class="st">" KB)"</span><span class="op">;</span></span>
-<span id="cb95-57"><a href="#cb95-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-58"><a href="#cb95-58" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> xs <span class="op">=</span> {jpeg_kb, webp_kb}<span class="op">;</span></span>
-<span id="cb95-59"><a href="#cb95-59" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> ys <span class="op">=</span> {jpeg_psnr, webp_psnr}<span class="op">;</span></span>
-<span id="cb95-60"><a href="#cb95-60" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> labels <span class="op">=</span> {<span class="st">"JPEG"</span>, <span class="st">"WebP"</span>}<span class="op">;</span></span>
-<span id="cb95-61"><a href="#cb95-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-62"><a href="#cb95-62" aria-hidden="true" tabindex="-1"></a>    mm::Image chart <span class="op">=</span> mm::lineChart(</span>
-<span id="cb95-63"><a href="#cb95-63" aria-hidden="true" tabindex="-1"></a>        xs, ys,</span>
-<span id="cb95-64"><a href="#cb95-64" aria-hidden="true" tabindex="-1"></a>        labels,</span>
-<span id="cb95-65"><a href="#cb95-65" aria-hidden="true" tabindex="-1"></a>        {},  <span class="op">//</span> colors</span>
-<span id="cb95-66"><a href="#cb95-66" aria-hidden="true" tabindex="-1"></a>        titulo.<span class="bu">str</span>(),</span>
-<span id="cb95-67"><a href="#cb95-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Tamanho do arquivo (KB)"</span>, <span class="st">"PSNR (dB)"</span></span>
-<span id="cb95-68"><a href="#cb95-68" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
-<span id="cb95-69"><a href="#cb95-69" aria-hidden="true" tabindex="-1"></a>    mm::show(std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{chart}, MM_OUT, {<span class="st">"JPEG x WebP x PNG"</span>}, <span class="dv">1</span>)<span class="op">;</span></span>
-<span id="cb95-70"><a href="#cb95-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb95-71"><a href="#cb95-71" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb95-72"><a href="#cb95-72" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
-<span id="cb95-73"><a href="#cb95-73" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
-<span id="cb95-74"><a href="#cb95-74" aria-hidden="true" tabindex="-1"></a>mm::write(chart, <span class="st">"tmp/fig_05_formatos_comparacao_0.png"</span>)<span class="op">;</span></span>
-<span id="cb95-75"><a href="#cb95-75" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
-<span id="cb95-76"><a href="#cb95-76" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb95-77"><a href="#cb95-77" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb95-48"><a href="#cb95-48" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span><span class="bu">int</span><span class="op">&gt;</span> png_params <span class="op">=</span> {cv::IMWRITE_PNG_COMPRESSION, <span class="dv">9</span>}<span class="op">;</span></span>
+<span id="cb95-49"><a href="#cb95-49" aria-hidden="true" tabindex="-1"></a>    cv::imwrite(p_png, cv::Mat(src), png_params)<span class="op">;</span></span>
+<span id="cb95-50"><a href="#cb95-50" aria-hidden="true" tabindex="-1"></a>    double png_kb <span class="op">=</span> (double)std::filesystem::file_size(p_png) <span class="op">/</span> <span class="fl">1024.0</span><span class="op">;</span></span>
+<span id="cb95-51"><a href="#cb95-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-52"><a href="#cb95-52" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> xs <span class="op">=</span> {jpeg_kb, webp_kb}<span class="op">;</span></span>
+<span id="cb95-53"><a href="#cb95-53" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::vector<span class="op">&lt;</span>double<span class="op">&gt;&gt;</span> ys <span class="op">=</span> {jpeg_psnr, webp_psnr}<span class="op">;</span></span>
+<span id="cb95-54"><a href="#cb95-54" aria-hidden="true" tabindex="-1"></a>    std::vector<span class="op">&lt;</span>std::string<span class="op">&gt;</span> labels <span class="op">=</span> {<span class="st">"JPEG"</span>, <span class="st">"WebP"</span>}<span class="op">;</span></span>
+<span id="cb95-55"><a href="#cb95-55" aria-hidden="true" tabindex="-1"></a>    char title_buf[<span class="dv">256</span>]<span class="op">;</span></span>
+<span id="cb95-56"><a href="#cb95-56" aria-hidden="true" tabindex="-1"></a>    std::snprintf(title_buf, sizeof(title_buf),</span>
+<span id="cb95-57"><a href="#cb95-57" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Curva Taxa-Distorcao (PNG sem perda: </span><span class="sc">%.1f</span><span class="st"> KB)"</span>, png_kb)<span class="op">;</span></span>
+<span id="cb95-58"><a href="#cb95-58" aria-hidden="true" tabindex="-1"></a>    std::string title <span class="op">=</span> title_buf<span class="op">;</span></span>
+<span id="cb95-59"><a href="#cb95-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-60"><a href="#cb95-60" aria-hidden="true" tabindex="-1"></a>    mm::Image chart <span class="op">=</span> mm::lineChart(</span>
+<span id="cb95-61"><a href="#cb95-61" aria-hidden="true" tabindex="-1"></a>        xs, ys,</span>
+<span id="cb95-62"><a href="#cb95-62" aria-hidden="true" tabindex="-1"></a>        labels,</span>
+<span id="cb95-63"><a href="#cb95-63" aria-hidden="true" tabindex="-1"></a>        {},</span>
+<span id="cb95-64"><a href="#cb95-64" aria-hidden="true" tabindex="-1"></a>        title,</span>
+<span id="cb95-65"><a href="#cb95-65" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Tamanho do arquivo (KB)"</span>, <span class="st">"PSNR (dB)"</span></span>
+<span id="cb95-66"><a href="#cb95-66" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb95-67"><a href="#cb95-67" aria-hidden="true" tabindex="-1"></a>    mm::show(std::vector<span class="op">&lt;</span>mm::Image<span class="op">&gt;</span>{chart}, MM_OUT, {<span class="st">"JPEG x WebP x PNG"</span>}, <span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb95-68"><a href="#cb95-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb95-69"><a href="#cb95-69" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb95-70"><a href="#cb95-70" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io] auto<span class="op">-</span>generated — do <span class="kw">not</span> edit by hand</span>
+<span id="cb95-71"><a href="#cb95-71" aria-hidden="true" tabindex="-1"></a>std::filesystem::create_directories(<span class="st">"tmp"</span>)<span class="op">;</span></span>
+<span id="cb95-72"><a href="#cb95-72" aria-hidden="true" tabindex="-1"></a>mm::write(chart, <span class="st">"tmp/fig_05_formatos_comparacao_0.png"</span>)<span class="op">;</span></span>
+<span id="cb95-73"><a href="#cb95-73" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> [pdi:panel<span class="op">-</span>io:end]</span>
+<span id="cb95-74"><a href="#cb95-74" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb95-75"><a href="#cb95-75" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copia negli appunti" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Writing tmp/fig_05_formatos_comparacao.cpp</code></pre>
+<pre><code>Overwriting tmp/fig_05_formatos_comparacao.cpp</code></pre>
 </div>
 </div>
 <div id="fc00323d0cb0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;pdi&quot;,&quot;value&quot;:{&quot;role&quot;:&quot;code&quot;,&quot;synthetic&quot;:true}}" data-execution_count="66">
