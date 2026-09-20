@@ -403,9 +403,14 @@ python -m pipeline.update_prefacio_tempos
 Isso lê a última linha de `PUBLISH_HISTORY.csv` + conta as páginas dos PDFs
 publicados em `docs/<combo>/livro.<locale>.<lang>.pdf`, e reescreve só as
 colunas de Páginas/Tempo nas 5 tabelas (preserva o resto da prosa/traduções).
-É preciso rodar `make publish-parallel` **de novo** depois, pra esses números
-novos entrarem de fato no HTML/PDF publicado — a tabela em si é conteúdo
-estático do livro, só o script fica em sincronia manual com o histórico real.
+
+**Por design, a tabela fica sempre defasada de uma rodada**: como ela é
+conteúdo do livro, só passa a aparecer no HTML/PDF publicado na *próxima*
+`make publish-parallel` — não há como uma publicação embutir no seu próprio
+HTML/PDF o tempo que ela mesma levou. Rodar uma segunda `make publish-parallel`
+logo em seguida só pra isso foi avaliado e descartado (caro demais pro
+ganho); o fluxo é sempre **publish → `update_prefacio_tempos` → commit**,
+uma rodada só.
 
 ### Limpeza
 

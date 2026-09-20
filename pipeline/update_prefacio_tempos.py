@@ -11,11 +11,18 @@ superíndice "¹" nas linhas de `py.es`/`py.it` — essa ressalva só valia
 enquanto o cache de tradução desses locales estava vazio, o que não é
 mais o caso.
 
-Só faz sentido rodar isto IMEDIATAMENTE depois de um
-`make publish-parallel` com todos os 10 combos (senão a última linha
-do CSV não cobre todos eles) — e é preciso rodar `make publish-parallel`
-de novo depois, pra essas mudanças de conteúdo entrarem no HTML/PDF
-publicado.
+Rodar isto IMEDIATAMENTE depois de um `make publish-parallel` com todos
+os 10 combos (senão a última linha do CSV não cobre todos eles).
+
+**Decisão do usuário (2026-09-20): 1 rodada só, tabela sempre defasada.**
+Como a tabela é conteúdo do livro, ela só aparece no HTML/PDF publicado
+na PRÓXIMA vez que o livro for renderizado — não há como uma publicação
+"assar" no próprio HTML/PDF dela o tempo que ela mesma levou. Rodar
+`make publish-parallel` de novo só pra isso (2 rodadas completas) foi
+tentado uma vez e descartado por ser caro demais pro ganho. Fluxo
+adotado: publish → roda este script → commita. A tabela fica sempre
+com os números da publicação ANTERIOR (defasagem de uma rodada, avisada
+implicitamente pela ordem de grandeza — não é um problema prático).
 
 Uso:
     python -m pipeline.update_prefacio_tempos
